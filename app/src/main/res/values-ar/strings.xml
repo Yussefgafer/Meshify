@@ -1,0 +1,56 @@
+<resources>
+    <string name="app_name">مشيفاي</string>
+    
+    <!-- نصوص الخدمة -->
+    <string name="service_channel_name">خدمة الشبكة</string>
+    <string name="service_mesh_active">مشيفاي P2P نشط</string>
+    <string name="service_searching_peers">الشبكة نشطة وجارٍ البحث عن أجهزة...</string>
+    
+    <!-- الشاشة الرئيسية -->
+    <string name="screen_home_title">مشيفاي</string>
+    <string name="no_recent_chats">لا توجد محادثات بعد</string>
+    <string name="no_recent_chats_desc">المس النبض لاكتشاف الأجهزة القريبة</string>
+    <string name="last_msg_image">[صورة]</string>
+    <string name="last_msg_none">لا توجد رسائل بعد</string>
+    <string name="typing_indicator">يكتب الآن...</string>
+    <string name="status_online">متصل</string>
+    <string name="status_offline">غير متصل</string>
+    
+    <!-- شاشة الاكتشاف -->
+    <string name="screen_discovery_title">اكتشاف الأجهزة</string>
+    <string name="peer_discovered_format">تم اكتشاف %s</string>
+    <string name="searching_placeholder">جارٍ البحث عن أجهزة قريبة...</string>
+    <string name="no_peers_found">لم يتم العثور على أجهزة بعد. تأكد من تفعيل الواي فاي.</string>
+    
+    <!-- شاشة المحادثة -->
+    <string name="screen_chat_title">المحادثة</string>
+    <string name="input_placeholder">اكتب رسالة...</string>
+    <string name="btn_send">إرسال</string>
+    <string name="attach_image">صورة</string>
+    <string name="attach_file">ملف</string>
+    <string name="attach_video">فيديو</string>
+    <string name="msg_failed">فشل الإرسال</string>
+    <string name="msg_selected_count">تم تحديد %d</string>
+    <string name="delete_confirmation_title">حذف الرسائل</string>
+    <string name="delete_confirmation_text">هل أنت متأكد من حذف %d رسالة مختارة؟</string>
+    <string name="btn_delete">حذف</string>
+    <string name="btn_cancel">إلغاء</string>
+    
+    <!-- شاشة الإعدادات -->
+    <string name="screen_settings_title">الإعدادات</string>
+    <string name="setting_display_name">الاسم المستعار</string>
+    <string name="setting_language">اللغة</string>
+    <string name="setting_dark_mode">الوضع الداكن</string>
+    <string name="setting_device_id">معرف الجهاز</string>
+    <string name="setting_app_version">إصدار التطبيق</string>
+    <string name="btn_save_changes">حفظ التغييرات</string>
+    <string name="settings_section_identity">الهوية والملف الشخصي</string>
+    <string name="settings_section_appearance">المظهر</string>
+    <string name="settings_section_privacy">الخصوصية والشبكة</string>
+    <string name="settings_section_info">معلومات الجهاز</string>
+    <string name="settings_theme_mode">وضع الثيم</string>
+    <string name="settings_dynamic_colors">الألوان الديناميكية</string>
+    <string name="settings_dynamic_colors_desc">استخدام ألوان مستوحاة من خلفية الشاشة</string>
+    <string name="settings_visibility">الظهور للآخرين</string>
+    <string name="settings_visibility_desc">عند الإغلاق، لن تظهر في عمليات البحث</string>
+</resources>

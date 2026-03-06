@@ -1,0 +1,35 @@
+# IntelliJ / Android Studio
+.idea/
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+
+# Build
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Android App Artifacts
+*.apk
+*.aab
+
+# Keystore Files (CRITICAL: NEVER COMMIT THESE)
+*.jks
+*.keystore
+
+# Log files
+*.log
+log_device1.txt
+
+# OS Files
+.DS_Store
+Thumbs.db
