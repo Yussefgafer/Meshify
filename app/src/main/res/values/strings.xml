@@ -1,0 +1,56 @@
+<resources>
+    <string name="app_name">Meshify</string>
+    
+    <!-- Service Strings -->
+    <string name="service_channel_name">Mesh Service</string>
+    <string name="service_mesh_active">Meshify P2P</string>
+    <string name="service_searching_peers">Mesh network is active and searching for peers...</string>
+    
+    <!-- Home / Recent Chats Screen -->
+    <string name="screen_home_title">Meshify</string>
+    <string name="no_recent_chats">No conversations yet</string>
+    <string name="no_recent_chats_desc">Tap the pulse to discover nearby devices</string>
+    <string name="last_msg_image">[Image]</string>
+    <string name="last_msg_none">No messages yet</string>
+    <string name="typing_indicator">typing...</string>
+    <string name="status_online">Online</string>
+    <string name="status_offline">Offline</string>
+    
+    <!-- Discovery Screen -->
+    <string name="screen_discovery_title">Discovery</string>
+    <string name="peer_discovered_format">%s Discovered</string>
+    <string name="searching_placeholder">Searching for nearby devices...</string>
+    <string name="no_peers_found">No peers found yet. Ensure Wi-Fi is enabled.</string>
+    
+    <!-- Chat Screen -->
+    <string name="screen_chat_title">Chat</string>
+    <string name="input_placeholder">Type a message...</string>
+    <string name="btn_send">Send</string>
+    <string name="attach_image">Image</string>
+    <string name="attach_file">File</string>
+    <string name="attach_video">Video</string>
+    <string name="msg_failed">Send Failed</string>
+    <string name="msg_selected_count">%d selected</string>
+    <string name="delete_confirmation_title">Delete Messages</string>
+    <string name="delete_confirmation_text">Are you sure you want to delete %d selected messages?</string>
+    <string name="btn_delete">Delete</string>
+    <string name="btn_cancel">Cancel</string>
+    
+    <!-- Settings Screen -->
+    <string name="screen_settings_title">Settings</string>
+    <string name="setting_display_name">Display Name</string>
+    <string name="setting_language">Language</string>
+    <string name="setting_dark_mode">Dark Mode</string>
+    <string name="setting_device_id">Device ID</string>
+    <string name="setting_app_version">App Version</string>
+    <string name="btn_save_changes">Save Changes</string>
+    <string name="settings_section_identity">Profile Identity</string>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_section_privacy">Privacy &amp; Network</string>
+    <string name="settings_section_info">Device Info</string>
+    <string name="settings_theme_mode">Theme Mode</string>
+    <string name="settings_dynamic_colors">Dynamic Colors</string>
+    <string name="settings_dynamic_colors_desc">Use wallpaper-based colors (Android 12+)</string>
+    <string name="settings_visibility">Visible to Others</string>
+    <string name="settings_visibility_desc">When off, you won\'t appear in discovery scans</string>
+</resources>
