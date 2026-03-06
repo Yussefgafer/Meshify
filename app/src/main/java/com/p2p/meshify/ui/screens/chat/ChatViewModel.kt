@@ -10,6 +10,7 @@ import com.p2p.meshify.domain.repository.IChatRepository
 import com.p2p.meshify.domain.usecase.DeleteMessagesUseCase
 import com.p2p.meshify.domain.usecase.GetMessagesUseCase
 import com.p2p.meshify.domain.usecase.SendMessageUseCase
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -20,6 +21,7 @@ private const val PAGE_SIZE = 50
 /**
  * Robust ViewModel with Pagination and Reactive Peer Name.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class ChatViewModel(
     private val context: Context,
     private val peerId: String,

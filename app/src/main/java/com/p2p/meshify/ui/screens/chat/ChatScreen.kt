@@ -362,7 +362,7 @@ fun ChatInputArea(
 fun AttachmentOptions(onImageClick: () -> Unit) {
     Row(modifier = Modifier.fillMaxWidth().padding(24.dp).padding(bottom = 32.dp), horizontalArrangement = Arrangement.SpaceAround) {
         AttachmentItem(icon = Icons.Default.Image, label = stringResource(R.string.attach_image), onClick = onImageClick)
-        AttachmentItem(icon = Icons.Default.InsertDriveFile, label = stringResource(R.string.attach_file), onClick = { }, enabled = false)
+        AttachmentItem(icon = Icons.AutoMirrored.Filled.InsertDriveFile, label = stringResource(R.string.attach_file), onClick = { }, enabled = false)
     }
 }
 
