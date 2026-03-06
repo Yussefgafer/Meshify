@@ -31,6 +31,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.ExperimentalGraphicsApi
 import androidx.graphics.shapes.CornerRounding
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
@@ -201,8 +202,8 @@ fun ExpressiveMorphingFAB(onClick: () -> Unit) {
 @OptIn(ExperimentalGraphicsApi::class)
 fun Morph.populatePath(progress: Float, path: AndroidPath) {
     try {
-        // ✅ Correct API: Path.toPath(morph, progress, path)
-        android.graphics.Path.toPath(this, progress, path)
+        // ✅ Correct API: morph.toPath(progress, path)
+        this.toPath(progress, path)
     } catch (e: Exception) {
         Logger.e("Morphing failed: ${e.message}")
         // Fallback: draw a circle
