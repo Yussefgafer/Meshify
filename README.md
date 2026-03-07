@@ -20,6 +20,7 @@ This entire codebase, architecture, and UI logic were architected and implemente
 [![Compose](https://img.shields.io/badge/Jetpack_Compose-Material_3_Expressive-4285F4?logo=android)](https://developer.android.com/jetpack/compose)
 
 
+- **The most of thes readme is wrote by llm**
 ---
 
 ## 🌐 Meshify
