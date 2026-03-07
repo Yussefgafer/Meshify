@@ -150,7 +150,7 @@ class MorphPolygonShape(
  * - 650ms per shape
  * - 140° total rotation per shape (50° constant + 90° extra)
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExpressiveMorphingFAB(
     onClick: () -> Unit,
@@ -162,33 +162,33 @@ fun ExpressiveMorphingFAB(
     val haptic = LocalHapticFeedback.current
 
     // 1. The 7 Official MD3E Shapes (Loading Indicator Sequence)
-    // Using qualified names to avoid ambiguity and ensuring correct Material3 version
+    // Using explicit MaterialShapes from material3 1.5.0-alpha10
     val officialShapes = remember {
         arrayOf<RoundedPolygon>(
-            MaterialShapes.SoftBurst,
-            MaterialShapes.Cookie9,
-            MaterialShapes.Pentagon,
-            MaterialShapes.Pill,
-            MaterialShapes.Sunny,
-            MaterialShapes.Cookie4,
-            MaterialShapes.Oval
+            androidx.compose.material3.MaterialShapes.SoftBurst,
+            androidx.compose.material3.MaterialShapes.Cookie9,
+            androidx.compose.material3.MaterialShapes.Pentagon,
+            androidx.compose.material3.MaterialShapes.Pill,
+            androidx.compose.material3.MaterialShapes.Sunny,
+            androidx.compose.material3.MaterialShapes.Cookie4,
+            androidx.compose.material3.MaterialShapes.Oval
         )
     }
 
     // 2. Normalize (radial=true) - CRITICAL for rotation pivot consistency
     val normalizedShapes = remember {
         officialShapes.map { shape -> 
-            MaterialShapes.normalize(shape, radial = true) 
+            androidx.compose.material3.MaterialShapes.normalize(shape, radial = true) 
         }
     }
 
     // 3. Pre-calculate Morphs to avoid allocation in composition
-    // Qualified officialShapes.size to avoid conflict with Composable parameter 'size'
+    val shapesCount = officialShapes.size
     val morphs = remember {
-        Array(officialShapes.size) { i ->
+        Array(shapesCount) { i ->
             Morph(
                 normalizedShapes[i],
-                normalizedShapes[(i + 1) % officialShapes.size]
+                normalizedShapes[(i + 1) % shapesCount]
             )
         }
     }
@@ -197,10 +197,10 @@ fun ExpressiveMorphingFAB(
     val infiniteTransition = rememberInfiniteTransition(label = "FABLoading")
     val morphFactor by infiniteTransition.animateFloat(
         initialValue = 0f,
-        targetValue = officialShapes.size.toFloat(),
+        targetValue = shapesCount.toFloat(),
         animationSpec = infiniteRepeatable(
             animation = tween(
-                durationMillis = 650 * officialShapes.size, // 4550ms total cycle
+                durationMillis = 650 * shapesCount, // 4550ms total cycle
                 easing = LinearEasing
             ),
             repeatMode = RepeatMode.Restart
@@ -209,7 +209,7 @@ fun ExpressiveMorphingFAB(
     )
 
     // 5. Calculate current frame state
-    val shapeIndex = (morphFactor.toInt() % officialShapes.size)
+    val shapeIndex = (morphFactor.toInt() % shapesCount)
     val progress = morphFactor - morphFactor.toInt()
     
     // Official Rotation Formula: (140° * morphFactor)
@@ -284,7 +284,7 @@ fun ExpressiveMorphingFAB(
  * ✅ OPTIMIZED: Pre-normalizes shapes to ensure perfect center rotation.
  * ✅ ENHANCED: Adds subtle rotation (15°) during morphing for organic feel.
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExpressivePulseHeader(
     modifier: Modifier = Modifier,
@@ -296,11 +296,12 @@ fun ExpressivePulseHeader(
     
     // 1. Normalize shapes (radial=true) to fix wobble
     val normalizedShapes = remember(shapes) {
-        shapes.map { MaterialShapes.normalize(it, radial = true) }
+        shapes.map { androidx.compose.material3.MaterialShapes.normalize(it, radial = true) }
     }
     
+    val shapesCount = normalizedShapes.size
     var currentShapeIndex by remember { mutableIntStateOf(0) }
-    val nextShapeIndex by derivedStateOf { (currentShapeIndex + 1) % normalizedShapes.size }
+    val nextShapeIndex by derivedStateOf { (currentShapeIndex + 1) % shapesCount }
 
     val morph by remember(currentShapeIndex, normalizedShapes) {
         derivedStateOf { Morph(normalizedShapes[currentShapeIndex], normalizedShapes[nextShapeIndex]) }
