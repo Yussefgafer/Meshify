@@ -201,7 +201,7 @@ fun ExpressiveMorphingFAB(
                 durationMillis = 650 * officialShapes.size, // 4550ms total cycle
                 easing = LinearEasing
             ),
-            repeatMode = RepeatMode.Restart
+            repeatMode = Restart
         ),
         label = "MorphFactor"
     )
@@ -277,6 +277,12 @@ fun ExpressiveMorphingFAB(
 // MD3E Expressive Pulse Header for profile/settings screens
 // ============================================================================
 
+/**
+ * MD3E Expressive Pulse Header with Shape Morphing and Subtle Rotation.
+ * ✅ OPTIMIZED: Pre-normalizes shapes to ensure perfect center rotation.
+ * ✅ ENHANCED: Adds subtle rotation (15°) during morphing for organic feel.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ExpressivePulseHeader(
     modifier: Modifier = Modifier,
@@ -285,11 +291,17 @@ fun ExpressivePulseHeader(
     content: @Composable () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
+    
+    // 1. Normalize shapes (radial=true) to fix wobble
+    val normalizedShapes = remember(shapes) {
+        shapes.map { MaterialShapes.normalize(it, radial = true) }
+    }
+    
     var currentShapeIndex by remember { mutableIntStateOf(0) }
-    val nextShapeIndex by derivedStateOf { (currentShapeIndex + 1) % shapes.size }
+    val nextShapeIndex by derivedStateOf { (currentShapeIndex + 1) % normalizedShapes.size }
 
-    val morph by remember(currentShapeIndex) {
-        derivedStateOf { Morph(shapes[currentShapeIndex], shapes[nextShapeIndex]) }
+    val morph by remember(currentShapeIndex, normalizedShapes) {
+        derivedStateOf { Morph(normalizedShapes[currentShapeIndex], normalizedShapes[nextShapeIndex]) }
     }
 
     val infiniteTransition = rememberInfiniteTransition(label = "PulseMorph")
@@ -298,9 +310,20 @@ fun ExpressivePulseHeader(
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
             animation = tween(MotionDurations.Long, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Restart
+            repeatMode = Restart
         ),
         label = "PulseProgress"
+    )
+
+    // Subtle rotation (15 degrees) to add "life" to the header
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(MotionDurations.Long * 2, easing = LinearEasing),
+            repeatMode = Reverse
+        ),
+        label = "PulseRotation"
     )
 
     LaunchedEffect(progress) {
@@ -310,7 +333,9 @@ fun ExpressivePulseHeader(
     }
 
     val containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-    val morphShape = remember(morph, progress) { MorphPolygonShape(morph, progress) }
+    val morphShape = remember(morph, progress, rotation) { 
+        MorphPolygonShape(morph, progress, rotation) 
+    }
 
     Box(
         modifier = modifier
@@ -320,7 +345,10 @@ fun ExpressivePulseHeader(
             .background(containerColor),
         contentAlignment = Alignment.Center
     ) {
-        content()
+        // Counter-rotate content to keep it upright
+        Box(modifier = Modifier.graphicsLayer { rotationZ = -rotation }) {
+            content()
+        }
     }
 }
 
@@ -491,7 +519,7 @@ fun MorphingAvatar(
             targetValue = 1f,
             animationSpec = infiniteRepeatable(
                 animation = tween(MotionDurations.Long, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Restart
+                repeatMode = Restart
             ),
             label = "MorphProgress"
         )
@@ -612,7 +640,7 @@ fun SignalMorphAvatar(
             targetValue = 1f,
             animationSpec = infiniteRepeatable(
                 animation = tween(morphDuration, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Restart
+                repeatMode = Restart
             ),
             label = "SignalMorphProgress"
         )
