@@ -1,7 +1,5 @@
 # 🌐 Meshify
 
-[![Meshify Build & Release](https://github.com/youusef/Meshify/actions/workflows/meshify-build.yml/badge.svg)](https://github.com/youusef/Meshify/actions/workflows/meshify-build.yml)
-[![Kotlin](https://img.shields.io/badge/Kotlin-1.9.x-7F52FF?logo=kotlin)](https://kotlinlang.org/)
 [![Compose](https://img.shields.io/badge/Jetpack_Compose-Material_3_Expressive-4285F4?logo=android)](https://developer.android.com/jetpack/compose)
 
 **Meshify** is a modular, high-performance P2P mesh networking application built for decentralized communication. No central servers, no internet dependency—just pure device-to-device connectivity.
