@@ -1,6 +1,28 @@
-# 🌐 Meshify
+<h1 align="center"><font color="#FF0000">IMPORTANT</font></h1>
+
+<p align="center">
+🤖 AI-NATIVE PROJECT
+This entire codebase, architecture, and UI logic were architected and implemented by LLM (Gemini 3 Flash & Jules[Gemini 3 Flash]) under the strategic direction of Me(Yussef Gafer). No human code was harmed in the making of this mesh.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/AI--GENERATED-100%25-red?style=for-the-badge&logo=openai&logoColor=white" alt="AI Generated">
+</p>
+
+<br><br>
+
+## Thes Project is Master Shit Literally
+- Ther is no **feature** In that app 
+- The app is **unusable**
+
+<br><br>
 
 [![Compose](https://img.shields.io/badge/Jetpack_Compose-Material_3_Expressive-4285F4?logo=android)](https://developer.android.com/jetpack/compose)
+
+
+---
+
+## 🌐 Meshify
 
 **Meshify** is a modular, high-performance P2P mesh networking application built for decentralized communication. No central servers, no internet dependency—just pure device-to-device connectivity.
 
