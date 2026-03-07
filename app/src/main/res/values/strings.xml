@@ -53,4 +53,16 @@
     <string name="settings_dynamic_colors_desc">Use wallpaper-based colors (Android 12+)</string>
     <string name="settings_visibility">Visible to Others</string>
     <string name="settings_visibility_desc">When off, you won\'t appear in discovery scans</string>
+
+    <!-- Signal Strength Badges (Arabic) -->
+    <string name="signal_strong">إشارة ممتازة ●●●</string>
+    <string name="signal_medium">إشارة جيدة ●●○</string>
+    <string name="signal_weak">إشارة ضعيفة ●○○</string>
+    <string name="signal_offline">غير متصل</string>
+
+    <!-- Attachment Bottom Sheet -->
+    <string name="attach_file_title">Attach File</string>
+    <string name="attach_from_gallery">From gallery</string>
+    <string name="attach_camera">Camera</string>
+    <string name="coming_soon">Coming soon</string>
 </resources>

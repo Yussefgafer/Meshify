@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -41,6 +42,8 @@ import com.p2p.meshify.data.local.entity.MessageStatus
 import com.p2p.meshify.data.local.entity.MessageType
 import com.p2p.meshify.ui.components.FullImageViewer
 import com.p2p.meshify.ui.theme.ChatBubbleShapes
+import com.p2p.meshify.ui.theme.LocalMeshifyThemeConfig
+import com.p2p.meshify.ui.theme.getBubbleShape
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -160,17 +163,18 @@ fun ChatScreen(
                     isSelected = selectedIds.contains(message.id),
                     isGroupedWithPrevious = isGroupedWithPrevious,
                     isGroupedWithNext = isGroupedWithNext,
-                    onLongClick = { 
+                    onLongClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        viewModel.toggleMessageSelection(message.id) 
+                        viewModel.toggleMessageSelection(message.id)
                     },
                     onClick = {
                         if (selectedIds.isNotEmpty()) viewModel.toggleMessageSelection(message.id)
                     },
-                    onImageClick = { path -> 
-                        if (selectedIds.isEmpty()) selectedFullImage = path 
+                    onImageClick = { path ->
+                        if (selectedIds.isEmpty()) selectedFullImage = path
                         else viewModel.toggleMessageSelection(message.id)
-                    }
+                    },
+                    selectedIds = selectedIds
                 )
                 
                 Spacer(modifier = Modifier.height(if (!isGroupedWithNext) 8.dp else 2.dp))
@@ -224,31 +228,42 @@ fun MessageBubble(
     isGroupedWithNext: Boolean,
     onLongClick: () -> Unit,
     onClick: () -> Unit,
-    onImageClick: (String) -> Unit
+    onImageClick: (String) -> Unit,
+    selectedIds: Set<Long> = emptySet()
 ) {
     val context = LocalContext.current
+    val themeConfig = LocalMeshifyThemeConfig.current
+    
+    // ✅ MD3E Redesigned color scheme per spec
     val containerColor = if (isSelected) {
         MaterialTheme.colorScheme.secondaryContainer
     } else if (message.isFromMe) {
+        // My messages: primaryContainer (Teal brand color)
         MaterialTheme.colorScheme.primaryContainer
     } else {
+        // Peer messages: surfaceContainerHigh
         MaterialTheme.colorScheme.surfaceContainerHigh
     }
 
-    val shape = if (message.isFromMe) {
-        when {
-            isGroupedWithPrevious && isGroupedWithNext -> ChatBubbleShapes.MeGroupedMiddle
-            isGroupedWithPrevious -> ChatBubbleShapes.MeGroupedTop
-            isGroupedWithNext -> ChatBubbleShapes.MeGroupedBottom
-            else -> ChatBubbleShapes.Ungrouped
-        }
+    val contentColor = if (message.isFromMe) {
+        MaterialTheme.colorScheme.onPrimaryContainer
     } else {
-        when {
-            isGroupedWithPrevious && isGroupedWithNext -> ChatBubbleShapes.PeerGroupedMiddle
-            isGroupedWithPrevious -> ChatBubbleShapes.PeerGroupedTop
-            else -> ChatBubbleShapes.Ungrouped
-        }
+        MaterialTheme.colorScheme.onSurfaceVariant
     }
+
+    val timeColor = if (message.isFromMe) {
+        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.65f)
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+    }
+
+    // Use dynamic bubble shape from settings
+    val shape = getBubbleShape(
+        bubbleStyle = themeConfig.bubbleStyle,
+        isFromMe = message.isFromMe,
+        isGroupedWithPrevious = isGroupedWithPrevious,
+        isGroupedWithNext = isGroupedWithNext
+    )
 
     val alignment = if (message.isFromMe) Alignment.End else Alignment.Start
 
@@ -267,8 +282,14 @@ fun MessageBubble(
             tonalElevation = if (isSelected) 8.dp else 1.dp,
             modifier = Modifier.widthIn(max = 280.dp)
         ) {
-            Column(modifier = Modifier.padding(if (message.type == MessageType.TEXT) 12.dp else 4.dp)) {
+            Column(
+                modifier = Modifier.padding(
+                    horizontal = if (message.type == MessageType.TEXT) 14.dp else 4.dp,
+                    vertical = if (message.type == MessageType.TEXT) 10.dp else 4.dp
+                )
+            ) {
                 if (message.type == MessageType.IMAGE || message.mediaPath != null) {
+                    // ✅ Image message with improved styling
                     AsyncImage(
                         model = ImageRequest.Builder(context)
                             .data(message.mediaPath)
@@ -281,25 +302,42 @@ fun MessageBubble(
                             .fillMaxWidth()
                             .heightIn(max = 400.dp)
                             .clip(RoundedCornerShape(16.dp))
-                            .clickable { onImageClick(message.mediaPath ?: "") },
+                            .clickable { 
+                                if (selectedIds.isEmpty()) {
+                                    onImageClick(message.mediaPath ?: "")
+                                }
+                            },
                         contentScale = ContentScale.Crop
                     )
                     if (!message.text.isNullOrEmpty()) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = message.text, style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            text = message.text,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = contentColor
+                        )
                     }
                 } else {
-                    Text(text = message.text ?: "", style = MaterialTheme.typography.bodyLarge)
+                    // ✅ Text message
+                    Text(
+                        text = message.text ?: "",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = contentColor,
+                        lineHeight = 22.sp
+                    )
                 }
-                
+
+                // ✅ Metadata row with improved styling
                 Row(
-                    modifier = Modifier.align(Alignment.End).padding(top = 4.dp),
+                    modifier = Modifier
+                        .align(Alignment.End)
+                        .padding(top = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.timestamp)),
                         style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.alpha(0.6f),
+                        color = timeColor,
                         fontSize = 10.sp
                     )
                     if (message.isFromMe) {
@@ -313,7 +351,11 @@ fun MessageBubble(
                             imageVector = statusIcon,
                             contentDescription = null,
                             modifier = Modifier.size(12.dp),
-                            tint = if (message.status == MessageStatus.FAILED) MaterialTheme.colorScheme.error else Color.Gray.copy(alpha = 0.6f)
+                            tint = if (message.status == MessageStatus.FAILED) {
+                                MaterialTheme.colorScheme.error
+                            } else {
+                                timeColor
+                            }
                         )
                     }
                 }
@@ -331,48 +373,249 @@ fun ChatInputArea(
     onAttachClick: () -> Unit,
     onRemoveImage: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).imePadding()) {
-        AnimatedVisibility(visible = pendingImage != null, enter = expandVertically(), exit = shrinkVertically()) {
-            Box(modifier = Modifier.padding(16.dp).size(100.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
-                AsyncImage(model = pendingImage, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                Surface(color = Color.Black.copy(alpha = 0.6f), shape = CircleShape, modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(24.dp).clickable { onRemoveImage() }) {
-                    Icon(Icons.Default.Close, null, tint = Color.White, modifier = Modifier.padding(4.dp))
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .imePadding()
+    ) {
+        // ✅ Pending image preview with animation
+        AnimatedVisibility(
+            visible = pendingImage != null,
+            enter = expandVertically(),
+            exit = shrinkVertically()
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .size(100.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                AsyncImage(
+                    model = pendingImage,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                Surface(
+                    color = Color.Black.copy(alpha = 0.6f),
+                    shape = CircleShape,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                        .size(24.dp)
+                        .clickable { onRemoveImage() }
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        null,
+                        tint = Color.White,
+                        modifier = Modifier.padding(4.dp)
+                    )
                 }
             }
         }
-        Surface(tonalElevation = 8.dp, modifier = Modifier.fillMaxWidth()) {
-            Row(modifier = Modifier.padding(8.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onAttachClick) { Icon(Icons.Default.Add, null, tint = MaterialTheme.colorScheme.primary) }
-                TextField(
-                    value = text, onValueChange = onTextChange,
-                    placeholder = { Text(stringResource(R.string.input_placeholder)) },
-                    modifier = Modifier.weight(1f).clip(RoundedCornerShape(28.dp)),
-                    colors = TextFieldDefaults.colors(focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                FloatingActionButton(onClick = onSend, elevation = FloatingActionButtonDefaults.elevation(0.dp), shape = RoundedCornerShape(16.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.Send, null)
+
+        // ✅ MD3E BottomAppBar-style input area
+        BottomAppBar(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            tonalElevation = 8.dp,
+            actions = {
+                // ✅ Attachment button
+                IconButton(
+                    onClick = onAttachClick,
+                    modifier = Modifier.padding(start = 4.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = stringResource(R.string.attach_image),
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+            },
+            floatingActionButton = {
+                // ✅ Small FAB for send button (56dp)
+                FloatingActionButton(
+                    onClick = onSend,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation(),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.padding(end = 8.dp)
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Send,
+                        contentDescription = stringResource(R.string.btn_send),
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
+        ) {
+            // ✅ OutlinedTextField for message input
+            OutlinedTextField(
+                value = text,
+                onValueChange = onTextChange,
+                placeholder = { Text(stringResource(R.string.input_placeholder)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                shape = RoundedCornerShape(28.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                ),
+                maxLines = 4
+            )
         }
     }
 }
 
+/**
+ * ✅ MD3E Redesigned Attachment Bottom Sheet.
+ * Uses NavigationDrawerItem-style options with proper layout.
+ */
 @Composable
 fun AttachmentOptions(onImageClick: () -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth().padding(24.dp).padding(bottom = 32.dp), horizontalArrangement = Arrangement.SpaceAround) {
-        AttachmentItem(icon = Icons.Default.Image, label = stringResource(R.string.attach_image), onClick = onImageClick)
-        AttachmentItem(icon = Icons.AutoMirrored.Filled.InsertDriveFile, label = stringResource(R.string.attach_file), onClick = { }, enabled = false)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 32.dp)
+    ) {
+        // Drag handle
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Surface(
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(2.dp),
+                modifier = Modifier
+                    .width(32.dp)
+                    .height(4.dp)
+            ) {}
+        }
+
+        // Title
+        Text(
+            text = stringResource(R.string.attach_file_title),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+        )
+
+        // ✅ Gallery option (enabled)
+        AttachmentDrawerItem(
+            icon = Icons.Default.Image,
+            label = stringResource(R.string.attach_image),
+            subtext = stringResource(R.string.attach_from_gallery),
+            iconBackgroundColor = MaterialTheme.colorScheme.secondaryContainer,
+            onClick = onImageClick,
+            enabled = true
+        )
+
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = 24.dp),
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
+
+        // ✅ Camera option (disabled - coming soon)
+        AttachmentDrawerItem(
+            icon = Icons.Default.PhotoCamera,
+            label = stringResource(R.string.attach_camera),
+            subtext = stringResource(R.string.coming_soon),
+            iconBackgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+            onClick = { },
+            enabled = false
+        )
+
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = 24.dp),
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
+
+        // ✅ File option (disabled - coming soon)
+        AttachmentDrawerItem(
+            icon = Icons.AutoMirrored.Filled.InsertDriveFile,
+            label = stringResource(R.string.attach_file),
+            subtext = stringResource(R.string.coming_soon),
+            iconBackgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+            onClick = { },
+            enabled = false
+        )
     }
 }
 
+/**
+ * MD3E Attachment Drawer Item.
+ * Styled like NavigationDrawerItem with icon, labels, and proper spacing.
+ */
 @Composable
-fun AttachmentItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit, enabled: Boolean = true) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable(enabled = enabled) { onClick() }) {
-        Surface(shape = RoundedCornerShape(20.dp), color = if (enabled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.size(64.dp)) {
-            Box(contentAlignment = Alignment.Center) { Icon(icon, label, tint = if (enabled) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)) }
+fun AttachmentDrawerItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    subtext: String,
+    iconBackgroundColor: Color,
+    onClick: () -> Unit,
+    enabled: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled) { onClick() }
+            .padding(horizontal = 24.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Icon container
+        Surface(
+            color = iconBackgroundColor,
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.size(48.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = if (enabled) {
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                    },
+                    modifier = Modifier.size(24.dp)
+                )
+            }
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(text = label, style = MaterialTheme.typography.labelMedium, color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f))
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        // Text content
+        Column {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                color = if (enabled) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                }
+            )
+            Spacer(modifier = Modifier.height(1.dp))
+            Text(
+                text = subtext,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (enabled) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                }
+            )
+        }
     }
 }

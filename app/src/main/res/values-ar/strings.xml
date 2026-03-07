@@ -53,4 +53,16 @@
     <string name="settings_dynamic_colors_desc">استخدام ألوان مستوحاة من خلفية الشاشة</string>
     <string name="settings_visibility">الظهور للآخرين</string>
     <string name="settings_visibility_desc">عند الإغلاق، لن تظهر في عمليات البحث</string>
+
+    <!-- إشارات قوة الإشارة -->
+    <string name="signal_strong">إشارة ممتازة ●●●</string>
+    <string name="signal_medium">إشارة جيدة ●●○</string>
+    <string name="signal_weak">إشارة ضعيفة ●○○</string>
+    <string name="signal_offline">غير متصل</string>
+
+    <!-- قائمة المرفقات -->
+    <string name="attach_file_title">إرفاق ملف</string>
+    <string name="attach_from_gallery">من معرض الجهاز</string>
+    <string name="attach_camera">الكاميرا</string>
+    <string name="coming_soon">قريباً</string>
 </resources>

@@ -35,8 +35,12 @@ class ChatRepositoryImpl(
 
     override fun getMessages(chatId: String): Flow<List<MessageEntity>> = messageDao.getAllMessagesForChat(chatId)
 
-    override fun getMessagesPaged(chatId: String, limit: Int, offset: Int): Flow<List<MessageEntity>> = 
-        messageDao.getMessagesPaged(chatId, limit, offset).map { it.reversed() }
+    /**
+     * Returns messages in DESC order (newest first) as returned by DAO.
+     * ViewModel is responsible for reversing to ASC (oldest first) for UI display.
+     */
+    override fun getMessagesPaged(chatId: String, limit: Int, offset: Int): Flow<List<MessageEntity>> =
+        messageDao.getMessagesPaged(chatId, limit, offset)
 
     override val onlinePeers: Flow<Set<String>> = if (meshTransport is LanTransportImpl) {
         meshTransport.onlinePeers

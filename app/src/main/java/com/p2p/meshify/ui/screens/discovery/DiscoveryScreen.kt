@@ -1,6 +1,6 @@
 package com.p2p.meshify.ui.screens.discovery
 
-import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,7 +9,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeviceHub
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,11 +19,98 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.p2p.meshify.R
+import com.p2p.meshify.ui.components.ExpressiveCard
+import com.p2p.meshify.ui.components.SignalMorphAvatar
 import com.p2p.meshify.ui.theme.LocalMeshifyMotion
+import com.p2p.meshify.ui.theme.MotionDurations
+
+/**
+ * Enhanced Discovery Header with Dynamic Pulse Effect.
+ * Shows searching state with animated pulse ring.
+ */
+@Composable
+fun DiscoveryHeader(isSearching: Boolean) {
+    val infiniteTransition = rememberInfiniteTransition(label = "PulseAnimation")
+    
+    // Pulse scale animation
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.5f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(MotionDurations.Medium, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "PulseScale"
+    )
+    
+    // Pulse alpha animation
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(MotionDurations.Medium, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "PulseAlpha"
+    )
+
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        shape = RoundedCornerShape(28.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (isSearching) {
+                // ✅ Animated pulse ring for searching state
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    // Outer pulse ring
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier
+                            .size(24.dp * pulseScale)
+                            .alpha(pulseAlpha)
+                    )
+                    // Inner icon
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            } else {
+                Icon(
+                    imageVector = Icons.Default.DeviceHub,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(12.dp))
+            
+            Text(
+                text = if (isSearching)
+                    stringResource(R.string.searching_placeholder)
+                else stringResource(R.string.screen_discovery_title),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        }
+    }
+}
 
 /**
  * Main Discovery Screen Composable.
  * Polished with proper empty states and search indicators.
+ * ✅ REMOVED: Settings button from top bar (no longer needed)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,23 +124,16 @@ fun DiscoveryScreen(
 
     Scaffold(
         topBar = {
+            // ✅ CenterAlignedTopAppBar without Settings button
             CenterAlignedTopAppBar(
-                title = { 
+                title = {
                     Text(
                         text = stringResource(R.string.screen_discovery_title),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold
                     )
-                },
-                actions = {
-                    IconButton(onClick = onSettingsClick) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
                 }
+                // ✅ No actions block - Settings button removed
             )
         }
     ) { padding ->
@@ -74,37 +153,9 @@ fun DiscoveryScreen(
                 PeerList(
                     peers = uiState.discoveredPeers,
                     onPeerClick = onPeerClick,
-                    motionSpec = motion.defaultSpatial
+                    motionSpec = motion.springSpec
                 )
             }
-        }
-    }
-}
-
-@Composable
-fun DiscoveryHeader(isSearching: Boolean) {
-    Surface(
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        shape = RoundedCornerShape(28.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = if (isSearching) Icons.Default.Search else Icons.Default.DeviceHub,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = if (isSearching) 
-                    stringResource(R.string.searching_placeholder) 
-                else stringResource(R.string.screen_discovery_title),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
-            )
         }
     }
 }
@@ -135,12 +186,9 @@ fun PeerList(
 
 @Composable
 fun PeerListItem(peer: PeerDevice, onClick: () -> Unit) {
-    Card(
+    ExpressiveCard(
         onClick = onClick,
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        ),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -149,23 +197,16 @@ fun PeerListItem(peer: PeerDevice, onClick: () -> Unit) {
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = peer.name.take(1).uppercase(),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            }
+            // ✅ Use SignalMorphAvatar to show signal strength visually
+            SignalMorphAvatar(
+                initials = peer.name.take(1),
+                signalStrength = peer.signalStrength,
+                size = 48.dp
+            )
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = peer.name,
                     style = MaterialTheme.typography.titleMedium,
@@ -177,8 +218,75 @@ fun PeerListItem(peer: PeerDevice, onClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+
+            // ✅ Signal strength badge
+            SignalStrengthBadge(peer.signalStrength)
         }
     }
+}
+
+@Composable
+fun SignalStrengthBadge(signalStrength: com.p2p.meshify.domain.model.SignalStrength) {
+    val (badgeText, badgeStyle) = when (signalStrength) {
+        com.p2p.meshify.domain.model.SignalStrength.STRONG -> 
+            stringResource(R.string.signal_strong) to StrongBadgeStyle()
+        com.p2p.meshify.domain.model.SignalStrength.MEDIUM -> 
+            stringResource(R.string.signal_medium) to MediumBadgeStyle()
+        com.p2p.meshify.domain.model.SignalStrength.WEAK -> 
+            stringResource(R.string.signal_weak) to WeakBadgeStyle()
+        com.p2p.meshify.domain.model.SignalStrength.OFFLINE -> 
+            stringResource(R.string.signal_offline) to OfflineBadgeStyle()
+    }
+
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = badgeStyle.backgroundColor
+    ) {
+        Text(
+            text = badgeText,
+            style = MaterialTheme.typography.labelSmall,
+            color = badgeStyle.textColor,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        )
+    }
+}
+
+data class BadgeStyle(
+    val backgroundColor: Color,
+    val textColor: Color
+)
+
+@Composable
+fun StrongBadgeStyle(): BadgeStyle {
+    return BadgeStyle(
+        backgroundColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
+        textColor = MaterialTheme.colorScheme.primary
+    )
+}
+
+@Composable
+fun MediumBadgeStyle(): BadgeStyle {
+    return BadgeStyle(
+        backgroundColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f),
+        textColor = MaterialTheme.colorScheme.secondary
+    )
+}
+
+@Composable
+fun WeakBadgeStyle(): BadgeStyle {
+    return BadgeStyle(
+        backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+        textColor = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+}
+
+@Composable
+fun OfflineBadgeStyle(): BadgeStyle {
+    return BadgeStyle(
+        backgroundColor = Color.Transparent,
+        textColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+    )
 }
 
 @Composable

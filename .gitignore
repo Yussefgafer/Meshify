@@ -33,3 +33,4 @@ log_device1.txt
 # OS Files
 .DS_Store
 Thumbs.db
+MESHIFY_KEYSTORE_BASE64.txt
