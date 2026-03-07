@@ -17,15 +17,24 @@ class MeshifyApp : Application(), ImageLoaderFactory {
 
     override fun onCreate() {
         super.onCreate()
-        Logger.i("MeshifyApp -> Starting Application")
-        container = AppContainer(this)
+        Logger.i("MeshifyApp -> Application onCreate START")
+        Logger.d("MeshifyApp -> Process Name: ${packageName}")
+        try {
+            container = AppContainer(this)
+            Logger.i("MeshifyApp -> AppContainer initialized SUCCESS")
+        } catch (e: Exception) {
+            Logger.e("MeshifyApp -> AppContainer initialization FAILED: ${e.message}")
+            throw e
+        }
+        Logger.i("MeshifyApp -> Application onCreate COMPLETE")
     }
 
     /**
      * Configures Coil with a robust caching strategy to prevent UI stutter.
      */
     override fun newImageLoader(): ImageLoader {
-        return ImageLoader.Builder(this)
+        Logger.d("MeshifyApp -> Creating Coil ImageLoader")
+        val loader = ImageLoader.Builder(this)
             .memoryCache {
                 MemoryCache.Builder(this)
                     .maxSizePercent(0.25) // 25% of available RAM
@@ -39,5 +48,7 @@ class MeshifyApp : Application(), ImageLoaderFactory {
             }
             .respectCacheHeaders(false) // Better performance for local mesh files
             .build()
+        Logger.d("MeshifyApp -> Coil ImageLoader created SUCCESS")
+        return loader
     }
 }
