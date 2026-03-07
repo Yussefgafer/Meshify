@@ -162,6 +162,7 @@ fun ExpressiveMorphingFAB(
     val haptic = LocalHapticFeedback.current
 
     // 1. The 7 Official MD3E Shapes (Loading Indicator Sequence)
+    // Using qualified names to avoid ambiguity and ensuring correct Material3 version
     val officialShapes = remember {
         arrayOf<RoundedPolygon>(
             MaterialShapes.SoftBurst,
@@ -182,11 +183,12 @@ fun ExpressiveMorphingFAB(
     }
 
     // 3. Pre-calculate Morphs to avoid allocation in composition
+    // Qualified officialShapes.size to avoid conflict with Composable parameter 'size'
     val morphs = remember {
-        Array(normalizedShapes.size) { i ->
+        Array(officialShapes.size) { i ->
             Morph(
                 normalizedShapes[i],
-                normalizedShapes[(i + 1) % normalizedShapes.size]
+                normalizedShapes[(i + 1) % officialShapes.size]
             )
         }
     }
@@ -201,7 +203,7 @@ fun ExpressiveMorphingFAB(
                 durationMillis = 650 * officialShapes.size, // 4550ms total cycle
                 easing = LinearEasing
             ),
-            repeatMode = Restart
+            repeatMode = RepeatMode.Restart
         ),
         label = "MorphFactor"
     )
@@ -310,7 +312,7 @@ fun ExpressivePulseHeader(
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
             animation = tween(MotionDurations.Long, easing = FastOutSlowInEasing),
-            repeatMode = Restart
+            repeatMode = RepeatMode.Restart
         ),
         label = "PulseProgress"
     )
@@ -321,7 +323,7 @@ fun ExpressivePulseHeader(
         targetValue = 15f,
         animationSpec = infiniteRepeatable(
             animation = tween(MotionDurations.Long * 2, easing = LinearEasing),
-            repeatMode = Reverse
+            repeatMode = RepeatMode.Reverse
         ),
         label = "PulseRotation"
     )
@@ -519,7 +521,7 @@ fun MorphingAvatar(
             targetValue = 1f,
             animationSpec = infiniteRepeatable(
                 animation = tween(MotionDurations.Long, easing = FastOutSlowInEasing),
-                repeatMode = Restart
+                repeatMode = RepeatMode.Restart
             ),
             label = "MorphProgress"
         )
@@ -640,7 +642,7 @@ fun SignalMorphAvatar(
             targetValue = 1f,
             animationSpec = infiniteRepeatable(
                 animation = tween(morphDuration, easing = FastOutSlowInEasing),
-                repeatMode = Restart
+                repeatMode = RepeatMode.Restart
             ),
             label = "SignalMorphProgress"
         )
