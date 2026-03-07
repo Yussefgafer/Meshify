@@ -54,11 +54,45 @@
     <string name="settings_visibility">Visible to Others</string>
     <string name="settings_visibility_desc">When off, you won\'t appear in discovery scans</string>
 
-    <!-- Signal Strength Badges (Arabic) -->
-    <string name="signal_strong">إشارة ممتازة ●●●</string>
-    <string name="signal_medium">إشارة جيدة ●●○</string>
-    <string name="signal_weak">إشارة ضعيفة ●○○</string>
-    <string name="signal_offline">غير متصل</string>
+    <!-- Signal Strength Badges (English) -->
+    <string name="signal_strong">Excellent Signal ●●●</string>
+    <string name="signal_medium">Good Signal ●●○</string>
+    <string name="signal_weak">Weak Signal ●○○</string>
+    <string name="signal_offline">Offline</string>
+
+    <!-- MD3E Settings - Shape Morphing -->
+    <string name="settings_shape_style">Shape Morphing</string>
+    <string name="settings_shape_style_desc">Select the active shape for morphing animations</string>
+    <string name="settings_shape_active">Active</string>
+    <string name="settings_shape_tap_to_select">Tap to select</string>
+
+    <!-- MD3E Settings - Motion System -->
+    <string name="settings_motion_system">Motion System</string>
+    <string name="settings_motion_system_desc">Configure spring physics and animation speed</string>
+    <string name="settings_motion_scale">Motion Scale</string>
+    <string name="settings_motion_gentle">Calm, subtle animations</string>
+    <string name="settings_motion_standard">Balanced MD3E default</string>
+    <string name="settings_motion_snappy">Quick, responsive</string>
+    <string name="settings_motion_bouncy">Playful, elastic</string>
+
+    <!-- MD3E Settings - Typography -->
+    <string name="settings_typography">Typography</string>
+    <string name="settings_typography_desc">Choose your preferred font family</string>
+    <string name="settings_font_roboto">Default system font</string>
+    <string name="settings_font_poppins">Modern geometric</string>
+    <string name="settings_font_lora">Elegant serif</string>
+    <string name="settings_font_montserrat">Urban contemporary</string>
+    <string name="settings_font_playfair">Display serif</string>
+    <string name="settings_font_inter">Clean UI font</string>
+
+    <!-- MD3E Settings - Chat Bubbles -->
+    <string name="settings_chat_bubbles">Chat Bubbles</string>
+    <string name="settings_chat_bubbles_desc">Select chat bubble shape style</string>
+
+    <!-- MD3E Settings - Visual Density -->
+    <string name="settings_visual_density">Visual Density</string>
+    <string name="settings_visual_density_desc">Adjust UI element sizing and spacing</string>
+    <string name="settings_density_label">Density</string>
 
     <!-- Attachment Bottom Sheet -->
     <string name="attach_file_title">Attach File</string>

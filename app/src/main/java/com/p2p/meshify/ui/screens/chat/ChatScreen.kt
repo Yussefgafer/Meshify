@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -40,7 +41,9 @@ import com.p2p.meshify.R
 import com.p2p.meshify.data.local.entity.MessageEntity
 import com.p2p.meshify.data.local.entity.MessageStatus
 import com.p2p.meshify.data.local.entity.MessageType
+import com.p2p.meshify.ui.components.AttachmentOptions
 import com.p2p.meshify.ui.components.FullImageViewer
+import com.p2p.meshify.ui.components.MorphingAvatar
 import com.p2p.meshify.ui.theme.ChatBubbleShapes
 import com.p2p.meshify.ui.theme.LocalMeshifyThemeConfig
 import com.p2p.meshify.ui.theme.getBubbleShape
@@ -62,7 +65,10 @@ fun ChatScreen(
     val inputText by viewModel.inputText.collectAsState()
     val pendingImage by viewModel.pendingImageUri.collectAsState()
     val selectedIds by viewModel.selectedMessageIds.collectAsState()
-    
+
+    // Extract peer ID from peerName for shared element key
+    val peerId = remember(peerName) { peerName }
+
     val listState = rememberLazyListState()
     val haptic = LocalHapticFeedback.current
     var showSheet by remember { mutableStateOf(false) }
@@ -97,16 +103,25 @@ fun ChatScreen(
         topBar = {
             if (selectedIds.isEmpty()) {
                 TopAppBar(
-                    title = { 
-                        Column {
-                            Text(text = peerName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Text(
-                                text = if (isPeerTyping) stringResource(R.string.typing_indicator) 
-                                       else if (isOnline) stringResource(R.string.status_online) 
-                                       else stringResource(R.string.status_offline),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (isPeerTyping || isOnline) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            // Avatar in chat header
+                            MorphingAvatar(
+                                initials = peerName.take(1),
+                                isOnline = isOnline,
+                                size = 40.dp
                             )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(text = peerName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text(
+                                    text = if (isPeerTyping) stringResource(R.string.typing_indicator)
+                                           else if (isOnline) stringResource(R.string.status_online)
+                                           else stringResource(R.string.status_offline),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (isPeerTyping || isOnline) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     },
                     navigationIcon = {
@@ -160,19 +175,19 @@ fun ChatScreen(
 
                 MessageBubble(
                     message = message,
-                    isSelected = selectedIds.contains(message.id),
+                    isSelected = selectedIds.contains(message.id.toString()),
                     isGroupedWithPrevious = isGroupedWithPrevious,
                     isGroupedWithNext = isGroupedWithNext,
                     onLongClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        viewModel.toggleMessageSelection(message.id)
+                        viewModel.toggleMessageSelection(message.id.toString())
                     },
                     onClick = {
-                        if (selectedIds.isNotEmpty()) viewModel.toggleMessageSelection(message.id)
+                        if (selectedIds.isNotEmpty()) viewModel.toggleMessageSelection(message.id.toString())
                     },
                     onImageClick = { path ->
                         if (selectedIds.isEmpty()) selectedFullImage = path
-                        else viewModel.toggleMessageSelection(message.id)
+                        else viewModel.toggleMessageSelection(message.id.toString())
                     },
                     selectedIds = selectedIds
                 )
@@ -229,7 +244,7 @@ fun MessageBubble(
     onLongClick: () -> Unit,
     onClick: () -> Unit,
     onImageClick: (String) -> Unit,
-    selectedIds: Set<Long> = emptySet()
+    selectedIds: Set<String> = emptySet()
 ) {
     val context = LocalContext.current
     val themeConfig = LocalMeshifyThemeConfig.current
@@ -289,7 +304,7 @@ fun MessageBubble(
                 )
             ) {
                 if (message.type == MessageType.IMAGE || message.mediaPath != null) {
-                    // ✅ Image message with improved styling
+                    // ✅ Image message with shimmer loading effect (LastChat style)
                     AsyncImage(
                         model = ImageRequest.Builder(context)
                             .data(message.mediaPath)
@@ -302,7 +317,7 @@ fun MessageBubble(
                             .fillMaxWidth()
                             .heightIn(max = 400.dp)
                             .clip(RoundedCornerShape(16.dp))
-                            .clickable { 
+                            .clickable {
                                 if (selectedIds.isEmpty()) {
                                     onImageClick(message.mediaPath ?: "")
                                 }
@@ -435,6 +450,23 @@ fun ChatInputArea(
                         modifier = Modifier.size(28.dp)
                     )
                 }
+                // ✅ OutlinedTextField for message input
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = onTextChange,
+                    placeholder = { Text(stringResource(R.string.input_placeholder)) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                    shape = RoundedCornerShape(28.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color.Transparent,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    maxLines = 4
+                )
             },
             floatingActionButton = {
                 // ✅ Small FAB for send button (56dp)
@@ -453,25 +485,7 @@ fun ChatInputArea(
                     )
                 }
             }
-        ) {
-            // ✅ OutlinedTextField for message input
-            OutlinedTextField(
-                value = text,
-                onValueChange = onTextChange,
-                placeholder = { Text(stringResource(R.string.input_placeholder)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                shape = RoundedCornerShape(28.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color.Transparent,
-                    unfocusedBorderColor = Color.Transparent,
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                ),
-                maxLines = 4
-            )
-        }
+        )
     }
 }
 

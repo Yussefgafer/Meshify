@@ -6,7 +6,12 @@ import com.p2p.meshify.domain.model.Payload
  * Represents all possible events emitted by a transport layer.
  */
 sealed class TransportEvent {
-    data class DeviceDiscovered(val deviceId: String, val deviceName: String, val address: String) : TransportEvent()
+    data class DeviceDiscovered(
+        val deviceId: String,
+        val deviceName: String,
+        val address: String,
+        val rssi: Int? = null // RSSI signal strength in dBm (optional)
+    ) : TransportEvent()
     data class DeviceLost(val deviceId: String) : TransportEvent()
     data class ConnectionEstablished(val deviceId: String) : TransportEvent()
     data class ConnectionLost(val deviceId: String, val reason: String?) : TransportEvent()

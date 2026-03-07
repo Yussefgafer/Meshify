@@ -29,9 +29,10 @@ data class PeerDevice(
 ) {
     /**
      * Get signal strength based on RSSI value.
+     * If RSSI is null but device is discovered/connected, default to MEDIUM instead of OFFLINE.
      */
     val signalStrength: SignalStrength
-        get() = rssi?.let { SignalStrength.fromRssi(it) } ?: SignalStrength.OFFLINE
+        get() = rssi?.let { SignalStrength.fromRssi(it) } ?: if (isConnected) SignalStrength.MEDIUM else SignalStrength.WEAK
 }
 
 /**
@@ -66,12 +67,18 @@ class DiscoveryViewModel(
         _uiState.update { currentState ->
             val updatedList = currentState.discoveredPeers.toMutableList()
             val existingIndex = updatedList.indexOfFirst { it.id == event.deviceId }
-            
+
             if (existingIndex != -1) {
-                // Update existing device info (like IP if changed)
-                updatedList[existingIndex] = PeerDevice(event.deviceId, event.deviceName, event.address)
+                // Update existing device info (like IP if changed) with new RSSI
+                updatedList[existingIndex] = PeerDevice(
+                    id = event.deviceId,
+                    name = event.deviceName,
+                    address = event.address,
+                    rssi = event.rssi,
+                    isConnected = updatedList[existingIndex].isConnected
+                )
             } else {
-                updatedList.add(PeerDevice(event.deviceId, event.deviceName, event.address))
+                updatedList.add(PeerDevice(event.deviceId, event.deviceName, event.address, event.rssi))
             }
             currentState.copy(discoveredPeers = updatedList)
         }

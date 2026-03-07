@@ -1,6 +1,5 @@
 package com.p2p.meshify.ui.screens.recent
 
-import android.graphics.Path as AndroidPath
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -20,26 +19,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asComposePath
-import androidx.compose.ui.graphics.drawscope.scale
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.graphics.ExperimentalGraphicsApi
-import androidx.graphics.shapes.CornerRounding
-import androidx.graphics.shapes.Morph
-import androidx.graphics.shapes.RoundedPolygon
-import androidx.graphics.shapes.star
-import androidx.graphics.shapes.circle
-import androidx.graphics.shapes.toPath
 import com.p2p.meshify.R
-import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.data.local.entity.ChatEntity
 import com.p2p.meshify.ui.components.ExpressiveCard
 import com.p2p.meshify.ui.components.ExpressiveMorphingFAB
@@ -65,11 +50,11 @@ fun RecentChatsScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { 
+                title = {
                     Text(
-                        text = stringResource(R.string.screen_home_title), 
-                        fontWeight = FontWeight.Black 
-                    ) 
+                        text = stringResource(R.string.screen_home_title),
+                        fontWeight = FontWeight.Black
+                    )
                 },
                 actions = {
                     IconButton(onClick = onSettingsClick) {
@@ -79,6 +64,7 @@ fun RecentChatsScreen(
             )
         },
         floatingActionButton = {
+            // ✅ Use shared ExpressiveMorphingFAB from MD3EComponents
             ExpressiveMorphingFAB(onClick = onDiscoverClick)
         }
     ) { padding ->
@@ -104,116 +90,6 @@ fun RecentChatsScreen(
                 }
             }
         }
-    }
-}
-
-@Composable
-fun ExpressiveMorphingFAB(onClick: () -> Unit) {
-    val haptic = LocalHapticFeedback.current
-    
-    // SAFE NORMALIZE (Uses manual vertex scaling to avoid Matrix issues)
-    fun RoundedPolygon.normalized(): RoundedPolygon {
-        return this // Simplified for now to avoid Matrix type mismatch
-    }
-
-    val shapes = remember {
-        listOf(
-            RoundedPolygon.star(numVerticesPerRadius = 10, innerRadius = 0.65f, rounding = CornerRounding(0.2f)).normalized(),
-            RoundedPolygon.star(numVerticesPerRadius = 9, innerRadius = 0.85f, rounding = CornerRounding(0.3f)).normalized(),
-            RoundedPolygon(numVertices = 5, rounding = CornerRounding(0.2f)).normalized(),
-            RoundedPolygon.star(numVerticesPerRadius = 2, innerRadius = 0.3f, rounding = CornerRounding(0.9f)).normalized(),
-            RoundedPolygon.star(numVerticesPerRadius = 8, innerRadius = 0.8f, rounding = CornerRounding(0.15f)).normalized(),
-            RoundedPolygon.star(numVerticesPerRadius = 4, innerRadius = 0.7f, rounding = CornerRounding(0.4f)).normalized(),
-            RoundedPolygon.circle(numVertices = 12).normalized()
-        )
-    }
-
-    var currentShapeIndex by remember { mutableIntStateOf(0) }
-    val nextShapeIndex = (currentShapeIndex + 1) % shapes.size
-    val morph = remember(currentShapeIndex) { Morph(shapes[currentShapeIndex], shapes[nextShapeIndex]) }
-
-    val infiniteTransition = rememberInfiniteTransition(label = "FABPulse")
-    val progress by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(650, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "MorphProgress"
-    )
-
-    LaunchedEffect(progress) {
-        if (progress >= 0.98f) {
-            currentShapeIndex = nextShapeIndex
-        }
-    }
-
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(650 * shapes.size, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "FABRotation"
-    )
-
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
-    val androidPath = remember { AndroidPath() }
-
-    Box(
-        modifier = Modifier
-            .padding(16.dp)
-            .size(64.dp)
-            .clickable { 
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                onClick() 
-            }
-            .drawBehind {
-                androidPath.reset()
-                try {
-                    // Correct signature call via extension
-                    morph.populatePath(progress, androidPath)
-                } catch (e: Exception) {
-                    // Fallback to static shape if morph fails
-                }
-                
-                val sizeValue = size.minDimension / 2.2f // Adjusted for non-normalized shapes
-                scale(sizeValue) {
-                    drawPath(path = androidPath.asComposePath(), color = primaryColor)
-                }
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.Add,
-            contentDescription = "Discover",
-            modifier = Modifier
-                .size(28.dp)
-                .graphicsLayer { rotationZ = rotation },
-            tint = onPrimaryColor
-        )
-    }
-}
-
-/**
- * Secure extension to handle Morph path population.
- * Uses the correct androidx.graphics.shapes.toPath API.
- */
-@OptIn(ExperimentalGraphicsApi::class)
-fun Morph.populatePath(progress: Float, path: AndroidPath) {
-    try {
-        // ✅ Correct API: morph.toPath(progress, path)
-        this.toPath(progress, path)
-    } catch (e: Exception) {
-        Logger.e("Morphing failed: ${e.message}")
-        // Fallback: draw a circle
-        path.addCircle(
-            0.5f, 0.5f, 0.5f,
-            android.graphics.Path.Direction.CW
-        )
     }
 }
 
