@@ -14,7 +14,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -44,6 +44,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.SignalStrength
 import com.p2p.meshify.ui.theme.LocalMeshifyMotion
 import com.p2p.meshify.ui.theme.LocalMeshifyThemeConfig
@@ -60,10 +61,15 @@ import android.graphics.Matrix
  * Optimized MorphPolygonShape for morphing animations.
  * Uses pre-allocated AndroidPath to reduce GC pressure during frame rendering.
  * Includes fallback to CircleShape if path calculation fails.
+ * Supports rotation angle for path-only rotation (LastChat style).
+ * 
+ * ✅ FIX: Rotation axis is now calculated from the geometric center of the morphed path,
+ * ensuring perfect center rotation regardless of shape asymmetry.
  */
 class MorphPolygonShape(
     private val morph: Morph,
-    private val progress: Float
+    private val progress: Float,
+    private val rotationAngle: Float = 0f
 ) : Shape {
     // Pre-allocated path to avoid allocation during createOutline
     private val androidPath = AndroidPath()
@@ -80,31 +86,50 @@ class MorphPolygonShape(
 
             // Get path bounds
             val bounds = android.graphics.RectF()
+            @Suppress("DEPRECATION")
             androidPath.computeBounds(bounds, false)
 
-            // Calculate scale to fit into size
+            // Calculate path dimensions
             val pathWidth = bounds.width()
             val pathHeight = bounds.height()
 
             if (pathWidth > 0 && pathHeight > 0) {
+                // Calculate scale to fit into size (90% to leave padding)
                 val scaleX = size.width / pathWidth
                 val scaleY = size.height / pathHeight
-                val scale = minOf(scaleX, scaleY) * 0.9f // 90% to leave some padding
+                val scale = minOf(scaleX, scaleY) * 0.9f
 
-                // Reset and apply transform: translate to origin, scale, then center
+                // ✅ FIX: Extract geometric center of the path
+                val pathCenterX = bounds.centerX()
+                val pathCenterY = bounds.centerY()
+
+                // Reset matrix
                 matrix.reset()
+
+                // Step 1: Translate path to origin - lock geometric center to (0,0)
+                matrix.setTranslate(-pathCenterX, -pathCenterY)
+
+                // Step 2: Spin at origin
+                if (rotationAngle != 0f) {
+                    matrix.postRotate(rotationAngle)
+                }
+
+                // Step 3: Scale at origin
                 matrix.postScale(scale, scale)
-                matrix.postTranslate(
-                    (size.width - pathWidth * scale) / 2 - bounds.left * scale,
-                    (size.height - pathHeight * scale) / 2 - bounds.top * scale
-                )
+
+                // Step 4: Final anchor - translate to EXACT center of Surface
+                matrix.postTranslate(size.width / 2f, size.height / 2f)
+
                 androidPath.transform(matrix)
             }
 
             Outline.Generic(androidPath.asComposePath())
         } catch (e: Exception) {
+            // ✅ Log path calculation failures
+            Logger.e("MorphPolygonShape -> Path calculation FAILED: ${e.message}")
             // Fallback to CircleShape if path calculation fails
             val circleOutline = CircleShape.createOutline(size, layoutDirection, density)
+            Logger.d("MorphPolygonShape -> Using CircleShape fallback")
             circleOutline
         }
     }
@@ -117,9 +142,11 @@ class MorphPolygonShape(
 
 /**
  * MD3E Expressive Morphing FAB with proper easing and decoupled animations.
- * - Background shape morphs with FastOutSlowInEasing
- * - Background rotates with LinearEasing over 3000ms
- * - Icon remains stable (no rotation) with subtle scale pulse
+ * ✅ OPTIMIZED: Uses static shape to avoid performance issues on low-end devices
+ * ✅ FIX: Icon remains completely stable with subtle scale pulse only
+ *
+ * Performance Note: Morphing animations removed due to Choreographer frame skips
+ * on Mediatek/Transsion devices. Using static Circle shape instead.
  */
 @Composable
 fun ExpressiveMorphingFAB(
@@ -128,94 +155,61 @@ fun ExpressiveMorphingFAB(
     size: Dp = 64.dp,
     shapes: List<RoundedPolygon> = MD3EShapes.AllShapes
 ) {
+    Logger.d("ExpressiveMorphingFAB -> Initializing")
     val haptic = LocalHapticFeedback.current
-    var currentShapeIndex by remember { mutableIntStateOf(0) }
-    val nextShapeIndex by derivedStateOf { (currentShapeIndex + 1) % shapes.size }
 
-    val morph by remember(currentShapeIndex) {
-        derivedStateOf { Morph(shapes[currentShapeIndex], shapes[nextShapeIndex]) }
-    }
-
-    val infiniteTransition = rememberInfiniteTransition(label = "FABMorph")
-    
-    // ✅ Morph with FastOutSlowInEasing for expressive feel
-    val morphProgress by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(MotionDurations.ExtraLong, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "MorphProgress"
-    )
-
-    // ✅ Rotation with LinearEasing over 3000ms (matching LastChat)
-    val rotationAngle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(3000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "FABRotation"
-    )
-
-    // ✅ Subtle scale pulse for icon (independent from background rotation)
-    val iconScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "IconScale"
-    )
-
-    LaunchedEffect(morphProgress) {
-        if (morphProgress >= 0.98f) {
-            currentShapeIndex = nextShapeIndex
-        }
-    }
-
+    // ✅ OPTIMIZATION: Use static Circle shape instead of morphing
+    // Morphing causes 2000+ frame skips on low-end devices
     val primaryColor = MaterialTheme.colorScheme.primary
     val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
 
-    val morphShape = remember(morph, morphProgress) {
-        MorphPolygonShape(morph, morphProgress)
+    // ✅ Subtle scale pulse for icon on press
+    val scale = remember { Animatable(1f) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    LaunchedEffect(isPressed) {
+        val targetScale = if (isPressed) 0.92f else 1f
+        scale.animateTo(targetScale, animationSpec = spring(
+            dampingRatio = 0.4f,
+            stiffness = 800f
+        ))
     }
 
     Surface(
         modifier = modifier
             .padding(16.dp)
             .size(size)
-            .clickable {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                onClick()
-            }
-            // ✅ Apply rotation ONLY to background shape
-            .graphicsLayer { rotationZ = rotationAngle },
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = {
+                    Logger.d("ExpressiveMorphingFAB -> Clicked")
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onClick()
+                }
+            ),
         color = primaryColor,
         tonalElevation = 6.dp,
         shadowElevation = 8.dp,
-        shape = morphShape
+        shape = CircleShape
     ) {
         Box(contentAlignment = Alignment.Center) {
-            // ✅ Icon is stable - only subtle scale pulse, NO rotation
+            // ✅ Icon with press scale animation only
             Icon(
                 imageVector = Icons.Default.Add,
                 contentDescription = "Add",
                 modifier = Modifier
                     .size(28.dp)
                     .graphicsLayer {
-                        scaleX = iconScale
-                        scaleY = iconScale
-                        // Counter-rotate icon to keep it upright
-                        rotationZ = -rotationAngle
+                        scaleX = scale.value
+                        scaleY = scale.value
                     },
                 tint = onPrimaryColor
             )
         }
     }
+    Logger.d("ExpressiveMorphingFAB -> Initialized")
 }
 
 // ============================================================================
@@ -667,7 +661,7 @@ fun AttachmentOptions(onImageClick: () -> Unit) {
         )
 
         AttachmentDrawerItem(
-            icon = Icons.Default.InsertDriveFile,
+            icon = Icons.AutoMirrored.Filled.InsertDriveFile,
             label = androidx.compose.ui.res.stringResource(com.p2p.meshify.R.string.attach_file),
             subtext = androidx.compose.ui.res.stringResource(com.p2p.meshify.R.string.coming_soon),
             iconBackgroundColor = MaterialTheme.colorScheme.surfaceVariant,
