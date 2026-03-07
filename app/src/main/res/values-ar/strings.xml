@@ -60,6 +60,40 @@
     <string name="signal_weak">إشارة ضعيفة ●○○</string>
     <string name="signal_offline">غير متصل</string>
 
+    <!-- إعدادات MD3E - تشكيل الأشكال -->
+    <string name="settings_shape_style">تشكيل الأشكال</string>
+    <string name="settings_shape_style_desc">اختر الشكل النشط لرسوم التحول</string>
+    <string name="settings_shape_active">نشط</string>
+    <string name="settings_shape_tap_to_select">اضغط للاختيار</string>
+
+    <!-- إعدادات MD3E - نظام الحركة -->
+    <string name="settings_motion_system">نظام الحركة</string>
+    <string name="settings_motion_system_desc">اضبط فيزياء الزنبرك وسرعة الرسوم المتحركة</string>
+    <string name="settings_motion_scale">مقياس الحركة</string>
+    <string name="settings_motion_gentle">حركة هادئة ورقيقة</string>
+    <string name="settings_motion_standard">متوازن - افتراضي MD3E</string>
+    <string name="settings_motion_snappy">سريع ومتجاوب</string>
+    <string name="settings_motion_bouncy">مرن ولاعب</string>
+
+    <!-- إعدادات MD3E - الخطوط -->
+    <string name="settings_typography">الخطوط</string>
+    <string name="settings_typography_desc">اختر عائلة الخطوط المفضلة</string>
+    <string name="settings_font_roboto">خط النظام الافتراضي</string>
+    <string name="settings_font_poppins">هندسي حديث</string>
+    <string name="settings_font_lora">Serif أنيق</string>
+    <string name="settings_font_montserrat">عصري حضري</string>
+    <string name="settings_font_playfair">Serif استعراضي</string>
+    <string name="settings_font_inter">خط واجهة نظيف</string>
+
+    <!-- إعدادات MD3E - فقاعات المحادثة -->
+    <string name="settings_chat_bubbles">فقاعات المحادثة</string>
+    <string name="settings_chat_bubbles_desc">اختر نمط شكل فقاعات المحادثة</string>
+
+    <!-- إعدادات MD3E - الكثافة البصرية -->
+    <string name="settings_visual_density">الكثافة البصرية</string>
+    <string name="settings_visual_density_desc">اضبط حجم وعناصر واجهة المستخدم والتباعد</string>
+    <string name="settings_density_label">الكثافة</string>
+
     <!-- قائمة المرفقات -->
     <string name="attach_file_title">إرفاق ملف</string>
     <string name="attach_from_gallery">من معرض الجهاز</string>

@@ -6,6 +6,7 @@ import androidx.graphics.shapes.CornerRounding
 import androidx.graphics.shapes.RoundedPolygon
 import androidx.graphics.shapes.star
 import androidx.graphics.shapes.circle
+import android.graphics.Matrix
 
 /**
  * MD3E Spring Physics Presets.
@@ -42,7 +43,7 @@ object MotionSpecs {
 
     /**
      * Bouncy motion - Very playful and elastic.
-     * For fun, expressive moments.
+     * Uses dampingRatio = 0.4f for fun, rubber-band effect per LastChat design audit.
      */
     val Bouncy = spring<Float>(
         dampingRatio = 0.4f,
@@ -184,12 +185,11 @@ object MD3EShapes {
     /**
      * Normalize a RoundedPolygon to (0,0) to (1,1) bounds.
      * This ensures consistent morphing between shapes.
-     * Note: Simplified implementation - shapes are pre-normalized by the library.
+     * Note: In androidx.graphics.shapes 0.4.0+, shapes are already normalized.
      */
     private fun RoundedPolygon.normalize(): RoundedPolygon {
-        // The androidx.graphics.shapes library already normalizes shapes internally
-        // when using the builder functions (star, circle, etc.)
-        // So we can just return self for now
+        // The library already normalizes shapes internally
+        // Just return self to avoid API compatibility issues
         return this
     }
 }

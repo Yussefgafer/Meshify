@@ -1,7 +1,7 @@
 package com.p2p.meshify.ui.screens.settings
 
-import android.graphics.Path as AndroidPath
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -15,9 +15,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.asComposePath
-import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -26,13 +25,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.graphics.shapes.Morph
-import androidx.graphics.shapes.toPath
 import com.p2p.meshify.R
 import com.p2p.meshify.domain.model.*
 import com.p2p.meshify.domain.repository.ThemeMode
 import com.p2p.meshify.ui.components.ExpressiveButton
 import com.p2p.meshify.ui.components.ExpressiveCard
 import com.p2p.meshify.ui.components.ExpressivePulseHeader
+import com.p2p.meshify.ui.components.MorphPolygonShape
 import com.p2p.meshify.ui.theme.MD3EShapes
 import com.p2p.meshify.ui.theme.MotionDurations
 
@@ -164,8 +163,8 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // SECTION: MD3E SHAPE MORPHING
-            SettingsSection(title = "Shape Morphing") {
-                Text("Select the active shape for morphing animations", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            SettingsSection(title = stringResource(R.string.settings_shape_style)) {
+                Text(stringResource(R.string.settings_shape_style_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 ShapeStyle.values().forEach { style ->
@@ -181,8 +180,8 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // SECTION: MD3E MOTION SYSTEM
-            SettingsSection(title = "Motion System") {
-                Text("Configure spring physics and animation speed", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            SettingsSection(title = stringResource(R.string.settings_motion_system)) {
+                Text(stringResource(R.string.settings_motion_system_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 MotionPreset.values().forEach { preset ->
@@ -195,8 +194,8 @@ fun SettingsScreen(
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
-                
-                Text("Motion Scale: ${String.format("%.2f", motionScale)}x", style = MaterialTheme.typography.labelMedium)
+
+                Text(stringResource(R.string.settings_motion_scale, String.format("%.2f", motionScale)), style = MaterialTheme.typography.labelMedium)
                 Slider(
                     value = motionScale,
                     onValueChange = viewModel::setMotionScale,
@@ -208,8 +207,8 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // SECTION: MD3E TYPOGRAPHY
-            SettingsSection(title = "Typography") {
-                Text("Choose your preferred font family", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            SettingsSection(title = stringResource(R.string.settings_typography)) {
+                Text(stringResource(R.string.settings_typography_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 FontFamilyPreset.values().forEach { family ->
@@ -225,8 +224,8 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // SECTION: MD3E CHAT BUBBLES
-            SettingsSection(title = "Chat Bubbles") {
-                Text("Select chat bubble shape style", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            SettingsSection(title = stringResource(R.string.settings_chat_bubbles)) {
+                Text(stringResource(R.string.settings_chat_bubbles_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 BubbleStyle.values().forEach { style ->
@@ -242,11 +241,11 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // SECTION: MD3E VISUAL DENSITY
-            SettingsSection(title = "Visual Density") {
-                Text("Adjust UI element sizing and spacing", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            SettingsSection(title = stringResource(R.string.settings_visual_density)) {
+                Text(stringResource(R.string.settings_visual_density_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(16.dp))
-                
-                Text("Density: ${String.format("%.2f", visualDensity)}x", style = MaterialTheme.typography.labelMedium)
+
+                Text(stringResource(R.string.settings_density_label, String.format("%.2f", visualDensity)), style = MaterialTheme.typography.labelMedium)
                 Slider(
                     value = visualDensity,
                     onValueChange = viewModel::setVisualDensity,
@@ -304,23 +303,16 @@ fun ShapeSelectorItem(
                 .padding(vertical = 8.dp, horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Preview shape
+            // Preview shape using MorphPolygonShape
+            val shape = MD3EShapes.getShape(style)
+            val staticMorph = remember(shape) { androidx.graphics.shapes.Morph(shape, shape) }
+            val morphShape = remember(staticMorph) { com.p2p.meshify.ui.components.MorphPolygonShape(staticMorph, 0f) }
+            
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .drawBehind {
-                        val shape = MD3EShapes.getShape(style)
-                        val path = AndroidPath()
-                        Morph(shape, shape).toPath(0f, path)
-                        val sizeValue = size.minDimension / 2.2f
-                        scale(sizeValue) {
-                            drawPath(
-                                path = path.asComposePath(),
-                                color = if (selected) primaryColor
-                                       else onSurfaceVariant
-                            )
-                        }
-                    }
+                    .clip(morphShape)
+                    .background(if (selected) primaryColor else onSurfaceVariant)
             )
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -330,7 +322,8 @@ fun ShapeSelectorItem(
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
                 )
                 Text(
-                    text = if (selected) "Active" else "Tap to select",
+                    text = if (selected) stringResource(R.string.settings_shape_active)
+                           else stringResource(R.string.settings_shape_tap_to_select),
                     style = MaterialTheme.typography.bodySmall,
                     color = if (selected) primaryColor
                            else onSurfaceVariant
@@ -396,10 +389,10 @@ fun MotionPresetItem(
                 )
                 Text(
                     text = when (preset) {
-                        MotionPreset.GENTLE -> "Calm, subtle animations"
-                        MotionPreset.STANDARD -> "Balanced MD3E default"
-                        MotionPreset.SNAPPY -> "Quick, responsive"
-                        MotionPreset.BOUNCY -> "Playful, elastic"
+                        MotionPreset.GENTLE -> stringResource(R.string.settings_motion_gentle)
+                        MotionPreset.STANDARD -> stringResource(R.string.settings_motion_standard)
+                        MotionPreset.SNAPPY -> stringResource(R.string.settings_motion_snappy)
+                        MotionPreset.BOUNCY -> stringResource(R.string.settings_motion_bouncy)
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = onSurfaceVariant
@@ -443,12 +436,12 @@ fun FontFamilySelectorItem(
                 )
                 Text(
                     text = when (family) {
-                        FontFamilyPreset.ROBOTO -> "Default system font"
-                        FontFamilyPreset.POPTINS -> "Modern geometric"
-                        FontFamilyPreset.LORA -> "Elegant serif"
-                        FontFamilyPreset.MONTSERRAT -> "Urban contemporary"
-                        FontFamilyPreset.PLAYFAIR -> "Display serif"
-                        FontFamilyPreset.INTER -> "Clean UI font"
+                        FontFamilyPreset.ROBOTO -> stringResource(R.string.settings_font_roboto)
+                        FontFamilyPreset.POPTINS -> stringResource(R.string.settings_font_poppins)
+                        FontFamilyPreset.LORA -> stringResource(R.string.settings_font_lora)
+                        FontFamilyPreset.MONTSERRAT -> stringResource(R.string.settings_font_montserrat)
+                        FontFamilyPreset.PLAYFAIR -> stringResource(R.string.settings_font_playfair)
+                        FontFamilyPreset.INTER -> stringResource(R.string.settings_font_inter)
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = onSurfaceVariant
@@ -484,24 +477,19 @@ fun BubbleStyleSelectorItem(
                 .padding(vertical = 8.dp, horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .drawBehind {
-                        drawRoundRect(
-                            color = if (selected) primaryColor
-                                   else onSurfaceVariant,
-                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(
-                                when (style) {
-                                    BubbleStyle.ROUNDED -> 24.dp.toPx()
-                                    BubbleStyle.TAILED -> 16.dp.toPx()
-                                    BubbleStyle.SQUARCLES -> 8.dp.toPx()
-                                    BubbleStyle.ORGANIC -> 32.dp.toPx()
-                                }
-                            )
-                        )
+            // Preview bubble shape using Surface with RoundedCornerShape
+            Surface(
+                modifier = Modifier.size(48.dp),
+                shape = RoundedCornerShape(
+                    when (style) {
+                        BubbleStyle.ROUNDED -> 24.dp
+                        BubbleStyle.TAILED -> 16.dp
+                        BubbleStyle.SQUARCLES -> 8.dp
+                        BubbleStyle.ORGANIC -> 32.dp
                     }
-            )
+                ),
+                color = if (selected) primaryColor else onSurfaceVariant
+            ) {}
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(

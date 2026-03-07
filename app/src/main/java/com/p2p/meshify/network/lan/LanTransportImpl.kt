@@ -103,7 +103,10 @@ class LanTransportImpl(
     private suspend fun handleHandshake(senderId: String, address: String, payload: Payload) {
         val name = String(payload.data).removePrefix("HELO_")
         if (!peerMap.containsKey(senderId)) {
-            _events.emit(TransportEvent.DeviceDiscovered(senderId, name, address))
+            // Estimate RSSI from connection quality (simulated for LAN)
+            // In real WiFi Direct scenarios, this would come from WiFiManager
+            val estimatedRssi = estimateRssiFromAddress(address)
+            _events.emit(TransportEvent.DeviceDiscovered(senderId, name, address, estimatedRssi))
             val myName = settingsRepository.displayName.first()
             sendPayload(senderId, Payload(
                 senderId = settingsRepository.getDeviceId(),
@@ -112,6 +115,16 @@ class LanTransportImpl(
             ))
         }
         _events.emit(TransportEvent.PayloadReceived(senderId, payload))
+    }
+
+    /**
+     * Estimate RSSI from IP address proximity (simulated for LAN transport).
+     * Real WiFi Direct implementations should use actual WiFi signal strength.
+     */
+    private fun estimateRssiFromAddress(address: String): Int {
+        // Simulated RSSI: -40 to -80 dBm range
+        // In production, this should come from WiFiManager.calculateSignalLevel()
+        return -55 // Default to good signal for LAN peers
     }
 
     private fun updateOnlinePeers() {
@@ -247,7 +260,7 @@ class LanTransportImpl(
     }
 
     private fun createResolveListener() = object : NsdManager.ResolveListener {
-        override fun onResolveFailed(info: NsdServiceInfo, errorCode: Int) { 
+        override fun onResolveFailed(info: NsdServiceInfo, errorCode: Int) {
             resolvingPeers.remove(info.serviceName)
         }
         override fun onServiceResolved(info: NsdServiceInfo) {
@@ -255,13 +268,15 @@ class LanTransportImpl(
             val name = info.serviceName
             resolvingPeers.remove(name)
             val peerId = name.removePrefix("Meshify_")
-            
+
             scope.launch {
                 val myId = settingsRepository.getDeviceId()
-                if (peerId == myId) return@launch 
+                if (peerId == myId) return@launch
                 peerMap[peerId] = address
                 updateOnlinePeers()
-                _events.emit(TransportEvent.DeviceDiscovered(peerId, "Peer_${peerId.take(4)}", address))
+                // Estimate RSSI for discovered peer
+                val estimatedRssi = estimateRssiFromAddress(address)
+                _events.emit(TransportEvent.DeviceDiscovered(peerId, "Peer_${peerId.take(4)}", address, estimatedRssi))
             }
         }
     }

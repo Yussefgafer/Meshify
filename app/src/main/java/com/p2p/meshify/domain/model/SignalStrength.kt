@@ -46,7 +46,7 @@ enum class SignalStrength {
         /**
          * Convert RSSI (dBm) to SignalStrength.
          * RSSI values are typically negative, closer to 0 = stronger signal.
-         * 
+         *
          * @param rssi The signal strength in dBm (e.g., -42, -65, -80)
          * @return Corresponding SignalStrength enum value
          */
@@ -58,45 +58,45 @@ enum class SignalStrength {
                 else -> OFFLINE
             }
         }
+    }
+}
 
-        /**
-         * Get morph duration based on signal strength.
-         * Stronger signals = faster morphing (more "vitality").
-         * 
-         * @return Duration in milliseconds for one morph cycle
-         */
-        fun SignalStrength.getMorphDuration(): Int {
-            return when (this) {
-                STRONG -> 500   // Very fast
-                MEDIUM -> 900   // Medium
-                WEAK -> 1500    // Slow
-                OFFLINE -> 0    // No animation
-            }
-        }
+/**
+ * Get morph duration based on signal strength.
+ * Stronger signals = faster morphing (more "vitality").
+ *
+ * @return Duration in milliseconds for one morph cycle
+ */
+fun SignalStrength.getMorphDuration(): Int {
+    return when (this) {
+        SignalStrength.STRONG -> 500   // Very fast
+        SignalStrength.MEDIUM -> 900   // Medium
+        SignalStrength.WEAK -> 1500    // Slow
+        SignalStrength.OFFLINE -> 0    // No animation
+    }
+}
 
-        /**
-         * Get shape pair for morphing based on signal strength.
-         * Returns two shapes to morph between.
-         */
-        fun SignalStrength.getShapePair(): List<androidx.graphics.shapes.RoundedPolygon> {
-            return when (this) {
-                STRONG -> listOf(
-                    com.p2p.meshify.ui.theme.MD3EShapes.Sunny,
-                    com.p2p.meshify.ui.theme.MD3EShapes.Breezy
-                )
-                MEDIUM -> listOf(
-                    com.p2p.meshify.ui.theme.MD3EShapes.Breezy,
-                    com.p2p.meshify.ui.theme.MD3EShapes.Circle
-                )
-                WEAK -> listOf(
-                    com.p2p.meshify.ui.theme.MD3EShapes.Circle,
-                    com.p2p.meshify.ui.theme.MD3EShapes.Blob
-                )
-                OFFLINE -> listOf(
-                    com.p2p.meshify.ui.theme.MD3EShapes.Circle,
-                    com.p2p.meshify.ui.theme.MD3EShapes.Circle
-                )
-            }
-        }
+/**
+ * Get shape pair for morphing based on signal strength.
+ * Returns two shapes to morph between.
+ */
+fun SignalStrength.getShapePair(): List<androidx.graphics.shapes.RoundedPolygon> {
+    return when (this) {
+        SignalStrength.STRONG -> listOf(
+            com.p2p.meshify.ui.theme.MD3EShapes.Sunny,
+            com.p2p.meshify.ui.theme.MD3EShapes.Breezy
+        )
+        SignalStrength.MEDIUM -> listOf(
+            com.p2p.meshify.ui.theme.MD3EShapes.Breezy,
+            com.p2p.meshify.ui.theme.MD3EShapes.Circle
+        )
+        SignalStrength.WEAK -> listOf(
+            com.p2p.meshify.ui.theme.MD3EShapes.Circle,
+            com.p2p.meshify.ui.theme.MD3EShapes.Blob
+        )
+        SignalStrength.OFFLINE -> listOf(
+            com.p2p.meshify.ui.theme.MD3EShapes.Circle,
+            com.p2p.meshify.ui.theme.MD3EShapes.Circle
+        )
     }
 }
