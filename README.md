@@ -2,7 +2,7 @@
 
 <p align="center">
 🤖 AI-NATIVE PROJECT
-This entire codebase, architecture, and UI logic were architected and implemented by LLM (Gemini 3 Flash & Jules[Gemini 3 Flash]) under the strategic direction of Me(Yussef Gafer). No human code was harmed in the making of this mesh.
+This entire codebase, architecture, and UI logic were architected and implemented by LLM under the strategic direction of Me. No human code was harmed in the making this app.
 </p>
 
 <p align="center">
@@ -75,16 +75,4 @@ Meshify follows a strict **Clean Architecture** pattern to ensure modularity and
    ```
 
 ## 📈 Roadmap
-- [ ] **End-to-End Encryption (E2EE):** Implementing a robust encryption layer for all payloads.
-- [ ] **Bluetooth Transport:** Adding Bluetooth LE/Classic support for multi-protocol mesh.
-- [ ] **Voice/Video Messages:** Support for rich media transfers.
-- [ ] **Unit & UI Testing:** Expanding test coverage for core components.
-
-## 🤝 Contributing
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📄 License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-*Developed with ❤️ by **Jo** and **Kai (Void)**.*
+- [ ] **Work app:** i try to make tha app work
