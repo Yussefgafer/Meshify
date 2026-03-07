@@ -162,29 +162,26 @@ fun ExpressiveMorphingFAB(
     val haptic = LocalHapticFeedback.current
 
     // 1. The 7 Official MD3E Shapes (Loading Indicator Sequence)
-    // Using explicit MaterialShapes from material3 1.5.0-alpha10
+    // Updated shape names for Material 3 1.5.0-alpha10
     val officialShapes = remember {
         arrayOf<RoundedPolygon>(
             androidx.compose.material3.MaterialShapes.SoftBurst,
-            androidx.compose.material3.MaterialShapes.Cookie9,
+            androidx.compose.material3.MaterialShapes.Cookie9Sided,
             androidx.compose.material3.MaterialShapes.Pentagon,
             androidx.compose.material3.MaterialShapes.Pill,
             androidx.compose.material3.MaterialShapes.Sunny,
-            androidx.compose.material3.MaterialShapes.Cookie4,
+            androidx.compose.material3.MaterialShapes.Cookie4Sided,
             androidx.compose.material3.MaterialShapes.Oval
         )
     }
 
-    // 2. Normalize (radial=true) - CRITICAL for rotation pivot consistency
-    val normalizedShapes = remember {
-        officialShapes.map { shape -> 
-            androidx.compose.material3.MaterialShapes.normalize(shape, radial = true) 
-        }
-    }
+    // 2. Shapes in MaterialShapes are already normalized.
+    // We use them directly to avoid unresolved 'normalize' reference issues.
+    val normalizedShapes = remember { officialShapes.toList() }
 
     // 3. Pre-calculate Morphs to avoid allocation in composition
-    val shapesCount = officialShapes.size
-    val morphs = remember {
+    val shapesCount = normalizedShapes.size
+    val morphs = remember(normalizedShapes) {
         Array(shapesCount) { i ->
             Morph(
                 normalizedShapes[i],
@@ -213,7 +210,6 @@ fun ExpressiveMorphingFAB(
     val progress = morphFactor - morphFactor.toInt()
     
     // Official Rotation Formula: (140° * morphFactor)
-    // Derived from: (140 * base) + (50 * progress) + (90 * progress)
     val rotation = (140f * morphFactor) % 360f
 
     val currentMorph = morphs[shapeIndex]
@@ -281,7 +277,7 @@ fun ExpressiveMorphingFAB(
 
 /**
  * MD3E Expressive Pulse Header with Shape Morphing and Subtle Rotation.
- * ✅ OPTIMIZED: Pre-normalizes shapes to ensure perfect center rotation.
+ * ✅ OPTIMIZED: Uses pre-normalized MaterialShapes.
  * ✅ ENHANCED: Adds subtle rotation (15°) during morphing for organic feel.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -294,10 +290,8 @@ fun ExpressivePulseHeader(
 ) {
     val haptic = LocalHapticFeedback.current
     
-    // 1. Normalize shapes (radial=true) to fix wobble
-    val normalizedShapes = remember(shapes) {
-        shapes.map { androidx.compose.material3.MaterialShapes.normalize(it, radial = true) }
-    }
+    // 1. Shapes in MD3EShapes are already normalized.
+    val normalizedShapes = remember(shapes) { shapes }
     
     val shapesCount = normalizedShapes.size
     var currentShapeIndex by remember { mutableIntStateOf(0) }
