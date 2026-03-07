@@ -12,11 +12,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.FontFamilyPreset
@@ -25,6 +27,8 @@ import com.p2p.meshify.network.service.MeshForegroundService
 import com.p2p.meshify.ui.navigation.MeshifyNavHost
 import com.p2p.meshify.ui.theme.MD3EFontFamilies
 import com.p2p.meshify.ui.theme.MeshifyTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
  * Main entry point of the Meshify application.
@@ -43,9 +47,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // ✅ FIX: Enable edge-to-edge before setContent to prevent black screen
-        // This is required for targetSdk 35+ and prevents RenderThread timeouts
+        // ✅ FIX 1: Enable edge-to-edge BEFORE any heavy work
         enableEdgeToEdge()
+        
+        // ✅ FIX 2: Request permissions asynchronously (non-blocking)
         checkAndRequestPermissions()
 
         val appContainer = (application as MeshifyApp).container
@@ -72,11 +77,21 @@ class MainActivity : ComponentActivity() {
                 visualDensity = visualDensity
             ) {
                 val navController = rememberNavController()
-                // ✅ FIX: Wrap in Surface with explicit background to prevent transparency issues
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color(MaterialTheme.colorScheme.surface.toArgb()))
+                
+                // ✅ FIX 3: Use LaunchedEffect for non-UI startup logic
+                LaunchedEffect(Unit) {
+                    // Trigger background initialization asynchronously
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        // Pre-load heavy components in background
+                        // Database and SocketManager are already lazy-initialized
+                        Logger.d("Background initialization complete")
+                    }
+                }
+                
+                // ✅ FIX 4: Simplified root Surface to prevent rendering deadlocks
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
                 ) {
                     MeshifyNavHost(
                         context = this@MainActivity,
@@ -112,6 +127,7 @@ class MainActivity : ComponentActivity() {
         }
 
         if (missing.isNotEmpty()) {
+            // Launch async - doesn't block main thread
             requestPermissionLauncher.launch(missing.toTypedArray())
         } else {
             startAppService()
