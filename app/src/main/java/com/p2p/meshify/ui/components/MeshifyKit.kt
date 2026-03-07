@@ -33,7 +33,6 @@ import androidx.compose.ui.unit.*
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
 import androidx.graphics.shapes.toPath
-import androidx.graphics.shapes.MaterialShapes
 import androidx.compose.ui.graphics.Brush
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -151,6 +150,7 @@ class MorphPolygonShape(
  * - 650ms per shape
  * - 140° total rotation per shape (50° constant + 90° extra)
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ExpressiveMorphingFAB(
     onClick: () -> Unit,
@@ -163,28 +163,30 @@ fun ExpressiveMorphingFAB(
 
     // 1. The 7 Official MD3E Shapes (Loading Indicator Sequence)
     val officialShapes = remember {
-        arrayOf(
-            MaterialShapes.SOFT_BURST,
-            MaterialShapes.COOKIE_9,
-            MaterialShapes.PENTAGON,
-            MaterialShapes.PILL,
-            MaterialShapes.SUNNY,
-            MaterialShapes.COOKIE_4,
-            MaterialShapes.OVAL
+        arrayOf<RoundedPolygon>(
+            MaterialShapes.SoftBurst,
+            MaterialShapes.Cookie9,
+            MaterialShapes.Pentagon,
+            MaterialShapes.Pill,
+            MaterialShapes.Sunny,
+            MaterialShapes.Cookie4,
+            MaterialShapes.Oval
         )
     }
 
     // 2. Normalize (radial=true) - CRITICAL for rotation pivot consistency
     val normalizedShapes = remember {
-        officialShapes.map { MaterialShapes.normalize(it, radial = true) }
+        officialShapes.map { shape -> 
+            MaterialShapes.normalize(shape, radial = true) 
+        }
     }
 
     // 3. Pre-calculate Morphs to avoid allocation in composition
     val morphs = remember {
         Array(normalizedShapes.size) { i ->
             Morph(
-                startShape = normalizedShapes[i],
-                endShape   = normalizedShapes[(i + 1) % normalizedShapes.size]
+                normalizedShapes[i],
+                normalizedShapes[(i + 1) % normalizedShapes.size]
             )
         }
     }
