@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.*
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
 import androidx.graphics.shapes.toPath
+import androidx.graphics.shapes.MaterialShapes
 import androidx.compose.ui.graphics.Brush
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -142,11 +143,13 @@ class MorphPolygonShape(
 
 /**
  * MD3E Expressive Morphing FAB with proper easing and decoupled animations.
- * ✅ OPTIMIZED: Uses static shape to avoid performance issues on low-end devices
- * ✅ FIX: Icon remains completely stable with subtle scale pulse only
+ * ✅ IMPLEMENTED: Uses the 7 official MD3E shapes with official rotation logic.
+ * ✅ OPTIMIZED: Pre-normalized shapes and pre-allocated morphs to minimize GC pressure.
+ * ✅ STABLE: Icon remains stable via counter-rotation.
  *
- * Performance Note: Morphing animations removed due to Choreographer frame skips
- * on Mediatek/Transsion devices. Using static Circle shape instead.
+ * Animation Params:
+ * - 650ms per shape
+ * - 140° total rotation per shape (50° constant + 90° extra)
  */
 @Composable
 fun ExpressiveMorphingFAB(
@@ -155,15 +158,66 @@ fun ExpressiveMorphingFAB(
     size: Dp = 64.dp,
     shapes: List<RoundedPolygon> = MD3EShapes.AllShapes
 ) {
-    Logger.d("ExpressiveMorphingFAB -> Initializing")
+    Logger.d("ExpressiveMorphingFAB -> Initializing MD3E Morphing Sequence")
     val haptic = LocalHapticFeedback.current
 
-    // ✅ OPTIMIZATION: Use static Circle shape instead of morphing
-    // Morphing causes 2000+ frame skips on low-end devices
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
+    // 1. The 7 Official MD3E Shapes (Loading Indicator Sequence)
+    val officialShapes = remember {
+        arrayOf(
+            MaterialShapes.SOFT_BURST,
+            MaterialShapes.COOKIE_9,
+            MaterialShapes.PENTAGON,
+            MaterialShapes.PILL,
+            MaterialShapes.SUNNY,
+            MaterialShapes.COOKIE_4,
+            MaterialShapes.OVAL
+        )
+    }
 
-    // ✅ Subtle scale pulse for icon on press
+    // 2. Normalize (radial=true) - CRITICAL for rotation pivot consistency
+    val normalizedShapes = remember {
+        officialShapes.map { MaterialShapes.normalize(it, radial = true) }
+    }
+
+    // 3. Pre-calculate Morphs to avoid allocation in composition
+    val morphs = remember {
+        Array(normalizedShapes.size) { i ->
+            Morph(
+                startShape = normalizedShapes[i],
+                endShape   = normalizedShapes[(i + 1) % normalizedShapes.size]
+            )
+        }
+    }
+
+    // 4. Animation logic (InfiniteTransition)
+    val infiniteTransition = rememberInfiniteTransition(label = "FABLoading")
+    val morphFactor by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = officialShapes.size.toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = 650 * officialShapes.size, // 4550ms total cycle
+                easing = LinearEasing
+            ),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "MorphFactor"
+    )
+
+    // 5. Calculate current frame state
+    val shapeIndex = (morphFactor.toInt() % officialShapes.size)
+    val progress = morphFactor - morphFactor.toInt()
+    
+    // Official Rotation Formula: (140° * morphFactor)
+    // Derived from: (140 * base) + (50 * progress) + (90 * progress)
+    val rotation = (140f * morphFactor) % 360f
+
+    val currentMorph = morphs[shapeIndex]
+    val currentShape = remember(currentMorph, progress) { 
+        MorphPolygonShape(currentMorph, progress) 
+    }
+
+    // Interaction state for scale pulse
     val scale = remember { Animatable(1f) }
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -180,6 +234,13 @@ fun ExpressiveMorphingFAB(
         modifier = modifier
             .padding(16.dp)
             .size(size)
+            .graphicsLayer {
+                scaleX = scale.value
+                scaleY = scale.value
+                rotationZ = rotation // Apply official MD3E rotation
+                this.shape = currentShape
+                clip = true
+            }
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -189,27 +250,24 @@ fun ExpressiveMorphingFAB(
                     onClick()
                 }
             ),
-        color = primaryColor,
+        color = MaterialTheme.colorScheme.primary,
         tonalElevation = 6.dp,
-        shadowElevation = 8.dp,
-        shape = CircleShape
+        shadowElevation = 8.dp
     ) {
         Box(contentAlignment = Alignment.Center) {
-            // ✅ Icon with press scale animation only
+            // Counter-rotate the icon so it stays stable while the container spins
             Icon(
                 imageVector = Icons.Default.Add,
                 contentDescription = "Add",
                 modifier = Modifier
                     .size(28.dp)
                     .graphicsLayer {
-                        scaleX = scale.value
-                        scaleY = scale.value
+                        rotationZ = -rotation
                     },
-                tint = onPrimaryColor
+                tint = MaterialTheme.colorScheme.onPrimary
             )
         }
     }
-    Logger.d("ExpressiveMorphingFAB -> Initialized")
 }
 
 // ============================================================================
