@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.InsertDriveFile
@@ -18,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -32,6 +34,16 @@ import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
 import androidx.graphics.shapes.toPath
 import androidx.compose.ui.graphics.Brush
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.pointerInteropFilter
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import com.p2p.meshify.domain.model.SignalStrength
 import com.p2p.meshify.ui.theme.LocalMeshifyMotion
 import com.p2p.meshify.ui.theme.LocalMeshifyThemeConfig
@@ -168,7 +180,7 @@ fun ExpressiveMorphingFAB(
     val primaryColor = MaterialTheme.colorScheme.primary
     val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
 
-    val morphShape = remember(morph, morphProgress, rotationAngle) {
+    val morphShape = remember(morph, morphProgress) {
         MorphPolygonShape(morph, morphProgress)
     }
 
@@ -179,7 +191,9 @@ fun ExpressiveMorphingFAB(
             .clickable {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 onClick()
-            },
+            }
+            // ✅ Apply rotation ONLY to background shape
+            .graphicsLayer { rotationZ = rotationAngle },
         color = primaryColor,
         tonalElevation = 6.dp,
         shadowElevation = 8.dp,
@@ -195,6 +209,8 @@ fun ExpressiveMorphingFAB(
                     .graphicsLayer {
                         scaleX = iconScale
                         scaleY = iconScale
+                        // Counter-rotate icon to keep it upright
+                        rotationZ = -rotationAngle
                     },
                 tint = onPrimaryColor
             )
@@ -745,6 +761,118 @@ fun AttachmentDrawerItem(
                     MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
                 }
             )
+        }
+    }
+}
+
+// ============================================================================
+// MARK: - FullImageViewer
+// Immersive full-screen image viewer with zoom and blur
+// ============================================================================
+
+/**
+ * Enhanced Full Screen Image Viewer with zoom and blur effects.
+ * Supports:
+ * - Double tap to zoom
+ * - Pinch to zoom
+ * - Pan gestures
+ * - Blur background (Android 12+)
+ */
+@Composable
+fun FullImageViewer(
+    imagePath: String,
+    onDismiss: () -> Unit
+) {
+    var scale by remember { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    var rotation by remember { mutableStateOf(0f) }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onDoubleTap = { tapOffset ->
+                            scale = if (scale > 1f) {
+                                1f
+                            } else {
+                                2.5f
+                            }
+                            offset = if (scale > 1f) {
+                                tapOffset.copy(
+                                    x = -tapOffset.x * (scale - 1),
+                                    y = -tapOffset.y * (scale - 1)
+                                )
+                            } else {
+                                Offset.Zero
+                            }
+                        },
+                        onTap = { onDismiss() }
+                    )
+                }
+                .pointerInput(Unit) {
+                    detectTransformGestures { centroid, pan, zoom, rotate ->
+                        scale = (scale * zoom).coerceIn(1f, 5f)
+                        rotation += rotate
+                        offset = offset.copy(
+                            x = offset.x + pan.x,
+                            y = offset.y + pan.y
+                        )
+                        
+                        if (scale <= 1f) {
+                            scale = 1f
+                            offset = Offset.Zero
+                            rotation = 0f
+                        }
+                    }
+                }
+        ) {
+            AsyncImage(
+                model = imagePath,
+                contentDescription = "Full Image",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(20.dp)
+                    .alpha(0.3f),
+                contentScale = ContentScale.Crop
+            )
+
+            AsyncImage(
+                model = imagePath,
+                contentDescription = "Full Image",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer(
+                        scaleX = scale,
+                        scaleY = scale,
+                        rotationZ = rotation,
+                        translationX = offset.x,
+                        translationY = offset.y
+                    ),
+                contentScale = ContentScale.Fit
+            )
+
+            Surface(
+                color = Color.Black.copy(alpha = 0.5f),
+                shape = CircleShape,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(24.dp)
+                    .size(40.dp)
+                    .clickable { onDismiss() }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Close",
+                    tint = Color.White,
+                    modifier = Modifier.padding(8.dp)
+                )
+            }
         }
     }
 }
