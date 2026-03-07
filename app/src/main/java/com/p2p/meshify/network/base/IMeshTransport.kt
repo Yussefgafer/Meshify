@@ -28,6 +28,11 @@ interface IMeshTransport {
     suspend fun startDiscovery()
 
     /**
+     * Stops peer discovery and cleans up related resources.
+     */
+    suspend fun stopDiscovery()
+
+    /**
      * Sends a payload to a specific device.
      * @return Result indicating success or failure.
      */

@@ -2,6 +2,7 @@ package com.p2p.meshify.ui.screens.discovery
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.p2p.meshify.domain.model.SignalStrength
 import com.p2p.meshify.network.base.IMeshTransport
 import com.p2p.meshify.network.base.TransportEvent
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,8 +24,15 @@ data class PeerDevice(
     val id: String,
     val name: String,
     val address: String,
+    val rssi: Int? = null, // RSSI signal strength in dBm (optional for now)
     val isConnected: Boolean = false
-)
+) {
+    /**
+     * Get signal strength based on RSSI value.
+     */
+    val signalStrength: SignalStrength
+        get() = rssi?.let { SignalStrength.fromRssi(it) } ?: SignalStrength.OFFLINE
+}
 
 /**
  * ViewModel for the Peer Discovery Screen.

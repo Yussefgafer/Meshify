@@ -11,12 +11,16 @@ import androidx.compose.runtime.*
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.rememberNavController
 import com.p2p.meshify.core.util.Logger
+import com.p2p.meshify.domain.model.FontFamilyPreset
+import com.p2p.meshify.domain.model.MotionPreset
 import com.p2p.meshify.network.service.MeshForegroundService
 import com.p2p.meshify.ui.navigation.MeshifyNavHost
+import com.p2p.meshify.ui.theme.MD3EFontFamilies
 import com.p2p.meshify.ui.theme.MeshifyTheme
 
 /**
  * Main entry point of the Meshify application.
+ * Integrates MD3E settings for dynamic theming.
  */
 class MainActivity : ComponentActivity() {
 
@@ -36,12 +40,25 @@ class MainActivity : ComponentActivity() {
         val appContainer = (application as MeshifyApp).container
 
         setContent {
+            // Collect all MD3E settings
             val themeMode by appContainer.settingsRepository.themeMode.collectAsState(initial = com.p2p.meshify.domain.repository.ThemeMode.SYSTEM)
             val dynamicColor by appContainer.settingsRepository.dynamicColorEnabled.collectAsState(initial = true)
+            val motionPreset by appContainer.settingsRepository.motionPreset.collectAsState(initial = MotionPreset.STANDARD)
+            val motionScale by appContainer.settingsRepository.motionScale.collectAsState(initial = 1.0f)
+            val fontFamilyPreset by appContainer.settingsRepository.fontFamilyPreset.collectAsState(initial = FontFamilyPreset.ROBOTO)
+            val shapeStyle by appContainer.settingsRepository.shapeStyle.collectAsState(initial = com.p2p.meshify.domain.model.ShapeStyle.CIRCLE)
+            val bubbleStyle by appContainer.settingsRepository.bubbleStyle.collectAsState(initial = com.p2p.meshify.domain.model.BubbleStyle.ROUNDED)
+            val visualDensity by appContainer.settingsRepository.visualDensity.collectAsState(initial = 1.0f)
 
             MeshifyTheme(
                 themeMode = themeMode.name,
-                dynamicColor = dynamicColor
+                dynamicColor = dynamicColor,
+                motionPreset = motionPreset,
+                motionScale = motionScale,
+                fontFamily = MD3EFontFamilies.getFontFamily(fontFamilyPreset),
+                shapeStyle = shapeStyle,
+                bubbleStyle = bubbleStyle,
+                visualDensity = visualDensity
             ) {
                 val navController = rememberNavController()
                 MeshifyNavHost(

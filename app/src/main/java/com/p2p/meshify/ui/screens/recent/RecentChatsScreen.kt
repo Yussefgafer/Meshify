@@ -39,8 +39,11 @@ import androidx.graphics.shapes.star
 import androidx.graphics.shapes.circle
 import androidx.graphics.shapes.toPath
 import com.p2p.meshify.R
-import com.p2p.meshify.data.local.entity.ChatEntity
 import com.p2p.meshify.core.util.Logger
+import com.p2p.meshify.data.local.entity.ChatEntity
+import com.p2p.meshify.ui.components.ExpressiveCard
+import com.p2p.meshify.ui.components.ExpressiveMorphingFAB
+import com.p2p.meshify.ui.components.MorphingAvatar
 import com.p2p.meshify.ui.theme.MeshifyThemeProperties
 import java.text.SimpleDateFormat
 import java.util.*
@@ -216,44 +219,21 @@ fun Morph.populatePath(progress: Float, path: AndroidPath) {
 
 @Composable
 fun ChatListItem(chat: ChatEntity, isOnline: Boolean, onClick: () -> Unit) {
-    Card(
+    ExpressiveCard(
         onClick = onClick,
         shape = RoundedCornerShape(MeshifyThemeProperties.CardRadius),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier.padding(16.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(modifier = Modifier.size(56.dp)) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    shape = RoundedCornerShape(MeshifyThemeProperties.AvatarRadius),
-                    color = MaterialTheme.colorScheme.primaryContainer
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = chat.peerName.take(1).uppercase(),
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                }
-                if (isOnline) {
-                    Box(
-                        modifier = Modifier
-                            .size(14.dp)
-                            .align(Alignment.BottomEnd)
-                            .offset(x = 2.dp, y = 2.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF4CAF50))
-                            .background(MaterialTheme.colorScheme.surface)
-                            .padding(2.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF4CAF50))
-                    )
-                }
-            }
+            // ✅ Use MorphingAvatar for online/offline visual distinction
+            MorphingAvatar(
+                initials = chat.peerName.take(1),
+                isOnline = isOnline,
+                size = 52.dp
+            )
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = chat.peerName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -264,9 +244,9 @@ fun ChatListItem(chat: ChatEntity, isOnline: Boolean, onClick: () -> Unit) {
                         Spacer(modifier = Modifier.width(4.dp))
                     }
                     Text(
-                        text = chat.lastMessage ?: stringResource(R.string.last_msg_none), 
-                        style = MaterialTheme.typography.bodyMedium, 
-                        maxLines = 1, 
+                        text = chat.lastMessage ?: stringResource(R.string.last_msg_none),
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

@@ -2,6 +2,10 @@ package com.p2p.meshify.ui.screens.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.p2p.meshify.domain.model.BubbleStyle
+import com.p2p.meshify.domain.model.FontFamilyPreset
+import com.p2p.meshify.domain.model.MotionPreset
+import com.p2p.meshify.domain.model.ShapeStyle
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.domain.repository.ThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,6 +16,7 @@ import kotlinx.coroutines.launch
 
 /**
  * ViewModel for application settings with Type-Safe Enums.
+ * Extended for MD3E - Full Control Plan.
  */
 class SettingsViewModel(
     private val settingsRepository: ISettingsRepository
@@ -28,6 +33,25 @@ class SettingsViewModel(
 
     val isNetworkVisible: StateFlow<Boolean> = settingsRepository.isNetworkVisible
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    
+    // MD3E Settings Flows
+    val shapeStyle: StateFlow<ShapeStyle> = settingsRepository.shapeStyle
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ShapeStyle.CIRCLE)
+    
+    val motionPreset: StateFlow<MotionPreset> = settingsRepository.motionPreset
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MotionPreset.STANDARD)
+    
+    val motionScale: StateFlow<Float> = settingsRepository.motionScale
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1.0f)
+    
+    val fontFamilyPreset: StateFlow<FontFamilyPreset> = settingsRepository.fontFamilyPreset
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), FontFamilyPreset.ROBOTO)
+    
+    val bubbleStyle: StateFlow<BubbleStyle> = settingsRepository.bubbleStyle
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BubbleStyle.ROUNDED)
+    
+    val visualDensity: StateFlow<Float> = settingsRepository.visualDensity
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1.0f)
 
     private val _deviceId = MutableStateFlow("")
     val deviceId: StateFlow<String> = _deviceId
@@ -61,6 +85,43 @@ class SettingsViewModel(
     fun setNetworkVisibility(visible: Boolean) {
         viewModelScope.launch {
             settingsRepository.setNetworkVisibility(visible)
+        }
+    }
+    
+    // MD3E Setting Mutators
+    fun setShapeStyle(style: ShapeStyle) {
+        viewModelScope.launch {
+            settingsRepository.setShapeStyle(style)
+        }
+    }
+    
+    fun setMotionPreset(preset: MotionPreset) {
+        viewModelScope.launch {
+            settingsRepository.setMotionPreset(preset)
+        }
+    }
+    
+    fun setMotionScale(scale: Float) {
+        viewModelScope.launch {
+            settingsRepository.setMotionScale(scale)
+        }
+    }
+    
+    fun setFontFamilyPreset(family: FontFamilyPreset) {
+        viewModelScope.launch {
+            settingsRepository.setFontFamilyPreset(family)
+        }
+    }
+    
+    fun setBubbleStyle(style: BubbleStyle) {
+        viewModelScope.launch {
+            settingsRepository.setBubbleStyle(style)
+        }
+    }
+    
+    fun setVisualDensity(density: Float) {
+        viewModelScope.launch {
+            settingsRepository.setVisualDensity(density)
         }
     }
 }

@@ -9,20 +9,39 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 
+/**
+ * MD3E Motion Configuration.
+ * Central source for spring physics and motion presets.
+ */
 @Immutable
 data class MeshifyMotion(
-    val defaultSpatial: androidx.compose.animation.core.SpringSpec<Float> = androidx.compose.animation.core.spring(
-        dampingRatio = 0.8f,
-        stiffness = 600f
-    )
+    val springSpec: androidx.compose.animation.core.SpringSpec<Float> = MotionSpecs.Standard,
+    val scale: Float = 1.0f
 )
 
 val LocalMeshifyMotion = staticCompositionLocalOf { MeshifyMotion() }
 
 /**
- * Shared Dimensions and Shapes for Consistency (Fixes P1 Hardcoded Values).
+ * MD3E Theme Configuration.
+ * Central Source of Truth for all design variables.
+ */
+@Immutable
+data class MeshifyThemeConfig(
+    val shapeStyle: com.p2p.meshify.domain.model.ShapeStyle = com.p2p.meshify.domain.model.ShapeStyle.CIRCLE,
+    val motionPreset: com.p2p.meshify.domain.model.MotionPreset = com.p2p.meshify.domain.model.MotionPreset.STANDARD,
+    val motionScale: Float = 1.0f,
+    val fontFamily: FontFamily = MD3EFontFamilies.Roboto,
+    val bubbleStyle: com.p2p.meshify.domain.model.BubbleStyle = com.p2p.meshify.domain.model.BubbleStyle.ROUNDED,
+    val visualDensity: Float = 1.0f
+)
+
+val LocalMeshifyThemeConfig = staticCompositionLocalOf { MeshifyThemeConfig() }
+
+/**
+ * Shared Dimensions and Shapes for Consistency.
  */
 object MeshifyThemeProperties {
     val ChatBubbleRadius = 24.dp
@@ -33,21 +52,21 @@ object MeshifyThemeProperties {
 
 object ChatBubbleShapes {
     val Ungrouped = RoundedCornerShape(MeshifyThemeProperties.ChatBubbleRadius)
-    
+
     val MeGroupedTop = RoundedCornerShape(
         topStart = MeshifyThemeProperties.ChatBubbleRadius,
         topEnd = MeshifyThemeProperties.ChatBubbleGroupedRadius,
         bottomEnd = MeshifyThemeProperties.ChatBubbleRadius,
         bottomStart = MeshifyThemeProperties.ChatBubbleRadius
     )
-    
+
     val MeGroupedMiddle = RoundedCornerShape(
         topStart = MeshifyThemeProperties.ChatBubbleRadius,
         topEnd = MeshifyThemeProperties.ChatBubbleGroupedRadius,
         bottomEnd = MeshifyThemeProperties.ChatBubbleGroupedRadius,
         bottomStart = MeshifyThemeProperties.ChatBubbleRadius
     )
-    
+
     val MeGroupedBottom = RoundedCornerShape(
         topStart = MeshifyThemeProperties.ChatBubbleRadius,
         topEnd = MeshifyThemeProperties.ChatBubbleRadius,
@@ -61,13 +80,66 @@ object ChatBubbleShapes {
         bottomEnd = MeshifyThemeProperties.ChatBubbleRadius,
         bottomStart = MeshifyThemeProperties.ChatBubbleRadius
     )
-    
+
     val PeerGroupedMiddle = RoundedCornerShape(
         topStart = MeshifyThemeProperties.ChatBubbleGroupedRadius,
         topEnd = MeshifyThemeProperties.ChatBubbleRadius,
         bottomEnd = MeshifyThemeProperties.ChatBubbleRadius,
         bottomStart = MeshifyThemeProperties.ChatBubbleGroupedRadius
     )
+}
+
+/**
+ * Get chat bubble shape based on selected BubbleStyle from settings.
+ */
+fun getBubbleShape(
+    bubbleStyle: com.p2p.meshify.domain.model.BubbleStyle,
+    isFromMe: Boolean,
+    isGroupedWithPrevious: Boolean,
+    isGroupedWithNext: Boolean
+): RoundedCornerShape {
+    val radius = MeshifyThemeProperties.ChatBubbleRadius
+    val smallRadius = MeshifyThemeProperties.ChatBubbleGroupedRadius
+    
+    return when (bubbleStyle) {
+        com.p2p.meshify.domain.model.BubbleStyle.ROUNDED -> {
+            // Classic rounded bubbles
+            when {
+                isFromMe -> {
+                    when {
+                        isGroupedWithPrevious && isGroupedWithNext -> ChatBubbleShapes.MeGroupedMiddle
+                        isGroupedWithPrevious -> ChatBubbleShapes.MeGroupedTop
+                        isGroupedWithNext -> ChatBubbleShapes.MeGroupedBottom
+                        else -> ChatBubbleShapes.Ungrouped
+                    }
+                }
+                else -> {
+                    when {
+                        isGroupedWithPrevious && isGroupedWithNext -> ChatBubbleShapes.PeerGroupedMiddle
+                        isGroupedWithPrevious -> ChatBubbleShapes.PeerGroupedTop
+                        else -> ChatBubbleShapes.Ungrouped
+                    }
+                }
+            }
+        }
+        com.p2p.meshify.domain.model.BubbleStyle.TAILED -> {
+            // More pronounced tail effect with asymmetric corners
+            RoundedCornerShape(
+                topStart = if (isFromMe) radius else smallRadius,
+                topEnd = if (isFromMe) smallRadius else radius,
+                bottomEnd = radius,
+                bottomStart = radius
+            )
+        }
+        com.p2p.meshify.domain.model.BubbleStyle.SQUARCLES -> {
+            // Square-circles: minimal rounding
+            RoundedCornerShape(8.dp)
+        }
+        com.p2p.meshify.domain.model.BubbleStyle.ORGANIC -> {
+            // Extra rounded, almost pill-like
+            RoundedCornerShape(32.dp)
+        }
+    }
 }
 
 private val DarkColorScheme = darkColorScheme(
@@ -95,12 +167,19 @@ private val LightColorScheme = lightColorScheme(
 )
 
 /**
- * Meshify Theme with Meshify Brand Identity.
+ * MD3E Theme - Central Source of Truth.
+ * Integrates with Settings Repository for dynamic theming.
  */
 @Composable
 fun MeshifyTheme(
     themeMode: String = "SYSTEM",
     dynamicColor: Boolean = true,
+    motionPreset: com.p2p.meshify.domain.model.MotionPreset = com.p2p.meshify.domain.model.MotionPreset.STANDARD,
+    motionScale: Float = 1.0f,
+    fontFamily: FontFamily = MD3EFontFamilies.Roboto,
+    shapeStyle: com.p2p.meshify.domain.model.ShapeStyle = com.p2p.meshify.domain.model.ShapeStyle.CIRCLE,
+    bubbleStyle: com.p2p.meshify.domain.model.BubbleStyle = com.p2p.meshify.domain.model.BubbleStyle.ROUNDED,
+    visualDensity: Float = 1.0f,
     content: @Composable () -> Unit
 ) {
     val darkTheme = when (themeMode) {
@@ -118,12 +197,25 @@ fun MeshifyTheme(
         else -> LightColorScheme
     }
 
+    val motion = MeshifyMotion(
+        springSpec = MotionSpecs.getSpring(motionPreset, motionScale),
+        scale = motionScale
+    )
+
     CompositionLocalProvider(
-        LocalMeshifyMotion provides MeshifyMotion()
+        LocalMeshifyMotion provides motion,
+        LocalMeshifyThemeConfig provides MeshifyThemeConfig(
+            motionPreset = motionPreset,
+            motionScale = motionScale,
+            fontFamily = fontFamily,
+            shapeStyle = shapeStyle,
+            bubbleStyle = bubbleStyle,
+            visualDensity = visualDensity
+        )
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = Typography,
+            typography = getTypography(fontFamily),
             content = content
         )
     }

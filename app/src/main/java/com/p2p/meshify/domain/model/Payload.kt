@@ -30,3 +30,21 @@ data class Payload(
         return id.hashCode()
     }
 }
+
+/**
+ * Extension function for safe enum lookup from String.
+ */
+fun PayloadTypeFromString(name: String): Payload.PayloadType? {
+    return try {
+        Payload.PayloadType.valueOf(name)
+    } catch (e: IllegalArgumentException) {
+        null
+    }
+}
+
+/**
+ * Extension function for safe enum lookup from String.
+ */
+fun String.toPayloadType(): Payload.PayloadType? {
+    return PayloadTypeFromString(this)
+}

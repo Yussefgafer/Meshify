@@ -13,6 +13,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.net.InetAddress
 import java.util.concurrent.ConcurrentHashMap
+import java.util.Collections.newSetFromMap
 
 /**
  * Professional LAN Transport with Reactive Visibility and Peer Tracking.
@@ -27,14 +28,20 @@ class LanTransportImpl(
     override val events = _events.asSharedFlow()
 
     private val peerMap = ConcurrentHashMap<String, String>()
-    
+
     private val _onlinePeers = MutableStateFlow<Set<String>>(emptySet())
     val onlinePeers: StateFlow<Set<String>> = _onlinePeers.asStateFlow()
 
     private val _typingPeers = MutableStateFlow<Set<String>>(emptySet())
     val typingPeers: StateFlow<Set<String>> = _typingPeers.asStateFlow()
 
-    private val resolvingPeers = mutableSetOf<String>()
+    // Thread-safe set using ConcurrentHashMap-backed set
+    private val resolvingPeers = newSetFromMap(ConcurrentHashMap<String, Boolean>())
+    
+    // Discovery enabled flag - controls watchdog restart behavior
+    @Volatile
+    private var discoveryEnabled = false
+    
     private val nsdManager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
     private var registrationListener: NsdManager.RegistrationListener? = null
     private var discoveryListener: NsdManager.DiscoveryListener? = null
@@ -79,6 +86,10 @@ class LanTransportImpl(
         }
         
         scope.launch { socketManager.startListening() }
+        
+        // Start discovery immediately, then let watchdog handle periodic restarts
+        scope.launch { startDiscovery() }
+        
         startWatchdog()
     }
 
@@ -111,13 +122,20 @@ class LanTransportImpl(
         watchdogJob?.cancel()
         watchdogJob = scope.launch {
             while (isActive) {
-                startDiscovery()
                 delay(AppConfig.DISCOVERY_SCAN_INTERVAL_MS)
+                // Only restart if discovery is still enabled
+                if (discoveryEnabled) {
+                    stopDiscovery()
+                    startDiscovery()
+                } else {
+                    break // Exit loop if discovery was disabled
+                }
             }
         }
     }
 
     override suspend fun stop() {
+        discoveryEnabled = false
         visibilityJob?.cancel()
         watchdogJob?.cancel()
         unregisterService()
@@ -127,20 +145,36 @@ class LanTransportImpl(
     }
 
     override suspend fun startDiscovery() {
-        if (discoveryListener != null) return 
+        if (discoveryListener != null) return
+        
+        // Mark discovery as enabled
+        discoveryEnabled = true
         discoveryListener = createDiscoveryListener()
         try {
             nsdManager.discoverServices(AppConfig.SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
+            Logger.d("NSD -> Discovery started")
         } catch (e: Exception) {
             Logger.e("NSD -> Discovery Start Failed", e)
+            discoveryListener = null
         }
     }
 
-    private fun stopDiscovery() {
-        discoveryListener?.let {
-            try { nsdManager.stopServiceDiscovery(it) } catch (e: Exception) { }
+    override suspend fun stopDiscovery() {
+        // Mark discovery as disabled - prevents watchdog restart
+        discoveryEnabled = false
+        
+        try {
+            discoveryListener?.let {
+                nsdManager.stopServiceDiscovery(it)
+            }
+        } catch (e: Exception) {
+            Logger.e("NSD -> Stop Discovery Failed", e)
+        } finally {
             discoveryListener = null
+            resolvingPeers.clear()
         }
+        
+        Logger.d("NSD -> Discovery stopped")
     }
 
     override suspend fun sendPayload(targetDeviceId: String, payload: Payload): Result<Unit> {

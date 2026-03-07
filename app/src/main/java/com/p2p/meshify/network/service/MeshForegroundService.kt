@@ -23,16 +23,17 @@ class MeshForegroundService : Service() {
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var multicastLock: WifiManager.MulticastLock? = null
-    
+
     private lateinit var chatRepository: IChatRepository
+    private var transportStarted = false
 
     override fun onCreate() {
         super.onCreate()
         Logger.i("Service -> onCreate")
-        
+
         val app = application as MeshifyApp
         chatRepository = app.container.chatRepository
-        
+
         acquireMulticastLock()
         startMeshNetwork()
     }
@@ -41,7 +42,7 @@ class MeshForegroundService : Service() {
         serviceScope.launch {
             val app = application as MeshifyApp
             val transport = app.container.lanTransport
-            
+
             // Listen for incoming payloads globally
             launch {
                 transport.events.collect { event ->
@@ -51,8 +52,35 @@ class MeshForegroundService : Service() {
                     }
                 }
             }
-            
+
             transport.start()
+            transportStarted = true
+        }
+    }
+
+    /**
+     * Deterministic shutdown - stops transport BEFORE cancelling scope.
+     * Uses runBlocking to ensure transport.stop() completes.
+     */
+    private fun stopMeshNetworkDeterministic() {
+        if (!transportStarted) return
+
+        Logger.i("Service -> Stopping transport deterministically...")
+
+        // Use a fresh scope that won't be cancelled by serviceScope.cancel()
+        val shutdownScope = CoroutineScope(Dispatchers.IO)
+        try {
+            // Block until transport.stop() completes
+            runBlocking {
+                val app = application as MeshifyApp
+                app.container.lanTransport.stop()
+            }
+            transportStarted = false
+            Logger.i("Service -> Transport stopped successfully")
+        } catch (e: Exception) {
+            Logger.e("Service -> Failed to stop transport", e)
+        } finally {
+            shutdownScope.cancel()
         }
     }
 
@@ -89,8 +117,25 @@ class MeshForegroundService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         Logger.i("Service -> onDestroy")
+        // 1. Stop transport FIRST (deterministic, blocking)
+        stopMeshNetworkDeterministic()
+        // 2. Release multicast lock
         multicastLock?.let { if (it.isHeld) it.release() }
+        // 3. Cancel coroutine scope LAST
         serviceScope.cancel()
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        Logger.i("Service -> onTaskRemoved - App removed from recents")
+        // 1. Stop transport FIRST (deterministic, blocking)
+        stopMeshNetworkDeterministic()
+        // 2. Release multicast lock
+        multicastLock?.let { if (it.isHeld) it.release() }
+        // 3. Cancel coroutine scope
+        serviceScope.cancel()
+        // 4. Stop the service
+        stopSelf()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
