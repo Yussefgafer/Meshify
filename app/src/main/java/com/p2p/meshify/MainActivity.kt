@@ -5,7 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,8 +17,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.zIndex
-import androidx.core.view.WindowCompat
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.rememberNavController
 import com.p2p.meshify.core.util.Logger
@@ -27,7 +27,6 @@ import com.p2p.meshify.domain.model.MotionPreset
 import com.p2p.meshify.network.service.MeshForegroundService
 import com.p2p.meshify.ui.components.NoiseTextureOverlay
 import com.p2p.meshify.ui.navigation.MeshifyNavDisplay
-import com.p2p.meshify.ui.navigation.Screen
 import com.p2p.meshify.ui.theme.MD3EFontFamilies
 import com.p2p.meshify.ui.theme.MeshifyTheme
 import kotlinx.coroutines.Dispatchers
@@ -53,17 +52,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         Logger.d("MainActivity -> onCreate START")
 
-        // ✅ PREMIUM FIX: Enable edge-to-edge with transparent Status Bar
+        // ✅ PREMIUM FIX: Modern Edge-to-Edge with automatic theme detection
         enableEdgeToEdge()
-        
-        // ✅ PREMIUM FIX: Set Status Bar and Navigation Bar to transparent
-        window.statusBarColor = android.graphics.Color.TRANSPARENT
-        window.navigationBarColor = android.graphics.Color.TRANSPARENT
-        
-        // ✅ PREMIUM FIX: Ensure Status Bar icons adapt to light/dark automatically
-        val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
-        windowInsetsController.isAppearanceLightStatusBars = false
-        windowInsetsController.isAppearanceLightNavigationBars = false
 
         checkAndRequestPermissions()
         val appContainer = (application as MeshifyApp).container
@@ -81,7 +71,6 @@ class MainActivity : ComponentActivity() {
             val bubbleStyle by appContainer.settingsRepository.bubbleStyle.collectAsState(initial = com.p2p.meshify.domain.model.BubbleStyle.ROUNDED)
             val visualDensity by appContainer.settingsRepository.visualDensity.collectAsState(initial = 1.0f)
             val seedColorInt by appContainer.settingsRepository.seedColor.collectAsState(initial = 0xFF006D68.toInt())
-            val customFontUri by appContainer.settingsRepository.customFontUri.collectAsState(initial = null)
 
             var isReady by remember { mutableStateOf(false) }
 
@@ -116,6 +105,28 @@ class MainActivity : ComponentActivity() {
                 visualDensity = visualDensity,
                 seedColor = seedColor
             ) {
+                // ✅ Update System Bars style based on theme
+                val isDark = MaterialTheme.colorScheme.surface.toArgb().let { 
+                    // Simple luminance check
+                    val r = (it shr 16 and 0xff) / 255.0
+                    val g = (it shr 8 and 0xff) / 255.0
+                    val b = (it and 0xff) / 255.0
+                    (0.2126 * r + 0.7152 * g + 0.0722 * b) < 0.5
+                }
+                
+                SideEffect {
+                    enableEdgeToEdge(
+                        statusBarStyle = SystemBarStyle.auto(
+                            android.graphics.Color.TRANSPARENT,
+                            android.graphics.Color.TRANSPARENT
+                        ) { isDark },
+                        navigationBarStyle = SystemBarStyle.auto(
+                            android.graphics.Color.TRANSPARENT,
+                            android.graphics.Color.TRANSPARENT
+                        ) { isDark }
+                    )
+                }
+
                 if (!isReady) {
                     Box(
                         modifier = Modifier

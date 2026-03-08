@@ -12,7 +12,6 @@ import com.p2p.meshify.network.base.TransportEvent
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.net.ConnectException
-import java.net.InetAddress
 import java.net.SocketTimeoutException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
@@ -277,6 +276,7 @@ class LanTransportImpl(
             val name = serviceInfo.serviceName
             if (name.startsWith("Meshify_") && !resolvingPeers.contains(name)) {
                 resolvingPeers.add(name)
+                @Suppress("DEPRECATION")
                 nsdManager.resolveService(serviceInfo, createResolveListener())
             }
         }
@@ -306,6 +306,7 @@ class LanTransportImpl(
             resolvingPeers.remove(info.serviceName)
         }
         override fun onServiceResolved(info: NsdServiceInfo) {
+            @Suppress("DEPRECATION")
             val address = info.host.hostAddress ?: return
             val name = info.serviceName
             resolvingPeers.remove(name)
