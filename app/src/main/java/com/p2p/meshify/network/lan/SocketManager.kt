@@ -97,25 +97,31 @@ class SocketManager(
 
     /**
      * Cleans up idle sockets that haven't been used for more than 5 minutes.
+     * Uses two-pass approach to avoid ConcurrentModificationException.
      */
     private fun cleanupIdleSockets() {
         val now = System.currentTimeMillis()
-        val iterator = activeConnections.iterator()
-        var cleanedCount = 0
+        // First pass: collect keys to remove (avoids ConcurrentModificationException)
+        val toRemove = mutableListOf<String>()
 
-        while (iterator.hasNext()) {
-            val entry = iterator.next()
-            val pooledSocket = entry.value
+        for ((key, pooledSocket) in activeConnections) {
             val idleTime = now - pooledSocket.lastUsedAt
-
             if (idleTime > IDLE_TIMEOUT_MS) {
+                toRemove.add(key)
+            }
+        }
+
+        // Second pass: remove and close sockets
+        var cleanedCount = 0
+        toRemove.forEach { key ->
+            activeConnections.remove(key)?.let { pooledSocket ->
                 try {
-                    Logger.d("SocketManager -> Cleaning up idle socket: ${entry.key} (idle for ${idleTime / 1000}s)")
+                    val idleTime = now - pooledSocket.lastUsedAt
+                    Logger.d("SocketManager -> Cleaning up idle socket: $key (idle for ${idleTime / 1000}s)")
                     pooledSocket.socket.close()
-                    iterator.remove()
                     cleanedCount++
                 } catch (e: Exception) {
-                    Logger.e("SocketManager -> Error closing idle socket: ${entry.key}", e)
+                    Logger.e("SocketManager -> Error closing idle socket: $key", e)
                 }
             }
         }
@@ -175,6 +181,7 @@ class SocketManager(
     /**
      * Sends a payload to a target address.
      * Uses Connection Pooling to reuse sockets.
+     * Includes Write Timeout to prevent coroutine hanging.
      */
     suspend fun sendPayload(targetAddress: String, payload: Payload): Result<Unit> = withContext(ioDispatcher) {
         var pooledSocket = activeConnections[targetAddress]
@@ -198,20 +205,32 @@ class SocketManager(
             val outputStream = DataOutputStream(pooledSocket.socket.getOutputStream())
             val bytes = PayloadSerializer.serialize(payload)
 
-            // Write length then data
-            outputStream.writeInt(bytes.size)
-            outputStream.write(bytes)
-            outputStream.flush()
+            // Write with timeout to prevent hanging on dead sockets
+            withTimeoutOrNull(5000) { // 5s write timeout
+                outputStream.writeInt(bytes.size)
+                outputStream.write(bytes)
+                outputStream.flush()
+            } ?: throw java.net.SocketTimeoutException("Write timeout after 5s")
 
             // Update last used timestamp
             pooledSocket.lastUsedAt = System.currentTimeMillis()
 
             return@withContext Result.success(Unit)
 
+        } catch (e: java.net.SocketTimeoutException) {
+            Logger.e("SocketManager -> Send Timeout to $targetAddress", e)
+            // Cleanup broken connection
+            try { pooledSocket?.socket?.close() } catch (ex: Exception) {
+                Logger.e("SocketManager -> Failed to close timed-out socket", ex)
+            }
+            activeConnections.remove(targetAddress)
+            return@withContext Result.failure(e)
         } catch (e: Exception) {
             Logger.e("SocketManager -> Send Failed to $targetAddress", e)
             // Cleanup broken connection
-            try { pooledSocket?.socket?.close() } catch (ex: Exception) {}
+            try { pooledSocket?.socket?.close() } catch (ex: Exception) {
+                Logger.e("SocketManager -> Failed to close failed socket", ex)
+            }
             activeConnections.remove(targetAddress)
             return@withContext Result.failure(e)
         }
@@ -226,7 +245,11 @@ class SocketManager(
         cleanupJob?.cancel()
         cleanupJob = null
 
-        try { serverSocket?.close() } catch (e: Exception) {}
+        try {
+            serverSocket?.close()
+        } catch (e: Exception) {
+            Logger.e("SocketManager -> Failed to close server socket", e)
+        }
         serverSocket = null
 
         // Cancel all connection coroutines
@@ -236,7 +259,11 @@ class SocketManager(
         val iterator = activeConnections.iterator()
         while (iterator.hasNext()) {
             val entry = iterator.next()
-            try { entry.value.socket.close() } catch (e: Exception) {}
+            try {
+                entry.value.socket.close()
+            } catch (e: Exception) {
+                Logger.e("SocketManager -> Failed to close active socket: ${entry.key}", e)
+            }
             iterator.remove()
         }
         Logger.i("SocketManager -> Stopped successfully")

@@ -112,4 +112,13 @@
     <string name="btn_clear_font">Clear Custom Font</string>
     <string name="font_file_selected">Font file selected: %s</string>
     <string name="no_custom_font">No custom font uploaded</string>
+
+    <!-- Accessibility Content Descriptions -->
+    <string name="content_desc_back">Back</string>
+    <string name="content_desc_cancel">Cancel</string>
+    <string name="content_desc_delete">Delete</string>
+    <string name="content_desc_send">Send</string>
+    <string name="content_desc_attach">Attach file</string>
+    <string name="content_desc_settings">Settings</string>
+    <string name="content_desc_discovery">Discovery</string>
 </resources>

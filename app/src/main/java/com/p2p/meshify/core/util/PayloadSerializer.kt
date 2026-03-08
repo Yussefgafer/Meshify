@@ -4,19 +4,20 @@ import com.p2p.meshify.domain.model.Payload
 import com.p2p.meshify.domain.model.toPayloadType
 import java.nio.BufferUnderflowException
 import java.nio.ByteBuffer
+import java.nio.charset.StandardCharsets
 import java.util.*
 
 /**
  * Enhanced Utility for serializing and deserializing Payload objects.
- * 
- * Wire Format V3 (Current): [Int: TotalLength] [Int: Version] [Long: Timestamp] 
- *   [Int: TypeLength] [String: TypeName] [UUID: MessageID (16 bytes)] 
+ *
+ * Wire Format V3 (Current): [Int: TotalLength] [Int: Version] [Long: Timestamp]
+ *   [Int: TypeLength] [String: TypeName] [UUID: MessageID (16 bytes)]
  *   [UUID: SenderID (16 bytes)] [Data: Remaining]
- * 
- * Wire Format V2 (Legacy): [Int: TotalLength] [Int: Version] [Long: Timestamp] 
- *   [Int: TypeOrdinal] [UUID: MessageID (16 bytes)] [UUID: SenderID (16 bytes)] 
+ *
+ * Wire Format V2 (Legacy): [Int: TotalLength] [Int: Version] [Long: Timestamp]
+ *   [Int: TypeOrdinal] [UUID: MessageID (16 bytes)] [UUID: SenderID (16 bytes)]
  *   [Data: Remaining]
- * 
+ *
  * V3 adds explicit version bump for string-based type encoding to maintain
  * backward compatibility with V2 ordinal-based payloads during mixed-version rollout.
  */
@@ -26,6 +27,7 @@ object PayloadSerializer {
     private const val V2_VERSION = 2
     private const val MAX_TYPE_LENGTH = 64 // Safety bound for type string
     private const val MIN_PAYLOAD_SIZE = 4 + 4 + 8 // Minimum: length + version + timestamp
+    private const val MAX_DATA_SIZE = 10 * 1024 * 1024 // 10MB max data size safety bound
 
     /**
      * Result wrapper for deserialization to handle failures safely.
@@ -66,13 +68,15 @@ object PayloadSerializer {
         return when (val result = deserializeSafe(bytes)) {
             is DeserializeResult.Success -> result.payload
             is DeserializeResult.Error -> {
-                // Fallback: create a SYSTEM_CONTROL payload with raw data
+                // Log corrupted payload for debugging
+                Logger.w("PayloadSerializer -> Corrupted payload received: ${result.reason}")
+                // Return a safe empty payload instead of preserving corrupted data
                 Payload(
                     id = UUID.randomUUID().toString(),
                     senderId = "unknown",
                     timestamp = System.currentTimeMillis(),
                     type = Payload.PayloadType.SYSTEM_CONTROL,
-                    data = bytes
+                    data = ByteArray(0) // Empty data instead of corrupted bytes
                 )
             }
         }
@@ -126,16 +130,22 @@ object PayloadSerializer {
                         return DeserializeResult.Error("Insufficient bytes for V3 type length", bytes)
                     }
                     val typeLength = buffer.int
-                    
+
                     // Bounds check for type length
                     if (typeLength < 0 || typeLength > MAX_TYPE_LENGTH || typeLength > buffer.remaining()) {
                         // Skip remaining fields safely by returning error
                         return DeserializeResult.Error("Invalid V3 type length: $typeLength", bytes)
                     }
-                    
+
                     val typeBytes = ByteArray(typeLength)
                     buffer.get(typeBytes)
-                    val typeName = String(typeBytes)
+                    // Use explicit UTF-8 charset to avoid platform-dependent decoding
+                    val typeName = try {
+                        String(typeBytes, StandardCharsets.UTF_8)
+                    } catch (e: Exception) {
+                        Logger.w("PayloadSerializer -> Invalid UTF-8 type name, using default charset")
+                        String(typeBytes) // Fallback to default charset
+                    }
                     typeName.toPayloadType() ?: Payload.PayloadType.SYSTEM_CONTROL
                 }
                 else -> {
@@ -159,8 +169,15 @@ object PayloadSerializer {
             val senderLsb = buffer.long
             val senderId = UUID(senderMsb, senderLsb).toString()
 
-            // Data (remaining bytes)
-            val data = ByteArray(buffer.remaining())
+            // Data (remaining bytes) with max size check
+            val remainingBytes = buffer.remaining()
+            if (remainingBytes > MAX_DATA_SIZE) {
+                return DeserializeResult.Error(
+                    "Payload data too large: $remainingBytes bytes (max: $MAX_DATA_SIZE)",
+                    bytes
+                )
+            }
+            val data = ByteArray(remainingBytes)
             buffer.get(data)
 
             return DeserializeResult.Success(

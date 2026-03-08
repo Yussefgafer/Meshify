@@ -16,6 +16,8 @@ import com.p2p.meshify.network.lan.LanTransportImpl
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.*
 
 /**
@@ -30,6 +32,9 @@ class ChatRepositoryImpl(
     private val settingsRepository: ISettingsRepository, // FIXED: Now depends on Interface
     private val fileManager: IFileManager
 ) : IChatRepository {
+
+    // Mutex for thread-safe payload handling (prevents race conditions on concurrent incoming payloads)
+    private val payloadMutex = Mutex()
 
     override fun getAllChats(): Flow<List<ChatEntity>> = chatDao.getAllChats()
 
@@ -122,32 +127,37 @@ class ChatRepositoryImpl(
     }
 
     override suspend fun handleIncomingPayload(peerId: String, payload: Payload) {
-        when (payload.type) {
-            Payload.PayloadType.SYSTEM_CONTROL -> {
-                val command = String(payload.data)
-                if (command.startsWith("ACK_")) {
-                    val messageId = command.removePrefix("ACK_")
-                    messageDao.updateMessageStatus(messageId, MessageStatus.RECEIVED)
+        // Thread-safe payload processing to prevent race conditions and database corruption
+        payloadMutex.withLock {
+            when (payload.type) {
+                Payload.PayloadType.SYSTEM_CONTROL -> {
+                    val command = String(payload.data)
+                    if (command.startsWith("ACK_")) {
+                        val messageId = command.removePrefix("ACK_")
+                        messageDao.updateMessageStatus(messageId, MessageStatus.RECEIVED)
+                    }
                 }
-            }
-            Payload.PayloadType.TEXT -> {
-                val text = String(payload.data)
-                saveIncomingMessage(payload.senderId, text, null, MessageType.TEXT, payload.timestamp, payload.id)
-                sendSystemCommand(payload.senderId, "ACK_${payload.id}")
-            }
-            Payload.PayloadType.FILE -> {
-                val fileName = "img_${payload.id}.jpg"
-                val savedPath = fileManager.saveMedia(fileName, payload.data)
-                if (savedPath != null) {
-                    saveIncomingMessage(payload.senderId, null, savedPath, MessageType.IMAGE, payload.timestamp, payload.id)
+                Payload.PayloadType.TEXT -> {
+                    val text = String(payload.data)
+                    saveIncomingMessage(payload.senderId, text, null, MessageType.TEXT, payload.timestamp, payload.id)
                     sendSystemCommand(payload.senderId, "ACK_${payload.id}")
                 }
+                Payload.PayloadType.FILE -> {
+                    val fileName = "img_${payload.id}.jpg"
+                    val savedPath = fileManager.saveMedia(fileName, payload.data)
+                    if (savedPath != null) {
+                        saveIncomingMessage(payload.senderId, null, savedPath, MessageType.IMAGE, payload.timestamp, payload.id)
+                        sendSystemCommand(payload.senderId, "ACK_${payload.id}")
+                    }
+                }
+                Payload.PayloadType.HANDSHAKE -> {
+                    val peerName = String(payload.data).replace("HELO_", "")
+                    chatDao.insertChat(ChatEntity(payload.senderId, peerName, "Connected", payload.timestamp))
+                }
+                else -> {
+                    Logger.w("ChatRepository -> Unknown payload type received: ${payload.type}")
+                }
             }
-            Payload.PayloadType.HANDSHAKE -> {
-                val peerName = String(payload.data).replace("HELO_", "")
-                chatDao.insertChat(ChatEntity(payload.senderId, peerName, "Connected", payload.timestamp))
-            }
-            else -> {}
         }
     }
 
