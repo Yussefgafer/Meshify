@@ -63,9 +63,12 @@ import android.graphics.Matrix
  * Uses pre-allocated AndroidPath to reduce GC pressure during frame rendering.
  * Includes fallback to CircleShape if path calculation fails.
  * Supports rotation angle for path-only rotation (LastChat style).
- * 
+ *
  * ✅ FIX: Rotation axis is now calculated from the geometric center of the morphed path,
  * ensuring perfect center rotation regardless of shape asymmetry.
+ *
+ * ✅ PERFORMANCE FIX: Logger calls removed from createOutline to prevent GC pressure.
+ * Errors are silently handled with CircleShape fallback.
  */
 class MorphPolygonShape(
     private val morph: Morph,
@@ -75,6 +78,9 @@ class MorphPolygonShape(
     // Pre-allocated path to avoid allocation during createOutline
     private val androidPath = AndroidPath()
     private val matrix = Matrix()
+
+    // Flag to log errors only once (prevents spam in animation loop)
+    private var hasLoggedError = false
 
     override fun createOutline(
         size: Size,
@@ -126,12 +132,13 @@ class MorphPolygonShape(
 
             Outline.Generic(androidPath.asComposePath())
         } catch (e: Exception) {
-            // ✅ Log path calculation failures
-            Logger.e("MorphPolygonShape -> Path calculation FAILED: ${e.message}")
+            // ✅ Log only once to prevent GC pressure during animation
+            if (!hasLoggedError) {
+                Logger.e("MorphPolygonShape -> Path calculation FAILED: ${e.message}")
+                hasLoggedError = true
+            }
             // Fallback to CircleShape if path calculation fails
-            val circleOutline = CircleShape.createOutline(size, layoutDirection, density)
-            Logger.d("MorphPolygonShape -> Using CircleShape fallback")
-            circleOutline
+            CircleShape.createOutline(size, layoutDirection, density)
         }
     }
 }
