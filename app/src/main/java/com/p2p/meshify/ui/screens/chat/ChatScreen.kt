@@ -47,11 +47,10 @@ import com.p2p.meshify.ui.components.FullImageViewer
 import com.p2p.meshify.ui.components.MorphingAvatar
 import com.p2p.meshify.ui.theme.ChatBubbleShapes
 import com.p2p.meshify.ui.theme.LocalMeshifyThemeConfig
+import com.p2p.meshify.ui.theme.StatusOnline
 import com.p2p.meshify.ui.theme.getBubbleShape
 import java.text.SimpleDateFormat
 import java.util.*
-
-private const val GROUPING_TIMEOUT_MS = 5 * 60 * 1000
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,7 +58,7 @@ fun ChatScreen(
     viewModel: ChatViewModel,
     onBackClick: () -> Unit
 ) {
-    val messages by viewModel.messages.collectAsState()
+    val groupedMessages by viewModel.groupedMessages.collectAsState()
     val peerName by viewModel.peerName.collectAsState()
     val isOnline by viewModel.isOnline.collectAsState()
     val isPeerTyping by viewModel.isPeerTyping.collectAsState()
@@ -84,9 +83,9 @@ fun ChatScreen(
         showSheet = false
     }
 
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            val lastIndex = messages.size - 1
+    LaunchedEffect(groupedMessages.size) {
+        if (groupedMessages.isNotEmpty()) {
+            val lastIndex = groupedMessages.size - 1
             val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
             if (lastVisibleIndex >= lastIndex - 2) {
                 listState.scrollToItem(lastIndex)
@@ -95,7 +94,7 @@ fun ChatScreen(
     }
 
     LaunchedEffect(listState.firstVisibleItemIndex) {
-        if (listState.firstVisibleItemIndex == 0 && messages.size >= 50) {
+        if (listState.firstVisibleItemIndex == 0 && groupedMessages.size >= 50) {
             viewModel.loadMoreMessages()
         }
     }
@@ -120,7 +119,7 @@ fun ChatScreen(
                                            else if (isOnline) stringResource(R.string.status_online)
                                            else stringResource(R.string.status_offline),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = if (isPeerTyping || isOnline) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = if (isPeerTyping || isOnline) StatusOnline else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -164,42 +163,30 @@ fun ChatScreen(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             modifier = Modifier.fillMaxSize().padding(padding)
         ) {
-            itemsIndexed(messages, key = { _, m -> m.id }) { index, message ->
-                val prevMessage = if (index > 0) messages[index - 1] else null
-                val nextMessage = if (index < messages.size - 1) messages[index + 1] else null
-                
-                val isGroupedWithPrevious = prevMessage?.senderId == message.senderId &&
-                        (message.timestamp - prevMessage.timestamp) < GROUPING_TIMEOUT_MS
-
-                val isGroupedWithNext = nextMessage?.senderId == message.senderId &&
-                        (nextMessage.timestamp - message.timestamp) < GROUPING_TIMEOUT_MS
-
-                // Smart Avatar: Show avatar only next to the LAST message in each group
-                val showAvatar = !isGroupedWithNext
-
+            itemsIndexed(groupedMessages, key = { _, gm -> gm.message.id }) { _, groupedMessage ->
                 MessageBubble(
-                    message = message,
-                    isSelected = selectedIds.contains(message.id.toString()),
-                    isGroupedWithPrevious = isGroupedWithPrevious,
-                    isGroupedWithNext = isGroupedWithNext,
-                    showAvatar = showAvatar,
+                    message = groupedMessage.message,
+                    isSelected = selectedIds.contains(groupedMessage.message.id.toString()),
+                    isGroupedWithPrevious = groupedMessage.isGroupedWithPrevious,
+                    isGroupedWithNext = groupedMessage.isGroupedWithNext,
+                    showAvatar = groupedMessage.showAvatar,
                     avatarInitials = peerName.take(1),
                     isOnline = isOnline,
                     onLongClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        viewModel.toggleMessageSelection(message.id.toString())
+                        viewModel.toggleMessageSelection(groupedMessage.message.id.toString())
                     },
                     onClick = {
-                        if (selectedIds.isNotEmpty()) viewModel.toggleMessageSelection(message.id.toString())
+                        if (selectedIds.isNotEmpty()) viewModel.toggleMessageSelection(groupedMessage.message.id.toString())
                     },
                     onImageClick = { path ->
                         if (selectedIds.isEmpty()) selectedFullImage = path
-                        else viewModel.toggleMessageSelection(message.id.toString())
+                        else viewModel.toggleMessageSelection(groupedMessage.message.id.toString())
                     },
                     selectedIds = selectedIds
                 )
-                
-                Spacer(modifier = Modifier.height(if (!isGroupedWithNext) 8.dp else 2.dp))
+
+                Spacer(modifier = Modifier.height(if (!groupedMessage.isGroupedWithNext) 8.dp else 2.dp))
             }
         }
 

@@ -28,3 +28,18 @@ val TertiaryDark = Color(0xFFB3C8E8)
 val BackgroundDark = Color(0xFF191C1C)
 val SurfaceDark = Color(0xFF191C1C)
 val SurfaceContainerHighDark = Color(0xFF2B2930)
+
+// ✅ MD3E Additional Colors - Moved from hardcoded UI values
+val StatusOnline = Color(0xFF4CAF50)
+val StatusOffline = Color(0xFF9E9E9E)
+val StatusTyping = Color(0xFF4CAF50)
+
+// Color Picker Presets
+val ColorPresetTeal = Color(0xFF006D68)
+val ColorPresetPurple = Color(0xFF6750A4)
+val ColorPresetGreen = Color(0xFF006E1C)
+val ColorPresetRed = Color(0xFFB81D24)
+val ColorPresetAmber = Color(0xFFD4880C)
+val ColorPresetBlue = Color(0xFF00649F)
+val ColorPresetPink = Color(0xFF984061)
+val ColorPresetNeutral = Color(0xFF5C5D50)

@@ -16,6 +16,15 @@ import java.net.Socket
 import java.util.concurrent.ConcurrentHashMap
 
 /**
+ * Pooled Socket wrapper with creation timestamp for idle cleanup.
+ */
+private data class PooledSocket(
+    val socket: Socket,
+    val createdAt: Long = System.currentTimeMillis(),
+    var lastUsedAt: Long = System.currentTimeMillis()
+)
+
+/**
  * Robust Socket Manager with Connection Pooling and Cleanup.
  * Fixes Memory Leaks and Thread Safety issues.
  */
@@ -27,8 +36,8 @@ class SocketManager(
 
     private var serverSocket: ServerSocket? = null
 
-    // Thread-safe map for active connections
-    private val activeConnections = ConcurrentHashMap<String, Socket>()
+    // Thread-safe map for active connections with PooledSocket
+    private val activeConnections = ConcurrentHashMap<String, PooledSocket>()
 
     @Volatile
     private var isRunning = false
@@ -36,12 +45,28 @@ class SocketManager(
     // Dedicated scope for connection management - prevents memory leaks
     private val connectionScope = CoroutineScope(ioDispatcher + SupervisorJob())
 
+    // Cleanup job for removing idle sockets (5 minutes idle timeout)
+    private var cleanupJob: Job? = null
+
+    companion object {
+        private const val IDLE_TIMEOUT_MS = 5 * 60 * 1000L // 5 minutes
+        private const val CLEANUP_INTERVAL_MS = 60 * 1000L // 1 minute
+    }
+
     /**
      * Starts listening for incoming connections.
      */
     suspend fun startListening() = withContext(ioDispatcher) {
         if (isRunning) return@withContext
         isRunning = true
+
+        // Start cleanup job for idle sockets
+        cleanupJob = connectionScope.launch {
+            while (isRunning) {
+                delay(CLEANUP_INTERVAL_MS)
+                cleanupIdleSockets()
+            }
+        }
 
         try {
             Logger.i("SocketManager -> Binding ServerSocket to port ${AppConfig.DEFAULT_PORT}")
@@ -55,7 +80,7 @@ class SocketManager(
                     val clientSocket = serverSocket?.accept() ?: break
                     // Set timeouts to prevent hanging indefinitely
                     clientSocket.soTimeout = 30000 // 30s read timeout
-                    
+
                     val address = clientSocket.inetAddress.hostAddress
                     Logger.d("SocketManager -> Accepted connection from $address")
                     handleIncomingConnection(clientSocket)
@@ -70,11 +95,45 @@ class SocketManager(
         }
     }
 
+    /**
+     * Cleans up idle sockets that haven't been used for more than 5 minutes.
+     */
+    private fun cleanupIdleSockets() {
+        val now = System.currentTimeMillis()
+        val iterator = activeConnections.iterator()
+        var cleanedCount = 0
+
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            val pooledSocket = entry.value
+            val idleTime = now - pooledSocket.lastUsedAt
+
+            if (idleTime > IDLE_TIMEOUT_MS) {
+                try {
+                    Logger.d("SocketManager -> Cleaning up idle socket: ${entry.key} (idle for ${idleTime / 1000}s)")
+                    pooledSocket.socket.close()
+                    iterator.remove()
+                    cleanedCount++
+                } catch (e: Exception) {
+                    Logger.e("SocketManager -> Error closing idle socket: ${entry.key}", e)
+                }
+            }
+        }
+
+        if (cleanedCount > 0) {
+            Logger.d("SocketManager -> Cleaned up $cleanedCount idle sockets")
+        }
+    }
+
     private fun handleIncomingConnection(socket: Socket) {
         connectionScope.launch {
             val address = socket.inetAddress.hostAddress ?: "unknown"
             try {
-                socket.use { client ->
+                // Wrap in PooledSocket
+                val pooledSocket = PooledSocket(socket)
+                activeConnections[address] = pooledSocket
+
+                pooledSocket.socket.use { client ->
                     val inputStream = DataInputStream(client.getInputStream())
                     while (isRunning && !client.isClosed) {
                         try {
@@ -87,6 +146,9 @@ class SocketManager(
 
                             val bytes = ByteArray(length)
                             inputStream.readFully(bytes)
+
+                            // Update last used timestamp
+                            pooledSocket.lastUsedAt = System.currentTimeMillis()
 
                             val payload = PayloadSerializer.deserialize(bytes)
                             _incomingPayloads.emit(address to payload)
@@ -105,6 +167,7 @@ class SocketManager(
                 Logger.e("SocketManager -> Connection Error $address", e)
             } finally {
                 Logger.d("SocketManager -> Connection cleanup: $address")
+                activeConnections.remove(address)
             }
         }
     }
@@ -114,37 +177,41 @@ class SocketManager(
      * Uses Connection Pooling to reuse sockets.
      */
     suspend fun sendPayload(targetAddress: String, payload: Payload): Result<Unit> = withContext(ioDispatcher) {
-        var socket = activeConnections[targetAddress]
+        var pooledSocket = activeConnections[targetAddress]
 
         try {
             // Check if existing socket is valid
-            if (socket == null || socket.isClosed || !socket.isConnected) {
+            if (pooledSocket == null || pooledSocket.socket.isClosed || !pooledSocket.socket.isConnected) {
                 Logger.d("SocketManager -> Opening new connection to $targetAddress")
                 // Close old if exists just in case
-                socket?.close()
-                
-                socket = Socket()
+                pooledSocket?.socket?.close()
+
+                val socket = Socket()
                 socket.connect(InetSocketAddress(targetAddress, AppConfig.DEFAULT_PORT), 5000) // 5s Connect Timeout
                 socket.soTimeout = 30000 // 30s Read Timeout
                 socket.keepAlive = true
-                
-                activeConnections[targetAddress] = socket
+
+                pooledSocket = PooledSocket(socket)
+                activeConnections[targetAddress] = pooledSocket
             }
 
-            val outputStream = DataOutputStream(socket.getOutputStream())
+            val outputStream = DataOutputStream(pooledSocket.socket.getOutputStream())
             val bytes = PayloadSerializer.serialize(payload)
-            
+
             // Write length then data
             outputStream.writeInt(bytes.size)
             outputStream.write(bytes)
             outputStream.flush()
-            
+
+            // Update last used timestamp
+            pooledSocket.lastUsedAt = System.currentTimeMillis()
+
             return@withContext Result.success(Unit)
 
         } catch (e: Exception) {
             Logger.e("SocketManager -> Send Failed to $targetAddress", e)
             // Cleanup broken connection
-            try { socket?.close() } catch (ex: Exception) {}
+            try { pooledSocket?.socket?.close() } catch (ex: Exception) {}
             activeConnections.remove(targetAddress)
             return@withContext Result.failure(e)
         }
@@ -154,6 +221,10 @@ class SocketManager(
         if (!isRunning) return
         Logger.i("SocketManager -> Stopping...")
         isRunning = false
+
+        // Cancel cleanup job
+        cleanupJob?.cancel()
+        cleanupJob = null
 
         try { serverSocket?.close() } catch (e: Exception) {}
         serverSocket = null
@@ -165,7 +236,7 @@ class SocketManager(
         val iterator = activeConnections.iterator()
         while (iterator.hasNext()) {
             val entry = iterator.next()
-            try { entry.value.close() } catch (e: Exception) {}
+            try { entry.value.socket.close() } catch (e: Exception) {}
             iterator.remove()
         }
         Logger.i("SocketManager -> Stopped successfully")

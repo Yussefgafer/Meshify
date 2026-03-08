@@ -35,6 +35,14 @@ import com.p2p.meshify.R
 import com.p2p.meshify.domain.model.*
 import com.p2p.meshify.domain.repository.ThemeMode
 import com.p2p.meshify.ui.components.ExpressivePulseHeader
+import com.p2p.meshify.ui.theme.ColorPresetAmber
+import com.p2p.meshify.ui.theme.ColorPresetBlue
+import com.p2p.meshify.ui.theme.ColorPresetGreen
+import com.p2p.meshify.ui.theme.ColorPresetNeutral
+import com.p2p.meshify.ui.theme.ColorPresetPink
+import com.p2p.meshify.ui.theme.ColorPresetPurple
+import com.p2p.meshify.ui.theme.ColorPresetRed
+import com.p2p.meshify.ui.theme.ColorPresetTeal
 import com.p2p.meshify.ui.theme.MD3EShapes
 import com.p2p.meshify.ui.theme.MD3EFontFamilies
 import com.p2p.meshify.ui.theme.MotionDurations
@@ -162,11 +170,15 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 val modes = ThemeMode.values()
+                val haptic = LocalHapticFeedback.current
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     modes.forEachIndexed { index, mode ->
                         SegmentedButton(
                             shape = SegmentedButtonDefaults.itemShape(index = index, count = modes.size),
-                            onClick = { viewModel.setThemeMode(mode) },
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                viewModel.setThemeMode(mode)
+                            },
                             selected = themeMode == mode
                         ) {
                             Text(mode.name.lowercase().replaceFirstChar { it.uppercase() })
@@ -388,15 +400,16 @@ fun ColorPicker(
     selectedColor: Color,
     onColorSelected: (Color) -> Unit
 ) {
+    val haptic = LocalHapticFeedback.current
     val colors = listOf(
-        Color(0xFF006D68), // Teal (default)
-        Color(0xFF6750A4), // Purple
-        Color(0xFF006E1C), // Green
-        Color(0xFFB81D24), // Red
-        Color(0xFFD4880C), // Amber
-        Color(0xFF00649F), // Blue
-        Color(0xFF984061), // Pink
-        Color(0xFF5C5D50)  // Neutral
+        ColorPresetTeal,
+        ColorPresetPurple,
+        ColorPresetGreen,
+        ColorPresetRed,
+        ColorPresetAmber,
+        ColorPresetBlue,
+        ColorPresetPink,
+        ColorPresetNeutral
     )
 
     Row(
@@ -417,7 +430,10 @@ fun ColorPicker(
                             Modifier.border(2.dp, color.copy(alpha = 0.3f), CircleShape)
                         }
                     )
-                    .clickable { onColorSelected(color) }
+                    .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onColorSelected(color)
+                    }
             )
         }
     }

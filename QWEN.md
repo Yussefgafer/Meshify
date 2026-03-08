@@ -75,26 +75,25 @@ Follow the established blueprint:
     - **Coil 3 Migration**: تحديث جميع الـ `imports` والـ `dependencies` لتعمل مع Coil 3 بكفاءة.
     - **MD3 Expressive Ready**: تفعيل الـ `MaterialShapes` والـ `Expressive Motion` عبر الـ `Compiler Opt-ins` اللازمة.
 
-### المرحلة السادسة عشر: تحسينات MD3E الشاملة (MD3E Comprehensive Refinement) - 08/03/2026
+### المرحلة السابعة عشر: ثورة الأداء والجماليات (Performance & Aesthetics Revolution) - 08/03/2026
 - **تم الانتهاء من:**
-    - **LocalMeshifySettings**: إضافة `seedColor` و `customFontUri` إلى CompositionLocal
-    - **DataStore Binding**: ربط MainActivity مباشرة بـ DataStore للتحديث اللحظي
-    - **Settings Screen Redesign**: استخدام ListItem بدلاً من Cards، إضافة ColorPicker و FontPicker
-    - **ChatScreen Optimization**: تصغير الـ Padding، Smart Avatar (يظهر مرة واحدة فقط في كل مجموعة)
-    - **FAB Engine**: تنفيذ 3-Shape Morphing (Cookie9 -> Cookie6 -> Pentagon) مع Icon ثابت
-    - **Radar Pulse**: استبدال الـ Spinner بـ 7-Shapes Morph Radar في Discovery Screen
-    - **Noise Texture**: إضافة Noise Overlay (alpha 0.03) لجميع الشاشات
-    - **Morphing Fix**: تثبيت الـ Path وال Rotation حول المركز الهندسي الدقيق
-    - **Bottom Sheets**: توحيد Bottom Sheets بـ 28dp corners + drag handle
-    - **Full Localization**: تعريب جميع النصوص الجديدة
+    - **C01: SocketManager Cleanup System**: إضافة `PooledSocket` مع `createdAt` و `lastUsedAt` timestamps، وتنفيذ `cleanupJob` الذي يمسح الـ Sockets الميتة (أكثر من 5 دقائق خمول) كل 60 ثانية.
+    - **C02: Morphing Performance Optimization**: تحسين `MorphPolygonShape` باستخدام `cachedOutline` و `isValid` flag لمنع الـ allocations الزائدة أثناء الـ animation frames.
+    - **M07: Chat Grouping Logic Migration**: نقل الـ Grouping Logic من الـ UI (ChatScreen) للـ ChatViewModel عبر `GroupedMessage` data class و `calculateGrouping()` function.
+    - **M01 & U06: Color & Haptic Standardization**: 
+        - نقل جميع الـ Hardcoded colors لـ `Color.kt` (`StatusOnline`, `StatusOffline`, `ColorPresetTeal`, etc.)
+        - إضافة Haptic Feedback (`HapticFeedbackType.TextHandleMove`) لجميع الـ SegmentedButtons والـ ColorPicker في SettingsScreen.
+    - **🎨 Discovery Radar**: استبدال `CircularProgressIndicator` التقليدي بـ `RadarPulseMorph` component في Empty State.
+    - **Build Status**: ✅ جميع التغييرات تم بناؤها بنجاح بدون أخطاء.
 
 ## [الوضع الحالي - Status Quo]
 التطبيق الآن يتمتع بـ:
 - **Production-Grade Architecture**: Clean Architecture مع فصل كامل للـ Domain
 - **MD3E Compliance**: Material 3 Expressive بالكامل (Shapes, Motion, Typography)
 - **Real-time Settings**: تحديث لحظي لكل الإعدادات عبر CompositionLocal
-- **Optimized Performance**: Noise Texture cached، Smart Avatar، أصغر Padding
+- **Optimized Performance**: Noise Texture cached، Smart Avatar، أصغر Padding، Morphing Caching، Socket Cleanup
 - **Professional UI**: يضاهي LastChat في الجودة والتصميم
+- **Enhanced UX**: Haptic Feedback في كل مكان، Radar Pulse Animation، Grouped Messages
 
 ## [خريطة الطريق القادمة]
 1.  **End-to-End Encryption**: تنفيذ الـ E2EE باستخدام Signal Protocol
