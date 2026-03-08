@@ -122,7 +122,7 @@ class MorphPolygonShape(
 }
 
 // ============================================================================
-// MARK: - ExpressiveMorphingFAB
+// MARK: - ExpressiveMorphingFAB (The VOID Edition)
 // ============================================================================
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -134,39 +134,56 @@ fun ExpressiveMorphingFAB(
     shapes: List<RoundedPolygon> = MD3EShapes.AllShapes
 ) {
     val haptic = LocalHapticFeedback.current
-    val officialShapes = remember {
-        arrayOf<RoundedPolygon>(
-            androidx.compose.material3.MaterialShapes.SoftBurst,
-            androidx.compose.material3.MaterialShapes.Cookie9Sided,
-            androidx.compose.material3.MaterialShapes.Pentagon,
-            androidx.compose.material3.MaterialShapes.Pill,
-            androidx.compose.material3.MaterialShapes.Sunny,
-            androidx.compose.material3.MaterialShapes.Cookie4Sided,
-            androidx.compose.material3.MaterialShapes.Oval
+    val shapesCount = shapes.size
+    var currentShapeIndex by remember { mutableIntStateOf(0) }
+    val nextShapeIndex = (currentShapeIndex + 1) % shapesCount
+    
+    val morph = remember(currentShapeIndex, nextShapeIndex) {
+        Morph(shapes[currentShapeIndex], shapes[nextShapeIndex])
+    }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "FABVoid")
+    
+    // 1. Organic Morph Progress
+    val progressAnim = remember { Animatable(0f) }
+    LaunchedEffect(currentShapeIndex) {
+        progressAnim.snapTo(0f)
+        progressAnim.animateTo(
+            targetValue = 1f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessVeryLow
+            )
         )
+        currentShapeIndex = nextShapeIndex
     }
-    val normalizedShapes = remember { officialShapes.toList() }
-    val shapesCount = normalizedShapes.size
-    val morphs = remember(normalizedShapes) {
-        Array(shapesCount) { i ->
-            Morph(normalizedShapes[i], normalizedShapes[(i + 1) % shapesCount])
-        }
-    }
-    val infiniteTransition = rememberInfiniteTransition(label = "FABLoading")
-    val morphFactor by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = shapesCount.toFloat(),
+
+    // 2. Edge Jitter
+    val jitter by infiniteTransition.animateFloat(
+        initialValue = -0.01f,
+        targetValue = 0.01f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 650 * shapesCount, easing = LinearEasing),
+            animation = tween(180, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "FABJitter"
+    )
+
+    // 3. Slow Rotation
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(12000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
-        label = "MorphFactor"
+        label = "FABRotation"
     )
-    val shapeIndex = (morphFactor.toInt() % shapesCount)
-    val progress = morphFactor - morphFactor.toInt()
-    val rotation = (140f * morphFactor) % 360f
-    val currentMorph = morphs[shapeIndex]
-    val currentShape = remember(currentMorph, progress) { MorphPolygonShape(currentMorph, progress) }
+
+    val morphShape = remember(morph, progressAnim.value, jitter) {
+        MorphPolygonShape(morph, (progressAnim.value + jitter).coerceIn(0f, 1f), 0f)
+    }
+
     val scale = remember { Animatable(1f) }
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -176,6 +193,8 @@ fun ExpressiveMorphingFAB(
         scale.animateTo(targetScale, animationSpec = spring(dampingRatio = 0.4f, stiffness = 800f))
     }
 
+    val glowColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+
     Surface(
         modifier = modifier
             .padding(16.dp)
@@ -184,9 +203,19 @@ fun ExpressiveMorphingFAB(
                 scaleX = scale.value
                 scaleY = scale.value
                 rotationZ = rotation
-                this.shape = currentShape
-                clip = true
             }
+            .drawBehind {
+                val glowSize = size.toPx() * 1.3f
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(glowColor, Color.Transparent),
+                        center = center,
+                        radius = glowSize / 2
+                    ),
+                    radius = glowSize / 2
+                )
+            }
+            .clip(morphShape)
             .clickable(interactionSource = interactionSource, indication = null, onClick = {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 onClick()
@@ -240,7 +269,7 @@ fun NoiseTextureOverlay(
 }
 
 // ============================================================================
-// MARK: - Radar Pulse Morph
+// MARK: - RadarPulseMorph (The VOID Edition)
 // ============================================================================
 
 @Composable
@@ -249,46 +278,82 @@ fun RadarPulseMorph(
     modifier: Modifier = Modifier,
     size: Dp = 80.dp
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "RadarPulse")
+    val infiniteTransition = rememberInfiniteTransition(label = "RadarVoid")
     val shapes = MD3EShapes.AllShapes
     val shapesCount = shapes.size
-    val duration = if (isSearching) 400 else 800
+    
+    // 1. Organic Morphing
     val morphFactor by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = shapesCount.toFloat(),
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = duration * shapesCount, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
+            animation = tween(durationMillis = if (isSearching) 600 * shapesCount else 1200 * shapesCount, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
         ),
-        label = "RadarMorphFactor"
+        label = "RadarMorph"
     )
+    
     val shapeIndex = (morphFactor.toInt() % shapesCount)
     val progress = morphFactor - morphFactor.toInt()
+    
+    // 2. Edge Jitter for fluid look
+    val jitter by infiniteTransition.animateFloat(
+        initialValue = -0.02f,
+        targetValue = 0.02f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(100, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "RadarJitter"
+    )
+
     val morph = remember(shapeIndex, shapes) { Morph(shapes[shapeIndex], shapes[(shapeIndex + 1) % shapesCount]) }
-    val morphShape = remember(morph, progress) { MorphPolygonShape(morph, progress, rotationAngle = 0f) }
+    val morphShape = remember(morph, progress, jitter) { 
+        MorphPolygonShape(morph, (progress + jitter).coerceIn(0f, 1f), rotationAngle = 0f) 
+    }
+
+    // 3. Breathing Pulse
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = 1.1f,
+        targetValue = 1.15f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = duration / 2, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = if (isSearching) 400 else 800, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "RadarPulseScale"
+        label = "RadarPulse"
     )
-    val ringAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = 0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = duration, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "RadarRingAlpha"
-    )
+
+    val glowColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+
     Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
-        Surface(modifier = Modifier.size(size * pulseScale * 1.3f).alpha(ringAlpha), shape = CircleShape, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)) {}
-        Surface(modifier = Modifier.size(size), shape = morphShape, color = MaterialTheme.colorScheme.primary) {
+        // 4. Dynamic Halo
+        Box(
+            modifier = Modifier
+                .size(size * pulseScale * 1.4f)
+                .drawBehind {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(glowColor, Color.Transparent),
+                            center = center,
+                            radius = size.toPx() * 0.7f
+                        ),
+                        radius = size.toPx() * 0.7f
+                    )
+                }
+        )
+        
+        Surface(
+            modifier = Modifier.size(size), 
+            shape = morphShape, 
+            color = MaterialTheme.colorScheme.primary
+        ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(size * 0.4f))
+                Icon(
+                    imageVector = Icons.Default.Search, 
+                    contentDescription = null, 
+                    tint = MaterialTheme.colorScheme.onPrimary, 
+                    modifier = Modifier.size(size * 0.4f)
+                )
             }
         }
     }
@@ -406,7 +471,7 @@ fun ExpressivePulseHeader(
 }
 
 // ============================================================================
-// MARK: - MorphingAvatar
+// MARK: - MorphingAvatar (The VOID Edition)
 // ============================================================================
 
 @Composable
@@ -421,19 +486,40 @@ fun MorphingAvatar(
     val avatarShapes = remember { listOf(MD3EShapes.Blob, MD3EShapes.Circle, MD3EShapes.Clover) }
     if (isOnline) {
         var currentShapeIndex by remember { mutableIntStateOf(0) }
-        val nextShapeIndex by remember(currentShapeIndex, avatarShapes.size) { derivedStateOf { (currentShapeIndex + 1) % avatarShapes.size } }
-        val morph by remember(currentShapeIndex, nextShapeIndex, avatarShapes) { derivedStateOf { Morph(avatarShapes[currentShapeIndex], avatarShapes[nextShapeIndex]) } }
-        val infiniteTransition = rememberInfiniteTransition(label = "AvatarMorph")
-        val progress by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(animation = tween(MotionDurations.Long, easing = FastOutSlowInEasing), repeatMode = RepeatMode.Restart),
-            label = "MorphProgress"
+        val nextShapeIndex = (currentShapeIndex + 1) % avatarShapes.size
+        val morph = remember(currentShapeIndex, nextShapeIndex) { Morph(avatarShapes[currentShapeIndex], avatarShapes[nextShapeIndex]) }
+        
+        val infiniteTransition = rememberInfiniteTransition(label = "AvatarVoid")
+        
+        // 1. Organic Progress
+        val progressAnim = remember { Animatable(0f) }
+        LaunchedEffect(currentShapeIndex) {
+            progressAnim.snapTo(0f)
+            progressAnim.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessVeryLow)
+            )
+            currentShapeIndex = nextShapeIndex
+        }
+
+        // 2. Jitter
+        val jitter by infiniteTransition.animateFloat(
+            initialValue = -0.01f,
+            targetValue = 0.01f,
+            animationSpec = infiniteRepeatable(animation = tween(250, easing = LinearEasing), repeatMode = RepeatMode.Reverse),
+            label = "AvatarJitter"
         )
-        LaunchedEffect(progress) { if (progress >= 0.98f) currentShapeIndex = nextShapeIndex }
-        val morphShape = remember(morph, progress) { MorphPolygonShape(morph, progress) }
+
+        val morphShape = remember(morph, progressAnim.value, jitter) { 
+            MorphPolygonShape(morph, (progressAnim.value + jitter).coerceIn(0f, 1f)) 
+        }
+        
         Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
-            Surface(modifier = Modifier.size(size), shape = morphShape, color = containerColor) {
+            Surface(
+                modifier = Modifier.size(size), 
+                shape = morphShape, 
+                color = containerColor.copy(alpha = 0.8f)
+            ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(text = initials.uppercase(), style = MaterialTheme.typography.titleLarge, color = onContainerColor, fontWeight = FontWeight.Bold)
                 }
@@ -452,7 +538,7 @@ fun MorphingAvatar(
 }
 
 // ============================================================================
-// MARK: - SignalMorphAvatar
+// MARK: - SignalMorphAvatar (The VOID Edition)
 // ============================================================================
 
 @Composable
@@ -468,12 +554,7 @@ fun SignalMorphAvatar(
         com.p2p.meshify.domain.model.SignalStrength.WEAK -> listOf(MD3EShapes.Circle, MD3EShapes.Blob)
         com.p2p.meshify.domain.model.SignalStrength.OFFLINE -> listOf(MD3EShapes.Circle, MD3EShapes.Circle)
     }
-    val morphDuration = when (signalStrength) {
-        com.p2p.meshify.domain.model.SignalStrength.STRONG -> 500
-        com.p2p.meshify.domain.model.SignalStrength.MEDIUM -> 900
-        com.p2p.meshify.domain.model.SignalStrength.WEAK -> 1500
-        com.p2p.meshify.domain.model.SignalStrength.OFFLINE -> 0
-    }
+    
     if (signalStrength == com.p2p.meshify.domain.model.SignalStrength.OFFLINE) {
         Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
             Surface(modifier = Modifier.size(size), shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)) {
@@ -484,17 +565,22 @@ fun SignalMorphAvatar(
         }
     } else {
         var currentShapeIndex by remember { mutableIntStateOf(0) }
-        val nextShapeIndex by remember(currentShapeIndex, shapes.size) { derivedStateOf { (currentShapeIndex + 1) % shapes.size } }
-        val morph by remember(currentShapeIndex, nextShapeIndex, shapes) { derivedStateOf { Morph(shapes[currentShapeIndex], shapes[nextShapeIndex]) } }
-        val infiniteTransition = rememberInfiniteTransition(label = "SignalMorph")
-        val progress by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(animation = tween(morphDuration, easing = FastOutSlowInEasing), repeatMode = RepeatMode.Restart),
-            label = "SignalMorphProgress"
-        )
-        LaunchedEffect(progress) { if (progress >= 0.98f) currentShapeIndex = nextShapeIndex }
-        val morphShape = remember(morph, progress) { MorphPolygonShape(morph, progress) }
+        val nextShapeIndex = (currentShapeIndex + 1) % shapes.size
+        val morph = remember(currentShapeIndex, nextShapeIndex, shapes) { Morph(shapes[currentShapeIndex], shapes[nextShapeIndex]) }
+        
+        // 1. Organic Progress
+        val progressAnim = remember { Animatable(0f) }
+        LaunchedEffect(currentShapeIndex, signalStrength) {
+            progressAnim.snapTo(0f)
+            progressAnim.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessVeryLow)
+            )
+            currentShapeIndex = nextShapeIndex
+        }
+
+        val morphShape = remember(morph, progressAnim.value) { MorphPolygonShape(morph, progressAnim.value) }
+        
         val containerColor = when (signalStrength) {
             com.p2p.meshify.domain.model.SignalStrength.STRONG -> MaterialTheme.colorScheme.primaryContainer
             com.p2p.meshify.domain.model.SignalStrength.MEDIUM -> MaterialTheme.colorScheme.secondaryContainer
@@ -505,6 +591,7 @@ fun SignalMorphAvatar(
             com.p2p.meshify.domain.model.SignalStrength.MEDIUM -> MaterialTheme.colorScheme.onSecondaryContainer
             else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
         }
+        
         Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
             Surface(modifier = Modifier.size(size), shape = morphShape, color = containerColor) {
                 Box(contentAlignment = Alignment.Center) {
