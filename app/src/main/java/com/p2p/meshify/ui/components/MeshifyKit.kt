@@ -1225,15 +1225,15 @@ fun FullImageViewer(
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onDoubleTap = { tapOffset ->
-                            scale = if (scale > 1f) {
-                                1f
-                            } else {
-                                2.5f
-                            }
-                            offset = if (scale > 1f) {
+                            // ✅ FIX: Save old scale to avoid reading new value in same condition
+                            val oldScale = scale
+                            val newScale = if (oldScale > 1f) 1f else 2.5f
+                            scale = newScale
+                            
+                            offset = if (newScale > 1f) {
                                 tapOffset.copy(
-                                    x = -tapOffset.x * (scale - 1),
-                                    y = -tapOffset.y * (scale - 1)
+                                    x = -tapOffset.x * (newScale - 1),
+                                    y = -tapOffset.y * (newScale - 1)
                                 )
                             } else {
                                 Offset.Zero

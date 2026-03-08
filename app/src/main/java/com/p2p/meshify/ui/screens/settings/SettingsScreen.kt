@@ -591,7 +591,7 @@ fun FontFamilySelectorItem(
             Text(
                 text = when (family) {
                     FontFamilyPreset.ROBOTO -> stringResource(R.string.settings_font_roboto)
-                    FontFamilyPreset.POPTINS -> stringResource(R.string.settings_font_poppins)
+                    FontFamilyPreset.POPPINS -> stringResource(R.string.settings_font_poppins)
                     FontFamilyPreset.LORA -> stringResource(R.string.settings_font_lora)
                     FontFamilyPreset.MONTSERRAT -> stringResource(R.string.settings_font_montserrat)
                     FontFamilyPreset.PLAYFAIR -> stringResource(R.string.settings_font_playfair)

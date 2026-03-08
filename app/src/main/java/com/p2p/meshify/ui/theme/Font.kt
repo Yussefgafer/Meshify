@@ -104,7 +104,7 @@ object MD3EFontFamilies {
     fun getFontFamily(preset: com.p2p.meshify.domain.model.FontFamilyPreset): FontFamily {
         return when (preset) {
             com.p2p.meshify.domain.model.FontFamilyPreset.ROBOTO -> Roboto
-            com.p2p.meshify.domain.model.FontFamilyPreset.POPTINS -> Poppins
+            com.p2p.meshify.domain.model.FontFamilyPreset.POPPINS -> Poppins
             com.p2p.meshify.domain.model.FontFamilyPreset.LORA -> Lora
             com.p2p.meshify.domain.model.FontFamilyPreset.MONTSERRAT -> Montserrat
             com.p2p.meshify.domain.model.FontFamilyPreset.PLAYFAIR -> PlayfairDisplay
