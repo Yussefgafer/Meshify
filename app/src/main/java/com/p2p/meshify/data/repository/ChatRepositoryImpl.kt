@@ -153,8 +153,8 @@ class ChatRepositoryImpl(
                     val peerName = String(payload.data).replace("HELO_", "")
                     chatDao.insertChat(ChatEntity(payload.senderId, peerName, "Connected", payload.timestamp))
                 }
-                Payload.PayloadType.HEARTBEAT -> {
-                    // Handle heartbeat if needed
+                else -> {
+                    Logger.w("ChatRepository -> Unknown payload type received: ${payload.type}")
                 }
             }
         }
