@@ -23,40 +23,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.p2p.meshify.R
 import com.p2p.meshify.ui.components.ExpressiveCard
+import com.p2p.meshify.ui.components.RadarPulseMorph
 import com.p2p.meshify.ui.components.SignalMorphAvatar
 import com.p2p.meshify.ui.theme.LocalMeshifyMotion
 import com.p2p.meshify.ui.theme.MotionDurations
 
 /**
- * Enhanced Discovery Header with Dynamic Pulse Effect.
- * Shows searching state with animated pulse ring.
+ * ✅ MD3E Redesigned Discovery Header with Radar Pulse Morph.
+ * Uses 7-shapes morphing as a radar pulse animation.
  */
 @Composable
 fun DiscoveryHeader(isSearching: Boolean) {
-    val infiniteTransition = rememberInfiniteTransition(label = "PulseAnimation")
-    
-    // Pulse scale animation
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.5f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(MotionDurations.Medium, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "PulseScale"
-    )
-    
-    // Pulse alpha animation
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(MotionDurations.Medium, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "PulseAlpha"
-    )
-
     Surface(
         color = MaterialTheme.colorScheme.secondaryContainer,
         shape = RoundedCornerShape(28.dp),
@@ -66,39 +43,14 @@ fun DiscoveryHeader(isSearching: Boolean) {
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (isSearching) {
-                // ✅ Animated pulse ring for searching state
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    // Outer pulse ring
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier
-                            .size(24.dp * pulseScale)
-                            .alpha(pulseAlpha)
-                    )
-                    // Inner icon
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            } else {
-                Icon(
-                    imageVector = Icons.Default.DeviceHub,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-            }
-            
+            // ✅ Radar Pulse Morph component
+            RadarPulseMorph(
+                isSearching = isSearching,
+                size = 40.dp
+            )
+
             Spacer(modifier = Modifier.width(12.dp))
-            
+
             Text(
                 text = if (isSearching)
                     stringResource(R.string.searching_placeholder)

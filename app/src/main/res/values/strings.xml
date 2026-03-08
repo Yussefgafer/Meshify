@@ -99,4 +99,17 @@
     <string name="attach_from_gallery">From gallery</string>
     <string name="attach_camera">Camera</string>
     <string name="coming_soon">Coming soon</string>
+
+    <!-- MD3E Settings - Color Picker -->
+    <string name="settings_seed_color">Accent Color</string>
+    <string name="settings_seed_color_desc">Choose your brand color when dynamic colors are off</string>
+    <string name="color_selection_content_description">Select color</string>
+
+    <!-- MD3E Settings - Font Picker -->
+    <string name="settings_custom_font">Custom Font</string>
+    <string name="settings_custom_font_desc">Upload a .ttf or .otf font file from your device</string>
+    <string name="btn_upload_font">Upload Font</string>
+    <string name="btn_clear_font">Clear Custom Font</string>
+    <string name="font_file_selected">Font file selected: %s</string>
+    <string name="no_custom_font">No custom font uploaded</string>
 </resources>

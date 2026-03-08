@@ -170,15 +170,21 @@ fun ChatScreen(
                 
                 val isGroupedWithPrevious = prevMessage?.senderId == message.senderId &&
                         (message.timestamp - prevMessage.timestamp) < GROUPING_TIMEOUT_MS
-                
+
                 val isGroupedWithNext = nextMessage?.senderId == message.senderId &&
                         (nextMessage.timestamp - message.timestamp) < GROUPING_TIMEOUT_MS
+
+                // Smart Avatar: Show avatar only next to the LAST message in each group
+                val showAvatar = !isGroupedWithNext
 
                 MessageBubble(
                     message = message,
                     isSelected = selectedIds.contains(message.id.toString()),
                     isGroupedWithPrevious = isGroupedWithPrevious,
                     isGroupedWithNext = isGroupedWithNext,
+                    showAvatar = showAvatar,
+                    avatarInitials = peerName.take(1),
+                    isOnline = isOnline,
                     onLongClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         viewModel.toggleMessageSelection(message.id.toString())
@@ -242,6 +248,9 @@ fun MessageBubble(
     isSelected: Boolean,
     isGroupedWithPrevious: Boolean,
     isGroupedWithNext: Boolean,
+    showAvatar: Boolean = false,
+    avatarInitials: String = "",
+    isOnline: Boolean = false,
     onLongClick: () -> Unit,
     onClick: () -> Unit,
     onImageClick: (String) -> Unit,
@@ -249,7 +258,7 @@ fun MessageBubble(
 ) {
     val context = LocalContext.current
     val themeConfig = LocalMeshifyThemeConfig.current
-    
+
     // ✅ MD3E Redesigned color scheme per spec
     val containerColor = if (isSelected) {
         MaterialTheme.colorScheme.secondaryContainer
@@ -273,6 +282,13 @@ fun MessageBubble(
         MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
     }
 
+    // ✅ MD3E Optimized: Smaller padding for increased density
+    val bubblePadding = if (message.type == MessageType.TEXT) {
+        PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+    } else {
+        PaddingValues(horizontal = 4.dp, vertical = 4.dp)
+    }
+
     // Use dynamic bubble shape from settings
     val shape = getBubbleShape(
         bubbleStyle = themeConfig.bubbleStyle,
@@ -283,97 +299,162 @@ fun MessageBubble(
 
     val alignment = if (message.isFromMe) Alignment.End else Alignment.Start
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            ),
-        horizontalAlignment = alignment
-    ) {
-        Surface(
-            color = containerColor,
-            shape = shape,
-            tonalElevation = if (isSelected) 8.dp else 1.dp,
-            modifier = Modifier.widthIn(max = 280.dp)
+    // Smart Avatar Layout: Show avatar only for peer's last message in group
+    if (!message.isFromMe && showAvatar) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Bottom
         ) {
-            Column(
-                modifier = Modifier.padding(
-                    horizontal = if (message.type == MessageType.TEXT) 14.dp else 4.dp,
-                    vertical = if (message.type == MessageType.TEXT) 10.dp else 4.dp
-                )
-            ) {
-                if (message.type == MessageType.IMAGE || message.mediaPath != null) {
-                    // ✅ Image message with shimmer loading effect (LastChat style)
-                    AsyncImage(
-                        model = ImageRequest.Builder(context)
-                            .data(message.mediaPath)
-                            .memoryCacheKey(message.id)
-                            .diskCacheKey(message.id)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 400.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .clickable {
-                                if (selectedIds.isEmpty()) {
-                                    onImageClick(message.mediaPath ?: "")
-                                }
-                            },
-                        contentScale = ContentScale.Crop
-                    )
-                    if (!message.text.isNullOrEmpty()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = message.text,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = contentColor
-                        )
-                    }
+            MorphingAvatar(
+                initials = avatarInitials,
+                isOnline = isOnline,
+                size = 32.dp
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            MessageBubbleContent(
+                message = message,
+                isSelected = isSelected,
+                containerColor = containerColor,
+                contentColor = contentColor,
+                timeColor = timeColor,
+                shape = shape,
+                bubblePadding = bubblePadding,
+                context = context,
+                selectedIds = selectedIds,
+                onLongClick = onLongClick,
+                onClick = onClick,
+                onImageClick = onImageClick
+            )
+        }
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick
+                ),
+            horizontalAlignment = alignment
+        ) {
+            MessageBubbleContent(
+                message = message,
+                isSelected = isSelected,
+                containerColor = containerColor,
+                contentColor = contentColor,
+                timeColor = timeColor,
+                shape = shape,
+                bubblePadding = bubblePadding,
+                context = context,
+                selectedIds = selectedIds,
+                onLongClick = onLongClick,
+                onClick = onClick,
+                onImageClick = onImageClick
+            )
+        }
+    }
+}
+
+@Composable
+fun MessageBubbleContent(
+    message: MessageEntity,
+    isSelected: Boolean,
+    containerColor: Color,
+    contentColor: Color,
+    timeColor: Color,
+    shape: RoundedCornerShape,
+    bubblePadding: PaddingValues,
+    context: android.content.Context,
+    selectedIds: Set<String>,
+    onLongClick: () -> Unit,
+    onClick: () -> Unit,
+    onImageClick: (String) -> Unit
+) {
+    Surface(
+        color = containerColor,
+        shape = shape,
+        tonalElevation = if (isSelected) 8.dp else 1.dp,
+        modifier = Modifier
+            .widthIn(max = 280.dp)
+            .then(
+                if (!message.isFromMe) {
+                    Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
                 } else {
-                    // ✅ Text message
+                    Modifier
+                }
+            )
+    ) {
+        Column(
+            modifier = Modifier.padding(bubblePadding)
+        ) {
+            if (message.type == MessageType.IMAGE || message.mediaPath != null) {
+                // ✅ Image message with shimmer loading effect (LastChat style)
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(message.mediaPath)
+                        .memoryCacheKey(message.id)
+                        .diskCacheKey(message.id)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 400.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable {
+                            if (selectedIds.isEmpty()) {
+                                onImageClick(message.mediaPath ?: "")
+                            }
+                        },
+                    contentScale = ContentScale.Crop
+                )
+                if (!message.text.isNullOrEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = message.text ?: "",
+                        text = message.text,
                         style = MaterialTheme.typography.bodyLarge,
-                        color = contentColor,
-                        lineHeight = 22.sp
+                        color = contentColor
                     )
                 }
+            } else {
+                // ✅ Text message
+                Text(
+                    text = message.text ?: "",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = contentColor,
+                    lineHeight = 22.sp
+                )
+            }
 
-                // ✅ Metadata row with improved styling
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.End)
-                        .padding(top = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.timestamp)),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = timeColor,
-                        fontSize = 10.sp
-                    )
-                    if (message.isFromMe) {
-                        Spacer(modifier = Modifier.width(4.dp))
-                        val statusIcon = when (message.status) {
-                            MessageStatus.FAILED -> Icons.Default.Error
-                            MessageStatus.RECEIVED -> Icons.Default.DoneAll
-                            else -> Icons.Default.Check
-                        }
-                        Icon(
-                            imageVector = statusIcon,
-                            contentDescription = null,
-                            modifier = Modifier.size(12.dp),
-                            tint = if (message.status == MessageStatus.FAILED) {
-                                MaterialTheme.colorScheme.error
-                            } else {
-                                timeColor
-                            }
-                        )
+            // ✅ Metadata row with improved styling
+            Row(
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .padding(top = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.timestamp)),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = timeColor,
+                    fontSize = 10.sp
+                )
+                if (message.isFromMe) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    val statusIcon = when (message.status) {
+                        MessageStatus.FAILED -> Icons.Default.Error
+                        MessageStatus.RECEIVED -> Icons.Default.DoneAll
+                        else -> Icons.Default.Check
                     }
+                    Icon(
+                        imageVector = statusIcon,
+                        contentDescription = null,
+                        modifier = Modifier.size(12.dp),
+                        tint = if (message.status == MessageStatus.FAILED) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            timeColor
+                        }
+                    )
                 }
             }
         }

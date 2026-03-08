@@ -1,10 +1,15 @@
 package com.p2p.meshify.ui.screens.settings
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -19,25 +24,24 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.graphics.shapes.Morph
 import com.p2p.meshify.R
 import com.p2p.meshify.domain.model.*
 import com.p2p.meshify.domain.repository.ThemeMode
-import com.p2p.meshify.ui.components.ExpressiveButton
-import com.p2p.meshify.ui.components.ExpressiveCard
 import com.p2p.meshify.ui.components.ExpressivePulseHeader
-import com.p2p.meshify.ui.components.MorphPolygonShape
 import com.p2p.meshify.ui.theme.MD3EShapes
+import com.p2p.meshify.ui.theme.MD3EFontFamilies
 import com.p2p.meshify.ui.theme.MotionDurations
 
 /**
- * MD3E Comprehensive Settings Screen.
- * Full control over all design variables: Motion, Shapes, Fonts, Colors, Bubbles.
+ * MD3E Redesigned Settings Screen.
+ * Uses ListItem-based layout with ColorPicker and FontPicker.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,17 +55,28 @@ fun SettingsScreen(
     val networkVisible by viewModel.isNetworkVisible.collectAsState()
     val deviceId by viewModel.deviceId.collectAsState()
     val appVersion = viewModel.appVersion
-    
+
     // MD3E Settings
     val shapeStyle by viewModel.shapeStyle.collectAsState()
     val motionPreset by viewModel.motionPreset.collectAsState()
     val motionScale by viewModel.motionScale.collectAsState()
     val fontFamilyPreset by viewModel.fontFamilyPreset.collectAsState()
+    val customFontUri by viewModel.customFontUri.collectAsState()
     val bubbleStyle by viewModel.bubbleStyle.collectAsState()
     val visualDensity by viewModel.visualDensity.collectAsState()
+    val seedColorInt by viewModel.seedColor.collectAsState()
 
     var nameInput by remember(displayName) { mutableStateOf(displayName) }
     val scrollState = rememberScrollState()
+
+    // Font file picker launcher
+    val fontPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            viewModel.setCustomFontUri(it.toString())
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -85,12 +100,12 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(scrollState)
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
-            // MD3E Expressive Header with Shape Morphing
+            // MD3E Expressive Header with static Morphing (no rotation)
             ExpressivePulseHeader(
                 shapes = listOf(
                     MD3EShapes.Sunny,
@@ -104,7 +119,7 @@ fun SettingsScreen(
             ) {
                 Icon(Icons.Default.Person, null, modifier = Modifier.size(56.dp), tint = MaterialTheme.colorScheme.primary)
             }
-            
+
             Spacer(modifier = Modifier.height(12.dp))
             Text(text = displayName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
 
@@ -121,11 +136,13 @@ fun SettingsScreen(
                     singleLine = true
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                ExpressiveButton(
+                FilledTonalButton(
                     onClick = { viewModel.updateDisplayName(nameInput) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp)
                 ) {
+                    Icon(Icons.Default.Save, null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(text = stringResource(R.string.btn_save_changes))
                 }
             }
@@ -134,7 +151,14 @@ fun SettingsScreen(
 
             // SECTION: APPEARANCE (THEME)
             SettingsSection(title = stringResource(R.string.settings_section_appearance)) {
-                Text(stringResource(R.string.settings_theme_mode), style = MaterialTheme.typography.labelMedium)
+                // Theme Mode
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.settings_theme_mode)) },
+                    supportingContent = { Text("Light, Dark, or System") },
+                    leadingContent = {
+                        Icon(Icons.Default.Palette, null, tint = MaterialTheme.colorScheme.primary)
+                    }
+                )
                 Spacer(modifier = Modifier.height(8.dp))
 
                 val modes = ThemeMode.values()
@@ -150,14 +174,82 @@ fun SettingsScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
+                // Dynamic Colors
                 PreferenceSwitch(
                     label = stringResource(R.string.settings_dynamic_colors),
                     description = stringResource(R.string.settings_dynamic_colors_desc),
                     checked = dynamicColor,
                     onCheckedChange = viewModel::setDynamicColor
                 )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                // Seed Color Picker (only shown when dynamic color is off)
+                if (!dynamicColor) {
+                    Text(
+                        text = stringResource(R.string.settings_seed_color),
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ColorPicker(
+                        selectedColor = Color(seedColorInt),
+                        onColorSelected = viewModel::setSeedColor
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                }
+
+                // Custom Font Picker
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.settings_custom_font)) },
+                    supportingContent = {
+                        Text(customFontUri?.let { 
+                            val fileName = it.substringAfterLast('/')
+                            stringResource(R.string.font_file_selected, fileName)
+                        } ?: stringResource(R.string.no_custom_font))
+                    },
+                    leadingContent = {
+                        Icon(Icons.Default.FontDownload, null, tint = MaterialTheme.colorScheme.primary)
+                    },
+                    trailingContent = {
+                        if (customFontUri != null) {
+                            FilledTonalIconButton(onClick = { viewModel.setCustomFontUri(null) }) {
+                                Icon(Icons.Default.Clear, null, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilledTonalButton(
+                        onClick = { fontPickerLauncher.launch("font/*") },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Icon(Icons.Default.Upload, null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.btn_upload_font))
+                    }
+                    if (customFontUri != null) {
+                        FilledTonalButton(
+                            onClick = { viewModel.setCustomFontUri(null) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer
+                            )
+                        ) {
+                            Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.btn_clear_font))
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -166,14 +258,16 @@ fun SettingsScreen(
             SettingsSection(title = stringResource(R.string.settings_shape_style)) {
                 Text(stringResource(R.string.settings_shape_style_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
                 ShapeStyle.values().forEach { style ->
                     ShapeSelectorItem(
                         style = style,
                         selected = shapeStyle == style,
                         onClick = { viewModel.setShapeStyle(style) }
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    if (style != ShapeStyle.values().last()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
                 }
             }
 
@@ -183,16 +277,18 @@ fun SettingsScreen(
             SettingsSection(title = stringResource(R.string.settings_motion_system)) {
                 Text(stringResource(R.string.settings_motion_system_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
                 MotionPreset.values().forEach { preset ->
                     MotionPresetItem(
                         preset = preset,
                         selected = motionPreset == preset,
                         onClick = { viewModel.setMotionPreset(preset) }
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    if (preset != MotionPreset.values().last()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
                 }
-                
+
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(stringResource(R.string.settings_motion_scale, String.format("%.2f", motionScale)), style = MaterialTheme.typography.labelMedium)
@@ -210,14 +306,16 @@ fun SettingsScreen(
             SettingsSection(title = stringResource(R.string.settings_typography)) {
                 Text(stringResource(R.string.settings_typography_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
                 FontFamilyPreset.values().forEach { family ->
                     FontFamilySelectorItem(
                         family = family,
                         selected = fontFamilyPreset == family,
                         onClick = { viewModel.setFontFamilyPreset(family) }
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    if (family != FontFamilyPreset.values().last()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
                 }
             }
 
@@ -227,14 +325,16 @@ fun SettingsScreen(
             SettingsSection(title = stringResource(R.string.settings_chat_bubbles)) {
                 Text(stringResource(R.string.settings_chat_bubbles_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
                 BubbleStyle.values().forEach { style ->
                     BubbleStyleSelectorItem(
                         style = style,
                         selected = bubbleStyle == style,
                         onClick = { viewModel.setBubbleStyle(style) }
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    if (style != BubbleStyle.values().last()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
                 }
             }
 
@@ -280,6 +380,49 @@ fun SettingsScreen(
     }
 }
 
+/**
+ * MD3E Color Picker - Circular color selection.
+ */
+@Composable
+fun ColorPicker(
+    selectedColor: Color,
+    onColorSelected: (Color) -> Unit
+) {
+    val colors = listOf(
+        Color(0xFF006D68), // Teal (default)
+        Color(0xFF6750A4), // Purple
+        Color(0xFF006E1C), // Green
+        Color(0xFFB81D24), // Red
+        Color(0xFFD4880C), // Amber
+        Color(0xFF00649F), // Blue
+        Color(0xFF984061), // Pink
+        Color(0xFF5C5D50)  // Neutral
+    )
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        colors.forEach { color ->
+            val isSelected = selectedColor == color
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(color)
+                    .then(
+                        if (isSelected) {
+                            Modifier.border(4.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                        } else {
+                            Modifier.border(2.dp, color.copy(alpha = 0.3f), CircleShape)
+                        }
+                    )
+                    .clickable { onColorSelected(color) }
+            )
+        }
+    }
+}
+
 @Composable
 fun ShapeSelectorItem(
     style: ShapeStyle,
@@ -290,59 +433,56 @@ fun ShapeSelectorItem(
     val primaryColor = MaterialTheme.colorScheme.primary
     val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
 
-    ExpressiveCard(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp, horizontal = 8.dp),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp, horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Preview shape using MorphPolygonShape
+    ListItem(
+        headlineContent = {
+            Text(
+                text = style.name.lowercase().replaceFirstChar { it.uppercase() },
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+            )
+        },
+        supportingContent = {
+            Text(
+                text = if (selected) stringResource(R.string.settings_shape_active)
+                       else stringResource(R.string.settings_shape_tap_to_select),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (selected) primaryColor else onSurfaceVariant
+            )
+        },
+        leadingContent = {
             val shape = MD3EShapes.getShape(style)
-            val staticMorph = remember(shape) { androidx.graphics.shapes.Morph(shape, shape) }
+            val staticMorph = remember(shape) { Morph(shape, shape) }
             val morphShape = remember(staticMorph) { com.p2p.meshify.ui.components.MorphPolygonShape(staticMorph, 0f) }
-            
+
             Box(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(morphShape)
                     .background(if (selected) primaryColor else onSurfaceVariant)
             )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = style.name.lowercase().replaceFirstChar { it.uppercase() },
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
-                )
-                Text(
-                    text = if (selected) stringResource(R.string.settings_shape_active)
-                           else stringResource(R.string.settings_shape_tap_to_select),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (selected) primaryColor
-                           else onSurfaceVariant
-                )
-            }
+        },
+        trailingContent = {
             if (selected) {
-                Icon(
-                    Icons.Default.CheckCircle,
-                    contentDescription = "Selected",
-                    tint = primaryColor
-                )
+                Icon(Icons.Default.CheckCircle, null, tint = primaryColor)
             } else {
-                RadioButton(
-                    selected = false,
-                    onClick = null
-                )
+                RadioButton(selected = false, onClick = null)
             }
-        }
-    }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
+            .then(
+                if (selected) {
+                    Modifier.background(primaryColor.copy(alpha = 0.1f))
+                } else {
+                    Modifier
+                }
+            )
+    )
 }
 
 @Composable
@@ -355,19 +495,27 @@ fun MotionPresetItem(
     val primaryColor = MaterialTheme.colorScheme.primary
     val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
 
-    ExpressiveCard(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp, horizontal = 8.dp),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp, horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+    ListItem(
+        headlineContent = {
+            Text(
+                text = preset.name.lowercase().replaceFirstChar { it.uppercase() },
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+            )
+        },
+        supportingContent = {
+            Text(
+                text = when (preset) {
+                    MotionPreset.GENTLE -> stringResource(R.string.settings_motion_gentle)
+                    MotionPreset.STANDARD -> stringResource(R.string.settings_motion_standard)
+                    MotionPreset.SNAPPY -> stringResource(R.string.settings_motion_snappy)
+                    MotionPreset.BOUNCY -> stringResource(R.string.settings_motion_bouncy)
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = onSurfaceVariant
+            )
+        },
+        leadingContent = {
             Icon(
                 imageVector = when (preset) {
                     MotionPreset.GENTLE -> Icons.Default.SlowMotionVideo
@@ -376,33 +524,30 @@ fun MotionPresetItem(
                     MotionPreset.BOUNCY -> Icons.AutoMirrored.Filled.TrendingUp
                 },
                 contentDescription = null,
-                tint = if (selected) primaryColor
-                       else onSurfaceVariant,
+                tint = if (selected) primaryColor else onSurfaceVariant,
                 modifier = Modifier.size(24.dp)
             )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = preset.name.lowercase().replaceFirstChar { it.uppercase() },
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
-                )
-                Text(
-                    text = when (preset) {
-                        MotionPreset.GENTLE -> stringResource(R.string.settings_motion_gentle)
-                        MotionPreset.STANDARD -> stringResource(R.string.settings_motion_standard)
-                        MotionPreset.SNAPPY -> stringResource(R.string.settings_motion_snappy)
-                        MotionPreset.BOUNCY -> stringResource(R.string.settings_motion_bouncy)
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = onSurfaceVariant
-                )
-            }
+        },
+        trailingContent = {
             if (selected) {
                 Icon(Icons.Default.CheckCircle, null, tint = primaryColor)
             }
-        }
-    }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
+            .then(
+                if (selected) {
+                    Modifier.background(primaryColor.copy(alpha = 0.1f))
+                } else {
+                    Modifier
+                }
+            )
+    )
 }
 
 @Composable
@@ -415,43 +560,54 @@ fun FontFamilySelectorItem(
     val primaryColor = MaterialTheme.colorScheme.primary
     val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
 
-    ExpressiveCard(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp, horizontal = 8.dp),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp, horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = family.name.lowercase().replaceFirstChar { it.uppercase() },
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
-                )
-                Text(
-                    text = when (family) {
-                        FontFamilyPreset.ROBOTO -> stringResource(R.string.settings_font_roboto)
-                        FontFamilyPreset.POPTINS -> stringResource(R.string.settings_font_poppins)
-                        FontFamilyPreset.LORA -> stringResource(R.string.settings_font_lora)
-                        FontFamilyPreset.MONTSERRAT -> stringResource(R.string.settings_font_montserrat)
-                        FontFamilyPreset.PLAYFAIR -> stringResource(R.string.settings_font_playfair)
-                        FontFamilyPreset.INTER -> stringResource(R.string.settings_font_inter)
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = onSurfaceVariant
-                )
-            }
+    val fontFamily = MD3EFontFamilies.getFontFamily(family)
+
+    ListItem(
+        headlineContent = {
+            Text(
+                text = family.name.lowercase().replaceFirstChar { it.uppercase() },
+                style = MaterialTheme.typography.titleMedium,
+                fontFamily = fontFamily,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+            )
+        },
+        supportingContent = {
+            Text(
+                text = when (family) {
+                    FontFamilyPreset.ROBOTO -> stringResource(R.string.settings_font_roboto)
+                    FontFamilyPreset.POPTINS -> stringResource(R.string.settings_font_poppins)
+                    FontFamilyPreset.LORA -> stringResource(R.string.settings_font_lora)
+                    FontFamilyPreset.MONTSERRAT -> stringResource(R.string.settings_font_montserrat)
+                    FontFamilyPreset.PLAYFAIR -> stringResource(R.string.settings_font_playfair)
+                    FontFamilyPreset.INTER -> stringResource(R.string.settings_font_inter)
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = onSurfaceVariant
+            )
+        },
+        leadingContent = {
+            Icon(Icons.Default.FontDownload, null, tint = if (selected) primaryColor else onSurfaceVariant)
+        },
+        trailingContent = {
             if (selected) {
                 Icon(Icons.Default.CheckCircle, null, tint = primaryColor)
             }
-        }
-    }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
+            .then(
+                if (selected) {
+                    Modifier.background(primaryColor.copy(alpha = 0.1f))
+                } else {
+                    Modifier
+                }
+            )
+    )
 }
 
 @Composable
@@ -464,45 +620,48 @@ fun BubbleStyleSelectorItem(
     val primaryColor = MaterialTheme.colorScheme.primary
     val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
 
-    ExpressiveCard(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp, horizontal = 8.dp),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp, horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Preview bubble shape using Surface with RoundedCornerShape
+    ListItem(
+        headlineContent = {
+            Text(
+                text = style.name.lowercase().replaceFirstChar { it.uppercase() },
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+            )
+        },
+        leadingContent = {
             Surface(
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier.size(40.dp),
                 shape = RoundedCornerShape(
                     when (style) {
-                        BubbleStyle.ROUNDED -> 24.dp
+                        BubbleStyle.ROUNDED -> 20.dp
                         BubbleStyle.TAILED -> 16.dp
                         BubbleStyle.SQUARCLES -> 8.dp
-                        BubbleStyle.ORGANIC -> 32.dp
+                        BubbleStyle.ORGANIC -> 24.dp
                     }
                 ),
                 color = if (selected) primaryColor else onSurfaceVariant
             ) {}
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = style.name.lowercase().replaceFirstChar { it.uppercase() },
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
-                )
-            }
+        },
+        trailingContent = {
             if (selected) {
                 Icon(Icons.Default.CheckCircle, null, tint = primaryColor)
             }
-        }
-    }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
+            .then(
+                if (selected) {
+                    Modifier.background(primaryColor.copy(alpha = 0.1f))
+                } else {
+                    Modifier
+                }
+            )
+    )
 }
 
 @Composable
@@ -512,38 +671,43 @@ fun PreferenceSwitch(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = label, style = MaterialTheme.typography.titleMedium)
-            Text(text = description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    ListItem(
+        headlineContent = { Text(text = label, style = MaterialTheme.typography.titleMedium) },
+        supportingContent = { Text(text = description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+        leadingContent = {
+            Icon(
+                imageVector = if (checked) Icons.Default.ToggleOn else Icons.Default.ToggleOff,
+                contentDescription = null,
+                tint = if (checked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        trailingContent = {
+            Switch(checked = checked, onCheckedChange = onCheckedChange)
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
+    )
 }
 
 @Composable
 fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text(text = title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 8.dp, bottom = 12.dp))
-        Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh, shape = RoundedCornerShape(28.dp), modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(24.dp)) { content() }
+        Text(text = title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
+        Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = RoundedCornerShape(28.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) { content() }
         }
     }
 }
 
 @Composable
 fun InfoItem(label: String, value: String, icon: ImageVector) {
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.size(40.dp)) {
-            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.padding(10.dp), tint = MaterialTheme.colorScheme.secondary)
+    ListItem(
+        headlineContent = { Text(text = label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+        supportingContent = { Text(text = value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold) },
+        leadingContent = {
+            Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.size(40.dp)) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(imageVector = icon, contentDescription = null, modifier = Modifier.padding(10.dp), tint = MaterialTheme.colorScheme.secondary)
+                }
+            }
         }
-        Spacer(modifier = Modifier.width(16.dp))
-        Column {
-            Text(text = label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(text = value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-        }
-    }
+    )
 }
