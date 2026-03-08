@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -44,7 +45,8 @@ fun RecentChatsScreen(
 ) {
     val chats by viewModel.recentChats.collectAsState()
     val onlinePeers by viewModel.onlinePeers.collectAsState()
-    val settingsRepo = (LocalContext.current.applicationContext as com.p2p.meshify.MeshifyApp).container.settingsRepository
+    val context = LocalContext.current
+    val settingsRepo = (context.applicationContext as com.p2p.meshify.MeshifyApp).container.settingsRepository
 
     var chatToDelete by remember { mutableStateOf<ChatEntity?>(null) }
 
@@ -74,7 +76,7 @@ fun RecentChatsScreen(
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp) // Tighter spacing for grouped look
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 itemsIndexed(chats, key = { _, chat -> chat.peerId }) { index, chat ->
                     val position = when {
@@ -104,8 +106,6 @@ fun RecentChatsScreen(
                 title = "Delete Conversation",
                 text = "Are you sure you want to delete the conversation with ${chat.peerName}?",
                 onConfirm = {
-                    // Soft delete: For now we just clear selection, 
-                    // in a real app we'd update a 'hidden' flag in DB.
                     chatToDelete = null
                 },
                 onDismiss = { chatToDelete = null }
