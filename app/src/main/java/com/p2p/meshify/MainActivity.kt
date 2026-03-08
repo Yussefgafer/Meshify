@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -15,26 +16,23 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.core.view.WindowCompat
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.FontFamilyPreset
 import com.p2p.meshify.domain.model.MotionPreset
 import com.p2p.meshify.network.service.MeshForegroundService
-import com.p2p.meshify.ui.navigation.MeshifyNavHost
+import com.p2p.meshify.ui.navigation.MeshifyNavDisplay
+import com.p2p.meshify.ui.navigation.Screen
 import com.p2p.meshify.ui.theme.MD3EFontFamilies
 import com.p2p.meshify.ui.theme.MeshifyTheme
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
  * Main entry point of the Meshify application.
- * Integrates MD3E settings for dynamic theming.
+ * Migrated to Navigation 3 (State-aware) and MD3E (Expressive Motion).
  */
 class MainActivity : ComponentActivity() {
 
@@ -49,30 +47,15 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        // ✅ FIX 1: Log onCreate start
         Logger.d("MainActivity -> onCreate START")
         
-        // ✅ FIX 2: Enable edge-to-edge FIRST (before any heavy work)
-        Logger.d("MainActivity -> Calling enableEdgeToEdge()")
         enableEdgeToEdge()
-        
-        // ✅ FIX 2.1: Explicitly control system bars appearance to prevent re-draw loop
-        // This prevents SurfaceSyncGroup timeout on Transsion/Mediatek devices
         val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
         windowInsetsController.isAppearanceLightStatusBars = false
         windowInsetsController.isAppearanceLightNavigationBars = false
         
-        Logger.d("MainActivity -> enableEdgeToEdge() completed + WindowCompat configured")
-
-        // ✅ FIX 3: Request permissions asynchronously (non-blocking)
-        Logger.d("MainActivity -> Starting permission check")
         checkAndRequestPermissions()
-
-        // ✅ FIX 4: Get app container (lazy-initialized in Application)
-        Logger.d("MainActivity -> Getting AppContainer")
         val appContainer = (application as MeshifyApp).container
-        Logger.d("MainActivity -> AppContainer retrieved")
 
         setContent {
             Logger.d("MainActivity -> setContent START")
@@ -87,32 +70,24 @@ class MainActivity : ComponentActivity() {
             val bubbleStyle by appContainer.settingsRepository.bubbleStyle.collectAsState(initial = com.p2p.meshify.domain.model.BubbleStyle.ROUNDED)
             val visualDensity by appContainer.settingsRepository.visualDensity.collectAsState(initial = 1.0f)
 
-            // ✅ FIX: Ready state to prevent startup deadlock
             var isReady by remember { mutableStateOf(false) }
 
-            // ✅ FIX: Warm up heavy components BEFORE showing UI
+            // Navigation Controller
+            val navController = rememberNavController()
+
             LaunchedEffect(Unit) {
                 Logger.d("MainActivity -> Starting background initialization")
                 try {
                     withContext(Dispatchers.IO) {
-                        // Force initialization of heavy components
                         appContainer.chatRepository
                         appContainer.lanTransport
                     }
                     isReady = true
-                    Logger.d("MainActivity -> Background initialization COMPLETE - UI ready")
+                    Logger.d("MainActivity -> Background initialization COMPLETE")
                 } catch (e: Exception) {
                     Logger.e("MainActivity -> Background initialization FAILED: ${e.message}")
-                    isReady = true // Still show UI even if init fails
+                    isReady = true
                 }
-            }
-
-            // ✅ FIX: Create navController OUTSIDE the conditional to avoid recomposition issues
-            val navController = rememberNavController()
-
-            // ✅ FIX 5: Log theme config
-            LaunchedEffect(themeMode, dynamicColor, fontFamilyPreset, visualDensity) {
-                Logger.d("MeshifyTheme -> Config: DarkMode=$themeMode, DynamicColor=$dynamicColor, Font=$fontFamilyPreset, Density=${String.format("%.2f", visualDensity)}x")
             }
 
             MeshifyTheme(
@@ -125,25 +100,19 @@ class MainActivity : ComponentActivity() {
                 bubbleStyle = bubbleStyle,
                 visualDensity = visualDensity
             ) {
-                Logger.d("MainActivity -> MeshifyTheme composed")
-
-                // ✅ FIX: Show solid background ONLY until ready - prevents black screen
                 if (!isReady) {
-                    Logger.d("MainActivity -> Showing solid background while initializing...")
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(MaterialTheme.colorScheme.background)
                     )
                 } else {
-                    // ✅ FIX 7: Simplified root Surface with fallback solid background
-                    // This satisfies OpenGL EGL configuration immediately
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
                     ) {
-                        Logger.d("MainActivity -> Rendering MeshifyNavHost")
-                        MeshifyNavHost(
+                        Logger.d("MainActivity -> Rendering MeshifyNavDisplay")
+                        MeshifyNavDisplay(
                             context = this@MainActivity,
                             navController = navController,
                             appContainer = appContainer
@@ -151,10 +120,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-            Logger.d("MainActivity -> setContent COMPLETE")
         }
-        
-        Logger.d("MainActivity -> onCreate COMPLETE")
     }
 
     private fun startAppService() {
@@ -182,11 +148,8 @@ class MainActivity : ComponentActivity() {
         }
 
         if (missing.isNotEmpty()) {
-            Logger.d("MainActivity -> Requesting ${missing.size} permissions")
-            // Launch async - doesn't block main thread
             requestPermissionLauncher.launch(missing.toTypedArray())
         } else {
-            Logger.d("MainActivity -> All permissions already granted")
             startAppService()
         }
     }

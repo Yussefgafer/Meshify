@@ -67,8 +67,16 @@ Follow the established blueprint:
     - **Performance Optimization**: تهيئة Coil مع Memory & Disk Cache متقدم لمنع تهنيج الواجهة.
     - **Android 13+ Permissions**: إصلاح منطق الصلاحيات ليحترم معايير الخصوصية.
 
+### المرحلة الخامسة عشر: ثورة الملاحة والنوع الآمن (Navigation Revolution) - 08/03/2026
+- **تم الانتهاء من:**
+    - **Stable Navigation**: التراجع عن `Navigation 3` لصالح `Navigation Compose 2.8.7` (النسخة المستقرة والأكثر كفاءة).
+    - **Full Type-Safety**: تطبيق نظام الـ `Serializable Routes` بالكامل لضمان عدم حدوث أخطاء وقت التشغيل (Runtime Errors).
+    - **Clean State Management**: التخلص من الإدارة اليدوية للـ `backStack` والاعتماد على `NavController` الأصلي.
+    - **Coil 3 Migration**: تحديث جميع الـ `imports` والـ `dependencies` لتعمل مع Coil 3 بكفاءة.
+    - **MD3 Expressive Ready**: تفعيل الـ `MaterialShapes` والـ `Expressive Motion` عبر الـ `Compiler Opt-ins` اللازمة.
+
 ## [الوضع الحالي - Status Quo]
-التطبيق الآن يتمتع بأساس معماري "نظيف" وصلب (Production-Grade Architecture). تم حل جميع المشاكل الحرجة التي ذكرها تقرير "كوين" (P0 & P1). الأساس جاهز الآن لأي توسعات مستقبلية مثل التشفير المتقدم أو إرسال أنواع ملفات مختلفة.
+التطبيق الآن يتمتع بنظام ملاحة (Navigation) صلب، حديث، ومحمي ضد الأخطاء النوعية (Type-safe). تم حل جميع مشاكل الـ Build التي نتجت عن تجربة المكتبات غير المستقرة. الأساس الآن "إنتاجي" (Production-Grade) وجاهز للانطلاق.
 
 ## [خريطة الطريق القادمة]
 1.  **Unit & UI Testing**: البدء في إضافة اختبارات لضمان عدم تراجع الجودة.

@@ -1,17 +1,21 @@
 package com.p2p.meshify
 
 import android.app.Application
-import coil.ImageLoader
-import coil.ImageLoaderFactory
-import coil.disk.DiskCache
-import coil.memory.MemoryCache
+import coil3.ImageLoader
+import coil3.PlatformContext
+import coil3.SingletonImageLoader
+import coil3.disk.DiskCache
+import coil3.disk.directory
+import coil3.memory.MemoryCache
+import coil3.network.okhttp.OkHttpNetworkFetcherFactory
+import coil3.request.crossfade
 import com.p2p.meshify.core.util.Logger
 
 /**
  * Main Application class.
  * Initializes Dependencies and Global Configurations.
  */
-class MeshifyApp : Application(), ImageLoaderFactory {
+class MeshifyApp : Application(), SingletonImageLoader.Factory {
 
     lateinit var container: AppContainer
 
@@ -30,25 +34,26 @@ class MeshifyApp : Application(), ImageLoaderFactory {
     }
 
     /**
-     * Configures Coil with a robust caching strategy to prevent UI stutter.
+     * Configures Coil 3 with a robust caching strategy to prevent UI stutter.
      */
-    override fun newImageLoader(): ImageLoader {
-        Logger.d("MeshifyApp -> Creating Coil ImageLoader")
-        val loader = ImageLoader.Builder(this)
+    override fun newImageLoader(context: PlatformContext): ImageLoader {
+        Logger.d("MeshifyApp -> Creating Coil 3 ImageLoader")
+        return ImageLoader.Builder(context)
+            .components {
+                add(OkHttpNetworkFetcherFactory())
+            }
             .memoryCache {
-                MemoryCache.Builder(this)
-                    .maxSizePercent(0.25) // 25% of available RAM
+                MemoryCache.Builder()
+                    .maxSizePercent(context, 0.25) // 25% of available RAM
                     .build()
             }
             .diskCache {
                 DiskCache.Builder()
-                    .directory(this.cacheDir.resolve("image_cache"))
+                    .directory(context.cacheDir.resolve("image_cache"))
                     .maxSizePercent(0.02) // 2% of storage
                     .build()
             }
-            .respectCacheHeaders(false) // Better performance for local mesh files
+            .crossfade(true)
             .build()
-        Logger.d("MeshifyApp -> Coil ImageLoader created SUCCESS")
-        return loader
     }
 }

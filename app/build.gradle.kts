@@ -1,28 +1,25 @@
+import com.android.build.api.dsl.ApplicationExtension
+
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    id("kotlin-kapt")
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.androidx.room)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
     namespace = "com.p2p.meshify"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.p2p.meshify"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        
-        javaCompileOptions {
-            annotationProcessorOptions {
-                arguments["room.schemaLocation"] = "$projectDir/schemas"
-            }
-        }
     }
 
     buildTypes {
@@ -34,23 +31,39 @@ android {
             )
         }
     }
+
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
+
     buildFeatures {
         compose = true
     }
 }
 
-dependencies {
+room {
+    schemaDirectory("$projectDir/schemas")
+}
 
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+        freeCompilerArgs.addAll(
+            "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
+            "-opt-in=androidx.compose.material3.ExperimentalMaterial3ExpressiveApi",
+            "-opt-in=androidx.graphics.shapes.ExperimentalGraphicsShapesApi"
+        )
+    }
+}
+
+dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
+    
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
@@ -58,26 +71,19 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.google.material)
     implementation(libs.androidx.material.icons.extended)
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
     
-    // Room Database
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    kapt(libs.androidx.room.compiler)
+    ksp(libs.androidx.room.compiler)
     
-    // Expressive Shapes
     implementation(libs.androidx.graphics.shapes)
-    
-    // DataStore
     implementation(libs.androidx.datastore.preferences)
     
-    // Media Loading
-    implementation(libs.io.coil.compose)
+    implementation(libs.coil3.compose)
+    implementation(libs.coil3.network)
     
-    // Navigation
     implementation(libs.androidx.navigation.compose)
-    
-    // Google Fonts
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.ui.text.google.fonts)
     
     testImplementation(libs.junit)
