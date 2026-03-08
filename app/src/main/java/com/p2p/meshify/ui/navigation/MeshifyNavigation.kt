@@ -1,7 +1,7 @@
 package com.p2p.meshify.ui.navigation
 
 import android.content.Context
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -40,7 +40,7 @@ fun MeshifyNavDisplay(
             )
             RecentChatsScreen(
                 viewModel = homeViewModel,
-                onChatClick = { chat -> navController.navigate(Screen.Chat(chat.peerId)) },
+                onChatClick = { chat -> navController.navigate(Screen.Chat(chat.peerId, chat.peerName)) },
                 onDiscoverClick = { navController.navigate(Screen.Discovery) },
                 onSettingsClick = { navController.navigate(Screen.Settings) }
             )
@@ -57,7 +57,7 @@ fun MeshifyNavDisplay(
             )
             DiscoveryScreen(
                 viewModel = discoveryViewModel,
-                onPeerClick = { peer -> navController.navigate(Screen.Chat(peer.id)) },
+                onPeerClick = { peer -> navController.navigate(Screen.Chat(peer.id, peer.name)) },
                 onSettingsClick = { navController.navigate(Screen.Settings) }
             )
         }
@@ -70,18 +70,17 @@ fun MeshifyNavDisplay(
                     override fun <T : ViewModel> create(modelClass: Class<T>): T {
                         @Suppress("UNCHECKED_CAST")
                         return ChatViewModel(
-                            context = context,
                             peerId = route.peerId,
-                            chatRepository = appContainer.chatRepository,
-                            getMessagesUseCase = appContainer.getMessagesUseCase,
-                            sendMessageUseCase = appContainer.sendMessageUseCase,
-                            deleteMessagesUseCase = appContainer.deleteMessagesUseCase
+                            peerName = route.peerName ?: "Peer",
+                            repository = appContainer.chatRepository
                         ) as T
                     }
                 }
             )
             ChatScreen(
                 viewModel = chatViewModel,
+                peerId = route.peerId,
+                peerName = route.peerName ?: "Peer",
                 onBackClick = { navController.popBackStack() }
             )
         }

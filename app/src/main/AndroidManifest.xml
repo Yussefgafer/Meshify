@@ -23,6 +23,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
         android:name=".MeshifyApp"
@@ -52,6 +53,13 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
+
+        <receiver android:name=".receivers.ReplyReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.p2p.meshify.REPLY_ACTION" />
+            </intent-filter>
+        </receiver>
 
     </application>
 
