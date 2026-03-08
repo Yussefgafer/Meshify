@@ -15,7 +15,6 @@ import com.p2p.meshify.network.base.IMeshTransport
 import com.p2p.meshify.network.lan.LanTransportImpl
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.*
@@ -154,8 +153,8 @@ class ChatRepositoryImpl(
                     val peerName = String(payload.data).replace("HELO_", "")
                     chatDao.insertChat(ChatEntity(payload.senderId, peerName, "Connected", payload.timestamp))
                 }
-                else -> {
-                    Logger.w("ChatRepository -> Unknown payload type received: ${payload.type}")
+                Payload.PayloadType.HEARTBEAT -> {
+                    // Handle heartbeat if needed
                 }
             }
         }

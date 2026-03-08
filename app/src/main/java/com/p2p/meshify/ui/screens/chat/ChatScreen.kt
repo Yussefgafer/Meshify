@@ -24,7 +24,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -45,7 +44,6 @@ import com.p2p.meshify.data.local.entity.MessageType
 import com.p2p.meshify.ui.components.AttachmentOptions
 import com.p2p.meshify.ui.components.FullImageViewer
 import com.p2p.meshify.ui.components.MorphingAvatar
-import com.p2p.meshify.ui.theme.ChatBubbleShapes
 import com.p2p.meshify.ui.theme.LocalMeshifyThemeConfig
 import com.p2p.meshify.ui.theme.StatusOnline
 import com.p2p.meshify.ui.theme.getBubbleShape
@@ -65,9 +63,6 @@ fun ChatScreen(
     val inputText by viewModel.inputText.collectAsState()
     val pendingImage by viewModel.pendingImageUri.collectAsState()
     val selectedIds by viewModel.selectedMessageIds.collectAsState()
-
-    // Extract peer ID from peerName for shared element key
-    val peerId = remember(peerName) { peerName }
 
     val listState = rememberLazyListState()
     val haptic = LocalHapticFeedback.current
@@ -166,7 +161,7 @@ fun ChatScreen(
             itemsIndexed(groupedMessages, key = { _, gm -> gm.message.id }) { _, groupedMessage ->
                 MessageBubble(
                     message = groupedMessage.message,
-                    isSelected = selectedIds.contains(groupedMessage.message.id.toString()),
+                    isSelected = selectedIds.contains(groupedMessage.message.id),
                     isGroupedWithPrevious = groupedMessage.isGroupedWithPrevious,
                     isGroupedWithNext = groupedMessage.isGroupedWithNext,
                     showAvatar = groupedMessage.showAvatar,
@@ -174,14 +169,14 @@ fun ChatScreen(
                     isOnline = isOnline,
                     onLongClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        viewModel.toggleMessageSelection(groupedMessage.message.id.toString())
+                        viewModel.toggleMessageSelection(groupedMessage.message.id)
                     },
                     onClick = {
-                        if (selectedIds.isNotEmpty()) viewModel.toggleMessageSelection(groupedMessage.message.id.toString())
+                        if (selectedIds.isNotEmpty()) viewModel.toggleMessageSelection(groupedMessage.message.id)
                     },
                     onImageClick = { path ->
                         if (selectedIds.isEmpty()) selectedFullImage = path
-                        else viewModel.toggleMessageSelection(groupedMessage.message.id.toString())
+                        else viewModel.toggleMessageSelection(groupedMessage.message.id)
                     },
                     selectedIds = selectedIds
                 )

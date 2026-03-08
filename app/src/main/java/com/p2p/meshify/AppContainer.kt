@@ -30,7 +30,7 @@ class AppContainer(private val context: Context) {
             context,
             MeshifyDatabase::class.java,
             "meshify_db"
-        ).fallbackToDestructiveMigration().build()
+        ).fallbackToDestructiveMigration(dropAllTables = true).build()
         Logger.d("AppContainer -> Database initialized SUCCESS")
         db
     }
