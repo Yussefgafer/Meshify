@@ -80,11 +80,25 @@ Follow the established blueprint:
     - **C01: SocketManager Cleanup System**: إضافة `PooledSocket` مع `createdAt` و `lastUsedAt` timestamps، وتنفيذ `cleanupJob` الذي يمسح الـ Sockets الميتة (أكثر من 5 دقائق خمول) كل 60 ثانية.
     - **C02: Morphing Performance Optimization**: تحسين `MorphPolygonShape` باستخدام `cachedOutline` و `isValid` flag لمنع الـ allocations الزائدة أثناء الـ animation frames.
     - **M07: Chat Grouping Logic Migration**: نقل الـ Grouping Logic من الـ UI (ChatScreen) للـ ChatViewModel عبر `GroupedMessage` data class و `calculateGrouping()` function.
-    - **M01 & U06: Color & Haptic Standardization**: 
+    - **M01 & U06: Color & Haptic Standardization**:
         - نقل جميع الـ Hardcoded colors لـ `Color.kt` (`StatusOnline`, `StatusOffline`, `ColorPresetTeal`, etc.)
         - إضافة Haptic Feedback (`HapticFeedbackType.TextHandleMove`) لجميع الـ SegmentedButtons والـ ColorPicker في SettingsScreen.
     - **🎨 Discovery Radar**: استبدال `CircularProgressIndicator` التقليدي بـ `RadarPulseMorph` component في Empty State.
     - **Build Status**: ✅ جميع التغييرات تم بناؤها بنجاح بدون أخطاء.
+
+### المرحلة السابعة عشر: إصلاحات الاستقرار الحرجة (Critical Stability Fixes) - 08/03/2026
+- **تم الانتهاء من:** إصلاح جميع المشاكل الحرجة من Audit Reports (MESHIFY_AUDIT_REPORT_2026.md + MESHIFY_REPORT.md)
+    - **C01: ConcurrentModificationException Fix**: إعادة كتابة `SocketManager.cleanupIdleSockets()` باستخدام two-pass approach لمنع crash.
+    - **C02: Empty Catch Blocks**: إضافة logging لجميع الـ catch blocks الفارغة في `SocketManager.stopListening()`.
+    - **C04: Thread-Safety**: إضافة `Mutex` في `ChatRepositoryImpl.handleIncomingPayload()` لمنع race conditions و database corruption.
+    - **M06: Write Timeout**: إضافة `withTimeoutOrNull(5000)` في `SocketManager.sendPayload()` لمنع coroutine hanging.
+    - **R1.3: Dead Peer Detection**: إضافة `failedSendCounts` (AtomicInteger) في `LanTransportImpl` لإزالة peers الأموات بعد 3 محاولات فاشلة.
+    - **R2.1: Fallback Payload Fix**: تغيير `PayloadSerializer.deserialize()` لإرجاع empty payload بدلاً من حفظ البيانات المشوهة.
+    - **R2.2: UTF-8 Charset**: إضافة `StandardCharsets.UTF_8` صريح في deserialization + `MAX_DATA_SIZE` check (10MB).
+    - **R4.1: ViewModel Cleanup**: إضافة `onCleared()` في `ChatViewModel` لإلغاء typing job وإرسال `TYPING_OFF`.
+    - **M03: Error Handling**: إضافة `sendError` SharedFlow في `ChatViewModel` لإشعار UI بفشل الإرسال.
+    - **M05: Accessibility Strings**: نقل جميع الـ hardcoded contentDescription لـ `strings.xml` مع إضافة `Logger.w()`.
+    - **Build Status**: ✅ BUILD SUCCESSFUL - جميع الإصلاحات تم التحقق منها.
 
 ## [الوضع الحالي - Status Quo]
 التطبيق الآن يتمتع بـ:
@@ -94,6 +108,7 @@ Follow the established blueprint:
 - **Optimized Performance**: Noise Texture cached، Smart Avatar، أصغر Padding، Morphing Caching، Socket Cleanup
 - **Professional UI**: يضاهي LastChat في الجودة والتصميم
 - **Enhanced UX**: Haptic Feedback في كل مكان، Radar Pulse Animation، Grouped Messages
+- **🛡️ Critical Stability**: Thread-Safety، Write Timeouts، Dead Peer Detection، Error Handling، Data Integrity
 
 ## [خريطة الطريق القادمة]
 1.  **End-to-End Encryption**: تنفيذ الـ E2EE باستخدام Signal Protocol

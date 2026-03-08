@@ -11,8 +11,11 @@ import com.p2p.meshify.network.base.IMeshTransport
 import com.p2p.meshify.network.base.TransportEvent
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import java.net.ConnectException
 import java.net.InetAddress
+import java.net.SocketTimeoutException
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.Collections.newSetFromMap
 
 /**
@@ -29,6 +32,9 @@ class LanTransportImpl(
 
     private val peerMap = ConcurrentHashMap<String, String>()
 
+    // Dead Peer Detection: track consecutive send failures per peer
+    private val failedSendCounts = ConcurrentHashMap<String, AtomicInteger>()
+
     private val _onlinePeers = MutableStateFlow<Set<String>>(emptySet())
     val onlinePeers: StateFlow<Set<String>> = _onlinePeers.asStateFlow()
 
@@ -37,10 +43,15 @@ class LanTransportImpl(
 
     // Thread-safe set using ConcurrentHashMap-backed set
     private val resolvingPeers = newSetFromMap(ConcurrentHashMap<String, Boolean>())
-    
+
     // Discovery enabled flag - controls watchdog restart behavior
     @Volatile
     private var discoveryEnabled = false
+
+    // Dead peer threshold: remove peer after this many consecutive failures
+    companion object {
+        private const val MAX_FAILURES_BEFORE_REMOVAL = 3
+    }
     
     private val nsdManager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
     private var registrationListener: NsdManager.RegistrationListener? = null
@@ -191,8 +202,39 @@ class LanTransportImpl(
     }
 
     override suspend fun sendPayload(targetDeviceId: String, payload: Payload): Result<Unit> {
-        val ipAddress = peerMap[targetDeviceId] ?: return Result.failure(Exception("Peer offline"))
-        return socketManager.sendPayload(ipAddress, payload)
+        val ipAddress = peerMap[targetDeviceId]
+            ?: return Result.failure(Exception("Peer offline"))
+
+        val result = socketManager.sendPayload(ipAddress, payload)
+
+        // Dead Peer Detection: track consecutive failures
+        if (result.isFailure) {
+            val exception = result.exceptionOrNull()
+            // Only count network-related failures (timeout, connection refused)
+            if (exception is SocketTimeoutException || exception is ConnectException) {
+                val failureCount = failedSendCounts.getOrPut(targetDeviceId) { AtomicInteger(0) }
+                val count = failureCount.incrementAndGet()
+
+                Logger.w("LanTransport -> Send failed to $targetDeviceId (count: $count)")
+
+                // Remove peer if failures exceed threshold
+                if (count >= MAX_FAILURES_BEFORE_REMOVAL) {
+                    Logger.w("LanTransport -> Marking peer $targetDeviceId as dead after $count failures")
+                    peerMap.remove(targetDeviceId)
+                    failedSendCounts.remove(targetDeviceId)
+                    _typingPeers.update { it - targetDeviceId }
+                    _onlinePeers.update { it - targetDeviceId }
+                    scope.launch {
+                        _events.emit(TransportEvent.DeviceLost(targetDeviceId))
+                    }
+                }
+            }
+        } else {
+            // Reset failure count on success
+            failedSendCounts.remove(targetDeviceId)
+        }
+
+        return result
     }
 
     private fun registerService(uuid: String, name: String) {

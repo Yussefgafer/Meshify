@@ -125,6 +125,10 @@ class ChatViewModel(
     private val _selectedMessageIds = MutableStateFlow<Set<String>>(emptySet())
     val selectedMessageIds: StateFlow<Set<String>> = _selectedMessageIds.asStateFlow()
 
+    // Error handling for send failures
+    private val _sendError = MutableSharedFlow<Throwable>(extraBufferCapacity = 16)
+    val sendError = _sendError.asSharedFlow()
+
     private var typingJob: Job? = null
     private var isTypingSignalSent = false
 
@@ -169,21 +173,37 @@ class ChatViewModel(
                 isTypingSignalSent = false
             }
 
-            if (imageUri != null) {
-                // ✅ FIX: Move blocking I/O to IO dispatcher
-                val bytes: ByteArray? = withContext(Dispatchers.IO) {
-                    FileUtils.getBytesFromUri(context, imageUri)
+            try {
+                if (imageUri != null) {
+                    // ✅ FIX: Move blocking I/O to IO dispatcher
+                    val bytes: ByteArray? = withContext(Dispatchers.IO) {
+                        FileUtils.getBytesFromUri(context, imageUri)
+                    }
+                    if (bytes != null) {
+                        val result = chatRepository.sendImage(peerId, currentPeerName, bytes, "jpg")
+                        if (result.isFailure) {
+                            _sendError.emit(result.exceptionOrNull() ?: Exception("Failed to send image"))
+                        }
+                    }
+                    if (text.isNotEmpty()) {
+                        val result = sendMessageUseCase(peerId, currentPeerName, text)
+                        if (result.isFailure) {
+                            _sendError.emit(result.exceptionOrNull() ?: Exception("Failed to send message"))
+                        }
+                    }
+                } else {
+                    val result = sendMessageUseCase(peerId, currentPeerName, text)
+                    if (result.isFailure) {
+                        _sendError.emit(result.exceptionOrNull() ?: Exception("Failed to send message"))
+                    }
                 }
-                if (bytes != null) {
-                    chatRepository.sendImage(peerId, currentPeerName, bytes, "jpg")
-                }
-                if (text.isNotEmpty()) sendMessageUseCase(peerId, currentPeerName, text)
-            } else {
-                sendMessageUseCase(peerId, currentPeerName, text)
-            }
 
-            inputText.value = ""
-            _pendingImageUri.value = null
+                inputText.value = ""
+                _pendingImageUri.value = null
+            } catch (e: Exception) {
+                // Catch any unexpected exceptions
+                _sendError.emit(e)
+            }
         }
     }
 
@@ -208,5 +228,20 @@ class ChatViewModel(
 
     fun removePendingImage() {
         _pendingImageUri.value = null
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        // Cleanup: cancel typing job and send TYPING_OFF if needed
+        typingJob?.cancel()
+        viewModelScope.launch {
+            if (isTypingSignalSent) {
+                chatRepository.sendSystemCommand(peerId, "TYPING_OFF")
+            }
+        }
+        // Clear pending image URI to prevent memory leaks
+        _pendingImageUri.value = null
+        // Clear selection
+        _selectedMessageIds.value = emptySet()
     }
 }

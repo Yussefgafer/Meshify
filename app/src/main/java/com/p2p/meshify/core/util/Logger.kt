@@ -19,4 +19,8 @@ object Logger {
     fun i(message: String) {
         Log.i(TAG, message)
     }
+
+    fun w(message: String) {
+        Log.w(TAG, message)
+    }
 }
