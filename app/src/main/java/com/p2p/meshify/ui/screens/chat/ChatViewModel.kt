@@ -115,7 +115,10 @@ class ChatViewModel(
             }
 
             if (imageUri != null) {
-                val bytes = FileUtils.getBytesFromUri(context, imageUri)
+                // ✅ FIX: Move blocking I/O to IO dispatcher
+                val bytes = withContext(Dispatchers.IO) {
+                    FileUtils.getBytesFromUri(context, imageUri)
+                }
                 if (bytes != null) {
                     chatRepository.sendImage(peerId, currentPeerName, bytes, "jpg")
                 }
@@ -123,7 +126,7 @@ class ChatViewModel(
             } else {
                 sendMessageUseCase(peerId, currentPeerName, text)
             }
-            
+
             inputText.value = ""
             _pendingImageUri.value = null
         }

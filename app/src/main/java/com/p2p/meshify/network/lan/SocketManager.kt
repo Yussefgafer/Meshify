@@ -26,12 +26,15 @@ class SocketManager(
     val incomingPayloads = _incomingPayloads.asSharedFlow()
 
     private var serverSocket: ServerSocket? = null
-    
+
     // Thread-safe map for active connections
     private val activeConnections = ConcurrentHashMap<String, Socket>()
-    
+
     @Volatile
     private var isRunning = false
+
+    // Dedicated scope for connection management - prevents memory leaks
+    private val connectionScope = CoroutineScope(ioDispatcher + SupervisorJob())
 
     /**
      * Starts listening for incoming connections.
@@ -68,7 +71,7 @@ class SocketManager(
     }
 
     private fun handleIncomingConnection(socket: Socket) {
-        CoroutineScope(ioDispatcher).launch {
+        connectionScope.launch {
             val address = socket.inetAddress.hostAddress ?: "unknown"
             try {
                 socket.use { client ->
@@ -84,13 +87,14 @@ class SocketManager(
 
                             val bytes = ByteArray(length)
                             inputStream.readFully(bytes)
-                            
+
                             val payload = PayloadSerializer.deserialize(bytes)
                             _incomingPayloads.emit(address to payload)
-                            
+
                         } catch (e: EOFException) {
                             // Normal closure
-                            break 
+                            Logger.d("SocketManager -> Connection closed normally: $address")
+                            break
                         } catch (e: Exception) {
                             Logger.e("SocketManager -> Read Error from $address", e)
                             break
@@ -100,7 +104,7 @@ class SocketManager(
             } catch (e: Exception) {
                 Logger.e("SocketManager -> Connection Error $address", e)
             } finally {
-                Logger.d("SocketManager -> Connection closed: $address")
+                Logger.d("SocketManager -> Connection cleanup: $address")
             }
         }
     }
@@ -150,10 +154,13 @@ class SocketManager(
         if (!isRunning) return
         Logger.i("SocketManager -> Stopping...")
         isRunning = false
-        
+
         try { serverSocket?.close() } catch (e: Exception) {}
         serverSocket = null
-        
+
+        // Cancel all connection coroutines
+        connectionScope.cancel()
+
         // Cleanup all active connections
         val iterator = activeConnections.iterator()
         while (iterator.hasNext()) {
@@ -161,5 +168,6 @@ class SocketManager(
             try { entry.value.close() } catch (e: Exception) {}
             iterator.remove()
         }
+        Logger.i("SocketManager -> Stopped successfully")
     }
 }
