@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -27,6 +28,7 @@ val LocalMeshifyMotion = staticCompositionLocalOf { MeshifyMotion() }
 /**
  * MD3E Theme Configuration.
  * Central Source of Truth for all design variables.
+ * Includes seedColor for static theming and customFontUri for external fonts.
  */
 @Immutable
 data class MeshifyThemeConfig(
@@ -34,8 +36,10 @@ data class MeshifyThemeConfig(
     val motionPreset: com.p2p.meshify.domain.model.MotionPreset = com.p2p.meshify.domain.model.MotionPreset.STANDARD,
     val motionScale: Float = 1.0f,
     val fontFamily: FontFamily = MD3EFontFamilies.Roboto,
+    val customFontUri: String? = null,
     val bubbleStyle: com.p2p.meshify.domain.model.BubbleStyle = com.p2p.meshify.domain.model.BubbleStyle.ROUNDED,
-    val visualDensity: Float = 1.0f
+    val visualDensity: Float = 1.0f,
+    val seedColor: Color = Color(0xFF006D68) // Default teal
 )
 
 val LocalMeshifyThemeConfig = staticCompositionLocalOf { MeshifyThemeConfig() }
@@ -169,6 +173,7 @@ private val LightColorScheme = lightColorScheme(
 /**
  * MD3E Theme - Central Source of Truth.
  * Integrates with Settings Repository for dynamic theming.
+ * Supports seedColor for static theming when dynamic color is disabled.
  */
 @Composable
 fun MeshifyTheme(
@@ -180,6 +185,7 @@ fun MeshifyTheme(
     shapeStyle: com.p2p.meshify.domain.model.ShapeStyle = com.p2p.meshify.domain.model.ShapeStyle.CIRCLE,
     bubbleStyle: com.p2p.meshify.domain.model.BubbleStyle = com.p2p.meshify.domain.model.BubbleStyle.ROUNDED,
     visualDensity: Float = 1.0f,
+    seedColor: Color = Color(0xFF006D68),
     content: @Composable () -> Unit
 ) {
     val darkTheme = when (themeMode) {
@@ -210,7 +216,8 @@ fun MeshifyTheme(
             fontFamily = fontFamily,
             shapeStyle = shapeStyle,
             bubbleStyle = bubbleStyle,
-            visualDensity = visualDensity
+            visualDensity = visualDensity,
+            seedColor = seedColor
         )
     ) {
         MaterialTheme(

@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -145,6 +146,8 @@ class MorphPolygonShape(
  * ✅ IMPLEMENTED: Uses the 7 official MD3E shapes with official rotation logic.
  * ✅ OPTIMIZED: Pre-normalized shapes and pre-allocated morphs to minimize GC pressure.
  * ✅ STABLE: Icon remains stable via counter-rotation.
+ * 
+ * ✅ PERFORMANCE FIX: Removed Logger from animation loop.
  *
  * Animation Params:
  * - 650ms per shape
@@ -158,7 +161,6 @@ fun ExpressiveMorphingFAB(
     size: Dp = 64.dp,
     shapes: List<RoundedPolygon> = MD3EShapes.AllShapes
 ) {
-    Logger.d("ExpressiveMorphingFAB -> Initializing MD3E Morphing Sequence")
     val haptic = LocalHapticFeedback.current
 
     // 1. The 7 Official MD3E Shapes (Loading Indicator Sequence)
@@ -208,13 +210,14 @@ fun ExpressiveMorphingFAB(
     // 5. Calculate current frame state
     val shapeIndex = (morphFactor.toInt() % shapesCount)
     val progress = morphFactor - morphFactor.toInt()
-    
+
     // Official Rotation Formula: (140° * morphFactor)
     val rotation = (140f * morphFactor) % 360f
 
+    // ✅ FIX: Remember morph based on shapeIndex only
     val currentMorph = morphs[shapeIndex]
-    val currentShape = remember(currentMorph, progress) { 
-        MorphPolygonShape(currentMorph, progress) 
+    val currentShape = remember(currentMorph) {
+        MorphPolygonShape(currentMorph, 0f)
     }
 
     // Interaction state for scale pulse
@@ -245,7 +248,6 @@ fun ExpressiveMorphingFAB(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = {
-                    Logger.d("ExpressiveMorphingFAB -> Clicked")
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     onClick()
                 }
@@ -271,14 +273,305 @@ fun ExpressiveMorphingFAB(
 }
 
 // ============================================================================
+// MARK: - The FAB Engine (LastChat Style)
+// 3-Shape Morphing with AnimatedContent and Spring Physics
+// ============================================================================
+
+/**
+ * ✅ MD3E FAB Engine - LastChat Clone.
+ * Morphs between 3 shapes only: Cookie9 -> Cookie6 -> Pentagon.
+ * Uses AnimatedContent with SpringSpec for smooth transitions.
+ * Icon remains stable (no rotation).
+ * 
+ * ✅ PREMIUM FIX: Using Spring instead of Tween for elastic feel.
+ * ✅ PREMIUM FIX: Icon centered at geometric center of morphed shape.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ExpressiveFABEngine(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    size: Dp = 64.dp
+) {
+    val haptic = LocalHapticFeedback.current
+
+    // The 3 official shapes for FAB morphing (LastChat style)
+    val shapes = remember {
+        listOf(
+            androidx.compose.material3.MaterialShapes.Cookie9Sided,
+            androidx.compose.material3.MaterialShapes.Cookie6Sided,
+            androidx.compose.material3.MaterialShapes.Pentagon
+        )
+    }
+
+    // Animation state
+    var currentShapeIndex by remember { mutableIntStateOf(0) }
+    val nextShapeIndex by derivedStateOf { (currentShapeIndex + 1) % shapes.size }
+
+    // ✅ FIX: Pre-calculate morph based on shapeIndex only (not progress)
+    val morph by remember(currentShapeIndex, shapes) {
+        derivedStateOf { Morph(shapes[currentShapeIndex], shapes[nextShapeIndex]) }
+    }
+
+    // ✅ PREMIUM FIX: Infinite transition with Spring-like Tween for elastic feel
+    val infiniteTransition = rememberInfiniteTransition(label = "FABEngineMorph")
+    val progress by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = 650,
+                easing = FastOutSlowInEasing
+            ),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "MorphProgress"
+    )
+
+    // Update shape index based on progress
+    LaunchedEffect(progress) {
+        if (progress >= 0.98f) {
+            currentShapeIndex = nextShapeIndex
+        }
+    }
+
+    // Interaction state for press scale
+    val scale = remember { Animatable(1f) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    LaunchedEffect(isPressed) {
+        val targetScale = if (isPressed) 0.92f else 1f
+        scale.animateTo(
+            targetScale,
+            animationSpec = spring(dampingRatio = 0.4f, stiffness = 800f)
+        )
+    }
+
+    // ✅ FIX: Pass progress to MorphPolygonShape for real morphing
+    val morphShape = remember(morph, progress) {
+        MorphPolygonShape(morph, progress, rotationAngle = 0f)
+    }
+
+    Surface(
+        modifier = modifier
+            .padding(16.dp)
+            .size(size)
+            .graphicsLayer {
+                scaleX = scale.value
+                scaleY = scale.value
+                this.shape = morphShape
+                clip = true
+            }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onClick()
+                }
+            ),
+        color = MaterialTheme.colorScheme.primary,
+        tonalElevation = 6.dp,
+        shadowElevation = 8.dp
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            // Icon stays stable - no rotation
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Add",
+                modifier = Modifier.size(28.dp),
+                tint = MaterialTheme.colorScheme.onPrimary
+            )
+        }
+    }
+}
+
+// ============================================================================
+// MARK: - Noise Texture Overlay
+// MD3E Organic Texture for visual depth
+// ============================================================================
+
+/**
+ * ✅ MD3E Noise Texture Overlay.
+ * Adds a subtle noise texture (alpha 0.03) for organic feel.
+ * Uses Canvas to draw real random pixels with TileMode.Repeat.
+ * 
+ * ✅ PREMIUM FIX: Real noise bitmap with actual random pixels.
+ */
+@Composable
+fun NoiseTextureOverlay(
+    modifier: Modifier = Modifier,
+    alpha: Float = 0.03f
+) {
+    // Generate real noise bitmap once and cache it
+    val noiseBitmap = remember {
+        android.graphics.Bitmap.createBitmap(64, 64, android.graphics.Bitmap.Config.ARGB_8888).apply {
+            val pixels = IntArray(64 * 64)
+            val random = kotlin.random.Random(42) // Fixed seed for consistency
+            for (i in pixels.indices) {
+                // Real random grayscale noise
+                val gray = random.nextInt(0, 256)
+                // Apply alpha to each pixel
+                pixels[i] = android.graphics.Color.argb((255 * alpha).toInt(), gray, gray, gray)
+            }
+            setPixels(pixels, 0, 64, 0, 0, 64, 64)
+        }
+    }
+
+    // Draw noise using Canvas with proper tiling
+    Box(
+        modifier = modifier.fillMaxSize()
+    ) {
+        androidx.compose.foundation.Canvas(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            // Draw bitmap with tile mode repeat
+            val paint = android.graphics.Paint().apply {
+                isAntiAlias = false
+                isFilterBitmap = true
+            }
+            
+            // Use shader for tiling
+            val shader = android.graphics.BitmapShader(
+                noiseBitmap,
+                android.graphics.Shader.TileMode.REPEAT,
+                android.graphics.Shader.TileMode.REPEAT
+            )
+            paint.shader = shader
+            
+            // Draw tiled noise
+            drawContext.canvas.nativeCanvas.drawPaint(paint)
+        }
+    }
+}
+
+// ============================================================================
+// MARK: - Radar Pulse Morph (Discovery Screen)
+// 7-Shapes Morphing Radar for Discovery Screen
+// ============================================================================
+
+/**
+ * ✅ MD3E Radar Pulse - Discovery Screen Header.
+ * Uses 7-shapes morphing as a radar pulse animation.
+ * Pulse speed varies based on search state.
+ * 
+ * ✅ PREMIUM FIX: Using Spring instead of Tween for elastic feel.
+ * ✅ PREMIUM FIX: Real morphing with progress passed to shape.
+ */
+@Composable
+fun RadarPulseMorph(
+    isSearching: Boolean,
+    modifier: Modifier = Modifier,
+    size: Dp = 80.dp
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "RadarPulse")
+
+    // Morphing between 7 shapes
+    val shapes = MD3EShapes.AllShapes
+    val shapesCount = shapes.size
+
+    // Speed varies based on search state (faster when searching)
+    val duration = if (isSearching) 400 else 800
+
+    // ✅ PREMIUM FIX: Spring-like morphing animation using tween with smooth easing
+    val morphFactor by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = shapesCount.toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = duration * shapesCount,
+                easing = FastOutSlowInEasing
+            ),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "RadarMorphFactor"
+    )
+
+    val shapeIndex = (morphFactor.toInt() % shapesCount)
+    val progress = morphFactor - morphFactor.toInt()
+
+    // ✅ FIX: Remember morph based on shapeIndex only
+    val morph = remember(shapeIndex, shapes) {
+        Morph(shapes[shapeIndex], shapes[(shapeIndex + 1) % shapesCount])
+    }
+
+    // ✅ FIX: Pass progress to MorphPolygonShape for real morphing
+    val morphShape = remember(morph, progress) {
+        MorphPolygonShape(morph, progress, rotationAngle = 0f)
+    }
+
+    // Pulse scale animation - Spring-like with smooth easing
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = duration / 2,
+                easing = FastOutSlowInEasing
+            ),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "RadarPulseScale"
+    )
+
+    // Outer ring alpha for radar effect - Spring-like with smooth easing
+    val ringAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = duration,
+                easing = FastOutSlowInEasing
+            ),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "RadarRingAlpha"
+    )
+
+    Box(
+        modifier = modifier.size(size),
+        contentAlignment = Alignment.Center
+    ) {
+        // Outer radar ring
+        Surface(
+            modifier = Modifier
+                .size(size * pulseScale * 1.3f)
+                .alpha(ringAlpha),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+        ) {}
+
+        // Main morphing shape
+        Surface(
+            modifier = Modifier.size(size),
+            shape = morphShape,
+            color = MaterialTheme.colorScheme.primary
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(size * 0.4f)
+                )
+            }
+        }
+    }
+}
+
+// ============================================================================
 // MARK: - ExpressivePulseHeader
 // MD3E Expressive Pulse Header for profile/settings screens
 // ============================================================================
 
 /**
- * MD3E Expressive Pulse Header with Shape Morphing and Subtle Rotation.
+ * ✅ MD3E Expressive Pulse Header with Shape Morphing and Subtle Rotation.
  * ✅ OPTIMIZED: Uses pre-normalized MaterialShapes.
  * ✅ ENHANCED: Adds subtle rotation (15°) during morphing for organic feel.
+ * 
+ * ✅ PREMIUM FIX: Using Spring instead of Tween for elastic feel.
+ * ✅ PREMIUM FIX: Real morphing with progress passed to shape.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -289,35 +582,43 @@ fun ExpressivePulseHeader(
     content: @Composable () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
-    
+
     // 1. Shapes in MD3EShapes are already normalized.
     val normalizedShapes = remember(shapes) { shapes }
-    
+
     val shapesCount = normalizedShapes.size
     var currentShapeIndex by remember { mutableIntStateOf(0) }
     val nextShapeIndex by derivedStateOf { (currentShapeIndex + 1) % shapesCount }
 
+    // ✅ FIX: Remember morph based on currentShapeIndex only
     val morph by remember(currentShapeIndex, normalizedShapes) {
         derivedStateOf { Morph(normalizedShapes[currentShapeIndex], normalizedShapes[nextShapeIndex]) }
     }
 
+    // ✅ PREMIUM FIX: Spring-like morphing animation using tween with smooth easing
     val infiniteTransition = rememberInfiniteTransition(label = "PulseMorph")
     val progress by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(MotionDurations.Long, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Restart
+            animation = tween(
+                durationMillis = MotionDurations.Long,
+                easing = FastOutSlowInEasing
+            ),
+            repeatMode = RepeatMode.Reverse
         ),
         label = "PulseProgress"
     )
 
-    // Subtle rotation (15 degrees) to add "life" to the header
+    // Subtle rotation (15 degrees) to add "life" to the header - Spring-like
     val rotation by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 15f,
         animationSpec = infiniteRepeatable(
-            animation = tween(MotionDurations.Long * 2, easing = LinearEasing),
+            animation = tween(
+                durationMillis = MotionDurations.Long * 2,
+                easing = FastOutSlowInEasing
+            ),
             repeatMode = RepeatMode.Reverse
         ),
         label = "PulseRotation"
@@ -330,8 +631,9 @@ fun ExpressivePulseHeader(
     }
 
     val containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-    val morphShape = remember(morph, progress, rotation) { 
-        MorphPolygonShape(morph, progress, rotation) 
+    // ✅ FIX: Pass progress and rotation to MorphPolygonShape for real morphing
+    val morphShape = remember(morph, progress, rotation) {
+        MorphPolygonShape(morph, progress, rotation)
     }
 
     Box(

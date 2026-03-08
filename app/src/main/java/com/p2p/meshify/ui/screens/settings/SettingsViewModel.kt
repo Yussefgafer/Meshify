@@ -1,5 +1,6 @@
 package com.p2p.meshify.ui.screens.settings
 
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.p2p.meshify.domain.model.BubbleStyle
@@ -33,25 +34,31 @@ class SettingsViewModel(
 
     val isNetworkVisible: StateFlow<Boolean> = settingsRepository.isNetworkVisible
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
-    
+
     // MD3E Settings Flows
     val shapeStyle: StateFlow<ShapeStyle> = settingsRepository.shapeStyle
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ShapeStyle.CIRCLE)
-    
+
     val motionPreset: StateFlow<MotionPreset> = settingsRepository.motionPreset
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MotionPreset.STANDARD)
-    
+
     val motionScale: StateFlow<Float> = settingsRepository.motionScale
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1.0f)
-    
+
     val fontFamilyPreset: StateFlow<FontFamilyPreset> = settingsRepository.fontFamilyPreset
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), FontFamilyPreset.ROBOTO)
-    
+
+    val customFontUri: StateFlow<String?> = settingsRepository.customFontUri
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
     val bubbleStyle: StateFlow<BubbleStyle> = settingsRepository.bubbleStyle
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BubbleStyle.ROUNDED)
-    
+
     val visualDensity: StateFlow<Float> = settingsRepository.visualDensity
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1.0f)
+
+    val seedColor: StateFlow<Int> = settingsRepository.seedColor
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0xFF006D68.toInt())
 
     private val _deviceId = MutableStateFlow("")
     val deviceId: StateFlow<String> = _deviceId
@@ -87,41 +94,59 @@ class SettingsViewModel(
             settingsRepository.setNetworkVisibility(visible)
         }
     }
-    
+
     // MD3E Setting Mutators
     fun setShapeStyle(style: ShapeStyle) {
         viewModelScope.launch {
             settingsRepository.setShapeStyle(style)
         }
     }
-    
+
     fun setMotionPreset(preset: MotionPreset) {
         viewModelScope.launch {
             settingsRepository.setMotionPreset(preset)
         }
     }
-    
+
     fun setMotionScale(scale: Float) {
         viewModelScope.launch {
             settingsRepository.setMotionScale(scale)
         }
     }
-    
+
     fun setFontFamilyPreset(family: FontFamilyPreset) {
         viewModelScope.launch {
             settingsRepository.setFontFamilyPreset(family)
         }
     }
-    
+
+    fun setCustomFontUri(uri: String?) {
+        viewModelScope.launch {
+            settingsRepository.setCustomFontUri(uri)
+        }
+    }
+
     fun setBubbleStyle(style: BubbleStyle) {
         viewModelScope.launch {
             settingsRepository.setBubbleStyle(style)
         }
     }
-    
+
     fun setVisualDensity(density: Float) {
         viewModelScope.launch {
             settingsRepository.setVisualDensity(density)
+        }
+    }
+
+    fun setSeedColor(color: Color) {
+        viewModelScope.launch {
+            val colorInt = android.graphics.Color.argb(
+                (color.alpha * 255).toInt(),
+                (color.red * 255).toInt(),
+                (color.green * 255).toInt(),
+                (color.blue * 255).toInt()
+            )
+            settingsRepository.setSeedColor(colorInt)
         }
     }
 }

@@ -33,14 +33,16 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
         val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
         val KEY_DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val KEY_NETWORK_VISIBLE = booleanPreferencesKey("network_visible")
-        
+
         // MD3E Settings Keys
         val KEY_SHAPE_STYLE = stringPreferencesKey("shape_style")
         val KEY_MOTION_PRESET = stringPreferencesKey("motion_preset")
         val KEY_MOTION_SCALE = floatPreferencesKey("motion_scale")
         val KEY_FONT_FAMILY = stringPreferencesKey("font_family")
+        val KEY_CUSTOM_FONT_URI = stringPreferencesKey("custom_font_uri")
         val KEY_BUBBLE_STYLE = stringPreferencesKey("bubble_style")
         val KEY_VISUAL_DENSITY = floatPreferencesKey("visual_density")
+        val KEY_SEED_COLOR = intPreferencesKey("seed_color")
     }
 
     override val displayName: Flow<String> = context.dataStore.data.map { preferences ->
@@ -62,7 +64,7 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
     override val isNetworkVisible: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[KEY_NETWORK_VISIBLE] ?: true
     }
-    
+
     // MD3E Settings Flows
     override val shapeStyle: Flow<ShapeStyle> = context.dataStore.data.map { preferences ->
         try {
@@ -71,7 +73,7 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
             ShapeStyle.CIRCLE
         }
     }
-    
+
     override val motionPreset: Flow<MotionPreset> = context.dataStore.data.map { preferences ->
         try {
             MotionPreset.valueOf(preferences[KEY_MOTION_PRESET] ?: "STANDARD")
@@ -79,11 +81,11 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
             MotionPreset.STANDARD
         }
     }
-    
+
     override val motionScale: Flow<Float> = context.dataStore.data.map { preferences ->
         preferences[KEY_MOTION_SCALE] ?: 1.0f
     }
-    
+
     override val fontFamilyPreset: Flow<FontFamilyPreset> = context.dataStore.data.map { preferences ->
         try {
             FontFamilyPreset.valueOf(preferences[KEY_FONT_FAMILY] ?: "ROBOTO")
@@ -91,7 +93,11 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
             FontFamilyPreset.ROBOTO
         }
     }
-    
+
+    override val customFontUri: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[KEY_CUSTOM_FONT_URI]
+    }
+
     override val bubbleStyle: Flow<BubbleStyle> = context.dataStore.data.map { preferences ->
         try {
             BubbleStyle.valueOf(preferences[KEY_BUBBLE_STYLE] ?: "ROUNDED")
@@ -99,9 +105,13 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
             BubbleStyle.ROUNDED
         }
     }
-    
+
     override val visualDensity: Flow<Float> = context.dataStore.data.map { preferences ->
         preferences[KEY_VISUAL_DENSITY] ?: 1.0f
+    }
+
+    override val seedColor: Flow<Int> = context.dataStore.data.map { preferences ->
+        preferences[KEY_SEED_COLOR] ?: 0xFF006D68.toInt() // Default teal color
     }
 
     override suspend fun getDeviceId(): String {
@@ -131,30 +141,42 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
     override suspend fun setNetworkVisibility(visible: Boolean) {
         safeEdit { it[KEY_NETWORK_VISIBLE] = visible }
     }
-    
+
     // MD3E Setting Mutators
     override suspend fun setShapeStyle(style: ShapeStyle) {
         safeEdit { it[KEY_SHAPE_STYLE] = style.name }
     }
-    
+
     override suspend fun setMotionPreset(preset: MotionPreset) {
         safeEdit { it[KEY_MOTION_PRESET] = preset.name }
     }
-    
+
     override suspend fun setMotionScale(scale: Float) {
         safeEdit { it[KEY_MOTION_SCALE] = scale.coerceIn(0.5f, 2.0f) }
     }
-    
+
     override suspend fun setFontFamilyPreset(family: FontFamilyPreset) {
         safeEdit { it[KEY_FONT_FAMILY] = family.name }
     }
-    
+
+    override suspend fun setCustomFontUri(uri: String?) {
+        if (uri != null) {
+            safeEdit { it[KEY_CUSTOM_FONT_URI] = uri }
+        } else {
+            safeEdit { it.remove(KEY_CUSTOM_FONT_URI) }
+        }
+    }
+
     override suspend fun setBubbleStyle(style: BubbleStyle) {
         safeEdit { it[KEY_BUBBLE_STYLE] = style.name }
     }
-    
+
     override suspend fun setVisualDensity(density: Float) {
         safeEdit { it[KEY_VISUAL_DENSITY] = density.coerceIn(0.8f, 1.5f) }
+    }
+
+    override suspend fun setSeedColor(color: Int) {
+        safeEdit { it[KEY_SEED_COLOR] = color }
     }
 
     override fun getAppVersion(): String {
