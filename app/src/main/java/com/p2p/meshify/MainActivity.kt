@@ -150,8 +150,9 @@ class MainActivity : ComponentActivity() {
                         }
 
                         // ✅ MD3E Noise Texture Overlay (alpha 0.03)
+                        // ✅ FIX: Changed zIndex from Float.MIN_VALUE to -1f to ensure it's behind UI
                         NoiseTextureOverlay(
-                            modifier = Modifier.zIndex(Float.MIN_VALUE),
+                            modifier = Modifier.zIndex(-1f),
                             alpha = 0.03f
                         )
                     }

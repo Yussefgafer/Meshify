@@ -28,7 +28,7 @@ enum class MotionPreset {
  */
 enum class FontFamilyPreset {
     ROBOTO,         // Default system font
-    POPTINS,        // Modern geometric
+    POPPINS,        // Modern geometric
     LORA,           // Elegant serif
     MONTSERRAT,     // Urban contemporary
     PLAYFAIR,       // Display serif
