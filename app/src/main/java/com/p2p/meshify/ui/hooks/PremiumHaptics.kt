@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -204,14 +205,16 @@ class PremiumHaptics(
     }
 }
 
+val LocalPremiumHaptics = staticCompositionLocalOf<PremiumHaptics> {
+    error("No PremiumHaptics provided")
+}
+
 @Composable
 fun rememberPremiumHaptics(settingsRepository: ISettingsRepository): PremiumHaptics {
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
     
-    // In Meshify, we'll assume haptics are enabled if not specified, 
-    // or we can add a setting for it later.
-    val isEnabled by settingsRepository.dynamicColorEnabled.collectAsState(initial = true)
+    val isEnabled by settingsRepository.hapticFeedbackEnabled.collectAsState(initial = true)
     
     val vibrator = remember {
         try {

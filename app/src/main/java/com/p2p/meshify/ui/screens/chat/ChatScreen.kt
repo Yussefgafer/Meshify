@@ -142,7 +142,7 @@ fun ChatScreen(
                         "file" -> { /* Handle file */ }
                     }
                 },
-                settingsRepository = settingsRepo
+
             )
         }
     ) { padding ->
