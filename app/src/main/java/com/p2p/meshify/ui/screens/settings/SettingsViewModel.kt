@@ -20,7 +20,7 @@ import kotlinx.coroutines.launch
  * Extended for MD3E - Full Control Plan.
  */
 class SettingsViewModel(
-    private val settingsRepository: ISettingsRepository
+    val settingsRepository: ISettingsRepository // FIXED: Made public for UI access
 ) : ViewModel() {
 
     val displayName: StateFlow<String> = settingsRepository.displayName
