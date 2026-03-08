@@ -89,7 +89,6 @@ fun RecentChatsScreen(
                     PhysicsSwipeToDelete(
                         onDelete = { chatToDelete = chat },
                         position = position,
-                        settingsRepository = settingsRepo
                     ) {
                         ChatListItem(
                             chat = chat,

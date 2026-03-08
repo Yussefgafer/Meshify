@@ -20,6 +20,7 @@ interface ISettingsRepository {
     val displayName: Flow<String>
     val themeMode: Flow<ThemeMode>
     val dynamicColorEnabled: Flow<Boolean>
+    val hapticFeedbackEnabled: Flow<Boolean>
     val isNetworkVisible: Flow<Boolean>
 
     // MD3E Settings - Shape Morphing
@@ -46,6 +47,7 @@ interface ISettingsRepository {
     suspend fun updateDisplayName(name: String)
     suspend fun setThemeMode(mode: ThemeMode)
     suspend fun setDynamicColor(enabled: Boolean)
+    suspend fun setHapticFeedback(enabled: Boolean)
     suspend fun setNetworkVisibility(visible: Boolean)
 
     // MD3E Setting Mutators
