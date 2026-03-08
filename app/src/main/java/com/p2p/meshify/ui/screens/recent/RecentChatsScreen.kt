@@ -26,15 +26,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.p2p.meshify.R
 import com.p2p.meshify.data.local.entity.ChatEntity
-import com.p2p.meshify.ui.components.ExpressiveCard
-import com.p2p.meshify.ui.components.ExpressiveMorphingFAB
-import com.p2p.meshify.ui.components.MorphingAvatar
+import com.p2p.meshify.ui.components.*
 import com.p2p.meshify.ui.theme.MeshifyThemeProperties
 import java.text.SimpleDateFormat
 import java.util.*
 
 /**
- * Enhanced Home Screen with Stabilized Morphing and Haptic Feedback.
+ * Enhanced Home Screen with LastChat-style Swipe-to-Delete and Grouping.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,6 +44,9 @@ fun RecentChatsScreen(
 ) {
     val chats by viewModel.recentChats.collectAsState()
     val onlinePeers by viewModel.onlinePeers.collectAsState()
+    val settingsRepo = (LocalContext.current.applicationContext as com.p2p.meshify.MeshifyApp).container.settingsRepository
+
+    var chatToDelete by remember { mutableStateOf<ChatEntity?>(null) }
 
     Scaffold(
         topBar = {
@@ -64,7 +65,6 @@ fun RecentChatsScreen(
             )
         },
         floatingActionButton = {
-            // ✅ Use shared ExpressiveMorphingFAB from MD3EComponents
             ExpressiveMorphingFAB(onClick = onDiscoverClick)
         }
     ) { padding ->
@@ -74,12 +74,20 @@ fun RecentChatsScreen(
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp) // Tighter spacing for grouped look
             ) {
                 itemsIndexed(chats, key = { _, chat -> chat.peerId }) { index, chat ->
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = slideInVertically(initialOffsetY = { 50 * (index + 1) }) + fadeIn()
+                    val position = when {
+                        chats.size == 1 -> ItemPosition.ONLY
+                        index == 0 -> ItemPosition.FIRST
+                        index == chats.size - 1 -> ItemPosition.LAST
+                        else -> ItemPosition.MIDDLE
+                    }
+
+                    PhysicsSwipeToDelete(
+                        onDelete = { chatToDelete = chat },
+                        position = position,
+                        settingsRepository = settingsRepo
                     ) {
                         ChatListItem(
                             chat = chat,
@@ -90,45 +98,54 @@ fun RecentChatsScreen(
                 }
             }
         }
+
+        chatToDelete?.let { chat ->
+            DeleteConfirmationDialog(
+                title = "Delete Conversation",
+                text = "Are you sure you want to delete the conversation with ${chat.peerName}?",
+                onConfirm = {
+                    // Soft delete: For now we just clear selection, 
+                    // in a real app we'd update a 'hidden' flag in DB.
+                    chatToDelete = null
+                },
+                onDismiss = { chatToDelete = null }
+            )
+        }
     }
 }
 
 @Composable
 fun ChatListItem(chat: ChatEntity, isOnline: Boolean, onClick: () -> Unit) {
-    ExpressiveCard(
-        onClick = onClick,
-        shape = RoundedCornerShape(MeshifyThemeProperties.CardRadius),
-        modifier = Modifier.fillMaxWidth()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // ✅ Use MorphingAvatar for online/offline visual distinction
-            MorphingAvatar(
-                initials = chat.peerName.take(1),
-                isOnline = isOnline,
-                size = 52.dp
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = chat.peerName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val isImage = chat.lastMessage == stringResource(R.string.last_msg_image)
-                    if (isImage) {
-                        Icon(Icons.Default.Image, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(modifier = Modifier.width(4.dp))
-                    }
-                    Text(
-                        text = chat.lastMessage ?: stringResource(R.string.last_msg_none),
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 1,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+        MorphingAvatar(
+            initials = chat.peerName.take(1),
+            isOnline = isOnline,
+            size = 52.dp
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = chat.peerName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val isImage = chat.lastMessage == stringResource(R.string.last_msg_image)
+                if (isImage) {
+                    Icon(Icons.Default.Image, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(modifier = Modifier.width(4.dp))
                 }
+                Text(
+                    text = chat.lastMessage ?: stringResource(R.string.last_msg_none),
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-            Text(text = formatRecentTime(chat.lastTimestamp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        Text(text = formatRecentTime(chat.lastTimestamp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

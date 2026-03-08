@@ -17,20 +17,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.p2p.meshify.R
-import com.p2p.meshify.ui.components.ExpressiveCard
-import com.p2p.meshify.ui.components.RadarPulseMorph
-import com.p2p.meshify.ui.components.SignalMorphAvatar
+import com.p2p.meshify.ui.components.*
 import com.p2p.meshify.ui.theme.LocalMeshifyMotion
 import com.p2p.meshify.ui.theme.MotionDurations
 
 /**
  * ✅ MD3E Redesigned Discovery Header with Radar Pulse Morph.
- * Uses 7-shapes morphing as a radar pulse animation.
  */
 @Composable
 fun DiscoveryHeader(isSearching: Boolean) {
@@ -43,7 +41,6 @@ fun DiscoveryHeader(isSearching: Boolean) {
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // ✅ Radar Pulse Morph component
             RadarPulseMorph(
                 isSearching = isSearching,
                 size = 40.dp
@@ -64,8 +61,7 @@ fun DiscoveryHeader(isSearching: Boolean) {
 
 /**
  * Main Discovery Screen Composable.
- * Polished with proper empty states and search indicators.
- * ✅ REMOVED: Settings button from top bar (no longer needed)
+ * Updated with LastChat-style grouped items.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,10 +72,10 @@ fun DiscoveryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val motion = LocalMeshifyMotion.current
+    val settingsRepo = (LocalContext.current.applicationContext as com.p2p.meshify.MeshifyApp).container.settingsRepository
 
     Scaffold(
         topBar = {
-            // ✅ CenterAlignedTopAppBar without Settings button
             CenterAlignedTopAppBar(
                 title = {
                     Text(
@@ -88,7 +84,6 @@ fun DiscoveryScreen(
                         fontWeight = FontWeight.Bold
                     )
                 }
-                // ✅ No actions block - Settings button removed
             )
         }
     ) { padding ->
@@ -108,7 +103,7 @@ fun DiscoveryScreen(
                 PeerList(
                     peers = uiState.discoveredPeers,
                     onPeerClick = onPeerClick,
-                    motionSpec = motion.springSpec
+                    settingsRepository = settingsRepo
                 )
             }
         }
@@ -119,63 +114,36 @@ fun DiscoveryScreen(
 fun PeerList(
     peers: List<PeerDevice>,
     onPeerClick: (PeerDevice) -> Unit,
-    motionSpec: androidx.compose.animation.core.SpringSpec<Float>
+    settingsRepository: com.p2p.meshify.domain.repository.ISettingsRepository
 ) {
     LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(2.dp), // Grouped look
+        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(28.dp)),
         contentPadding = PaddingValues(bottom = 24.dp)
     ) {
         itemsIndexed(peers, key = { _, peer -> peer.id }) { index, peer ->
-            AnimatedVisibility(
-                visible = true,
-                enter = slideInVertically(
-                    initialOffsetY = { 50 * (index + 1) }
-                ) + fadeIn()
-            ) {
-                PeerListItem(peer = peer, onClick = { onPeerClick(peer) })
+            val position = when {
+                peers.size == 1 -> ItemPosition.ONLY
+                index == 0 -> ItemPosition.FIRST
+                index == peers.size - 1 -> ItemPosition.LAST
+                else -> ItemPosition.MIDDLE
             }
-        }
-    }
-}
 
-@Composable
-fun PeerListItem(peer: PeerDevice, onClick: () -> Unit) {
-    ExpressiveCard(
-        onClick = onClick,
-        shape = RoundedCornerShape(24.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // ✅ Use SignalMorphAvatar to show signal strength visually
-            SignalMorphAvatar(
-                initials = peer.name.take(1),
-                signalStrength = peer.signalStrength,
-                size = 48.dp
+            SettingGroupItem(
+                title = peer.name,
+                subtitle = peer.address,
+                icon = {
+                    SignalMorphAvatar(
+                        initials = peer.name.take(1),
+                        signalStrength = peer.signalStrength,
+                        size = 40.dp
+                    )
+                },
+                trailing = { SignalStrengthBadge(peer.signalStrength) },
+                position = position,
+                settingsRepository = settingsRepository,
+                onClick = { onPeerClick(peer) }
             )
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = peer.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = peer.address,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            // ✅ Signal strength badge
-            SignalStrengthBadge(peer.signalStrength)
         }
     }
 }
@@ -252,7 +220,6 @@ fun EmptyDiscoveryState(isSearching: Boolean) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         if (isSearching) {
-            // ✅ MD3E Radar Pulse Morph - Replaces traditional CircularProgressIndicator
             RadarPulseMorph(
                 isSearching = true,
                 size = 64.dp
