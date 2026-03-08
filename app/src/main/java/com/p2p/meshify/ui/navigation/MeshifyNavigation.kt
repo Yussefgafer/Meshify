@@ -6,10 +6,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.navArgument
+import androidx.navigation.toRoute
 import com.p2p.meshify.AppContainer
 import com.p2p.meshify.ui.screens.chat.ChatScreen
 import com.p2p.meshify.ui.screens.chat.ChatViewModel
@@ -21,17 +20,16 @@ import com.p2p.meshify.ui.screens.settings.SettingsScreen
 import com.p2p.meshify.ui.screens.settings.SettingsViewModel
 
 @Composable
-fun MeshifyNavHost(
+fun MeshifyNavDisplay(
     context: Context,
     navController: NavHostController,
     appContainer: AppContainer
 ) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Home.route
+        startDestination = Screen.Home
     ) {
-        // HOME SCREEN
-        composable(Screen.Home.route) {
+        composable<Screen.Home> {
             val homeViewModel: RecentChatsViewModel = viewModel(
                 factory = object : ViewModelProvider.Factory {
                     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -42,20 +40,13 @@ fun MeshifyNavHost(
             )
             RecentChatsScreen(
                 viewModel = homeViewModel,
-                onChatClick = { chat ->
-                    navController.navigate(Screen.Chat.createRoute(chat.peerId))
-                },
-                onDiscoverClick = {
-                    navController.navigate(Screen.Discovery.route)
-                },
-                onSettingsClick = {
-                    navController.navigate(Screen.Settings.route)
-                }
+                onChatClick = { chat -> navController.navigate(Screen.Chat(chat.peerId)) },
+                onDiscoverClick = { navController.navigate(Screen.Discovery) },
+                onSettingsClick = { navController.navigate(Screen.Settings) }
             )
         }
 
-        // DISCOVERY SCREEN
-        composable(Screen.Discovery.route) {
+        composable<Screen.Discovery> {
             val discoveryViewModel: DiscoveryViewModel = viewModel(
                 factory = object : ViewModelProvider.Factory {
                     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -66,32 +57,21 @@ fun MeshifyNavHost(
             )
             DiscoveryScreen(
                 viewModel = discoveryViewModel,
-                onPeerClick = { peer ->
-                    navController.navigate(Screen.Chat.createRoute(peer.id))
-                },
-                onSettingsClick = {
-                    navController.navigate(Screen.Settings.route)
-                }
+                onPeerClick = { peer -> navController.navigate(Screen.Chat(peer.id)) },
+                onSettingsClick = { navController.navigate(Screen.Settings) }
             )
         }
 
-        // CHAT SCREEN (Now with PeerId only)
-        composable(
-            route = Screen.Chat.route,
-            arguments = listOf(
-                navArgument("peerId") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            val peerId = backStackEntry.arguments?.getString("peerId") ?: ""
-            
+        composable<Screen.Chat> { backStackEntry ->
+            val route: Screen.Chat = backStackEntry.toRoute()
             val chatViewModel: ChatViewModel = viewModel(
-                key = peerId,
+                key = route.peerId,
                 factory = object : ViewModelProvider.Factory {
                     override fun <T : ViewModel> create(modelClass: Class<T>): T {
                         @Suppress("UNCHECKED_CAST")
                         return ChatViewModel(
                             context = context,
-                            peerId = peerId,
+                            peerId = route.peerId,
                             chatRepository = appContainer.chatRepository,
                             getMessagesUseCase = appContainer.getMessagesUseCase,
                             sendMessageUseCase = appContainer.sendMessageUseCase,
@@ -106,8 +86,7 @@ fun MeshifyNavHost(
             )
         }
 
-        // SETTINGS SCREEN
-        composable(Screen.Settings.route) {
+        composable<Screen.Settings> {
             val settingsViewModel: SettingsViewModel = viewModel(
                 factory = object : ViewModelProvider.Factory {
                     override fun <T : ViewModel> create(modelClass: Class<T>): T {

@@ -1,14 +1,15 @@
 package com.p2p.meshify.ui.navigation
 
+import kotlinx.serialization.Serializable
+
 /**
- * Route definitions for Meshify Navigation.
- * Centrally managed for safety and deep linking.
+ * Route definitions for Meshify Navigation 3.
+ * Type-safe and state-aware.
  */
-sealed class Screen(val route: String) {
-    object Home : Screen("home")
-    object Discovery : Screen("discovery")
-    object Settings : Screen("settings")
-    object Chat : Screen("chat/{peerId}") {
-        fun createRoute(peerId: String) = "chat/$peerId"
-    }
+@Serializable
+sealed class Screen {
+    @Serializable data object Home : Screen()
+    @Serializable data object Discovery : Screen()
+    @Serializable data object Settings : Screen()
+    @Serializable data class Chat(val peerId: String) : Screen()
 }
