@@ -1,4 +1,5 @@
 import com.android.build.api.dsl.ApplicationExtension
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -10,7 +11,7 @@ plugins {
 
 android {
     namespace = "com.p2p.meshify"
-    compileSdk = 35 // تم التنزيل لـ 35 لضمان التوافق والاستقرار مع أدوات البناء الحالية
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.p2p.meshify"
@@ -22,24 +23,30 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
-            // بناء نسخة Arm V8 فقط لتقليل الحجم وضمان الأداء العالي
             abiFilters += listOf("arm64-v8a")
+        }
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = file("../meshify.jks")
+            storePassword = System.getenv("KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("KEY_ALIAS")
+            keyPassword = System.getenv("KEY_PASSWORD")
         }
     }
 
     buildTypes {
         release {
-            // تفعيل الـ Minify لتصغير حجم الكود وحمايته
             isMinifyEnabled = true
-            // تفعيل حذف المصادر غير المستخدمة لتقليل الحجم أكثر
             isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
         debug {
-            // تفعيل الـ Minify في الـ Debug لتجنب مشكلة الـ Dex Overflow بسبب مكتبة الأيقونات
             isMinifyEnabled = true
             isShrinkResources = false
             proguardFiles(

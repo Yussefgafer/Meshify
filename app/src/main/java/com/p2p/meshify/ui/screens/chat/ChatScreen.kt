@@ -56,7 +56,7 @@ import kotlinx.coroutines.launch
 fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBackClick: () -> Unit) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
-    val clipboard = LocalClipboardManager.current
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     var selectedFullImage by remember { mutableStateOf<String?>(null) }
     var menuMessage by remember { mutableStateOf<MessageEntity?>(null) }
 
