@@ -338,10 +338,13 @@ fun ExpressiveFABEngine(
 
     // Animation state
     var currentShapeIndex by remember { mutableIntStateOf(0) }
-    val nextShapeIndex by derivedStateOf { (currentShapeIndex + 1) % shapes.size }
+    // ✅ FIX: Wrap derivedStateOf in remember to satisfy Lint
+    val nextShapeIndex by remember(currentShapeIndex, shapes.size) {
+        derivedStateOf { (currentShapeIndex + 1) % shapes.size }
+    }
 
-    // ✅ FIX: Pre-calculate morph based on shapeIndex only (not progress)
-    val morph by remember(currentShapeIndex, shapes) {
+    // ✅ FIX: Wrap derivedStateOf in remember to satisfy Lint
+    val morph by remember(currentShapeIndex, nextShapeIndex, shapes) {
         derivedStateOf { Morph(shapes[currentShapeIndex], shapes[nextShapeIndex]) }
     }
 
@@ -620,10 +623,13 @@ fun ExpressivePulseHeader(
 
     val shapesCount = normalizedShapes.size
     var currentShapeIndex by remember { mutableIntStateOf(0) }
-    val nextShapeIndex by derivedStateOf { (currentShapeIndex + 1) % shapesCount }
+    // ✅ FIX: Wrap derivedStateOf in remember to satisfy Lint
+    val nextShapeIndex by remember(currentShapeIndex, shapesCount) {
+        derivedStateOf { (currentShapeIndex + 1) % shapesCount }
+    }
 
-    // ✅ FIX: Remember morph based on currentShapeIndex only
-    val morph by remember(currentShapeIndex, normalizedShapes) {
+    // ✅ FIX: Wrap derivedStateOf in remember to satisfy Lint
+    val morph by remember(currentShapeIndex, nextShapeIndex, normalizedShapes) {
         derivedStateOf { Morph(normalizedShapes[currentShapeIndex], normalizedShapes[nextShapeIndex]) }
     }
 
@@ -838,9 +844,13 @@ fun MorphingAvatar(
 
     if (isOnline) {
         var currentShapeIndex by remember { mutableIntStateOf(0) }
-        val nextShapeIndex by derivedStateOf { (currentShapeIndex + 1) % avatarShapes.size }
+        // ✅ FIX: Wrap derivedStateOf in remember to satisfy Lint
+        val nextShapeIndex by remember(currentShapeIndex, avatarShapes.size) {
+            derivedStateOf { (currentShapeIndex + 1) % avatarShapes.size }
+        }
 
-        val morph by remember(currentShapeIndex) {
+        // ✅ FIX: Wrap derivedStateOf in remember to satisfy Lint
+        val morph by remember(currentShapeIndex, nextShapeIndex, avatarShapes) {
             derivedStateOf { Morph(avatarShapes[currentShapeIndex], avatarShapes[nextShapeIndex]) }
         }
 
@@ -959,9 +969,13 @@ fun SignalMorphAvatar(
         }
     } else {
         var currentShapeIndex by remember { mutableIntStateOf(0) }
-        val nextShapeIndex by derivedStateOf { (currentShapeIndex + 1) % shapes.size }
+        // ✅ FIX: Wrap derivedStateOf in remember to satisfy Lint
+        val nextShapeIndex by remember(currentShapeIndex, shapes.size) {
+            derivedStateOf { (currentShapeIndex + 1) % shapes.size }
+        }
 
-        val morph by remember(currentShapeIndex) {
+        // ✅ FIX: Wrap derivedStateOf in remember to satisfy Lint
+        val morph by remember(currentShapeIndex, nextShapeIndex, shapes) {
             derivedStateOf { Morph(shapes[currentShapeIndex], shapes[nextShapeIndex]) }
         }
 
