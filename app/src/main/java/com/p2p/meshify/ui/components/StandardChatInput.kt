@@ -25,9 +25,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.p2p.meshify.R
-import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.ui.hooks.HapticPattern
-import com.p2p.meshify.ui.hooks.rememberPremiumHaptics
+import com.p2p.meshify.ui.hooks.LocalPremiumHaptics
 
 /**
  * ✅ MD3E Standard Chat Input Bar.
@@ -38,16 +37,28 @@ import com.p2p.meshify.ui.hooks.rememberPremiumHaptics
  * - Expandable attachment menu with rotation
  * - Integrated send button with state awareness
  */
+/**
+ * Renders a floating, pill-shaped chat input with an expandable attachment menu and integrated send button.
+ *
+ * The input shows a plus button to toggle an attachment menu (gallery, camera, file), a resizable text field, and a send button
+ * that is enabled only when `text` is not blank.
+ *
+ * @param text Current text value displayed in the input field.
+ * @param onTextChange Called when the text changes.
+ * @param onSend Called when the send button is pressed.
+ * @param onAttachClick Called when an attachment option is selected; receives one of `"image"`, `"camera"`, or `"file"`.
+ * @param modifier Optional layout modifier applied to the root container.
+ */
 @Composable
 fun StandardChatInput(
     text: String,
     onTextChange: (String) -> Unit,
     onSend: () -> Unit,
     onAttachClick: (String) -> Unit, // "image", "file", "camera"
-    settingsRepository: ISettingsRepository,
+
     modifier: Modifier = Modifier
 ) {
-    val haptics = rememberPremiumHaptics(settingsRepository)
+    val haptics = LocalPremiumHaptics.current
     var isExpanded by remember { mutableStateOf(false) }
     val rotation by animateFloatAsState(
         targetValue = if (isExpanded) 45f else 0f,
@@ -100,7 +111,7 @@ fun StandardChatInput(
                 // Plus Button
                 val plusInteraction = remember { MutableInteractionSource() }
                 val isPlusPressed by plusInteraction.collectIsPressedAsState()
-                val plusScale by animateFloatAsState(if (isPlusPressed) 0.85f else 1f, spring(dampingRatio = 0.6f))
+                val plusScale by animateFloatAsState(if (isPlusPressed) 0.96f else 1f, spring(dampingRatio = 0.6f))
 
                 Box(
                     contentAlignment = Alignment.Center,
@@ -147,7 +158,7 @@ fun StandardChatInput(
                 val hasText = text.isNotBlank()
                 val sendInteraction = remember { MutableInteractionSource() }
                 val isSendPressed by sendInteraction.collectIsPressedAsState()
-                val sendScale by animateFloatAsState(if (isSendPressed) 0.85f else 1f, spring(dampingRatio = 0.6f))
+                val sendScale by animateFloatAsState(if (isSendPressed) 0.96f else 1f, spring(dampingRatio = 0.6f))
 
                 Box(
                     contentAlignment = Alignment.Center,

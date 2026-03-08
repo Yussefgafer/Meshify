@@ -32,6 +32,7 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
         val KEY_DEVICE_ID = stringPreferencesKey("device_id")
         val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
         val KEY_DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
+        val KEY_HAPTIC_FEEDBACK = booleanPreferencesKey("haptic_feedback")
         val KEY_NETWORK_VISIBLE = booleanPreferencesKey("network_visible")
 
         // MD3E Settings Keys
@@ -55,6 +56,10 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
         } catch (e: Exception) {
             ThemeMode.SYSTEM
         }
+    }
+
+    override val hapticFeedbackEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[KEY_HAPTIC_FEEDBACK] ?: true
     }
 
     override val dynamicColorEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
@@ -130,10 +135,28 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
         safeEdit { it[KEY_DISPLAY_NAME] = name }
     }
 
+    /**
+     * Persists the selected theme mode into the settings store.
+     *
+     * @param mode The theme mode to persist. */
     override suspend fun setThemeMode(mode: ThemeMode) {
         safeEdit { it[KEY_THEME_MODE] = mode.name }
     }
 
+    /**
+     * Persists the user's haptic feedback preference.
+     *
+     * @param enabled `true` to enable haptic feedback, `false` to disable it.
+     */
+    override suspend fun setHapticFeedback(enabled: Boolean) {
+        safeEdit { it[KEY_HAPTIC_FEEDBACK] = enabled }
+    }
+
+    /**
+     * Set whether dynamic color generation is enabled.
+     *
+     * @param enabled `true` to enable dynamic color, `false` to disable it.
+     */
     override suspend fun setDynamicColor(enabled: Boolean) {
         safeEdit { it[KEY_DYNAMIC_COLOR] = enabled }
     }

@@ -32,6 +32,9 @@ class SettingsViewModel(
     val dynamicColorEnabled: StateFlow<Boolean> = settingsRepository.dynamicColorEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
+    val hapticFeedbackEnabled: StateFlow<Boolean> = settingsRepository.hapticFeedbackEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
     val isNetworkVisible: StateFlow<Boolean> = settingsRepository.isNetworkVisible
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
@@ -77,12 +80,33 @@ class SettingsViewModel(
         }
     }
 
+    /**
+     * Sets the application's theme mode.
+     *
+     * @param mode The desired ThemeMode to apply (e.g., LIGHT, DARK, or SYSTEM).
+     */
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch {
             settingsRepository.setThemeMode(mode)
         }
     }
 
+    /**
+     * Enable or disable haptic feedback in application settings.
+     *
+     * @param enabled `true` to enable haptic feedback, `false` to disable it.
+     */
+    fun setHapticFeedback(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setHapticFeedback(enabled)
+        }
+    }
+
+    /**
+     * Enables or disables dynamic color usage for the app.
+     *
+     * @param enabled `true` to enable dynamic color, `false` to disable it.
+     */
     fun setDynamicColor(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setDynamicColor(enabled)

@@ -35,6 +35,17 @@ import java.util.*
 /**
  * Enhanced Home Screen with LastChat-style Swipe-to-Delete and Grouping.
  */
+/**
+ * Displays the recent chats list with swipe-to-delete, a discovery FAB, and a settings action in the top app bar.
+ *
+ * Shows an empty state when there are no chats, renders each chat with online status and timestamp,
+ * invokes `onChatClick` when a chat is tapped, and shows a confirmation dialog before deleting a chat.
+ *
+ * @param viewModel Provides the recent chats and online peers state used to populate the UI.
+ * @param onChatClick Invoked with the selected ChatEntity when a chat row is tapped.
+ * @param onDiscoverClick Invoked when the floating action button is pressed to start discovery.
+ * @param onSettingsClick Invoked when the settings action in the top app bar is pressed.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecentChatsScreen(
@@ -89,7 +100,6 @@ fun RecentChatsScreen(
                     PhysicsSwipeToDelete(
                         onDelete = { chatToDelete = chat },
                         position = position,
-                        settingsRepository = settingsRepo
                     ) {
                         ChatListItem(
                             chat = chat,

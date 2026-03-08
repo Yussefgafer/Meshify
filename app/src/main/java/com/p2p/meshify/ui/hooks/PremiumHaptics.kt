@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -55,6 +56,13 @@ class PremiumHaptics(
         }
     }
     
+    /**
+     * Triggers the specified haptic pattern, using the device vibrator when available or falling back to haptic feedback.
+     *
+     * Does nothing when haptic feedback is disabled.
+     *
+     * @param pattern The haptic pattern to play.
+     */
     fun perform(pattern: HapticPattern) {
         if (!enabled) return
         
@@ -204,14 +212,24 @@ class PremiumHaptics(
     }
 }
 
+val LocalPremiumHaptics = staticCompositionLocalOf<PremiumHaptics> {
+    error("No PremiumHaptics provided")
+}
+
+/**
+ * Provides a remembered PremiumHaptics instance configured from the current context and user settings.
+ *
+ * Observes settingsRepository.hapticFeedbackEnabled and reads system vibrator services and LocalHapticFeedback from the composition to construct the PremiumHaptics returned.
+ *
+ * @param settingsRepository Repository used to observe the user's haptic feedback enabled preference.
+ * @return A remembered PremiumHaptics configured with the current LocalHapticFeedback, system Vibrator (if available), and the observed enabled state.
+ */
 @Composable
 fun rememberPremiumHaptics(settingsRepository: ISettingsRepository): PremiumHaptics {
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
     
-    // In Meshify, we'll assume haptics are enabled if not specified, 
-    // or we can add a setting for it later.
-    val isEnabled by settingsRepository.dynamicColorEnabled.collectAsState(initial = true)
+    val isEnabled by settingsRepository.hapticFeedbackEnabled.collectAsState(initial = true)
     
     val vibrator = remember {
         try {

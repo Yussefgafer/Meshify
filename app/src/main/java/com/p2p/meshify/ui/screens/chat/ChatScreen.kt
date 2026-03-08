@@ -47,6 +47,16 @@ import com.p2p.meshify.ui.theme.getBubbleShape
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * Displays the chat screen for a conversation, including the top bar, message list, input area, and full-image viewer.
+ *
+ * Observes conversation state from the provided ViewModel (grouped messages, peer info, presence/typing, input text,
+ * pending image, and selection state) and forwards user interactions (send, input changes, attachments, selection, image viewing)
+ * back to the ViewModel.
+ *
+ * @param viewModel ViewModel providing conversation state and actions for sending messages, managing input, attachments, and selection.
+ * @param onBackClick Callback invoked when the user taps the back navigation icon.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
@@ -142,7 +152,7 @@ fun ChatScreen(
                         "file" -> { /* Handle file */ }
                     }
                 },
-                settingsRepository = settingsRepo
+
             )
         }
     ) { padding ->
