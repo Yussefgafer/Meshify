@@ -99,4 +99,26 @@
     <string name="attach_from_gallery">من معرض الجهاز</string>
     <string name="attach_camera">الكاميرا</string>
     <string name="coming_soon">قريباً</string>
+
+    <!-- إعدادات MD3E - منتقي الألوان -->
+    <string name="settings_seed_color">لون التمييز</string>
+    <string name="settings_seed_color_desc">اختر لون علامتك التجارية عند إيقاف الألوان الديناميكية</string>
+    <string name="color_selection_content_description">اختيار اللون</string>
+
+    <!-- إعدادات MD3E - منتقي الخطوط -->
+    <string name="settings_custom_font">خط مخصص</string>
+    <string name="settings_custom_font_desc">ارفع ملف خط بصيغة .ttf أو .otf من جهازك</string>
+    <string name="btn_upload_font">رفع خط</string>
+    <string name="btn_clear_font">مسح الخط المخصص</string>
+    <string name="font_file_selected">تم اختيار ملف الخط: %s</string>
+    <string name="no_custom_font">لم يتم رفع خط مخصص</string>
+
+    <!-- أوصاف المحتوى للوصول -->
+    <string name="content_desc_back">رجوع</string>
+    <string name="content_desc_cancel">إلغاء</string>
+    <string name="content_desc_delete">حذف</string>
+    <string name="content_desc_send">إرسال</string>
+    <string name="content_desc_attach">إرفاق ملف</string>
+    <string name="content_desc_settings">الإعدادات</string>
+    <string name="content_desc_discovery">الاكتشاف</string>
 </resources>
