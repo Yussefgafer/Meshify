@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -72,7 +73,11 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
                         Spacer(Modifier.width(12.dp))
                         Column {
                             Text(peerName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Text(if (uiState.isOnline) "Online" else "Offline", style = MaterialTheme.typography.labelSmall, color = if (uiState.isOnline) StatusOnline else Color.Gray)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(Modifier.size(8.dp).background(if (uiState.isOnline) Color.Green else Color.Gray, CircleShape))
+                                Spacer(Modifier.width(4.dp))
+                                Text(if (uiState.isOnline) "Online" else "Offline", style = MaterialTheme.typography.labelSmall, color = if (uiState.isOnline) StatusOnline else Color.Gray)
+                            }
                         }
                     }
                 },
@@ -120,7 +125,7 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
                         TextButton(onClick = { viewModel.addReaction(msg.id, emoji); menuMessage = null }) { Text(emoji, fontSize = 24.sp) }
                     }
                 }
-                ListItem(headlineContent = { Text("Reply") }, leadingContent = { Icon(Icons.Default.Reply, null) }, modifier = Modifier.clickable { viewModel.setReplyTo(msg); menuMessage = null })
+                ListItem(headlineContent = { Text("Reply") }, leadingContent = { Icon(Icons.AutoMirrored.Filled.Reply, null) }, modifier = Modifier.clickable { viewModel.setReplyTo(msg); menuMessage = null })
                 ListItem(headlineContent = { Text("Copy") }, leadingContent = { Icon(Icons.Default.ContentCopy, null) }, modifier = Modifier.clickable { clipboard.setText(AnnotatedString(msg.text ?: "")); menuMessage = null })
                 ListItem(headlineContent = { Text("Delete for Me") }, leadingContent = { Icon(Icons.Default.Delete, null) }, modifier = Modifier.clickable { viewModel.deleteMessage(msg.id, DeleteType.DELETE_FOR_ME); menuMessage = null })
                 if (msg.isFromMe) ListItem(headlineContent = { Text("Delete for Everyone", color = Color.Red) }, leadingContent = { Icon(Icons.Default.DeleteForever, null, tint = Color.Red) }, modifier = Modifier.clickable { viewModel.deleteMessage(msg.id, DeleteType.DELETE_FOR_EVERYONE); menuMessage = null })
