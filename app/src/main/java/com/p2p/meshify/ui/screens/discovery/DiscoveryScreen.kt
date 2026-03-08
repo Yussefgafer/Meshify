@@ -252,10 +252,10 @@ fun EmptyDiscoveryState(isSearching: Boolean) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         if (isSearching) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(48.dp),
-                color = MaterialTheme.colorScheme.primary,
-                strokeWidth = 4.dp
+            // ✅ MD3E Radar Pulse Morph - Replaces traditional CircularProgressIndicator
+            RadarPulseMorph(
+                isSearching = true,
+                size = 64.dp
             )
             Spacer(modifier = Modifier.height(24.dp))
         }

@@ -60,7 +60,8 @@ import android.graphics.Matrix
 
 /**
  * Optimized MorphPolygonShape for morphing animations.
- * Uses pre-allocated AndroidPath to reduce GC pressure during frame rendering.
+ * Uses pre-allocated AndroidPath and cached Outline to minimize GC pressure during frame rendering.
+ * Includes isValid flag to avoid redundant path calculations.
  * Includes fallback to CircleShape if path calculation fails.
  * Supports rotation angle for path-only rotation (LastChat style).
  *
@@ -68,6 +69,8 @@ import android.graphics.Matrix
  * ensuring perfect center rotation regardless of shape asymmetry.
  *
  * ✅ PERFORMANCE FIX: Logger calls removed from createOutline to prevent GC pressure.
+ * ✅ PERFORMANCE FIX: Cached outline to avoid redundant path calculations.
+ * ✅ PERFORMANCE FIX: isValid flag prevents recalculating same shape.
  * Errors are silently handled with CircleShape fallback.
  */
 class MorphPolygonShape(
@@ -79,14 +82,30 @@ class MorphPolygonShape(
     private val androidPath = AndroidPath()
     private val matrix = Matrix()
 
+    // Cached outline to avoid redundant calculations
+    private var cachedOutline: Outline? = null
+    private var cachedProgress: Float = -1f
+    private var cachedRotation: Float = 0f
+
     // Flag to log errors only once (prevents spam in animation loop)
     private var hasLoggedError = false
+
+    // isValid flag to skip redundant calculations
+    private val isValid: Boolean
+        get() = cachedOutline != null &&
+                cachedProgress == progress &&
+                cachedRotation == rotationAngle
 
     override fun createOutline(
         size: Size,
         layoutDirection: LayoutDirection,
         density: Density
     ): Outline {
+        // Return cached outline if valid
+        if (isValid) {
+            return cachedOutline!!
+        }
+
         return try {
             androidPath.reset()
             morph.toPath(progress, androidPath)
@@ -130,7 +149,13 @@ class MorphPolygonShape(
                 androidPath.transform(matrix)
             }
 
-            Outline.Generic(androidPath.asComposePath())
+            // Cache the outline
+            val outline = Outline.Generic(androidPath.asComposePath())
+            cachedOutline = outline
+            cachedProgress = progress
+            cachedRotation = rotationAngle
+
+            outline
         } catch (e: Exception) {
             // ✅ Log only once to prevent GC pressure during animation
             if (!hasLoggedError) {

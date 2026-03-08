@@ -10,13 +10,29 @@ import com.p2p.meshify.domain.repository.IChatRepository
 import com.p2p.meshify.domain.usecase.DeleteMessagesUseCase
 import com.p2p.meshify.domain.usecase.GetMessagesUseCase
 import com.p2p.meshify.domain.usecase.SendMessageUseCase
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val PAGE_SIZE = 50
+private const val GROUPING_TIMEOUT_MS = 5 * 60 * 1000
+
+/**
+ * Grouped Message data class for efficient UI rendering.
+ * Contains pre-calculated grouping metadata to move logic out of UI.
+ */
+data class GroupedMessage(
+    val message: MessageEntity,
+    val isGroupedWithPrevious: Boolean,
+    val isGroupedWithNext: Boolean,
+    val showAvatar: Boolean,
+    val isFirstInGroup: Boolean,
+    val isLastInGroup: Boolean
+)
 
 /**
  * Robust ViewModel with Pagination and Reactive Peer Name.
@@ -40,13 +56,52 @@ class ChatViewModel(
     private val _messages = MutableStateFlow<List<MessageEntity>>(emptyList())
     val messages: StateFlow<List<MessageEntity>> = _messages.asStateFlow()
 
+    // Grouped Messages - Pre-calculated grouping logic for UI efficiency
+    private val _groupedMessages = MutableStateFlow<List<GroupedMessage>>(emptyList())
+    val groupedMessages: StateFlow<List<GroupedMessage>> = _groupedMessages.asStateFlow()
+
     init {
         viewModelScope.launch {
             _pageSize.flatMapLatest { size ->
                 getMessagesUseCase(peerId, size, 0)
-            }.collect {
-                _messages.value = it.reversed()
+            }.collect { entities ->
+                val reversed = entities.reversed()
+                _messages.value = reversed
+                // Calculate grouping in ViewModel
+                _groupedMessages.value = calculateGrouping(reversed)
             }
+        }
+    }
+
+    /**
+     * Calculates grouping metadata for all messages.
+     * Moves expensive grouping logic out of UI layer.
+     */
+    private fun calculateGrouping(messages: List<MessageEntity>): List<GroupedMessage> {
+        return messages.mapIndexed { index, message ->
+            val prevMessage = if (index > 0) messages[index - 1] else null
+            val nextMessage = if (index < messages.size - 1) messages[index + 1] else null
+
+            val isGroupedWithPrevious = prevMessage?.senderId == message.senderId &&
+                    (message.timestamp - prevMessage.timestamp) < GROUPING_TIMEOUT_MS
+
+            val isGroupedWithNext = nextMessage?.senderId == message.senderId &&
+                    (nextMessage.timestamp - message.timestamp) < GROUPING_TIMEOUT_MS
+
+            val isFirstInGroup = !isGroupedWithPrevious
+            val isLastInGroup = !isGroupedWithNext
+
+            // Show avatar only for the last message in each group
+            val showAvatar = isLastInGroup
+
+            GroupedMessage(
+                message = message,
+                isGroupedWithPrevious = isGroupedWithPrevious,
+                isGroupedWithNext = isGroupedWithNext,
+                showAvatar = showAvatar,
+                isFirstInGroup = isFirstInGroup,
+                isLastInGroup = isLastInGroup
+            )
         }
     }
 
@@ -116,7 +171,7 @@ class ChatViewModel(
 
             if (imageUri != null) {
                 // ✅ FIX: Move blocking I/O to IO dispatcher
-                val bytes = withContext(Dispatchers.IO) {
+                val bytes: ByteArray? = withContext(Dispatchers.IO) {
                     FileUtils.getBytesFromUri(context, imageUri)
                 }
                 if (bytes != null) {
