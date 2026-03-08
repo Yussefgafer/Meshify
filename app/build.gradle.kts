@@ -10,21 +10,38 @@ plugins {
 
 android {
     namespace = "com.p2p.meshify"
-    compileSdk = 36
+    compileSdk = 35 // تم التنزيل لـ 35 لضمان التوافق والاستقرار مع أدوات البناء الحالية
 
     defaultConfig {
         applicationId = "com.p2p.meshify"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        ndk {
+            // بناء نسخة Arm V8 فقط لتقليل الحجم وضمان الأداء العالي
+            abiFilters += listOf("arm64-v8a")
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // تفعيل الـ Minify لتصغير حجم الكود وحمايته
+            isMinifyEnabled = true
+            // تفعيل حذف المصادر غير المستخدمة لتقليل الحجم أكثر
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+        debug {
+            // تفعيل الـ Minify في الـ Debug لتجنب مشكلة الـ Dex Overflow بسبب مكتبة الأيقونات
+            isMinifyEnabled = true
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
