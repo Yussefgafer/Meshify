@@ -40,9 +40,7 @@ import com.p2p.meshify.R
 import com.p2p.meshify.data.local.entity.MessageEntity
 import com.p2p.meshify.data.local.entity.MessageStatus
 import com.p2p.meshify.data.local.entity.MessageType
-import com.p2p.meshify.ui.components.AttachmentOptions
-import com.p2p.meshify.ui.components.FullImageViewer
-import com.p2p.meshify.ui.components.MorphingAvatar
+import com.p2p.meshify.ui.components.*
 import com.p2p.meshify.ui.theme.LocalMeshifyThemeConfig
 import com.p2p.meshify.ui.theme.StatusOnline
 import com.p2p.meshify.ui.theme.getBubbleShape
@@ -62,19 +60,16 @@ fun ChatScreen(
     val inputText by viewModel.inputText.collectAsState()
     val pendingImage by viewModel.pendingImageUri.collectAsState()
     val selectedIds by viewModel.selectedMessageIds.collectAsState()
+    val settingsRepo = (LocalContext.current.applicationContext as com.p2p.meshify.MeshifyApp).container.settingsRepository
 
     val listState = rememberLazyListState()
     val haptic = LocalHapticFeedback.current
-    var showSheet by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
     var selectedFullImage by remember { mutableStateOf<String?>(null) }
-    val sheetState = rememberModalBottomSheetState()
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         uri?.let { viewModel.setPendingImage(it) }
-        showSheet = false
     }
 
     LaunchedEffect(groupedMessages.size) {
@@ -87,19 +82,12 @@ fun ChatScreen(
         }
     }
 
-    LaunchedEffect(listState.firstVisibleItemIndex) {
-        if (listState.firstVisibleItemIndex == 0 && groupedMessages.size >= 50) {
-            viewModel.loadMoreMessages()
-        }
-    }
-
     Scaffold(
         topBar = {
             if (selectedIds.isEmpty()) {
                 TopAppBar(
                     title = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            // Avatar in chat header
                             MorphingAvatar(
                                 initials = peerName.take(1),
                                 isOnline = isOnline,
@@ -133,7 +121,7 @@ fun ChatScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = { showDeleteDialog = true }) {
+                        IconButton(onClick = { /* Handle delete */ }) {
                             Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.content_desc_delete), tint = MaterialTheme.colorScheme.error)
                         }
                     },
@@ -142,13 +130,19 @@ fun ChatScreen(
             }
         },
         bottomBar = {
-            ChatInputArea(
+            // ✅ Using the new StandardChatInput ported from LastChat
+            StandardChatInput(
                 text = inputText,
-                pendingImage = pendingImage,
                 onTextChange = viewModel::onInputChanged,
                 onSend = viewModel::sendMessage,
-                onAttachClick = { showSheet = true },
-                onRemoveImage = viewModel::removePendingImage
+                onAttachClick = { type ->
+                    when(type) {
+                        "image" -> photoPickerLauncher.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                        "camera" -> { /* Handle camera */ }
+                        "file" -> { /* Handle file */ }
+                    }
+                },
+                settingsRepository = settingsRepo
             )
         }
     ) { padding ->
@@ -184,38 +178,6 @@ fun ChatScreen(
             }
         }
 
-        if (showSheet) {
-            ModalBottomSheet(onDismissRequest = { showSheet = false }, sheetState = sheetState) {
-                AttachmentOptions(
-                    onImageClick = { photoPickerLauncher.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
-                )
-            }
-        }
-
-        if (showDeleteDialog) {
-            AlertDialog(
-                onDismissRequest = { showDeleteDialog = false },
-                title = { Text(stringResource(R.string.delete_confirmation_title)) },
-                text = { Text(stringResource(R.string.delete_confirmation_text, selectedIds.size)) },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            viewModel.deleteSelectedMessages()
-                            showDeleteDialog = false
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                    ) {
-                        Text(stringResource(R.string.btn_delete))
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDeleteDialog = false }) {
-                        Text(stringResource(R.string.btn_cancel))
-                    }
-                }
-            )
-        }
-
         selectedFullImage?.let { path ->
             FullImageViewer(imagePath = path, onDismiss = { selectedFullImage = null })
         }
@@ -240,14 +202,11 @@ fun MessageBubble(
     val context = LocalContext.current
     val themeConfig = LocalMeshifyThemeConfig.current
 
-    // ✅ MD3E Redesigned color scheme per spec
     val containerColor = if (isSelected) {
         MaterialTheme.colorScheme.secondaryContainer
     } else if (message.isFromMe) {
-        // My messages: primaryContainer (Teal brand color)
         MaterialTheme.colorScheme.primaryContainer
     } else {
-        // Peer messages: surfaceContainerHigh
         MaterialTheme.colorScheme.surfaceContainerHigh
     }
 
@@ -263,14 +222,12 @@ fun MessageBubble(
         MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
     }
 
-    // ✅ MD3E Optimized: Smaller padding for increased density
     val bubblePadding = if (message.type == MessageType.TEXT) {
         PaddingValues(horizontal = 12.dp, vertical = 8.dp)
     } else {
         PaddingValues(horizontal = 4.dp, vertical = 4.dp)
     }
 
-    // Use dynamic bubble shape from settings
     val shape = getBubbleShape(
         bubbleStyle = themeConfig.bubbleStyle,
         isFromMe = message.isFromMe,
@@ -280,7 +237,6 @@ fun MessageBubble(
 
     val alignment = if (message.isFromMe) Alignment.End else Alignment.Start
 
-    // Smart Avatar Layout: Show avatar only for peer's last message in group
     if (!message.isFromMe && showAvatar) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -368,7 +324,6 @@ fun MessageBubbleContent(
             modifier = Modifier.padding(bubblePadding)
         ) {
             if (message.type == MessageType.IMAGE || message.mediaPath != null) {
-                // ✅ Image message with shimmer loading effect (LastChat style)
                 AsyncImage(
                     model = ImageRequest.Builder(context)
                         .data(message.mediaPath)
@@ -397,7 +352,6 @@ fun MessageBubbleContent(
                     )
                 }
             } else {
-                // ✅ Text message
                 Text(
                     text = message.text ?: "",
                     style = MaterialTheme.typography.bodyLarge,
@@ -406,7 +360,6 @@ fun MessageBubbleContent(
                 )
             }
 
-            // ✅ Metadata row with improved styling
             Row(
                 modifier = Modifier
                     .align(Alignment.End)
@@ -439,115 +392,5 @@ fun MessageBubbleContent(
                 }
             }
         }
-    }
-}
-
-@Composable
-fun ChatInputArea(
-    text: String,
-    pendingImage: Uri?,
-    onTextChange: (String) -> Unit,
-    onSend: () -> Unit,
-    onAttachClick: () -> Unit,
-    onRemoveImage: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
-            .imePadding()
-    ) {
-        // ✅ Pending image preview with animation
-        AnimatedVisibility(
-            visible = pendingImage != null,
-            enter = expandVertically(),
-            exit = shrinkVertically()
-        ) {
-            Box(
-                modifier = Modifier
-                    .padding(16.dp)
-                    .size(100.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                AsyncImage(
-                    model = pendingImage,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-                Surface(
-                    color = Color.Black.copy(alpha = 0.6f),
-                    shape = CircleShape,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(4.dp)
-                        .size(24.dp)
-                        .clickable { onRemoveImage() }
-                ) {
-                    Icon(
-                        Icons.Default.Close,
-                        null,
-                        tint = Color.White,
-                        modifier = Modifier.padding(4.dp)
-                    )
-                }
-            }
-        }
-
-        // ✅ MD3E BottomAppBar-style input area
-        BottomAppBar(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            tonalElevation = 8.dp,
-            actions = {
-                // ✅ Attachment button
-                IconButton(
-                    onClick = onAttachClick,
-                    modifier = Modifier.padding(start = 4.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = stringResource(R.string.attach_image),
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-                // ✅ OutlinedTextField for message input
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = onTextChange,
-                    placeholder = { Text(stringResource(R.string.input_placeholder)) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
-                    shape = RoundedCornerShape(28.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent,
-                        focusedContainerColor = MaterialTheme.colorScheme.surface,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    maxLines = 4
-                )
-            },
-            floatingActionButton = {
-                // ✅ Small FAB for send button (56dp)
-                FloatingActionButton(
-                    onClick = onSend,
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation(),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.padding(end = 8.dp)
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.Send,
-                        contentDescription = stringResource(R.string.btn_send),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        )
     }
 }
