@@ -1,6 +1,7 @@
 package com.p2p.meshify.domain.model
 
 import java.util.UUID
+import kotlinx.serialization.Serializable
 
 /**
  * Data packet sent across the mesh network.
@@ -16,7 +17,10 @@ data class Payload(
         TEXT,
         FILE,
         HANDSHAKE,
-        SYSTEM_CONTROL
+        SYSTEM_CONTROL,
+        DELETE_REQUEST,
+        REACTION,
+        DELIVERY_ACK
     }
 
     override fun equals(other: Any?): Boolean {
@@ -30,6 +34,27 @@ data class Payload(
         return id.hashCode()
     }
 }
+
+@Serializable
+enum class DeleteType {
+    DELETE_FOR_ME,
+    DELETE_FOR_EVERYONE
+}
+
+@Serializable
+data class DeleteRequest(
+    val messageId: String,
+    val deleteType: DeleteType,
+    val deletedBy: String,
+    val deletedAt: Long = System.currentTimeMillis()
+)
+
+@Serializable
+data class ReactionUpdate(
+    val messageId: String,
+    val reaction: String?,
+    val senderId: String
+)
 
 /**
  * Extension function for safe enum lookup from String.

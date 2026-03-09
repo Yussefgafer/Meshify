@@ -2,94 +2,70 @@ package com.p2p.meshify
 
 import android.content.Context
 import androidx.room.Room
-import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.data.local.MeshifyDatabase
-import com.p2p.meshify.data.repository.ChatRepositoryImpl
-import com.p2p.meshify.data.repository.FileManagerImpl
-import com.p2p.meshify.data.repository.SettingsRepository
-import com.p2p.meshify.domain.repository.IChatRepository
-import com.p2p.meshify.domain.repository.IFileManager
-import com.p2p.meshify.domain.repository.ISettingsRepository
+import com.p2p.meshify.data.repository.*
+import com.p2p.meshify.domain.repository.*
 import com.p2p.meshify.network.base.IMeshTransport
 import com.p2p.meshify.network.lan.LanTransportImpl
 import com.p2p.meshify.network.lan.SocketManager
+import com.p2p.meshify.core.util.NotificationHelper
+import com.p2p.meshify.network.service.MessageQueueService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
-/**
- * Manual Dependency Injection Container.
- * Refactored for Clean Architecture.
- */
 class AppContainer(private val context: Context) {
-    
-    init {
-        Logger.d("AppContainer -> Creating AppContainer")
-    }
 
     private val database: MeshifyDatabase by lazy {
-        Logger.d("AppContainer -> Initializing Database (lazy)")
-        val db = Room.databaseBuilder(
-            context,
-            MeshifyDatabase::class.java,
-            "meshify_db"
-        ).fallbackToDestructiveMigration(dropAllTables = true).build()
-        Logger.d("AppContainer -> Database initialized SUCCESS")
-        db
-    }
-
-    private val socketManager: SocketManager by lazy {
-        Logger.d("AppContainer -> Initializing SocketManager (lazy)")
-        val sm = SocketManager()
-        Logger.d("AppContainer -> SocketManager initialized SUCCESS")
-        sm
-    }
-
-    val fileManager: IFileManager by lazy {
-        Logger.d("AppContainer -> Initializing FileManager (lazy)")
-        val fm = FileManagerImpl(context)
-        Logger.d("AppContainer -> FileManager initialized SUCCESS")
-        fm
+        Room.databaseBuilder(context, MeshifyDatabase::class.java, "meshify.db")
+            .fallbackToDestructiveMigration(dropAllTables = true)
+            .build()
     }
 
     val settingsRepository: ISettingsRepository by lazy {
-        Logger.d("AppContainer -> Initializing SettingsRepository (lazy)")
-        val sr = SettingsRepository(context)
-        Logger.d("AppContainer -> SettingsRepository initialized SUCCESS")
-        sr
+        SettingsRepository(context)
+    }
+
+    val fileManager: IFileManager by lazy {
+        FileManagerImpl(context)
+    }
+
+    val notificationHelper: NotificationHelper by lazy {
+        NotificationHelper(context).apply { createNotificationChannels() }
+    }
+
+    private val socketManager: SocketManager by lazy {
+        SocketManager()
     }
 
     val lanTransport: IMeshTransport by lazy {
-        Logger.d("AppContainer -> Initializing LanTransport (lazy)")
-        val transport = LanTransportImpl(context, socketManager, settingsRepository)
-        Logger.d("AppContainer -> LanTransport initialized SUCCESS")
-        transport
+        LanTransportImpl(context, socketManager, settingsRepository)
     }
 
-    // Main Repository
     val chatRepository: IChatRepository by lazy {
-        Logger.d("AppContainer -> Initializing ChatRepository (lazy)")
-        val repo = ChatRepositoryImpl(
-            chatDao = database.chatDao(),
-            messageDao = database.messageDao(),
-            meshTransport = lanTransport,
-            settingsRepository = settingsRepository,
-            fileManager = fileManager
+        ChatRepositoryImpl(
+            database.chatDao(),
+            database.messageDao(),
+            database.pendingMessageDao(),
+            lanTransport,
+            settingsRepository,
+            fileManager,
+            notificationHelper
         )
-        Logger.d("AppContainer -> ChatRepository initialized SUCCESS")
-        repo
     }
 
-    // USE CASES
-    val getMessagesUseCase by lazy {
-        Logger.d("AppContainer -> Initializing GetMessagesUseCase (lazy)")
-        com.p2p.meshify.domain.usecase.GetMessagesUseCase(chatRepository)
+    private val messageQueueService: MessageQueueService by lazy {
+        MessageQueueService(chatRepository, lanTransport)
     }
-    
-    val sendMessageUseCase by lazy {
-        Logger.d("AppContainer -> Initializing SendMessageUseCase (lazy)")
-        com.p2p.meshify.domain.usecase.SendMessageUseCase(chatRepository)
-    }
-    
-    val deleteMessagesUseCase by lazy {
-        Logger.d("AppContainer -> Initializing DeleteMessagesUseCase (lazy)")
-        com.p2p.meshify.domain.usecase.DeleteMessagesUseCase(chatRepository)
+
+    init {
+        messageQueueService.start()
+        CoroutineScope(Dispatchers.IO).launch {
+            lanTransport.events.collect { event ->
+                if (event is com.p2p.meshify.network.base.TransportEvent.PayloadReceived) {
+                    chatRepository.handleIncomingPayload(event.deviceId, event.payload)
+                }
+            }
+        }
     }
 }

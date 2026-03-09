@@ -1,14 +1,9 @@
 package com.p2p.meshify.domain.repository
 
-import com.p2p.meshify.data.local.entity.ChatEntity
-import com.p2p.meshify.data.local.entity.MessageEntity
-import com.p2p.meshify.domain.model.Payload
+import com.p2p.meshify.data.local.entity.*
+import com.p2p.meshify.domain.model.*
 import kotlinx.coroutines.flow.Flow
 
-/**
- * Clean domain interface for Chat operations.
- * Free from Android Context or Framework dependencies.
- */
 interface IChatRepository {
     fun getAllChats(): Flow<List<ChatEntity>>
     fun getMessages(chatId: String): Flow<List<MessageEntity>>
@@ -17,9 +12,12 @@ interface IChatRepository {
     val onlinePeers: Flow<Set<String>>
     val typingPeers: Flow<Set<String>>
 
-    suspend fun sendMessage(peerId: String, peerName: String, text: String): Result<Unit>
-    suspend fun sendImage(peerId: String, peerName: String, imageBytes: ByteArray, extension: String): Result<Unit>
-    suspend fun deleteMessages(messageIds: List<String>)
+    suspend fun sendMessage(peerId: String, peerName: String, text: String, replyToId: String? = null): Result<Unit>
+    suspend fun sendImage(peerId: String, peerName: String, imageBytes: ByteArray, extension: String, replyToId: String? = null): Result<Unit>
+    suspend fun deleteMessage(messageId: String, deleteType: DeleteType): Result<Unit>
+    suspend fun addReaction(messageId: String, reaction: String?): Result<Unit>
+    suspend fun forwardMessage(messageId: String, targetPeerIds: List<String>): Result<Unit>
     suspend fun sendSystemCommand(peerId: String, command: String)
     suspend fun handleIncomingPayload(peerId: String, payload: Payload)
+    suspend fun retryPendingMessages(peerId: String)
 }
