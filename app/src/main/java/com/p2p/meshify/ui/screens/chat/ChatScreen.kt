@@ -55,8 +55,9 @@ import kotlinx.coroutines.launch
 @Composable
 fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBackClick: () -> Unit) {
     val uiState by viewModel.uiState.collectAsState()
+    val themeConfig = LocalMeshifyThemeConfig.current
     val listState = rememberLazyListState()
-    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val clipboard = LocalClipboardManager.current
     var selectedFullImage by remember { mutableStateOf<String?>(null) }
     var menuMessage by remember { mutableStateOf<MessageEntity?>(null) }
 
@@ -107,6 +108,7 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
                 MessageBubble(
                     message = message,
                     peerName = peerName,
+                    bubbleStyle = themeConfig.bubbleStyle,
                     onLongClick = { menuMessage = message },
                     onImageClick = { selectedFullImage = it },
                     onReactionClick = { viewModel.addReaction(message.id, it) }
@@ -138,12 +140,19 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun MessageBubble(message: MessageEntity, peerName: String, onLongClick: () -> Unit, onImageClick: (String) -> Unit, onReactionClick: (String?) -> Unit) {
+fun MessageBubble(message: MessageEntity, peerName: String, bubbleStyle: com.p2p.meshify.domain.model.BubbleStyle, onLongClick: () -> Unit, onImageClick: (String) -> Unit, onReactionClick: (String?) -> Unit) {
     val alignment = if (message.isFromMe) Alignment.End else Alignment.Start
     val containerColor = if (message.isFromMe) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
 
+    val shape = getBubbleShape(
+        bubbleStyle = bubbleStyle,
+        isFromMe = message.isFromMe,
+        isGroupedWithPrevious = false,
+        isGroupedWithNext = false
+    )
+
     Column(Modifier.fillMaxWidth().combinedClickable(onClick = { }, onLongClick = onLongClick), horizontalAlignment = alignment) {
-        Surface(shape = RoundedCornerShape(16.dp), color = containerColor) {
+        Surface(shape = shape, color = containerColor) {
             Column(Modifier.padding(8.dp)) {
                 if (message.isDeletedForEveryone) {
                     Text("This message was deleted", style = MaterialTheme.typography.bodyMedium, fontStyle = FontStyle.Italic, color = MaterialTheme.colorScheme.onSurfaceVariant)

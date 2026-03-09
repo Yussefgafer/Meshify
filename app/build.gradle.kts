@@ -30,9 +30,10 @@ android {
     signingConfigs {
         create("release") {
             storeFile = file("../meshify.jks")
-            storePassword = System.getenv("KEYSTORE_PASSWORD")
-            keyAlias = System.getenv("KEY_ALIAS")
-            keyPassword = System.getenv("KEY_PASSWORD")
+            // Trim secrets to handle potential newline/space issues in CI environment variables
+            storePassword = System.getenv("KEYSTORE_PASSWORD")?.trim()
+            keyAlias = System.getenv("KEY_ALIAS")?.trim()
+            keyPassword = System.getenv("KEY_PASSWORD")?.trim()
         }
     }
 
@@ -47,7 +48,8 @@ android {
             signingConfig = signingConfigs.getByName("release")
         }
         debug {
-            isMinifyEnabled = true
+            // Minification in debug can be slow and prevents easy debugging
+            isMinifyEnabled = false
             isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
