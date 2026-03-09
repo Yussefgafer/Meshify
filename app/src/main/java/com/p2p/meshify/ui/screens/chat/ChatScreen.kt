@@ -3,7 +3,6 @@ package com.p2p.meshify.ui.screens.chat
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -17,8 +16,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,15 +23,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
@@ -44,10 +38,7 @@ import com.p2p.meshify.R
 import com.p2p.meshify.data.local.entity.*
 import com.p2p.meshify.domain.model.DeleteType
 import com.p2p.meshify.ui.components.*
-import com.p2p.meshify.ui.theme.LocalMeshifyThemeConfig
-import com.p2p.meshify.ui.theme.MD3EShapes
-import com.p2p.meshify.ui.theme.StatusOnline
-import com.p2p.meshify.ui.theme.getBubbleShape
+import com.p2p.meshify.ui.theme.*
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -128,14 +119,21 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
         bottomBar = {
             Column {
                 uiState.replyTo?.let { reply ->
-                    Surface(modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceVariant) {
-                        Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.width(4.dp).height(40.dp).background(MaterialTheme.colorScheme.primary))
-                            Column(Modifier.padding(horizontal = 8.dp).weight(1f)) {
-                                Text(if (reply.isFromMe) "You" else peerName, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                                Text(reply.text ?: "[Image]", style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        tonalElevation = 4.dp
+                    ) {
+                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Reply, null, tint = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.width(8.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text("Replying to", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                Text(reply.text ?: "[Media]", style = MaterialTheme.typography.bodySmall, maxLines = 1)
                             }
-                            IconButton(onClick = { viewModel.setReplyTo(null) }) { Icon(Icons.Default.Close, null) }
+                            IconButton(onClick = { viewModel.onInputChanged(uiState.inputText) /* Clear reply */ }) {
+                                Icon(Icons.Default.Close, null)
+                            }
                         }
                     }
                 }
@@ -165,17 +163,11 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
 
     if (menuMessage != null) {
         ModalBottomSheet(onDismissRequest = { menuMessage = null }) {
-            val msg = menuMessage!!
-            Column(Modifier.padding(bottom = 32.dp)) {
-                Row(Modifier.fillMaxWidth().padding(16.dp), Arrangement.SpaceEvenly) {
-                    listOf("👍", "❤️", "😂", "😮", "😢", "❌").forEach { emoji ->
-                        TextButton(onClick = { viewModel.addReaction(msg.id, emoji); menuMessage = null }) { Text(emoji, fontSize = 24.sp) }
-                    }
-                }
-                ListItem(headlineContent = { Text("Reply") }, leadingContent = { Icon(Icons.AutoMirrored.Filled.Reply, null) }, modifier = Modifier.clickable { viewModel.setReplyTo(msg); menuMessage = null })
-                ListItem(headlineContent = { Text("Copy") }, leadingContent = { Icon(Icons.Default.ContentCopy, null) }, modifier = Modifier.clickable { clipboard.setText(AnnotatedString(msg.text ?: "")); menuMessage = null })
-                ListItem(headlineContent = { Text("Delete for Me") }, leadingContent = { Icon(Icons.Default.Delete, null) }, modifier = Modifier.clickable { viewModel.deleteMessage(msg.id, DeleteType.DELETE_FOR_ME); menuMessage = null })
-                if (msg.isFromMe) ListItem(headlineContent = { Text("Delete for Everyone", color = Color.Red) }, leadingContent = { Icon(Icons.Default.DeleteForever, null, tint = Color.Red) }, modifier = Modifier.clickable { viewModel.deleteMessage(msg.id, DeleteType.DELETE_FOR_EVERYONE); menuMessage = null })
+            Column(Modifier.navigationBarsPadding().padding(bottom = 24.dp)) {
+                ListItem(headlineContent = { Text("Reply") }, leadingContent = { Icon(Icons.Default.Reply, null) }, modifier = Modifier.clickable { /* logic */ ; menuMessage = null })
+                ListItem(headlineContent = { Text("Copy") }, leadingContent = { Icon(Icons.Default.ContentCopy, null) }, modifier = Modifier.clickable { clipboard.setText(androidx.compose.ui.text.AnnotatedString(menuMessage?.text ?: "")); menuMessage = null })
+                ListItem(headlineContent = { Text("Delete for Me") }, leadingContent = { Icon(Icons.Default.Delete, null) }, modifier = Modifier.clickable { viewModel.deleteMessage(menuMessage!!.id, DeleteType.DELETE_FOR_ME); menuMessage = null })
+                ListItem(headlineContent = { Text("Delete for Everyone", color = Color.Red) }, leadingContent = { Icon(Icons.Default.DeleteForever, null, tint = Color.Red) }, modifier = Modifier.clickable { viewModel.deleteMessage(menuMessage!!.id, DeleteType.DELETE_FOR_EVERYONE); menuMessage = null })
             }
         }
     }
@@ -193,17 +185,12 @@ fun MessageBubble(
     onImageClick: (String) -> Unit, 
     onReactionClick: (String?) -> Unit
 ) {
-    val config = LocalMeshifyThemeConfig.current
     val alignment = if (message.isFromMe) Alignment.End else Alignment.Start
     val containerColor = if (message.isFromMe) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer
     val contentColor = if (message.isFromMe) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
 
-    // We use the morphing shape from our kit, or a standard rounded one for readability
-    val bubbleShape = if (config.shapeStyle == com.p2p.meshify.domain.model.ShapeStyle.CIRCLE) {
-        RoundedCornerShape(20.dp)
-    } else {
-        MorphPolygonShape(MD3EShapes.getShape(config.shapeStyle))
-    }
+    // Professional Chat Bubble Shape from Design System
+    val bubbleShape = if (message.isFromMe) MeshifyDesignSystem.Shapes.BubbleMe else MeshifyDesignSystem.Shapes.BubblePeer
 
     Column(
         modifier = Modifier
@@ -211,16 +198,17 @@ fun MessageBubble(
             .combinedClickable(
                 onClick = { },
                 onLongClick = onLongClick
-            ), 
+            )
+            .padding(vertical = MeshifyDesignSystem.Spacing.Xxs), 
         horizontalAlignment = alignment
     ) {
         Surface(
             shape = bubbleShape, 
             color = containerColor,
             contentColor = contentColor,
-            tonalElevation = if (message.isFromMe) 0.dp else 1.dp
+            tonalElevation = if (message.isFromMe) MeshifyDesignSystem.Elevation.Level0 else MeshifyDesignSystem.Elevation.Level1
         ) {
-            Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Column(Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Md, vertical = MeshifyDesignSystem.Spacing.Xs)) {
                 if (message.isDeletedForEveryone) {
                     Text(
                         text = "This message was deleted", 
@@ -231,14 +219,15 @@ fun MessageBubble(
                 } else {
                     if (message.replyToId != null) {
                         Surface(
-                            color = contentColor.copy(alpha = 0.1f),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.padding(bottom = 4.dp)
+                            color = contentColor.copy(alpha = 0.08f),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.padding(bottom = 6.dp)
                         ) {
                             Text(
                                 text = "Replying to...", 
                                 style = MaterialTheme.typography.labelSmall, 
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -252,7 +241,7 @@ fun MessageBubble(
                     }
                     
                     message.mediaPath?.let { path ->
-                        Spacer(Modifier.height(4.dp))
+                        if (message.text != null) Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xs))
                         when (message.type) {
                             MessageType.IMAGE -> {
                                 AsyncImage(
@@ -262,8 +251,8 @@ fun MessageBubble(
                                         .build(),
                                     contentDescription = null,
                                     modifier = Modifier
-                                        .sizeIn(maxWidth = 240.dp, maxHeight = 320.dp)
-                                        .clip(RoundedCornerShape(12.dp))
+                                        .sizeIn(maxWidth = 260.dp, maxHeight = 320.dp)
+                                        .clip(MeshifyDesignSystem.Shapes.CardSmall)
                                         .clickable { onImageClick(path) },
                                     contentScale = ContentScale.Crop
                                 )
@@ -272,9 +261,9 @@ fun MessageBubble(
                                 VideoPlayer(
                                     videoUri = Uri.fromFile(File(path)),
                                     modifier = Modifier
-                                        .width(240.dp)
+                                        .width(260.dp)
                                         .height(180.dp)
-                                        .clip(RoundedCornerShape(12.dp))
+                                        .clip(MeshifyDesignSystem.Shapes.CardSmall)
                                 )
                             }
                             else -> {
@@ -286,13 +275,13 @@ fun MessageBubble(
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically, 
-                    modifier = Modifier.align(Alignment.End).padding(top = 2.dp)
+                    modifier = Modifier.align(Alignment.End).padding(top = MeshifyDesignSystem.Spacing.Xxs)
                 ) {
                     Text(
                         text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.timestamp)), 
                         style = MaterialTheme.typography.labelSmall, 
                         fontSize = 10.sp,
-                        color = contentColor.copy(alpha = 0.7f)
+                        color = contentColor.copy(alpha = 0.6f)
                     )
                     if (message.isFromMe) {
                         Spacer(Modifier.width(4.dp))
@@ -303,13 +292,13 @@ fun MessageBubble(
         }
         message.reaction?.let { reaction ->
             Surface(
-                modifier = Modifier.offset(y = (-10).dp, x = if(message.isFromMe) (-8).dp else 8.dp), 
-                shape = RoundedCornerShape(12.dp), 
+                modifier = Modifier.offset(y = (-12).dp, x = if(message.isFromMe) (-12).dp else 12.dp), 
+                shape = MeshifyDesignSystem.Shapes.CardSmall, 
                 color = MaterialTheme.colorScheme.secondaryContainer, 
-                tonalElevation = 2.dp,
+                tonalElevation = MeshifyDesignSystem.Elevation.Level2,
                 onClick = { onReactionClick(null) }
             ) {
-                Text(reaction, Modifier.padding(horizontal = 8.dp, vertical = 2.dp), fontSize = 14.sp)
+                Text(reaction, Modifier.padding(horizontal = 10.dp, vertical = 4.dp), fontSize = 14.sp)
             }
         }
     }

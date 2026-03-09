@@ -1,116 +1,71 @@
-# Meshify - Staff Engineer Rules
+# 🌐 Meshify: The Sovereign P2P Mesh Network
+> **Last Updated:** Monday, March 9, 2026
+> **Status:** Active Development (AI-Native)
 
-## Project Vision
-A modular, high-performance P2P mesh networking application. Core focus: Decentralization, Zero UI blocking, and Pluggable transports.
+## 🎯 Project Identity
+Meshify is a high-performance, decentralized communication engine built on a modular P2P architecture. It bypasses central servers entirely, using local network discovery (NSD) and custom socket transports to create a resilient, device-to-device mesh.
 
-## Tech Stack & Architecture
-- **Language:** Kotlin (Strictly)
-- **UI:** Jetpack Compose (Material 3 Expressive)
-- **Concurrency:** Kotlin Coroutines & Flows (StateFlow for UI, SharedFlow for events)
-- **Architecture:** Clean Architecture (Domain-driven)
-- **Dependency Injection:** Manual DI via `AppContainer` (Avoid Dagger/Hilt unless project scales)
+---
 
-## Critical Code Rules
-- **Basics First:** Priorities are Stability, UX Flow, and Core Functionality. No "Additives" until the foundation is 100% reliable.
-- **Non-blocking I/O:** ALL socket, network, and disk operations MUST be explicitly wrapped in `withContext(Dispatchers.IO)`.
-- **Verification Protocol:** After EVERY `write_file` or `replace` operation, a `read_file` MUST be performed to verify code integrity and ensure no parts were accidentally deleted.
-- **No Hardcoding (Constants):** Tech constants must live in `com.p2p.meshify.core.config.AppConfig`.
-- **No Hardcoding (Strings):** ALL UI strings MUST live in `res/values/strings.xml`. Localization (Arabic/English) is mandatory.
-- **UI Interaction:** The UI is passive and only observes `StateFlow` from ViewModels.
-- **Expressive Motion:** Follow MD3E motion parameters via `LocalMeshifyMotion`.
-- **Transport Abstraction:** Any network protocol must implement `IMeshTransport`.
-- **Surgical Precision:** Do not rewrite whole files. Only modify the requested parts with surgical accuracy.
-- **Zero AI Slop:** No placeholder comments or non-functional code.
+## 🏗 Architecture (Clean & Modular)
+The project follows a strict **Clean Architecture** pattern with **Manual Dependency Injection** via `AppContainer`.
 
-## Directory Structure
-Follow the established blueprint:
-- `core/`: Config, Logger, Serializer, FileUtils.
-- `data/`: Room DB (local), DAO, Entities, Repositories.
-- `domain/`: Business logic, Repository interfaces, and Data Models.
-- `network/`: Base transport interfaces and specific implementations (LAN, Bluetooth).
-- `ui/`: Compose themes, components, and feature screens.
+- **`core/`**: Utilities, `Logger`, and `AppConfig`.
+- **`data/`**: 
+    - **Local**: Room DB (`MeshifyDatabase`) with specialized entities for `chats`, `messages`, and `pending_messages`.
+    - **Repository**: Implementations for Chat, Settings, and File Management.
+- **`domain/`**: The business logic layer. Contains repository interfaces and `ChatUseCases`.
+- **`network/`**: 
+    - **LAN**: `LanTransportImpl` using Android NsdManager for discovery (`_Meshify._tcp`).
+    - **Service**: `MeshForegroundService` for persistent background mesh connectivity.
+- **`ui/`**: 
+    - **Theme**: Advanced **Material 3 Expressive (MD3E)** implementation.
+    - **Components**: Custom `MeshifyKit`, `PremiumNoiseTexture`, and `PhysicsSwipeToDelete`.
 
-## Common Tasks (Commands)
-- **Build:** `./gradlew assembleDebug`
-- **Lint:** `./gradlew lint`
-- **Test:** `./gradlew testDebugUnitTest`
-- **Clean:** `./gradlew clean`
+---
 
-## AI Personality (Jules/Gemini)
-- Act as an elite Staff Engineer.
-- Be blunt about technical mistakes.
-- If a requested feature is impossible or would cause UI lag, refuse and propose a non-blocking alternative.
-- Always check `AppConfig` before proposing new constants.
+## 📡 Networking Stack (The Mesh Engine)
+The transport layer is pluggable via `IMeshTransport`.
 
-## [سجل فهم المشروع]
-### المرحلة الأولى: التأسيس (Foundation Phase) - 06/03/2026
-- **تم الانتهاء من:** إنشاء الهيكلية الأساسية، تعريف الـ Payload والواجهات البرمجية للنقل.
+- **Discovery:** Uses **mDNS/NSD**. Peers register as `Meshify_{UUID}`.
+- **Handshake:** Automated exchange of Display Name and **Avatar Hashes** upon resolution.
+- **Dead Peer Detection:** Peers are automatically marked as "Dead" and removed from the online list after **3 consecutive socket failures**.
+- **Message Reliability:** A dedicated `MessageQueueService` monitors `pending_messages` and retries delivery when peers come back online.
 
-### المرحلة الثانية: محرك الشبكة (Network Engine) - 06/03/2026
-- **تم الانتهاء من:** `SocketManager` و `LanTransportImpl` (النسخة الأولية).
+---
 
-### المرحلة العاشرة: محرك الهوية والملف الشخصي - 06/03/2026
-- **تم الانتهاء من:** `DataStore` ، منطق الـ Handshake ، والـ Routing المنطقي.
+## 🎨 Design System: MD3E + Spring Physics
+Meshify uses a custom "Expressive" design system that goes beyond standard Material 3:
 
-### المرحلة الثالثة عشر: واجهة الإعدادات والتحصين الأولي - 06/03/2026
-- **تم الانتهاء من:** 7-Shape Morphing (النسخة الأولية)، حفظ المرفقات في الذاكرة الداخلية، وإضافة حالات الرسائل (SENT, FAILED).
+- **Shape Engine:** 7 base shapes (`Sunny`, `Clover`, `Burst`, `Blob`, etc.) normalized for fluid morphing.
+- **Motion System:** 4 custom spring presets:
+    - `Gentle`: (0.9 damping, 300 stiffness)
+    - `Standard`: (0.8 damping, 600 stiffness)
+    - `Snappy`: (0.6 damping, 1000 stiffness)
+    - `Bouncy`: (0.4 damping, 800 stiffness) - The "Playful" signature.
+- **Visual Texture:** `PremiumNoiseTexture` applied globally at 3% alpha for a high-end tactile feel.
 
-### المرحلة الرابعة عشر: التطهير المعماري والتقني الشامل (Architectural Cleanup) - 06/03/2026
-- **تم الانتهاء من:**
-    - **Clean Architecture**: فصل طبقة الـ Domain تماماً عبر `IChatRepository`, `ISettingsRepository`, `IFileManager` و Use Cases.
-    - **Robust SocketManager**: إصلاح تسريبات الذاكرة (Memory Leaks) وإضافة Connection Pooling و Timeouts و Thread Safety.
-    - **Real Pagination**: تنفيذ نظام التجزئة الحقيقي (Limit/Offset) في كل الطبقات لضمان أداء مستقر.
-    - **Secure Morphing Engine**: إصلاح محرك الأشكال السبعة باستخدام الـ Normalization والـ Secure Reflection لضمان العمل على جميع الأجهزة.
-    - **Full Localization**: تعريب التطبيق بالكامل وإزالة جميع النصوص الصلبة (Hardcoded Strings).
-    - **Navigation Component**: نقل التنقل لـ `NavHost` مركزي مع إدارة سليمة للـ Backstack.
-    - **Advanced UI/UX**: إضافة مؤشر الكتابة (Typing Indicator)، تجميع الرسائل ذكياً، مسح الرسائل مع تأكيد، وعارض صور كامل الشاشة.
-    - **Performance Optimization**: تهيئة Coil مع Memory & Disk Cache متقدم لمنع تهنيج الواجهة.
-    - **Android 13+ Permissions**: إصلاح منطق الصلاحيات ليحترم معايير الخصوصية.
+---
 
-### المرحلة الخامسة عشر: ثورة الملاحة والنوع الآمن (Navigation Revolution) - 08/03/2026
-- **تم الانتهاء من:**
-    - **Stable Navigation**: التراجع عن `Navigation 3` لصالح `Navigation Compose 2.8.7` (النسخة المستقرة والأكثر كفاءة).
-    - **Full Type-Safety**: تطبيق نظام الـ `Serializable Routes` بالكامل لضمان عدم حدوث أخطاء وقت التشغيل (Runtime Errors).
-    - **Clean State Management**: التخلص من الإدارة اليدوية للـ `backStack` والاعتماد على `NavController` الأصلي.
-    - **Coil 3 Migration**: تحديث جميع الـ `imports` والـ `dependencies` لتعمل مع Coil 3 بكفاءة.
-    - **MD3 Expressive Ready**: تفعيل الـ `MaterialShapes` والـ `Expressive Motion` عبر الـ `Compiler Opt-ins` اللازمة.
+## 🛠 Tech Stack Summary
+- **Language:** Kotlin 2.1.x (JVM 21)
+- **UI:** Jetpack Compose (Experimental MD3E)
+- **Persistence:** Room (with Destructive Migration for dev), DataStore (Preferences)
+- **Networking:** Java Sockets + NsdManager
+- **Media:** Coil 3 (Image loading), Media3/ExoPlayer (Video)
+- **DI:** Manual (`AppContainer`)
 
-### المرحلة السابعة عشر: ثورة الأداء والجماليات (Performance & Aesthetics Revolution) - 08/03/2026
-- **تم الانتهاء من:**
-    - **C01: SocketManager Cleanup System**: إضافة `PooledSocket` مع `createdAt` و `lastUsedAt` timestamps، وتنفيذ `cleanupJob` الذي يمسح الـ Sockets الميتة (أكثر من 5 دقائق خمول) كل 60 ثانية.
-    - **C02: Morphing Performance Optimization**: تحسين `MorphPolygonShape` باستخدام `cachedOutline` و `isValid` flag لمنع الـ allocations الزائدة أثناء الـ animation frames.
-    - **M07: Chat Grouping Logic Migration**: نقل الـ Grouping Logic من الـ UI (ChatScreen) للـ ChatViewModel عبر `GroupedMessage` data class و `calculateGrouping()` function.
-    - **M01 & U06: Color & Haptic Standardization**:
-        - نقل جميع الـ Hardcoded colors لـ `Color.kt` (`StatusOnline`, `StatusOffline`, `ColorPresetTeal`, etc.)
-        - إضافة Haptic Feedback (`HapticFeedbackType.TextHandleMove`) لجميع الـ SegmentedButtons والـ ColorPicker في SettingsScreen.
-    - **🎨 Discovery Radar**: استبدال `CircularProgressIndicator` التقليدي بـ `RadarPulseMorph` component في Empty State.
-    - **Build Status**: ✅ جميع التغييرات تم بناؤها بنجاح بدون أخطاء.
+---
 
-### المرحلة السابعة عشر: إصلاحات الاستقرار الحرجة (Critical Stability Fixes) - 08/03/2026
-- **تم الانتهاء من:** إصلاح جميع المشاكل الحرجة من Audit Reports (MESHIFY_AUDIT_REPORT_2026.md + MESHIFY_REPORT.md)
-    - **C01: ConcurrentModificationException Fix**: إعادة كتابة `SocketManager.cleanupIdleSockets()` باستخدام two-pass approach لمنع crash.
-    - **C02: Empty Catch Blocks**: إضافة logging لجميع الـ catch blocks الفارغة في `SocketManager.stopListening()`.
-    - **C04: Thread-Safety**: إضافة `Mutex` في `ChatRepositoryImpl.handleIncomingPayload()` لمنع race conditions و database corruption.
-    - **M06: Write Timeout**: إضافة `withTimeoutOrNull(5000)` في `SocketManager.sendPayload()` لمنع coroutine hanging.
-    - **R1.3: Dead Peer Detection**: إضافة `failedSendCounts` (AtomicInteger) في `LanTransportImpl` لإزالة peers الأموات بعد 3 محاولات فاشلة.
-    - **R2.1: Fallback Payload Fix**: تغيير `PayloadSerializer.deserialize()` لإرجاع empty payload بدلاً من حفظ البيانات المشوهة.
-    - **R2.2: UTF-8 Charset**: إضافة `StandardCharsets.UTF_8` صريح في deserialization + `MAX_DATA_SIZE` check (10MB).
-    - **R4.1: ViewModel Cleanup**: إضافة `onCleared()` في `ChatViewModel` لإلغاء typing job وإرسال `TYPING_OFF`.
-    - **M03: Error Handling**: إضافة `sendError` SharedFlow في `ChatViewModel` لإشعار UI بفشل الإرسال.
-    - **M05: Accessibility Strings**: نقل جميع الـ hardcoded contentDescription لـ `strings.xml` مع إضافة `Logger.w()`.
-    - **Build Status**: ✅ BUILD SUCCESSFUL - جميع الإصلاحات تم التحقق منها.
+## ⚠️ Dev Guidelines & Rules
+1. **Never Revert UI Logic:** The UI depends on specific `ExperimentalMaterial3ExpressiveApi` features. Don't "fix" them by reverting to stable M3.
+2. **Handle Pending Messages:** When adding new message types, ensure they are integrated into `PendingMessageEntity` for reliability.
+3. **P2P Visibility:** Always respect `ISettingsRepository.isNetworkVisible` before registering the NSD service.
+4. **Surgical Edits Only:** The code is highly modular. Edit the specific layer (Data/Domain/UI) without bleeding logic into others.
 
-## [الوضع الحالي - Status Quo]
-التطبيق الآن يتمتع بـ:
-- **Production-Grade Architecture**: Clean Architecture مع فصل كامل للـ Domain
-- **MD3E Compliance**: Material 3 Expressive بالكامل (Shapes, Motion, Typography)
-- **Real-time Settings**: تحديث لحظي لكل الإعدادات عبر CompositionLocal
-- **Optimized Performance**: Noise Texture cached، Smart Avatar، أصغر Padding، Morphing Caching، Socket Cleanup
-- **Professional UI**: يضاهي LastChat في الجودة والتصميم
-- **Enhanced UX**: Haptic Feedback في كل مكان، Radar Pulse Animation، Grouped Messages
-- **🛡️ Critical Stability**: Thread-Safety، Write Timeouts، Dead Peer Detection، Error Handling، Data Integrity
+---
 
-## [خريطة Roadmap]
-1.  **End-to-End Encryption**: تنفيذ الـ E2EE باستخدام Signal Protocol
-2.  **Media Support**: إرسال الفيديوهات والمقاطع الصوتية
-3.  **Unit & UI Testing**: إضافة اختبارات شاملة
+## 🚀 Key Commands
+- **Build & Run:** `./gradlew installDebug`
+- **Check Lint:** `./gradlew lint`
+- **Clear DB:** (Dev shortcut) The project uses `fallbackToDestructiveMigration(dropAllTables = true)`. Simply increment the version in `MeshifyDatabase` to wipe local state.

@@ -29,16 +29,15 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file("../meshify.jks") // This was pointing to parent, fixing to root
-            if (file("./meshify.jks").exists()) {
-                storeFile = file("./meshify.jks")
-            } else if (file("../meshify.jks").exists()) {
-                 storeFile = file("../meshify.jks")
-            }
-            // Trim secrets to handle potential newline/space issues in CI environment variables
-            storePassword = "01220950"
-            keyAlias = "meshify"
-            keyPassword = "01220950"
+            // Priority: Root dir (for CI) -> Parent dir (for legacy local)
+            val ksFile = file("../meshify.jks")
+            val rootKsFile = file("./meshify.jks")
+            storeFile = if (rootKsFile.exists()) rootKsFile else ksFile
+            
+            // Priority: Environment variables (for CI) -> Hardcoded (for local)
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "01220950"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "meshify"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "01220950"
         }
     }
 

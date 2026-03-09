@@ -88,10 +88,10 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBackClick: () -> Unit) {
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(scrollState)
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = MeshifyDesignSystem.Spacing.Md),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Lg))
             
             ExpressivePulseHeader(
                 size = 140.dp,
@@ -112,11 +112,11 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBackClick: () -> Unit) {
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Md))
             Text(displayName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
             Text(deviceId.take(8).uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary.copy(0.7f))
             
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xl))
 
             // IDENTITY SECTION
             MeshifySectionHeader(stringResource(R.string.settings_section_identity))

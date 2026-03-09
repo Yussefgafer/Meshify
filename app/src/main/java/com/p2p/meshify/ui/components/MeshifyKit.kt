@@ -1,8 +1,10 @@
 package com.p2p.meshify.ui.components
 
+import android.graphics.Bitmap
 import android.graphics.Matrix
+import android.graphics.RectF
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,7 +17,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -37,232 +38,108 @@ import com.p2p.meshify.domain.model.SignalStrength
 import com.p2p.meshify.ui.theme.LocalMeshifyMotion
 import com.p2p.meshify.ui.theme.LocalMeshifyThemeConfig
 import com.p2p.meshify.ui.theme.MD3EShapes
+import com.p2p.meshify.ui.theme.MeshifyDesignSystem
 import java.io.File
-import kotlin.random.Random
 
 /**
- * MeshifyKit - The Standard Design Language for Meshify.
- * Inspired by ViVi Music & MD3 Expressive.
+ * ✅ FIX (Priority 1): Normalized Morphing Engine.
  */
-
-/**
- * Noise Texture Overlay to give a tactile, organic feel to the background.
- */
-@Composable
-fun NoiseTextureOverlay(
-    modifier: Modifier = Modifier,
-    alpha: Float = 0.05f
-) {
-    val noisePattern = remember {
-        // Generate a static noise pattern once
-        // In a real app, use a shader or a tiled noise image for better performance
-        // This is a simple procedural approximation
-        true
+fun RoundedPolygon.toNormalizedComposePath(): Path {
+    val path = this.toPath() // android.graphics.Path
+    val bounds = RectF()
+    path.computeBounds(bounds, true)
+    val matrix = Matrix().apply {
+        setScale(1f / bounds.width(), 1f / bounds.height())
+        postTranslate(-bounds.left, -bounds.top)
     }
-    
-    Canvas(modifier = modifier.fillMaxSize()) {
-        val width = size.width
-        val height = size.height
-        val pointCount = (width * height * 0.005f).toInt().coerceAtMost(5000)
-        
-        // Draw random points for noise
-        for (i in 0 until pointCount) {
-            val x = Random.nextFloat() * width
-            val y = Random.nextFloat() * height
-            drawCircle(
-                color = Color.Black.copy(alpha = alpha),
-                radius = 1f,
-                center = Offset(x, y)
-            )
-            drawCircle(
-                color = Color.White.copy(alpha = alpha),
-                radius = 1f,
-                center = Offset(Random.nextFloat() * width, Random.nextFloat() * height)
-            )
-        }
-    }
+    path.transform(matrix)
+    return path.asComposePath()
 }
 
-/**
- * Converts a RoundedPolygon to a Compose Path for drawing and clipping.
- */
-fun RoundedPolygon.toComposePathWithSize(size: Size): Path {
-    val androidPath = this.toPath() // Extension from androidx.graphics.shapes
-    val matrix = android.graphics.Matrix()
-    matrix.setScale(size.width / 2f, size.height / 2f)
-    matrix.postTranslate(size.width / 2f, size.height / 2f)
-    androidPath.transform(matrix)
-    return androidPath.asComposePath()
+fun Path.scaleToSize(targetSize: Size): Path {
+    val matrix = Matrix().apply {
+        postScale(targetSize.width, targetSize.height)
+    }
+    val androidPath = this.asAndroidPath()
+    val transformed = android.graphics.Path()
+    androidPath.transform(matrix, transformed)
+    return transformed.asComposePath()
 }
 
 class MorphPolygonShape(private val polygon: RoundedPolygon) : androidx.compose.ui.graphics.Shape {
-    override fun createOutline(
-        size: Size,
-        layoutDirection: androidx.compose.ui.unit.LayoutDirection,
-        density: androidx.compose.ui.unit.Density
-    ): Outline {
-        val path = polygon.toComposePathWithSize(size)
+    override fun createOutline(size: Size, layoutDirection: androidx.compose.ui.unit.LayoutDirection, density: androidx.compose.ui.unit.Density): Outline {
+        val path = polygon.toNormalizedComposePath().scaleToSize(size)
         return Outline.Generic(path)
     }
 }
 
 @Composable
-fun MorphingAvatar(
-    initials: String,
-    avatarHash: String? = null,
-    isOnline: Boolean = false,
-    size: Dp = 56.dp,
-    modifier: Modifier = Modifier
-) {
+fun PremiumNoiseTexture(modifier: Modifier = Modifier, alpha: Float = 0.03f) {
+    val color = MaterialTheme.colorScheme.onSurface
+    val noiseBitmap = remember(color) {
+        Bitmap.createBitmap(256, 256, Bitmap.Config.ARGB_8888).apply {
+            val canvas = android.graphics.Canvas(this)
+            val paint = android.graphics.Paint().apply {
+                this.alpha = (alpha * 255).toInt()
+                isAntiAlias = true
+                colorFilter = android.graphics.PorterDuffColorFilter(color.toArgb(), android.graphics.PorterDuff.Mode.SRC_IN)
+            }
+            repeat(2000) { canvas.drawCircle((Math.random() * 256).toFloat(), (Math.random() * 256).toFloat(), 1f, paint) }
+        }
+    }
+    Image(bitmap = noiseBitmap.asImageBitmap(), contentDescription = null, modifier = modifier.fillMaxSize(), alpha = alpha, contentScale = ContentScale.FillBounds)
+}
+
+@Composable
+fun MorphingAvatar(initials: String, avatarHash: String? = null, isOnline: Boolean = false, size: Dp = 56.dp, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val config = LocalMeshifyThemeConfig.current
-    
-    val avatarFile = remember(avatarHash) {
-        avatarHash?.let { hash ->
-            FileUtils.getFilePath(context, hash, "avatars")?.let { File(it) }
-        }
-    }
-
+    val cleanInitials = initials.filter { it.isLetterOrDigit() }.take(1).uppercase()
+    val avatarFile = remember(avatarHash) { avatarHash?.let { hash -> FileUtils.getFilePath(context, hash, "avatars")?.let { File(it) } } }
     Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
         if (isOnline) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        val shape = MD3EShapes.getShape(config.shapeStyle)
-                        val path = shape.toComposePathWithSize(Size(size.toPx(), size.toPx()))
-                        clip = true
-                        this.shape = GenericShape { _, _ -> addPath(path) }
-                    }
-                    .background(MaterialTheme.colorScheme.primary.copy(0.2f))
-                    .padding(4.dp)
-            )
+            Box(Modifier.fillMaxSize().graphicsLayer {
+                val shape = MD3EShapes.getShape(config.shapeStyle)
+                val path = shape.toNormalizedComposePath().scaleToSize(Size(size.toPx(), size.toPx()))
+                clip = true
+                this.shape = GenericShape { _, _ -> addPath(path) }
+                alpha = 0.15f
+            }.background(MaterialTheme.colorScheme.primary))
         }
-
-        Surface(
-            modifier = Modifier.fillMaxSize(if (isOnline) 0.85f else 1f),
-            shape = MorphPolygonShape(MD3EShapes.getShape(config.shapeStyle)),
-            color = MaterialTheme.colorScheme.secondaryContainer
-        ) {
+        Surface(modifier = Modifier.fillMaxSize(if (isOnline) 0.82f else 1f), shape = MorphPolygonShape(MD3EShapes.getShape(config.shapeStyle)), color = MaterialTheme.colorScheme.surfaceContainerHigh, tonalElevation = 2.dp) {
             if (avatarFile != null) {
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(avatarFile)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
+                AsyncImage(model = ImageRequest.Builder(context).data(avatarFile).crossfade(true).build(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             } else {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = initials.uppercase(),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                }
+                Box(contentAlignment = Alignment.Center) { Text(text = cleanInitials, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary) }
             }
         }
-        
-        if (isOnline) {
-            Box(
-                Modifier
-                    .size(size / 4)
-                    .align(Alignment.BottomEnd)
-                    .background(Color.Green, androidx.compose.foundation.shape.CircleShape)
-                    .border(2.dp, MaterialTheme.colorScheme.surface, androidx.compose.foundation.shape.CircleShape)
-            )
-        }
+        if (isOnline) { Box(Modifier.size(size / 4.5f).align(Alignment.BottomEnd).background(Color(0xFF4CAF50), androidx.compose.foundation.shape.CircleShape).border(2.dp, MaterialTheme.colorScheme.surface, androidx.compose.foundation.shape.CircleShape)) }
     }
 }
 
 @Composable
-fun SignalMorphAvatar(
-    initials: String,
-    signalStrength: SignalStrength,
-    size: Dp = 40.dp
-) {
-    val color = when(signalStrength) {
-        SignalStrength.STRONG -> Color.Green
-        SignalStrength.MEDIUM -> Color.Yellow
-        SignalStrength.WEAK -> Color.Red
-        SignalStrength.OFFLINE -> Color.Gray
-    }
-    
-    Box(modifier = Modifier.size(size)) {
-        MorphingAvatar(initials = initials, size = size, isOnline = signalStrength != SignalStrength.OFFLINE)
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .size(12.dp)
-                .background(color, androidx.compose.foundation.shape.CircleShape)
-                .border(2.dp, MaterialTheme.colorScheme.surface, androidx.compose.foundation.shape.CircleShape)
-        )
+fun MeshifyCard(modifier: Modifier = Modifier, onClick: (() -> Unit)? = null, containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow, content: @Composable ColumnScope.() -> Unit) {
+    Surface(modifier = modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier), shape = MeshifyDesignSystem.Shapes.CardLarge, color = containerColor, tonalElevation = MeshifyDesignSystem.Elevation.Level2) {
+        Column(modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Md), content = content)
     }
 }
 
 @Composable
-fun MeshifyCard(
-    modifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    val cardShape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp)
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
-        shape = cardShape,
-        color = containerColor,
-        tonalElevation = 2.dp
-    ) {
-        Column(modifier = Modifier.padding(16.dp), content = content)
-    }
-}
-
-@Composable
-fun MeshifyListItem(
-    headline: String,
-    supporting: String? = null,
-    leadingContent: @Composable (() -> Unit)? = null,
-    trailingContent: @Composable (() -> Unit)? = null,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        color = Color.Transparent
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (leadingContent != null) {
-                Box(Modifier.size(56.dp), contentAlignment = Alignment.Center) { leadingContent() }
-                Spacer(Modifier.width(16.dp))
-            }
+fun MeshifyListItem(headline: String, supporting: String? = null, leadingContent: @Composable (() -> Unit)? = null, trailingContent: @Composable (() -> Unit)? = null, onClick: () -> Unit) {
+    Surface(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick), color = Color.Transparent) {
+        Row(modifier = Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Md, vertical = MeshifyDesignSystem.Spacing.Sm), verticalAlignment = Alignment.CenterVertically) {
+            if (leadingContent != null) { Box(Modifier.size(56.dp), contentAlignment = Alignment.Center) { leadingContent() }; Spacer(Modifier.width(MeshifyDesignSystem.Spacing.Md)) }
             Column(Modifier.weight(1f)) {
                 Text(text = headline, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
-                if (supporting != null) {
-                    Text(text = supporting, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-                }
+                if (supporting != null) { Text(text = supporting, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1) }
             }
-            if (trailingContent != null) {
-                Spacer(Modifier.width(8.dp))
-                trailingContent()
-            }
+            if (trailingContent != null) { Spacer(Modifier.width(MeshifyDesignSystem.Spacing.Xs)); trailingContent() }
         }
     }
 }
 
 @Composable
-fun ExpressivePulseHeader(
-    modifier: Modifier = Modifier,
-    size: Dp = 120.dp,
-    content: @Composable BoxScope.() -> Unit
-) {
+fun ExpressivePulseHeader(modifier: Modifier = Modifier, size: Dp = 120.dp, content: @Composable BoxScope.() -> Unit) {
     val config = LocalMeshifyThemeConfig.current
     val motion = LocalMeshifyMotion.current
     var isPulsing by remember { mutableStateOf(false) }
@@ -270,72 +147,47 @@ fun ExpressivePulseHeader(
     val startShape = remember(config.shapeStyle) { MD3EShapes.getShape(config.shapeStyle) }
     val endShape = remember { MD3EShapes.Circle }
     val morph = remember(startShape, endShape) { Morph(startShape, endShape) }
-    
-    LaunchedEffect(Unit) {
-        while (true) {
-            isPulsing = !isPulsing
-            kotlinx.coroutines.delay(2500)
-        }
-    }
-
-    Box(
-        modifier = modifier.size(size).graphicsLayer {
-            // Fix: Use qualified path
-            val morphPath = morph.toPath(progress)
-            val matrix = android.graphics.Matrix().apply {
-                setScale(size.toPx() / 2f, size.toPx() / 2f)
-                postTranslate(size.toPx() / 2f, size.toPx() / 2f)
-            }
-            morphPath.transform(matrix)
-            val composePath = morphPath.asComposePath()
-            
+    LaunchedEffect(Unit) { while (true) { isPulsing = !isPulsing; kotlinx.coroutines.delay(3000) } }
+    Box(modifier = modifier.size(size + 24.dp), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.size(size + 20.dp).graphicsLayer {
+            val path = morph.toPath(progress).asComposePath().scaleToSize(Size(size.toPx() + 20.dp.toPx(), size.toPx() + 20.dp.toPx()))
             clip = true
-            shape = GenericShape { _, _ -> addPath(composePath) }
-        }.background(MaterialTheme.colorScheme.primaryContainer),
-        contentAlignment = Alignment.Center
-    ) { content() }
+            shape = GenericShape { _, _ -> addPath(path) }
+            alpha = 0.25f
+        }.background(MaterialTheme.colorScheme.primary))
+        Surface(modifier = Modifier.size(size), shape = androidx.compose.foundation.shape.CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh, border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)), tonalElevation = 4.dp) { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { content() } }
+    }
 }
 
 @Composable
-fun RadarPulseMorph(
-    isSearching: Boolean,
-    size: Dp = 40.dp,
-    modifier: Modifier = Modifier
-) {
-    val infiniteTransition = rememberInfiniteTransition(label = "RadarPulse")
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 0.8f, targetValue = 1.2f,
-        animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Reverse), label = "Scale"
-    )
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.5f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Reverse), label = "Alpha"
-    )
-
-    Box(
-        modifier = modifier.size(size).graphicsLayer {
-            if (isSearching) { scaleX = scale; scaleY = scale; this.alpha = alpha }
-        }.background(MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.CircleShape)
-    )
+fun RadarPulseMorph(isSearching: Boolean, size: Dp = 44.dp, modifier: Modifier = Modifier) {
+    if (!isSearching) {
+        Surface(modifier = modifier.size(size), shape = androidx.compose.foundation.shape.CircleShape, color = MaterialTheme.colorScheme.primary.copy(0.1f)) { Icon(Icons.Default.Add, null, modifier = Modifier.padding(8.dp), tint = MaterialTheme.colorScheme.primary) }
+        return
+    }
+    val infiniteTransition = rememberInfiniteTransition(label = "Radar")
+    val pulses = listOf(infiniteTransition.animateFloat(0f, 1f, infiniteRepeatable(tween(2000, easing = LinearEasing), RepeatMode.Restart), "P1"), infiniteTransition.animateFloat(0f, 1f, infiniteRepeatable(tween(2000, 600, easing = LinearEasing), RepeatMode.Restart), "P2"))
+    Box(modifier = modifier.size(size * 2.5f), contentAlignment = Alignment.Center) {
+        pulses.forEach { p -> Box(Modifier.size(size * 2.5f * p.value).graphicsLayer { alpha = 1f - p.value }.border(2.dp, MaterialTheme.colorScheme.primary.copy(0.5f), androidx.compose.foundation.shape.CircleShape)) }
+        Surface(modifier = Modifier.size(size), shape = androidx.compose.foundation.shape.CircleShape, color = MaterialTheme.colorScheme.primary, tonalElevation = 6.dp) { Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Add, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onPrimary) } }
+    }
 }
 
 @Composable
 fun ExpressiveMorphingFAB(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val config = LocalMeshifyThemeConfig.current
     val shape = remember(config.shapeStyle) { MorphPolygonShape(MD3EShapes.getShape(config.shapeStyle)) }
-    FloatingActionButton(onClick = onClick, modifier = modifier.size(56.dp), shape = shape, containerColor = MaterialTheme.colorScheme.primaryContainer) {
-        Icon(Icons.Default.Add, contentDescription = "New Chat")
-    }
+    FloatingActionButton(onClick = onClick, modifier = modifier.size(64.dp), shape = shape, containerColor = MaterialTheme.colorScheme.primaryContainer, elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp)) { Icon(Icons.Default.Add, contentDescription = "New Chat", modifier = Modifier.size(32.dp)) }
 }
 
 @Composable
 fun MeshifySectionHeader(title: String) {
-    Text(text = title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 16.dp, top = 24.dp, bottom = 8.dp))
+    Text(text = title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Black, modifier = Modifier.padding(start = 16.dp, top = 32.dp, bottom = 12.dp), letterSpacing = 1.sp)
 }
 
 @Composable
 fun MeshifyPill(text: String, containerColor: Color = MaterialTheme.colorScheme.secondaryContainer) {
-    Surface(color = containerColor, shape = androidx.compose.foundation.shape.CircleShape) {
-        Text(text = text, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), fontWeight = FontWeight.Bold)
-    }
+    Surface(color = containerColor, shape = androidx.compose.foundation.shape.CircleShape) { Text(text = text, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp), fontWeight = FontWeight.Bold) }
 }
+
+fun Modifier.meshifyGlass(alpha: Float = 0.1f, blur: Float = 30f, shape: androidx.compose.ui.graphics.Shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp)): Modifier = this.graphicsLayer { if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) { renderEffect = android.graphics.RenderEffect.createBlurEffect(blur, blur, android.graphics.Shader.TileMode.CLAMP).asComposeRenderEffect() } }.background(Color.White.copy(alpha = alpha), shape).border(1.dp, Color.White.copy(alpha = 0.2f), shape)

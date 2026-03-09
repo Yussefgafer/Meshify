@@ -35,6 +35,19 @@ class ChatRepositoryImpl(
     override val onlinePeers: Flow<Set<String>> = if (meshTransport is LanTransportImpl) meshTransport.onlinePeers else flowOf(emptySet())
     override val typingPeers: Flow<Set<String>> = if (meshTransport is LanTransportImpl) meshTransport.typingPeers else flowOf(emptySet())
 
+    private fun parseName(rawName: String): String {
+        return try {
+            if (rawName.startsWith("{")) {
+                val handshake = Json.decodeFromString<Handshake>(rawName)
+                handshake.name
+            } else {
+                rawName.removePrefix("HELO_")
+            }
+        } catch (e: Exception) {
+            rawName.removePrefix("HELO_")
+        }
+    }
+
     override suspend fun sendSystemCommand(peerId: String, command: String) {
         val myId = settingsRepository.getDeviceId()
         val payload = Payload(senderId = myId, type = Payload.PayloadType.SYSTEM_CONTROL, data = command.toByteArray())
@@ -115,12 +128,13 @@ class ChatRepositoryImpl(
     }
 
     private suspend fun saveAndSend(peerId: String, peerName: String, message: MessageEntity, payloadType: Payload.PayloadType, data: ByteArray) {
-        chatDao.insertChat(ChatEntity(peerId, peerName, message.text ?: "[Image]", message.timestamp))
+        val cleanName = parseName(peerName)
+        chatDao.insertChat(ChatEntity(peerId, cleanName, message.text ?: "[Media]", message.timestamp))
         messageDao.insertMessage(message)
         
         val isOnline = onlinePeers.first().contains(peerId)
         if (!isOnline) {
-            pendingMessageDao.insert(PendingMessageEntity(id = message.id, recipientId = peerId, recipientName = peerName, content = message.text ?: "[Image]", type = message.type))
+            pendingMessageDao.insert(PendingMessageEntity(id = message.id, recipientId = peerId, recipientName = cleanName, content = message.text ?: "[Media]", type = message.type))
             return
         }
 
@@ -129,7 +143,7 @@ class ChatRepositoryImpl(
         val result = meshTransport.sendPayload(peerId, payload)
         if (result.isFailure) {
             messageDao.updateMessageStatus(message.id, MessageStatus.FAILED)
-            pendingMessageDao.insert(PendingMessageEntity(id = message.id, recipientId = peerId, recipientName = peerName, content = message.text ?: "[Image]", type = message.type))
+            pendingMessageDao.insert(PendingMessageEntity(id = message.id, recipientId = peerId, recipientName = cleanName, content = message.text ?: "[Media]", type = message.type))
         } else {
             messageDao.updateMessageStatus(message.id, MessageStatus.SENT)
         }
@@ -191,8 +205,9 @@ class ChatRepositoryImpl(
                     }
                 }
                 Payload.PayloadType.HANDSHAKE -> {
-                    val peerName = String(payload.data).replace("HELO_", "")
-                    chatDao.insertChat(ChatEntity(payload.senderId, peerName, "Connected", payload.timestamp))
+                    val rawData = String(payload.data)
+                    val cleanName = parseName(rawData)
+                    chatDao.insertChat(ChatEntity(payload.senderId, cleanName, "Connected", payload.timestamp))
                     retryPendingMessages(payload.senderId)
                 }
                 else -> Logger.w("ChatRepository -> Unknown type: ${payload.type}")
@@ -202,8 +217,8 @@ class ChatRepositoryImpl(
 
     private suspend fun saveIncomingMessage(peerId: String, text: String?, mediaPath: String?, type: MessageType, timestamp: Long, messageId: String) {
         val existingChat = chatDao.getChatById(peerId)
-        val finalName = existingChat?.peerName ?: "Peer_${peerId.take(4)}"
-        chatDao.insertChat(ChatEntity(peerId, finalName, text ?: "[Image]", timestamp))
+        val finalName = if (existingChat != null) parseName(existingChat.peerName) else "Peer_${peerId.take(4)}"
+        chatDao.insertChat(ChatEntity(peerId, finalName, text ?: "[Media]", timestamp))
         val message = MessageEntity(id = messageId, chatId = peerId, senderId = peerId, text = text, mediaPath = mediaPath, type = type, timestamp = timestamp, isFromMe = false, status = MessageStatus.SENT)
         messageDao.insertMessage(message)
         notificationHelper.showMessageNotification(finalName, message)

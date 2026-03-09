@@ -119,11 +119,15 @@ class LanTransportImpl(
     }
 
     private suspend fun handleHandshake(senderId: String, address: String, payload: Payload) {
+        val rawData = String(payload.data)
         val handshake = try {
-            Json.decodeFromString<Handshake>(String(payload.data))
+            if (rawData.startsWith("{")) {
+                Json.decodeFromString<Handshake>(rawData)
+            } else {
+                Handshake(name = rawData.removePrefix("HELO_"))
+            }
         } catch (e: Exception) {
-            // Fallback for old simple String handshakes
-            Handshake(name = String(payload.data).removePrefix("HELO_"))
+            Handshake(name = "Unknown")
         }
 
         val name = handshake.name
@@ -158,7 +162,9 @@ class LanTransportImpl(
             }
         }
         
-        _events.emit(TransportEvent.PayloadReceived(senderId, payload))
+        // CRITICAL: Send only the name to the repository to avoid JSON display in UI
+        val cleanPayload = payload.copy(data = "HELO_$name".toByteArray())
+        _events.emit(TransportEvent.PayloadReceived(senderId, cleanPayload))
     }
 
     private suspend fun handleAvatarRequest(senderId: String, requestedHash: String) {
