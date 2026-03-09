@@ -177,8 +177,8 @@ fun MeshifyPill(text: String, containerColor: Color = MaterialTheme.colorScheme.
 }
 
 @Composable
-fun PremiumNoiseTexture(alpha: Float = 0.03f) {
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = alpha)))
+fun PremiumNoiseTexture(modifier: Modifier = Modifier, alpha: Float = 0.03f) {
+    Box(modifier = modifier.fillMaxSize().background(Color.Black.copy(alpha = alpha)))
 }
 
 @Composable

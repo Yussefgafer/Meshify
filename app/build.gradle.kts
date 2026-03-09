@@ -28,18 +28,20 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            val ksFile = file("../meshify.jks")
-            val rootKsFile = file("./meshify.jks")
-            storeFile = if (rootKsFile.exists()) rootKsFile else ksFile
-            
-            // Re-adding fallbacks but wrapped in a check.
-            // In CI, if secrets are missing, we use these fallbacks to let the build pass
-            // (assuming these match the committed meshify.jks if it exists).
-            // If secrets are present, they OVERRIDE the fallbacks.
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "01220950"
-            keyAlias = System.getenv("KEY_ALIAS") ?: "meshify"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: "01220950"
+        val ksPass = System.getenv("KEYSTORE_PASSWORD")
+        val kAlias = System.getenv("KEY_ALIAS")
+        val kPass = System.getenv("KEY_PASSWORD")
+        val ksFile = file("./meshify.jks")
+        val ksFileParent = file("../meshify.jks")
+        val finalKsFile = if (ksFile.exists()) ksFile else if (ksFileParent.exists()) ksFileParent else null
+
+        if (ksPass != null && kAlias != null && kPass != null && finalKsFile != null) {
+            create("release") {
+                storeFile = finalKsFile
+                storePassword = ksPass
+                keyAlias = kAlias
+                keyPassword = kPass
+            }
         }
     }
 
@@ -47,7 +49,11 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            signingConfig = signingConfigs.getByName("release")
+
+            val releaseSigning = signingConfigs.findByName("release")
+            if (releaseSigning != null) {
+                signingConfig = releaseSigning
+            }
             
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
