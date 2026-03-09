@@ -41,12 +41,17 @@ import java.io.File
 import com.p2p.meshify.domain.model.Handshake
 
 fun RoundedPolygon.toNormalizedComposePath(): Path {
-    return this.toPath().asComposePath()
+    val path = this.toPath().asComposePath()
+    val bounds = path.getBounds()
+    val matrix = Matrix()
+    matrix.translate(-bounds.left, -bounds.top)
+    path.transform(matrix)
+    return path
 }
 
 fun Path.scaleToSize(targetSize: Size): Path {
-    val matrix = Matrix()
     val bounds = this.getBounds()
+    val matrix = Matrix()
     if (bounds.width > 0 && bounds.height > 0) {
         matrix.scale(targetSize.width / bounds.width, targetSize.height / bounds.height)
     }
