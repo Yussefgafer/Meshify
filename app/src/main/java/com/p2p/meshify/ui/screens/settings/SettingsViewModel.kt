@@ -3,6 +3,9 @@ package com.p2p.meshify.ui.screens.settings
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.content.Context
+import android.net.Uri
+import com.p2p.meshify.core.util.FileUtils
 import com.p2p.meshify.domain.model.BubbleStyle
 import com.p2p.meshify.domain.model.FontFamilyPreset
 import com.p2p.meshify.domain.model.MotionPreset
@@ -37,6 +40,9 @@ class SettingsViewModel(
 
     val isNetworkVisible: StateFlow<Boolean> = settingsRepository.isNetworkVisible
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val avatarHash: StateFlow<String?> = settingsRepository.avatarHash
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     // MD3E Settings Flows
     val shapeStyle: StateFlow<ShapeStyle> = settingsRepository.shapeStyle
@@ -101,6 +107,29 @@ class SettingsViewModel(
     fun setNetworkVisibility(visible: Boolean) {
         viewModelScope.launch {
             settingsRepository.setNetworkVisibility(visible)
+        }
+    }
+
+    /**
+     * Updates the user's avatar by picking a file, hashing it, and saving it locally.
+     * Content-addressable storage ensures no duplicate transfers.
+     */
+    fun updateAvatar(context: Context, uri: Uri) {
+        viewModelScope.launch {
+            val bytes = FileUtils.getBytesFromUri(context, uri)
+            if (bytes != null) {
+                val hash = FileUtils.calculateHash(bytes)
+                // Save to internal storage using hash as filename
+                val savedPath = FileUtils.saveBytesToInternalStorage(
+                    context = context,
+                    fileName = hash,
+                    data = bytes,
+                    category = "avatars"
+                )
+                if (savedPath != null) {
+                    settingsRepository.updateAvatarHash(hash)
+                }
+            }
         }
     }
 

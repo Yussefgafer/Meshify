@@ -1,243 +1,341 @@
 package com.p2p.meshify.ui.components
 
-import android.graphics.Path as AndroidPath
+import android.graphics.Matrix
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.automirrored.rounded.InsertDriveFile
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.*
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.graphics.transform
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
 import androidx.graphics.shapes.toPath
-import androidx.compose.ui.graphics.Brush
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
-import com.p2p.meshify.core.util.Logger
+import coil3.request.crossfade
+import com.p2p.meshify.core.util.FileUtils
 import com.p2p.meshify.domain.model.SignalStrength
 import com.p2p.meshify.ui.theme.LocalMeshifyMotion
 import com.p2p.meshify.ui.theme.LocalMeshifyThemeConfig
 import com.p2p.meshify.ui.theme.MD3EShapes
-import com.p2p.meshify.ui.theme.MotionDurations
-import com.p2p.meshify.ui.hooks.LocalPremiumHaptics
-import android.graphics.Matrix
-import kotlinx.coroutines.delay
+import java.io.File
+import kotlin.random.Random
 
-class MorphPolygonShape(
-    private val morph: Morph,
-    private val progress: Float,
-    private val rotationAngle: Float = 0f
-) : Shape {
-    private val androidPath = AndroidPath()
-    private val matrix = Matrix()
-    private var cachedOutline: Outline? = null
-    private var cachedProgress: Float = -1f
-    private var cachedRotation: Float = 0f
+/**
+ * MeshifyKit - The Standard Design Language for Meshify.
+ * Inspired by ViVi Music & MD3 Expressive.
+ */
 
-    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
-        if (cachedOutline != null && cachedProgress == progress && cachedRotation == rotationAngle) return cachedOutline!!
-        return try {
-            androidPath.reset()
-            morph.toPath(progress, androidPath)
-            val bounds = android.graphics.RectF()
-            @Suppress("DEPRECATION")
-            androidPath.computeBounds(bounds, false)
-            if (bounds.width() > 0 && bounds.height() > 0) {
-                val scale = minOf(size.width / bounds.width(), size.height / bounds.height()) * 0.9f
-                matrix.reset()
-                matrix.setTranslate(-bounds.centerX(), -bounds.centerY())
-                if (rotationAngle != 0f) matrix.postRotate(rotationAngle)
-                matrix.postScale(scale, scale)
-                matrix.postTranslate(size.width / 2f, size.height / 2f)
-                androidPath.transform(matrix)
-            }
-            val outline = Outline.Generic(androidPath.asComposePath())
-            cachedOutline = outline; cachedProgress = progress; cachedRotation = rotationAngle
-            outline
-        } catch (e: Exception) { CircleShape.createOutline(size, layoutDirection, density) }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Noise Texture Overlay to give a tactile, organic feel to the background.
+ */
 @Composable
-fun ExpressiveMorphingFAB(onClick: () -> Unit, modifier: Modifier = Modifier, size: Dp = 64.dp, shapes: List<RoundedPolygon> = MD3EShapes.AllShapes) {
-    val haptic = LocalHapticFeedback.current
-    val shapesCount = shapes.size
-    var currentShapeIndex by remember { mutableIntStateOf(0) }
-    val nextShapeIndex = (currentShapeIndex + 1) % shapesCount
-    val morph = remember(currentShapeIndex, nextShapeIndex) { Morph(shapes[currentShapeIndex], shapes[nextShapeIndex]) }
-    val infiniteTransition = rememberInfiniteTransition(label = "FAB")
-    val progressAnim = remember { Animatable(0f) }
-    LaunchedEffect(currentShapeIndex) {
-        progressAnim.snapTo(0f)
-        progressAnim.animateTo(1f, spring(Spring.DampingRatioLowBouncy, Spring.StiffnessVeryLow))
-        currentShapeIndex = nextShapeIndex
+fun NoiseTextureOverlay(
+    modifier: Modifier = Modifier,
+    alpha: Float = 0.05f
+) {
+    val noisePattern = remember {
+        // Generate a static noise pattern once
+        // In a real app, use a shader or a tiled noise image for better performance
+        // This is a simple procedural approximation
+        true
     }
-    val jitter by infiniteTransition.animateFloat(-0.005f, 0.005f, infiniteRepeatable(tween(200), RepeatMode.Reverse), "Jitter")
-    val rotation by infiniteTransition.animateFloat(0f, 360f, infiniteRepeatable(tween(15000, easing = LinearEasing)), "Rotation")
-    val morphShape = remember(morph, progressAnim.value, jitter) { MorphPolygonShape(morph, (progressAnim.value + jitter).coerceIn(0f, 1f)) }
-    val scale = remember { Animatable(1f) }
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    LaunchedEffect(isPressed) { scale.animateTo(if (isPressed) 0.97f else 1f, spring(0.4f, 800f)) }
-    val glowColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-    Surface(
-        modifier = modifier.padding(16.dp).size(size).graphicsLayer { scaleX = scale.value; scaleY = scale.value; rotationZ = rotation }
-            .drawBehind {
-                val glowSize = size.toPx() * 1.15f
-                drawCircle(Brush.radialGradient(listOf(glowColor, Color.Transparent), center, glowSize / 2), glowSize / 2)
-            }
-            .clip(morphShape).clickable(interactionSource, null) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onClick() },
-        color = MaterialTheme.colorScheme.primary, tonalElevation = 4.dp, shadowElevation = 6.dp
-    ) { Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Add, "Add", Modifier.size(28.dp).graphicsLayer { rotationZ = -rotation }, tint = MaterialTheme.colorScheme.onPrimary) } }
-}
-
-@Composable
-fun NoiseTextureOverlay(modifier: Modifier = Modifier, alpha: Float = 0.02f) {
-    val noiseBitmap = remember {
-        android.graphics.Bitmap.createBitmap(64, 64, android.graphics.Bitmap.Config.ARGB_8888).apply {
-            val pixels = IntArray(64 * 64); val random = kotlin.random.Random(42)
-            for (i in pixels.indices) { val gray = random.nextInt(256); pixels[i] = android.graphics.Color.argb((255 * alpha).toInt(), gray, gray, gray) }
-            setPixels(pixels, 0, 64, 0, 0, 64, 64)
+    
+    Canvas(modifier = modifier.fillMaxSize()) {
+        val width = size.width
+        val height = size.height
+        val pointCount = (width * height * 0.005f).toInt().coerceAtMost(5000)
+        
+        // Draw random points for noise
+        for (i in 0 until pointCount) {
+            val x = Random.nextFloat() * width
+            val y = Random.nextFloat() * height
+            drawCircle(
+                color = Color.Black.copy(alpha = alpha),
+                radius = 1f,
+                center = Offset(x, y)
+            )
+            drawCircle(
+                color = Color.White.copy(alpha = alpha),
+                radius = 1f,
+                center = Offset(Random.nextFloat() * width, Random.nextFloat() * height)
+            )
         }
     }
-    Box(modifier.fillMaxSize()) { androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) { drawContext.canvas.nativeCanvas.drawPaint(android.graphics.Paint().apply { shader = android.graphics.BitmapShader(noiseBitmap, android.graphics.Shader.TileMode.REPEAT, android.graphics.Shader.TileMode.REPEAT) }) } }
+}
+
+/**
+ * Converts a RoundedPolygon to a Compose Path for drawing and clipping.
+ */
+fun RoundedPolygon.toComposePathWithSize(size: Size): Path {
+    val androidPath = this.toPath() // Extension from androidx.graphics.shapes
+    val matrix = android.graphics.Matrix()
+    matrix.setScale(size.width / 2f, size.height / 2f)
+    matrix.postTranslate(size.width / 2f, size.height / 2f)
+    androidPath.transform(matrix)
+    return androidPath.asComposePath()
+}
+
+class MorphPolygonShape(private val polygon: RoundedPolygon) : androidx.compose.ui.graphics.Shape {
+    override fun createOutline(
+        size: Size,
+        layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+        density: androidx.compose.ui.unit.Density
+    ): Outline {
+        val path = polygon.toComposePathWithSize(size)
+        return Outline.Generic(path)
+    }
 }
 
 @Composable
-fun RadarPulseMorph(isSearching: Boolean, modifier: Modifier = Modifier, size: Dp = 80.dp) {
-    val infiniteTransition = rememberInfiniteTransition("Radar")
-    val shapes = MD3EShapes.AllShapes; val shapesCount = shapes.size
-    val morphFactor by infiniteTransition.animateFloat(0f, shapesCount.toFloat(), infiniteRepeatable(tween(if (isSearching) 800 * shapesCount else 1500 * shapesCount, easing = LinearEasing)), "Morph")
-    val shapeIndex = (morphFactor.toInt() % shapesCount); val progress = morphFactor - morphFactor.toInt()
-    val jitter by infiniteTransition.animateFloat(-0.005f, 0.005f, infiniteRepeatable(tween(150), RepeatMode.Reverse), "Jitter")
-    val morph = remember(shapeIndex) { Morph(shapes[shapeIndex], shapes[(shapeIndex + 1) % shapesCount]) }
-    val morphShape = remember(morph, progress, jitter) { MorphPolygonShape(morph, (progress + jitter).coerceIn(0f, 1f)) }
-    val pulseScale by infiniteTransition.animateFloat(1f, 1.08f, infiniteRepeatable(tween(if (isSearching) 600 else 1000, easing = FastOutSlowInEasing), RepeatMode.Reverse), "Pulse")
-    val glowColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+fun MorphingAvatar(
+    initials: String,
+    avatarHash: String? = null,
+    isOnline: Boolean = false,
+    size: Dp = 56.dp,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val config = LocalMeshifyThemeConfig.current
+    
+    val avatarFile = remember(avatarHash) {
+        avatarHash?.let { hash ->
+            FileUtils.getFilePath(context, hash, "avatars")?.let { File(it) }
+        }
+    }
+
     Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
-        Box(Modifier.size(size * pulseScale * 1.2f).drawBehind { drawCircle(Brush.radialGradient(listOf(glowColor, Color.Transparent), center, size.toPx() * 0.6f), size.toPx() * 0.6f) })
-        Surface(Modifier.size(size), shape = morphShape, color = MaterialTheme.colorScheme.primary) { Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(size * 0.4f)) } }
-    }
-}
-
-@Composable
-fun ExpressivePulseHeader(modifier: Modifier = Modifier, size: Dp = 120.dp, shapes: List<RoundedPolygon> = MD3EShapes.AllShapes, content: @Composable () -> Unit) {
-    val haptic = LocalHapticFeedback.current; val shapesCount = shapes.size
-    var currentShapeIndex by remember { mutableIntStateOf(0) }; val nextShapeIndex = (currentShapeIndex + 1) % shapesCount
-    val morph = remember(currentShapeIndex, nextShapeIndex) { Morph(shapes[currentShapeIndex], shapes[nextShapeIndex]) }
-    val infiniteTransition = rememberInfiniteTransition("Pulse")
-    val progressAnim = remember { Animatable(0f) }
-    LaunchedEffect(currentShapeIndex) { progressAnim.snapTo(0f); progressAnim.animateTo(1f, spring(Spring.DampingRatioLowBouncy, Spring.StiffnessVeryLow)); currentShapeIndex = nextShapeIndex }
-    val jitter by infiniteTransition.animateFloat(-0.005f, 0.005f, infiniteRepeatable(tween(250), RepeatMode.Reverse), "Jitter")
-    val pulseScale by infiniteTransition.animateFloat(1f, 1.04f, infiniteRepeatable(tween(3000, easing = FastOutSlowInEasing), RepeatMode.Reverse), "Scale")
-    val rotation by infiniteTransition.animateFloat(0f, 360f, infiniteRepeatable(tween(25000, easing = LinearEasing)), "Rotation")
-    val morphShape = remember(morph, progressAnim.value, jitter) { MorphPolygonShape(morph, (progressAnim.value + jitter).coerceIn(0f, 1f)) }
-    val glowColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-    Box(modifier = modifier.size(size).graphicsLayer { scaleX = pulseScale; scaleY = pulseScale; rotationZ = rotation }
-        .drawBehind { val glowSize = size.toPx() * 1.1f; drawCircle(Brush.radialGradient(listOf(glowColor, Color.Transparent), center, glowSize / 2), glowSize / 2) }
-        .clip(morphShape).background(MaterialTheme.colorScheme.primaryContainer.copy(0.6f)).clickable { haptic.performHapticFeedback(HapticFeedbackType.LongPress) }, contentAlignment = Alignment.Center) {
-        Box(Modifier.graphicsLayer { rotationZ = -rotation }) { content() }
-    }
-}
-
-@Composable
-fun MorphingAvatar(initials: String, isOnline: Boolean, modifier: Modifier = Modifier, size: Dp = 52.dp, containerColor: Color = MaterialTheme.colorScheme.primaryContainer, onContainerColor: Color = MaterialTheme.colorScheme.onPrimaryContainer) {
-    val avatarShapes = remember { listOf(MD3EShapes.Blob, MD3EShapes.Circle, MD3EShapes.Clover) }
-    if (isOnline) {
-        var currentShapeIndex by remember { mutableIntStateOf(0) }; val nextShapeIndex = (currentShapeIndex + 1) % avatarShapes.size
-        val morph = remember(currentShapeIndex) { Morph(avatarShapes[currentShapeIndex], avatarShapes[nextShapeIndex]) }
-        val infiniteTransition = rememberInfiniteTransition("Avatar")
-        val progressAnim = remember { Animatable(0f) }
-        LaunchedEffect(currentShapeIndex) { progressAnim.snapTo(0f); progressAnim.animateTo(1f, spring(Spring.DampingRatioLowBouncy, Spring.StiffnessVeryLow)); currentShapeIndex = nextShapeIndex }
-        val jitter by infiniteTransition.animateFloat(-0.005f, 0.005f, infiniteRepeatable(tween(300), RepeatMode.Reverse), "Jitter")
-        val morphShape = remember(morph, progressAnim.value, jitter) { MorphPolygonShape(morph, (progressAnim.value + jitter).coerceIn(0f, 1f)) }
-        Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
-            Surface(Modifier.size(size), shape = morphShape, color = containerColor.copy(0.8f)) { Box(contentAlignment = Alignment.Center) { Text(initials.uppercase(), style = MaterialTheme.typography.titleLarge, color = onContainerColor, fontWeight = FontWeight.Bold) } }
-            Box(Modifier.align(Alignment.BottomEnd).size(size * 0.27f).clip(CircleShape).background(Color(0xFF4CAF50)))
+        if (isOnline) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val shape = MD3EShapes.getShape(config.shapeStyle)
+                        val path = shape.toComposePathWithSize(Size(size.toPx(), size.toPx()))
+                        clip = true
+                        this.shape = GenericShape { _, _ -> addPath(path) }
+                    }
+                    .background(MaterialTheme.colorScheme.primary.copy(0.2f))
+                    .padding(4.dp)
+            )
         }
-    } else { Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) { Surface(Modifier.size(size), shape = CircleShape, color = containerColor.copy(0.6f)) { Box(contentAlignment = Alignment.Center) { Text(initials.uppercase(), style = MaterialTheme.typography.titleLarge, color = onContainerColor.copy(0.7f), fontWeight = FontWeight.Bold) } } } }
-}
 
-@Composable
-fun SignalMorphAvatar(initials: String, signalStrength: com.p2p.meshify.domain.model.SignalStrength, modifier: Modifier = Modifier, size: Dp = 52.dp) {
-    val shapes = when (signalStrength) {
-        com.p2p.meshify.domain.model.SignalStrength.STRONG -> listOf(MD3EShapes.Sunny, MD3EShapes.Breezy)
-        com.p2p.meshify.domain.model.SignalStrength.MEDIUM -> listOf(MD3EShapes.Breezy, MD3EShapes.Circle)
-        com.p2p.meshify.domain.model.SignalStrength.WEAK -> listOf(MD3EShapes.Circle, MD3EShapes.Blob)
-        else -> listOf(MD3EShapes.Circle, MD3EShapes.Circle)
-    }
-    if (signalStrength == com.p2p.meshify.domain.model.SignalStrength.OFFLINE) {
-        Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) { Surface(Modifier.size(size), shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant.copy(0.5f)) { Box(contentAlignment = Alignment.Center) { Text(initials.uppercase(), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f), fontWeight = FontWeight.Bold) } } }
-    } else {
-        var currentShapeIndex by remember { mutableIntStateOf(0) }; val nextShapeIndex = (currentShapeIndex + 1) % shapes.size
-        val morph = remember(currentShapeIndex, shapes) { Morph(shapes[currentShapeIndex], shapes[nextShapeIndex]) }
-        val progressAnim = remember { Animatable(0f) }
-        LaunchedEffect(currentShapeIndex, signalStrength) { progressAnim.snapTo(0f); progressAnim.animateTo(1f, spring(Spring.DampingRatioLowBouncy, Spring.StiffnessVeryLow)); currentShapeIndex = nextShapeIndex }
-        val morphShape = remember(morph, progressAnim.value) { MorphPolygonShape(morph, progressAnim.value) }
-        val containerColor = when (signalStrength) { com.p2p.meshify.domain.model.SignalStrength.STRONG -> MaterialTheme.colorScheme.primaryContainer; com.p2p.meshify.domain.model.SignalStrength.MEDIUM -> MaterialTheme.colorScheme.secondaryContainer; else -> MaterialTheme.colorScheme.surfaceVariant }
-        val onContainerColor = when (signalStrength) { com.p2p.meshify.domain.model.SignalStrength.STRONG -> MaterialTheme.colorScheme.onPrimaryContainer; com.p2p.meshify.domain.model.SignalStrength.MEDIUM -> MaterialTheme.colorScheme.onSecondaryContainer; else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f) }
-        Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) { Surface(Modifier.size(size), shape = morphShape, color = containerColor) { Box(contentAlignment = Alignment.Center) { Text(initials.uppercase(), style = MaterialTheme.typography.titleLarge, color = onContainerColor, fontWeight = FontWeight.Bold) } } }
-    }
-}
-
-@Composable
-fun FullImageViewer(imagePath: String, onDismiss: () -> Unit) {
-    var scale by remember { mutableStateOf(1f) }; var offset by remember { mutableStateOf(Offset.Zero) }; var rotation by remember { mutableStateOf(0f) }
-    Dialog(onDismiss, DialogProperties(usePlatformDefaultWidth = false)) {
-        Box(Modifier.fillMaxSize().background(Color.Black).pointerInput(Unit) { detectTapGestures(onDoubleTap = { t -> val os = scale; scale = if (os > 1f) 1f else 2.5f; offset = if (scale > 1f) t.copy(x = -t.x * (scale - 1), y = -t.y * (scale - 1)) else Offset.Zero }, onTap = { onDismiss() }) }.pointerInput(Unit) { detectTransformGestures { _, p, z, r -> scale = (scale * z).coerceIn(1f, 5f); rotation += r; offset = offset.copy(x = offset.x + p.x, y = offset.y + p.y); if (scale <= 1f) { scale = 1f; offset = Offset.Zero; rotation = 0f } } }) {
-            AsyncImage(imagePath, "BG", Modifier.fillMaxSize().blur(20.dp).alpha(0.3f), contentScale = ContentScale.Crop)
-            AsyncImage(imagePath, "Full", Modifier.fillMaxSize().graphicsLayer { scaleX = scale; scaleY = scale; rotationZ = rotation; translationX = offset.x; translationY = offset.y }, contentScale = ContentScale.Fit)
-            Surface(color = Color.Black.copy(0.5f), shape = CircleShape, modifier = Modifier.align(Alignment.TopEnd).padding(24.dp).size(40.dp).clickable { onDismiss() }) { Icon(Icons.Default.Close, "Close", tint = Color.White, modifier = Modifier.padding(8.dp)) }
+        Surface(
+            modifier = Modifier.fillMaxSize(if (isOnline) 0.85f else 1f),
+            shape = MorphPolygonShape(MD3EShapes.getShape(config.shapeStyle)),
+            color = MaterialTheme.colorScheme.secondaryContainer
+        ) {
+            if (avatarFile != null) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(avatarFile)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = initials.uppercase(),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            }
+        }
+        
+        if (isOnline) {
+            Box(
+                Modifier
+                    .size(size / 4)
+                    .align(Alignment.BottomEnd)
+                    .background(Color.Green, androidx.compose.foundation.shape.CircleShape)
+                    .border(2.dp, MaterialTheme.colorScheme.surface, androidx.compose.foundation.shape.CircleShape)
+            )
         }
     }
 }
 
 @Composable
-fun DeleteConfirmationDialog(title: String, text: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    var countdown by remember { mutableIntStateOf(5) }; val isEnabled by remember { derivedStateOf { countdown <= 0 } }
-    LaunchedEffect(Unit) { while (countdown > 0) { delay(1000); countdown-- } }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(title) }, text = { Column { Text(text); if (!isEnabled) { Spacer(Modifier.height(8.dp)); LinearProgressIndicator({ (5 - countdown) / 5f }, Modifier.fillMaxWidth(), MaterialTheme.colorScheme.error) } } }, confirmButton = { Button(onConfirm, enabled = isEnabled, colors = ButtonDefaults.buttonColors(MaterialTheme.colorScheme.error, disabledContainerColor = MaterialTheme.colorScheme.error.copy(0.3f))) { Text(if (isEnabled) "Delete" else "Wait ($countdown)") } }, dismissButton = { TextButton(onDismiss) { Text("Cancel") } })
+fun SignalMorphAvatar(
+    initials: String,
+    signalStrength: SignalStrength,
+    size: Dp = 40.dp
+) {
+    val color = when(signalStrength) {
+        SignalStrength.STRONG -> Color.Green
+        SignalStrength.MEDIUM -> Color.Yellow
+        SignalStrength.WEAK -> Color.Red
+        SignalStrength.OFFLINE -> Color.Gray
+    }
+    
+    Box(modifier = Modifier.size(size)) {
+        MorphingAvatar(initials = initials, size = size, isOnline = signalStrength != SignalStrength.OFFLINE)
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .size(12.dp)
+                .background(color, androidx.compose.foundation.shape.CircleShape)
+                .border(2.dp, MaterialTheme.colorScheme.surface, androidx.compose.foundation.shape.CircleShape)
+        )
+    }
 }
 
 @Composable
-fun ExpressiveCard(onClick: (() -> Unit)? = null, modifier: Modifier = Modifier, shape: RoundedCornerShape? = null, springSpec: SpringSpec<Float>? = null, densityScale: Float? = null, content: @Composable ColumnScope.() -> Unit) {
-    val haptic = LocalPremiumHaptics.current; val motion = LocalMeshifyMotion.current; val themeConfig = LocalMeshifyThemeConfig.current
-    val effectiveSpring = springSpec ?: motion.springSpec; val effectiveDensity = densityScale ?: themeConfig.visualDensity
-    val effectiveShape = shape ?: RoundedCornerShape((28.dp * effectiveDensity).coerceIn(20.dp, 36.dp))
-    val scale = remember { Animatable(1f) }; val interactionSource = remember { MutableInteractionSource() }; val isPressed by interactionSource.collectIsPressedAsState()
-    LaunchedEffect(isPressed) { scale.animateTo(if (isPressed) 0.97f else 1f, effectiveSpring) }
-    Card(modifier.then(if (onClick != null) Modifier.clickable(interactionSource, null) { haptic.perform(com.p2p.meshify.ui.hooks.HapticPattern.Pop); onClick() } else Modifier).graphicsLayer { scaleX = scale.value; scaleY = scale.value }, effectiveShape, CardDefaults.cardColors(MaterialTheme.colorScheme.surfaceContainerLow), content = content)
+fun MeshifyCard(
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val cardShape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp)
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+        shape = cardShape,
+        color = containerColor,
+        tonalElevation = 2.dp
+    ) {
+        Column(modifier = Modifier.padding(16.dp), content = content)
+    }
+}
+
+@Composable
+fun MeshifyListItem(
+    headline: String,
+    supporting: String? = null,
+    leadingContent: @Composable (() -> Unit)? = null,
+    trailingContent: @Composable (() -> Unit)? = null,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        color = Color.Transparent
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (leadingContent != null) {
+                Box(Modifier.size(56.dp), contentAlignment = Alignment.Center) { leadingContent() }
+                Spacer(Modifier.width(16.dp))
+            }
+            Column(Modifier.weight(1f)) {
+                Text(text = headline, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+                if (supporting != null) {
+                    Text(text = supporting, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                }
+            }
+            if (trailingContent != null) {
+                Spacer(Modifier.width(8.dp))
+                trailingContent()
+            }
+        }
+    }
+}
+
+@Composable
+fun ExpressivePulseHeader(
+    modifier: Modifier = Modifier,
+    size: Dp = 120.dp,
+    content: @Composable BoxScope.() -> Unit
+) {
+    val config = LocalMeshifyThemeConfig.current
+    val motion = LocalMeshifyMotion.current
+    var isPulsing by remember { mutableStateOf(false) }
+    val progress by animateFloatAsState(targetValue = if (isPulsing) 1f else 0f, animationSpec = motion.springSpec, label = "MorphProgress")
+    val startShape = remember(config.shapeStyle) { MD3EShapes.getShape(config.shapeStyle) }
+    val endShape = remember { MD3EShapes.Circle }
+    val morph = remember(startShape, endShape) { Morph(startShape, endShape) }
+    
+    LaunchedEffect(Unit) {
+        while (true) {
+            isPulsing = !isPulsing
+            kotlinx.coroutines.delay(2500)
+        }
+    }
+
+    Box(
+        modifier = modifier.size(size).graphicsLayer {
+            // Fix: Use qualified path
+            val morphPath = morph.toPath(progress)
+            val matrix = android.graphics.Matrix().apply {
+                setScale(size.toPx() / 2f, size.toPx() / 2f)
+                postTranslate(size.toPx() / 2f, size.toPx() / 2f)
+            }
+            morphPath.transform(matrix)
+            val composePath = morphPath.asComposePath()
+            
+            clip = true
+            shape = GenericShape { _, _ -> addPath(composePath) }
+        }.background(MaterialTheme.colorScheme.primaryContainer),
+        contentAlignment = Alignment.Center
+    ) { content() }
+}
+
+@Composable
+fun RadarPulseMorph(
+    isSearching: Boolean,
+    size: Dp = 40.dp,
+    modifier: Modifier = Modifier
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "RadarPulse")
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 0.8f, targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Reverse), label = "Scale"
+    )
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.5f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Reverse), label = "Alpha"
+    )
+
+    Box(
+        modifier = modifier.size(size).graphicsLayer {
+            if (isSearching) { scaleX = scale; scaleY = scale; this.alpha = alpha }
+        }.background(MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.CircleShape)
+    )
+}
+
+@Composable
+fun ExpressiveMorphingFAB(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val config = LocalMeshifyThemeConfig.current
+    val shape = remember(config.shapeStyle) { MorphPolygonShape(MD3EShapes.getShape(config.shapeStyle)) }
+    FloatingActionButton(onClick = onClick, modifier = modifier.size(56.dp), shape = shape, containerColor = MaterialTheme.colorScheme.primaryContainer) {
+        Icon(Icons.Default.Add, contentDescription = "New Chat")
+    }
+}
+
+@Composable
+fun MeshifySectionHeader(title: String) {
+    Text(text = title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 16.dp, top = 24.dp, bottom = 8.dp))
+}
+
+@Composable
+fun MeshifyPill(text: String, containerColor: Color = MaterialTheme.colorScheme.secondaryContainer) {
+    Surface(color = containerColor, shape = androidx.compose.foundation.shape.CircleShape) {
+        Text(text = text, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), fontWeight = FontWeight.Bold)
+    }
 }

@@ -45,8 +45,10 @@ import com.p2p.meshify.data.local.entity.*
 import com.p2p.meshify.domain.model.DeleteType
 import com.p2p.meshify.ui.components.*
 import com.p2p.meshify.ui.theme.LocalMeshifyThemeConfig
+import com.p2p.meshify.ui.theme.MD3EShapes
 import com.p2p.meshify.ui.theme.StatusOnline
 import com.p2p.meshify.ui.theme.getBubbleShape
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.launch
@@ -54,12 +56,27 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBackClick: () -> Unit) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val themeConfig = LocalMeshifyThemeConfig.current
     val listState = rememberLazyListState()
     val clipboard = LocalClipboardManager.current
     var selectedFullImage by remember { mutableStateOf<String?>(null) }
     var menuMessage by remember { mutableStateOf<MessageEntity?>(null) }
+
+    val imageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let {
+            val bytes = context.contentResolver.openInputStream(it)?.readBytes()
+            if (bytes != null) viewModel.sendImage(bytes, "jpg")
+        }
+    }
+
+    val videoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let {
+            val bytes = context.contentResolver.openInputStream(it)?.readBytes()
+            if (bytes != null) viewModel.sendVideo(bytes, "mp4")
+        }
+    }
 
     LaunchedEffect(uiState.messages.size) {
         if (uiState.messages.isNotEmpty()) listState.animateScrollToItem(uiState.messages.size - 1)
@@ -69,20 +86,43 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        MorphingAvatar(initials = peerName.take(1), isOnline = uiState.isOnline, size = 40.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { /* Show Profile? */ }
+                    ) {
+                        MorphingAvatar(
+                            initials = peerName.take(1),
+                            isOnline = uiState.isOnline,
+                            size = 42.dp
+                        )
                         Spacer(Modifier.width(12.dp))
                         Column {
-                            Text(peerName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.size(8.dp).background(if (uiState.isOnline) Color.Green else Color.Gray, CircleShape))
-                                Spacer(Modifier.width(4.dp))
-                                Text(if (uiState.isOnline) "Online" else "Offline", style = MaterialTheme.typography.labelSmall, color = if (uiState.isOnline) StatusOnline else Color.Gray)
+                            Text(
+                                text = peerName, 
+                                style = MaterialTheme.typography.titleMedium, 
+                                fontWeight = FontWeight.Bold
+                            )
+                            if (uiState.isOnline) {
+                                MeshifyPill("Online", MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
+                            } else {
+                                Text(
+                                    text = "Offline", 
+                                    style = MaterialTheme.typography.labelSmall, 
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
                             }
                         }
                     }
                 },
-                navigationIcon = { IconButton(onClick = onBackClick) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } }
+                navigationIcon = { 
+                    IconButton(onClick = onBackClick) { 
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") 
+                    } 
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
+                )
             )
         },
         bottomBar = {
@@ -99,7 +139,12 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
                         }
                     }
                 }
-                StandardChatInput(text = uiState.inputText, onTextChange = viewModel::onInputChanged, onSend = viewModel::sendMessage, onAttachClick = { })
+                StandardChatInput(
+                    text = uiState.inputText,
+                    onTextChange = viewModel::onInputChanged,
+                    onSend = viewModel::sendMessage,
+                    onAttachClick = { videoLauncher.launch("video/*") }
+                )
             }
         }
     ) { padding ->
@@ -140,56 +185,146 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun MessageBubble(message: MessageEntity, peerName: String, bubbleStyle: com.p2p.meshify.domain.model.BubbleStyle, onLongClick: () -> Unit, onImageClick: (String) -> Unit, onReactionClick: (String?) -> Unit) {
+fun MessageBubble(
+    message: MessageEntity, 
+    peerName: String, 
+    bubbleStyle: com.p2p.meshify.domain.model.BubbleStyle, 
+    onLongClick: () -> Unit, 
+    onImageClick: (String) -> Unit, 
+    onReactionClick: (String?) -> Unit
+) {
+    val config = LocalMeshifyThemeConfig.current
     val alignment = if (message.isFromMe) Alignment.End else Alignment.Start
-    val containerColor = if (message.isFromMe) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+    val containerColor = if (message.isFromMe) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer
+    val contentColor = if (message.isFromMe) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
 
-    val shape = getBubbleShape(
-        bubbleStyle = bubbleStyle,
-        isFromMe = message.isFromMe,
-        isGroupedWithPrevious = false,
-        isGroupedWithNext = false
-    )
+    // We use the morphing shape from our kit, or a standard rounded one for readability
+    val bubbleShape = if (config.shapeStyle == com.p2p.meshify.domain.model.ShapeStyle.CIRCLE) {
+        RoundedCornerShape(20.dp)
+    } else {
+        MorphPolygonShape(MD3EShapes.getShape(config.shapeStyle))
+    }
 
-    Column(Modifier.fillMaxWidth().combinedClickable(onClick = { }, onLongClick = onLongClick), horizontalAlignment = alignment) {
-        Surface(shape = shape, color = containerColor) {
-            Column(Modifier.padding(8.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = { },
+                onLongClick = onLongClick
+            ), 
+        horizontalAlignment = alignment
+    ) {
+        Surface(
+            shape = bubbleShape, 
+            color = containerColor,
+            contentColor = contentColor,
+            tonalElevation = if (message.isFromMe) 0.dp else 1.dp
+        ) {
+            Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                 if (message.isDeletedForEveryone) {
-                    Text("This message was deleted", style = MaterialTheme.typography.bodyMedium, fontStyle = FontStyle.Italic, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        text = "This message was deleted", 
+                        style = MaterialTheme.typography.bodyMedium, 
+                        fontStyle = FontStyle.Italic, 
+                        color = contentColor.copy(alpha = 0.6f)
+                    )
                 } else {
                     if (message.replyToId != null) {
-                        Text("Replying to...", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        Surface(
+                            color = contentColor.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        ) {
+                            Text(
+                                text = "Replying to...", 
+                                style = MaterialTheme.typography.labelSmall, 
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
                     }
-                    message.text?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
-                    message.mediaPath?.let { AsyncImage(it, null, Modifier.size(200.dp).clip(RoundedCornerShape(8.dp)).clickable { onImageClick(it) }, contentScale = ContentScale.Crop) }
+                    
+                    message.text?.let { 
+                        Text(
+                            text = it, 
+                            style = MaterialTheme.typography.bodyLarge,
+                            lineHeight = 22.sp
+                        ) 
+                    }
+                    
+                    message.mediaPath?.let { path ->
+                        Spacer(Modifier.height(4.dp))
+                        when (message.type) {
+                            MessageType.IMAGE -> {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(File(path))
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .sizeIn(maxWidth = 240.dp, maxHeight = 320.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .clickable { onImageClick(path) },
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                            MessageType.VIDEO -> {
+                                VideoPlayer(
+                                    videoUri = Uri.fromFile(File(path)),
+                                    modifier = Modifier
+                                        .width(240.dp)
+                                        .height(180.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                )
+                            }
+                            else -> {
+                                Text("File: $path", style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.align(Alignment.End)) {
-                    Text(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.timestamp)), style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically, 
+                    modifier = Modifier.align(Alignment.End).padding(top = 2.dp)
+                ) {
+                    Text(
+                        text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.timestamp)), 
+                        style = MaterialTheme.typography.labelSmall, 
+                        fontSize = 10.sp,
+                        color = contentColor.copy(alpha = 0.7f)
+                    )
                     if (message.isFromMe) {
                         Spacer(Modifier.width(4.dp))
-                        StatusIcon(message.status)
+                        StatusIcon(message.status, contentColor)
                     }
                 }
             }
         }
         message.reaction?.let { reaction ->
-            Surface(modifier = Modifier.offset(y = (-8).dp), shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.secondaryContainer, onClick = { onReactionClick(null) }) {
-                Text(reaction, Modifier.padding(horizontal = 6.dp, vertical = 2.dp), fontSize = 14.sp)
+            Surface(
+                modifier = Modifier.offset(y = (-10).dp, x = if(message.isFromMe) (-8).dp else 8.dp), 
+                shape = RoundedCornerShape(12.dp), 
+                color = MaterialTheme.colorScheme.secondaryContainer, 
+                tonalElevation = 2.dp,
+                onClick = { onReactionClick(null) }
+            ) {
+                Text(reaction, Modifier.padding(horizontal = 8.dp, vertical = 2.dp), fontSize = 14.sp)
             }
         }
     }
 }
 
 @Composable
-fun StatusIcon(status: MessageStatus) {
+fun StatusIcon(status: MessageStatus, tint: Color) {
+    val size = 12.dp
     when (status) {
-        MessageStatus.QUEUED -> Icon(Icons.Default.Schedule, null, Modifier.size(12.dp))
-        MessageStatus.SENDING -> CircularProgressIndicator(Modifier.size(10.dp), strokeWidth = 1.dp)
-        MessageStatus.SENT -> Icon(Icons.Default.Check, null, Modifier.size(12.dp))
-        MessageStatus.DELIVERED -> Icon(Icons.Default.DoneAll, null, Modifier.size(12.dp))
-        MessageStatus.READ -> Icon(Icons.Default.DoneAll, null, Modifier.size(12.dp), tint = MaterialTheme.colorScheme.primary)
-        MessageStatus.FAILED -> Icon(Icons.Default.Error, null, Modifier.size(12.dp), tint = Color.Red)
+        MessageStatus.QUEUED -> Icon(Icons.Default.Schedule, null, Modifier.size(size), tint = tint.copy(0.5f))
+        MessageStatus.SENDING -> CircularProgressIndicator(Modifier.size(10.dp), strokeWidth = 1.dp, color = tint)
+        MessageStatus.SENT -> Icon(Icons.Default.Check, null, Modifier.size(size), tint = tint.copy(0.7f))
+        MessageStatus.DELIVERED -> Icon(Icons.Default.DoneAll, null, Modifier.size(size), tint = tint.copy(0.7f))
+        MessageStatus.READ -> Icon(Icons.Default.DoneAll, null, Modifier.size(size), tint = MaterialTheme.colorScheme.tertiary)
+        MessageStatus.FAILED -> Icon(Icons.Default.Error, null, Modifier.size(size), tint = MaterialTheme.colorScheme.error)
         else -> {}
     }
 }

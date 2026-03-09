@@ -32,27 +32,24 @@ import com.p2p.meshify.ui.theme.MotionDurations
  */
 @Composable
 fun DiscoveryHeader(isSearching: Boolean) {
-    Surface(
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        shape = RoundedCornerShape(28.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    MeshifyCard(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             RadarPulseMorph(
                 isSearching = isSearching,
-                size = 40.dp
+                size = 44.dp
             )
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(16.dp))
 
             Text(
                 text = if (isSearching)
                     stringResource(R.string.searching_placeholder)
                 else stringResource(R.string.screen_discovery_title),
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSecondaryContainer
             )
         }
@@ -61,7 +58,6 @@ fun DiscoveryHeader(isSearching: Boolean) {
 
 /**
  * Main Discovery Screen Composable.
- * Updated with LastChat-style grouped items.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,8 +67,6 @@ fun DiscoveryScreen(
     onSettingsClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val motion = LocalMeshifyMotion.current
-    val settingsRepo = (LocalContext.current.applicationContext as com.p2p.meshify.MeshifyApp).container.settingsRepository
 
     Scaffold(
         topBar = {
@@ -80,10 +74,13 @@ fun DiscoveryScreen(
                 title = {
                     Text(
                         text = stringResource(R.string.screen_discovery_title),
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Black
                     )
-                }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
+                )
             )
         }
     ) { padding ->
@@ -95,15 +92,15 @@ fun DiscoveryScreen(
         ) {
             DiscoveryHeader(isSearching = uiState.isSearching)
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             if (uiState.discoveredPeers.isEmpty()) {
                 EmptyDiscoveryState(isSearching = uiState.isSearching)
             } else {
+                MeshifySectionHeader(stringResource(R.string.discovery_peers_found))
                 PeerList(
                     peers = uiState.discoveredPeers,
-                    onPeerClick = onPeerClick,
-                    settingsRepository = settingsRepo
+                    onPeerClick = onPeerClick
                 )
             }
         }
@@ -113,37 +110,32 @@ fun DiscoveryScreen(
 @Composable
 fun PeerList(
     peers: List<PeerDevice>,
-    onPeerClick: (PeerDevice) -> Unit,
-    settingsRepository: com.p2p.meshify.domain.repository.ISettingsRepository
+    onPeerClick: (PeerDevice) -> Unit
 ) {
     LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(2.dp), // Grouped look
-        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(28.dp)),
+        modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 24.dp)
     ) {
         itemsIndexed(peers, key = { _, peer -> peer.id }) { index, peer ->
-            val position = when {
-                peers.size == 1 -> ItemPosition.ONLY
-                index == 0 -> ItemPosition.FIRST
-                index == peers.size - 1 -> ItemPosition.LAST
-                else -> ItemPosition.MIDDLE
-            }
-
-            SettingGroupItem(
-                title = peer.name,
-                subtitle = peer.address,
-                icon = {
-                    SignalMorphAvatar(
+            MeshifyListItem(
+                headline = peer.name,
+                supporting = peer.address,
+                leadingContent = {
+                    MorphingAvatar(
                         initials = peer.name.take(1),
-                        signalStrength = peer.signalStrength,
-                        size = 40.dp
+                        isOnline = true, // Discovered peers are online
+                        size = 52.dp
                     )
                 },
-                trailing = { SignalStrengthBadge(peer.signalStrength) },
-                position = position,
-                settingsRepository = settingsRepository,
+                trailingContent = { SignalStrengthBadge(peer.signalStrength) },
                 onClick = { onPeerClick(peer) }
             )
+            if (index < peers.size - 1) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 84.dp, end = 16.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+            }
         }
     }
 }

@@ -10,6 +10,7 @@ sealed class TransportEvent {
         val deviceId: String,
         val deviceName: String,
         val address: String,
+        val avatarHash: String? = null,
         val rssi: Int? = null // RSSI signal strength in dBm (optional)
     ) : TransportEvent()
     data class DeviceLost(val deviceId: String) : TransportEvent()

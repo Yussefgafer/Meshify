@@ -34,6 +34,7 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
         val KEY_DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val KEY_HAPTIC_FEEDBACK = booleanPreferencesKey("haptic_feedback")
         val KEY_NETWORK_VISIBLE = booleanPreferencesKey("network_visible")
+        val KEY_AVATAR_HASH = stringPreferencesKey("avatar_hash")
 
         // MD3E Settings Keys
         val KEY_SHAPE_STYLE = stringPreferencesKey("shape_style")
@@ -68,6 +69,10 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
 
     override val isNetworkVisible: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[KEY_NETWORK_VISIBLE] ?: true
+    }
+
+    override val avatarHash: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[KEY_AVATAR_HASH]
     }
 
     // MD3E Settings Flows
@@ -149,6 +154,14 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
 
     override suspend fun setNetworkVisibility(visible: Boolean) {
         safeEdit { it[KEY_NETWORK_VISIBLE] = visible }
+    }
+
+    override suspend fun updateAvatarHash(hash: String?) {
+        if (hash != null) {
+            safeEdit { it[KEY_AVATAR_HASH] = hash }
+        } else {
+            safeEdit { it.remove(KEY_AVATAR_HASH) }
+        }
     }
 
     // MD3E Setting Mutators

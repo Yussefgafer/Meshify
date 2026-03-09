@@ -8,6 +8,7 @@
     
     <!-- Home / Recent Chats Screen -->
     <string name="screen_home_title">Meshify</string>
+    <string name="chats_recent_header">Recent Chats</string>
     <string name="no_recent_chats">No conversations yet</string>
     <string name="no_recent_chats_desc">Tap the pulse to discover nearby devices</string>
     <string name="last_msg_image">[Image]</string>
@@ -18,6 +19,7 @@
     
     <!-- Discovery Screen -->
     <string name="screen_discovery_title">Discovery</string>
+    <string name="discovery_peers_found">Found Peers</string>
     <string name="peer_discovered_format">%s Discovered</string>
     <string name="searching_placeholder">Searching for nearby devices...</string>
     <string name="no_peers_found">No peers found yet. Ensure Wi-Fi is enabled.</string>
