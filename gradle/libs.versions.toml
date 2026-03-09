@@ -16,8 +16,12 @@ googleFonts = "1.7.8"
 room = "2.8.0"
 coil3 = "3.4.0"
 datastore = "1.1.1"
+media3 = "1.5.1"
 
 [libraries]
+media3_exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
+media3_ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
+media3_session = { group = "androidx.media3", name = "media3-session", version.ref = "media3" }
 androidx_core_ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 google_material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }

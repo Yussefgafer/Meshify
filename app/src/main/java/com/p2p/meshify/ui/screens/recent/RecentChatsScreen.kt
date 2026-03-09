@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.p2p.meshify.R
 import com.p2p.meshify.data.local.entity.ChatEntity
+import androidx.compose.material3.HorizontalDivider
 import com.p2p.meshify.ui.components.*
 import com.p2p.meshify.ui.theme.MeshifyThemeProperties
 import java.text.SimpleDateFormat
@@ -46,7 +47,6 @@ fun RecentChatsScreen(
     val chats by viewModel.recentChats.collectAsState()
     val onlinePeers by viewModel.onlinePeers.collectAsState()
     val context = LocalContext.current
-    val settingsRepo = (context.applicationContext as com.p2p.meshify.MeshifyApp).container.settingsRepository
 
     var chatToDelete by remember { mutableStateOf<ChatEntity?>(null) }
 
@@ -63,7 +63,11 @@ fun RecentChatsScreen(
                     IconButton(onClick = onSettingsClick) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
+                )
             )
         },
         floatingActionButton = {
@@ -75,9 +79,12 @@ fun RecentChatsScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                contentPadding = PaddingValues(bottom = 80.dp) // Space for FAB
             ) {
+                item {
+                    MeshifySectionHeader(stringResource(R.string.chats_recent_header))
+                }
+                
                 itemsIndexed(chats, key = { _, chat -> chat.peerId }) { index, chat ->
                     val position = when {
                         chats.size == 1 -> ItemPosition.ONLY
@@ -90,10 +97,37 @@ fun RecentChatsScreen(
                         onDelete = { chatToDelete = chat },
                         position = position,
                     ) {
-                        ChatListItem(
-                            chat = chat,
-                            isOnline = onlinePeers.contains(chat.peerId),
+                        val isOnline = onlinePeers.contains(chat.peerId)
+                        MeshifyListItem(
+                            headline = chat.peerName,
+                            supporting = chat.lastMessage ?: stringResource(R.string.last_msg_none),
+                            leadingContent = {
+                                MorphingAvatar(
+                                    initials = chat.peerName.take(1),
+                                    isOnline = isOnline,
+                                    size = 56.dp
+                                )
+                            },
+                            trailingContent = {
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        text = formatRecentTime(chat.lastTimestamp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    if (isOnline) {
+                                        Spacer(Modifier.height(4.dp))
+                                        MeshifyPill("Online", MaterialTheme.colorScheme.primaryContainer)
+                                    }
+                                }
+                            },
                             onClick = { onChatClick(chat) }
+                        )
+                    }
+                    if (index < chats.size - 1) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = 88.dp, end = 16.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
                     }
                 }

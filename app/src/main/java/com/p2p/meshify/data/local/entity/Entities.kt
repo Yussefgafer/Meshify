@@ -45,7 +45,7 @@ data class PendingMessageEntity(
 )
 
 enum class MessageType {
-    TEXT, IMAGE, FILE
+    TEXT, IMAGE, VIDEO, FILE
 }
 
 enum class MessageStatus {

@@ -5,12 +5,18 @@ import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import com.p2p.meshify.core.config.AppConfig
 import com.p2p.meshify.core.util.Logger
+import com.p2p.meshify.core.util.FileUtils
 import com.p2p.meshify.domain.model.Payload
+import com.p2p.meshify.domain.model.Handshake
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.network.base.IMeshTransport
 import com.p2p.meshify.network.base.TransportEvent
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
+import java.io.File
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.util.concurrent.ConcurrentHashMap
@@ -90,6 +96,8 @@ class LanTransportImpl(
                 when (payload.type) {
                     Payload.PayloadType.SYSTEM_CONTROL -> handleSystemCommand(senderId, String(payload.data))
                     Payload.PayloadType.HANDSHAKE -> handleHandshake(senderId, address, payload)
+                    Payload.PayloadType.AVATAR_REQUEST -> handleAvatarRequest(senderId, String(payload.data))
+                    Payload.PayloadType.AVATAR_RESPONSE -> handleAvatarResponse(senderId, payload)
                     else -> _events.emit(TransportEvent.PayloadReceived(senderId, payload))
                 }
             }
@@ -111,20 +119,70 @@ class LanTransportImpl(
     }
 
     private suspend fun handleHandshake(senderId: String, address: String, payload: Payload) {
-        val name = String(payload.data).removePrefix("HELO_")
+        val handshake = try {
+            Json.decodeFromString<Handshake>(String(payload.data))
+        } catch (e: Exception) {
+            // Fallback for old simple String handshakes
+            Handshake(name = String(payload.data).removePrefix("HELO_"))
+        }
+
+        val name = handshake.name
+        val hash = handshake.avatarHash
+
         if (!peerMap.containsKey(senderId)) {
-            // Estimate RSSI from connection quality (simulated for LAN)
-            // In real WiFi Direct scenarios, this would come from WiFiManager
             val estimatedRssi = estimateRssiFromAddress(address)
-            _events.emit(TransportEvent.DeviceDiscovered(senderId, name, address, estimatedRssi))
+            _events.emit(TransportEvent.DeviceDiscovered(senderId, name, address, hash, estimatedRssi))
+            
+            // Reply with our handshake
             val myName = settingsRepository.displayName.first()
+            val myAvatarHash = settingsRepository.avatarHash.first()
+            val myHandshake = Handshake(myName, myAvatarHash)
+            
             sendPayload(senderId, Payload(
                 senderId = settingsRepository.getDeviceId(),
                 type = Payload.PayloadType.HANDSHAKE,
-                data = "HELO_$myName".toByteArray()
+                data = Json.encodeToString(myHandshake).toByteArray()
             ))
         }
+
+        // Auto-request avatar if we don't have it
+        if (hash != null) {
+            val existingPath = FileUtils.getFilePath(context, hash, "avatars")
+            if (existingPath == null) {
+                Logger.i("LanTransport -> Requesting missing avatar: $hash from $senderId")
+                sendPayload(senderId, Payload(
+                    senderId = settingsRepository.getDeviceId(),
+                    type = Payload.PayloadType.AVATAR_REQUEST,
+                    data = hash.toByteArray()
+                ))
+            }
+        }
+        
         _events.emit(TransportEvent.PayloadReceived(senderId, payload))
+    }
+
+    private suspend fun handleAvatarRequest(senderId: String, requestedHash: String) {
+        val myAvatarHash = settingsRepository.avatarHash.first()
+        if (myAvatarHash == requestedHash) {
+            val path = FileUtils.getFilePath(context, requestedHash, "avatars")
+            if (path != null) {
+                val bytes = File(path).readBytes()
+                Logger.i("LanTransport -> Sending avatar to $senderId (hash: $requestedHash)")
+                sendPayload(senderId, Payload(
+                    senderId = settingsRepository.getDeviceId(),
+                    type = Payload.PayloadType.AVATAR_RESPONSE,
+                    data = bytes
+                ))
+            }
+        }
+    }
+
+    private suspend fun handleAvatarResponse(senderId: String, payload: Payload) {
+        val bytes = payload.data
+        val hash = FileUtils.calculateHash(bytes)
+        Logger.i("LanTransport -> Received avatar from $senderId (hash: $hash)")
+        FileUtils.saveBytesToInternalStorage(context, hash, bytes, "avatars")
+        // No need to update local settings, the UI will find it by hash when needed
     }
 
     /**
@@ -315,11 +373,25 @@ class LanTransportImpl(
             scope.launch {
                 val myId = settingsRepository.getDeviceId()
                 if (peerId == myId) return@launch
+                
                 peerMap[peerId] = address
                 updateOnlinePeers()
-                // Estimate RSSI for discovered peer
+                
+                // Immediately send our Handshake to the newly resolved peer
+                val myName = settingsRepository.displayName.first()
+                val myAvatarHash = settingsRepository.avatarHash.first()
+                val myHandshake = Handshake(myName, myAvatarHash)
+                
+                Logger.i("LanTransport -> Resolved peer $peerId at $address. Sending Handshake.")
+                
+                sendPayload(peerId, Payload(
+                    senderId = myId,
+                    type = Payload.PayloadType.HANDSHAKE,
+                    data = Json.encodeToString(myHandshake).toByteArray()
+                ))
+
                 val estimatedRssi = estimateRssiFromAddress(address)
-                _events.emit(TransportEvent.DeviceDiscovered(peerId, "Peer_${peerId.take(4)}", address, estimatedRssi))
+                _events.emit(TransportEvent.DeviceDiscovered(peerId, "Peer_${peerId.take(4)}", address, null, estimatedRssi))
             }
         }
     }

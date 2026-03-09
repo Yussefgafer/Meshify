@@ -67,6 +67,20 @@ class ChatRepositoryImpl(
         return Result.success(Unit)
     }
 
+    override suspend fun sendVideo(peerId: String, peerName: String, videoBytes: ByteArray, extension: String, replyToId: String?): Result<Unit> {
+        val messageId = UUID.randomUUID().toString()
+        val myId = settingsRepository.getDeviceId()
+        val fileName = "sent_vid_$messageId.$extension"
+        val savedPath = fileManager.saveMedia(fileName, videoBytes)
+        val message = MessageEntity(
+            id = messageId, chatId = peerId, senderId = myId, text = null, mediaPath = savedPath,
+            type = MessageType.VIDEO, timestamp = System.currentTimeMillis(),
+            isFromMe = true, status = MessageStatus.QUEUED, replyToId = replyToId
+        )
+        saveAndSend(peerId, peerName, message, Payload.PayloadType.VIDEO, videoBytes)
+        return Result.success(Unit)
+    }
+
     override suspend fun deleteMessage(messageId: String, deleteType: DeleteType): Result<Unit> {
         val myId = settingsRepository.getDeviceId()
         val message = messageDao.getMessageById(messageId) ?: return Result.failure(Exception("Not found"))
@@ -165,6 +179,14 @@ class ChatRepositoryImpl(
                     val savedPath = fileManager.saveMedia(fileName, payload.data)
                     if (savedPath != null) {
                         saveIncomingMessage(payload.senderId, null, savedPath, MessageType.IMAGE, payload.timestamp, payload.id)
+                        sendSystemCommand(payload.senderId, "ACK_${payload.id}")
+                    }
+                }
+                Payload.PayloadType.VIDEO -> {
+                    val fileName = "vid_${payload.id}.mp4"
+                    val savedPath = fileManager.saveMedia(fileName, payload.data)
+                    if (savedPath != null) {
+                        saveIncomingMessage(payload.senderId, null, savedPath, MessageType.VIDEO, payload.timestamp, payload.id)
                         sendSystemCommand(payload.senderId, "ACK_${payload.id}")
                     }
                 }

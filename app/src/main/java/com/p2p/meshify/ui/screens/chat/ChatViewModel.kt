@@ -55,6 +55,20 @@ class ChatViewModel(
         }
     }
 
+    fun sendImage(bytes: ByteArray, extension: String) {
+        viewModelScope.launch {
+            repository.sendImage(peerId, peerName, bytes, extension, _uiState.value.replyTo?.id)
+            _uiState.update { it.copy(replyTo = null) }
+        }
+    }
+
+    fun sendVideo(bytes: ByteArray, extension: String) {
+        viewModelScope.launch {
+            repository.sendVideo(peerId, peerName, bytes, extension, _uiState.value.replyTo?.id)
+            _uiState.update { it.copy(replyTo = null) }
+        }
+    }
+
     fun deleteMessage(messageId: String, deleteType: DeleteType) {
         viewModelScope.launch {
             repository.deleteMessage(messageId, deleteType)

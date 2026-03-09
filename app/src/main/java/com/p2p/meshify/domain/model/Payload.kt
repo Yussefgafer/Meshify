@@ -20,7 +20,10 @@ data class Payload(
         SYSTEM_CONTROL,
         DELETE_REQUEST,
         REACTION,
-        DELIVERY_ACK
+        DELIVERY_ACK,
+        AVATAR_REQUEST,
+        AVATAR_RESPONSE,
+        VIDEO
     }
 
     override fun equals(other: Any?): Boolean {
@@ -34,6 +37,12 @@ data class Payload(
         return id.hashCode()
     }
 }
+
+@Serializable
+data class Handshake(
+    val name: String,
+    val avatarHash: String? = null
+)
 
 @Serializable
 enum class DeleteType {

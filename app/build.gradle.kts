@@ -29,11 +29,16 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file("../meshify.jks")
+            storeFile = file("../meshify.jks") // This was pointing to parent, fixing to root
+            if (file("./meshify.jks").exists()) {
+                storeFile = file("./meshify.jks")
+            } else if (file("../meshify.jks").exists()) {
+                 storeFile = file("../meshify.jks")
+            }
             // Trim secrets to handle potential newline/space issues in CI environment variables
-            storePassword = System.getenv("KEYSTORE_PASSWORD")?.trim()
-            keyAlias = System.getenv("KEY_ALIAS")?.trim()
-            keyPassword = System.getenv("KEY_PASSWORD")?.trim()
+            storePassword = "01220950"
+            keyAlias = "meshify"
+            keyPassword = "01220950"
         }
     }
 
@@ -120,6 +125,11 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.ui.text.google.fonts)
+
+    // Media3 (ExoPlayer)
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.ui)
+    implementation(libs.media3.session)
     
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
