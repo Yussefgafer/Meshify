@@ -8,6 +8,7 @@ import com.p2p.meshify.network.base.*
 import com.p2p.meshify.domain.repository.IFileManager
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.core.util.NotificationHelper
+import com.p2p.meshify.domain.repository.ISettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -18,7 +19,6 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.util.*
-import com.p2p.meshify.domain.repository.ISettingsRepository
 
 class ChatRepositoryImpl(
     private val chatDao: ChatDao,
