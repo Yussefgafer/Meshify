@@ -20,11 +20,12 @@ local.properties
 
 *.apk
 *.aab
-
 *.jks
 *.keystore
-
 *.log
+*.old
+*.backup
+*~
 log_device1.txt
 
 .DS_Store

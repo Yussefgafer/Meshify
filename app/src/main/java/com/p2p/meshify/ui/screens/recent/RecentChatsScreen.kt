@@ -29,6 +29,7 @@ import com.p2p.meshify.R
 import com.p2p.meshify.data.local.entity.ChatEntity
 import androidx.compose.material3.HorizontalDivider
 import com.p2p.meshify.ui.components.*
+import com.p2p.meshify.ui.theme.MeshifyDesignSystem
 import com.p2p.meshify.ui.theme.MeshifyThemeProperties
 import java.text.SimpleDateFormat
 import java.util.*
@@ -79,7 +80,7 @@ fun RecentChatsScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(bottom = 80.dp) // Space for FAB
+                contentPadding = PaddingValues(bottom = MeshifyDesignSystem.Spacing.Xxl)
             ) {
                 item {
                     MeshifySectionHeader(stringResource(R.string.chats_recent_header))
@@ -116,7 +117,7 @@ fun RecentChatsScreen(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     if (isOnline) {
-                                        Spacer(Modifier.height(4.dp))
+                                        Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xxs))
                                         MeshifyPill("Online", MaterialTheme.colorScheme.primaryContainer)
                                     }
                                 }
@@ -126,7 +127,7 @@ fun RecentChatsScreen(
                     }
                     if (index < chats.size - 1) {
                         HorizontalDivider(
-                            modifier = Modifier.padding(start = 88.dp, end = 16.dp),
+                            modifier = Modifier.padding(start = 88.dp, end = MeshifyDesignSystem.Spacing.Md),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
                     }

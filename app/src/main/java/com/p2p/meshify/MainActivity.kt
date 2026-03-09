@@ -25,7 +25,7 @@ import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.FontFamilyPreset
 import com.p2p.meshify.domain.model.MotionPreset
 import com.p2p.meshify.network.service.MeshForegroundService
-import com.p2p.meshify.ui.components.NoiseTextureOverlay
+import com.p2p.meshify.ui.components.PremiumNoiseTexture
 import com.p2p.meshify.ui.navigation.MeshifyNavDisplay
 import com.p2p.meshify.ui.theme.MD3EFontFamilies
 import com.p2p.meshify.ui.theme.MeshifyTheme
@@ -113,10 +113,15 @@ class MainActivity : ComponentActivity() {
                         Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
                     } else {
                         Box(modifier = Modifier.fillMaxSize()) {
-                            Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                            // High-end tactile feel
+                            PremiumNoiseTexture(alpha = 0.03f)
+                            
+                            Surface(
+                                modifier = Modifier.fillMaxSize(), 
+                                color = Color.Transparent
+                            ) {
                                 MeshifyNavDisplay(context = this@MainActivity, navController = navController, appContainer = appContainer)
                             }
-                            NoiseTextureOverlay(modifier = Modifier.zIndex(-1f), alpha = 0.02f)
                         }
                     }
                 }

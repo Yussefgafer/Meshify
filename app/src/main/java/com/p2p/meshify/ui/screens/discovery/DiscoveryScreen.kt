@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.p2p.meshify.R
 import com.p2p.meshify.ui.components.*
+import com.p2p.meshify.ui.theme.MeshifyDesignSystem
 import com.p2p.meshify.ui.theme.LocalMeshifyMotion
 import com.p2p.meshify.ui.theme.MotionDurations
 
@@ -88,11 +89,11 @@ fun DiscoveryScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = MeshifyDesignSystem.Spacing.Md)
         ) {
             DiscoveryHeader(isSearching = uiState.isSearching)
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Lg))
 
             if (uiState.discoveredPeers.isEmpty()) {
                 EmptyDiscoveryState(isSearching = uiState.isSearching)
@@ -114,7 +115,7 @@ fun PeerList(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 24.dp)
+        contentPadding = PaddingValues(bottom = MeshifyDesignSystem.Spacing.Xxl)
     ) {
         itemsIndexed(peers, key = { _, peer -> peer.id }) { index, peer ->
             MeshifyListItem(
@@ -132,7 +133,7 @@ fun PeerList(
             )
             if (index < peers.size - 1) {
                 HorizontalDivider(
-                    modifier = Modifier.padding(start = 84.dp, end = 16.dp),
+                    modifier = Modifier.padding(start = 84.dp, end = MeshifyDesignSystem.Spacing.Md),
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                 )
             }
