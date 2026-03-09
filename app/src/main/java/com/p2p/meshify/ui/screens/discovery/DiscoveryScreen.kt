@@ -58,7 +58,7 @@ fun DiscoveryHeader(isSearching: Boolean) {
 @Composable
 fun DiscoveryScreen(
     viewModel: DiscoveryViewModel,
-    onPeerClick: (com.p2p.meshify.ui.screens.discovery.PeerDevice) -> Unit,
+    onPeerClick: (PeerDevice) -> Unit,
     onSettingsClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -104,8 +104,8 @@ fun DiscoveryScreen(
 
 @Composable
 fun PeerList(
-    peers: List<com.p2p.meshify.ui.screens.discovery.PeerDevice>,
-    onPeerClick: (com.p2p.meshify.ui.screens.discovery.PeerDevice) -> Unit
+    peers: List<PeerDevice>,
+    onPeerClick: (PeerDevice) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
