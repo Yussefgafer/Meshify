@@ -1,4 +1,3 @@
-# IntelliJ / Android Studio
 .idea/
 *.iml
 .gradle
@@ -9,28 +8,25 @@
 /.idea/workspace.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
+/docs/analysis
+/docs/Examples
 .DS_Store
 
-# Build
 /build
 /captures
 .externalNativeBuild
 .cxx
 local.properties
 
-# Android App Artifacts
 *.apk
 *.aab
 
-# Keystore Files (CRITICAL: NEVER COMMIT THESE)
 *.jks
 *.keystore
 
-# Log files
 *.log
 log_device1.txt
 
-# OS Files
 .DS_Store
 Thumbs.db
 MESHIFY_KEYSTORE_BASE64.txt
