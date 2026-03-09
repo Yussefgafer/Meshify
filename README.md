@@ -20,6 +20,21 @@ This entire codebase, architecture, and UI logic were architected and implemente
 [![Compose](https://img.shields.io/badge/Jetpack_Compose-Material_3_Expressive-4285F4?logo=android)](https://developer.android.com/jetpack/compose)
 
 
+<p align="center">
+  <img src="https://img.shields.io/github/repo-size/Yussefgafer/Meshify" alt="Repo size">
+  <img src="https://github.com/Yussefgafer/Meshify/actions/workflows/android.yml/badge.svg" alt="Build Status">
+  <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License">
+  <img src="https://img.shields.io/badge/Kotlin-2.3.10-blue.svg" alt="Kotlin">
+  <img src="https://img.shields.io/badge/API-21%2B-brightgreen.svg" alt="Min API">
+  <img src="https://img.shields.io/badge/Material%20Design-3-purple.svg" alt="Material 3">
+  <img src="https://img.shields.io/github/v/release/Yussefgafer/Meshify" alt="Latest release">
+  <img src="https://img.shields.io/badge/Gradle-8.2-02303A.svg?logo=gradle" alt="Gradle">
+  <img src="https://raw.githubusercontent.com/TheBSD/StandWithPalestine/main/badges/StandWithPalestine.svg" alt="StandWithPalestine">
+</p>
+
+
+
+
 - **The most of these readme is wrote by llm**
 ---
 
