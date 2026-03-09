@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,368 +30,166 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.p2p.meshify.R
-import com.p2p.meshify.data.local.entity.MessageEntity
-import com.p2p.meshify.data.local.entity.MessageStatus
-import com.p2p.meshify.data.local.entity.MessageType
+import com.p2p.meshify.data.local.entity.*
+import com.p2p.meshify.domain.model.DeleteType
 import com.p2p.meshify.ui.components.*
 import com.p2p.meshify.ui.theme.LocalMeshifyThemeConfig
 import com.p2p.meshify.ui.theme.StatusOnline
 import com.p2p.meshify.ui.theme.getBubbleShape
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatScreen(
-    viewModel: ChatViewModel,
-    onBackClick: () -> Unit
-) {
-    val groupedMessages by viewModel.groupedMessages.collectAsState()
-    val peerName by viewModel.peerName.collectAsState()
-    val isOnline by viewModel.isOnline.collectAsState()
-    val isPeerTyping by viewModel.isPeerTyping.collectAsState()
-    val inputText by viewModel.inputText.collectAsState()
-    val pendingImage by viewModel.pendingImageUri.collectAsState()
-    val selectedIds by viewModel.selectedMessageIds.collectAsState()
-    val settingsRepo = (LocalContext.current.applicationContext as com.p2p.meshify.MeshifyApp).container.settingsRepository
-
+fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBackClick: () -> Unit) {
+    val uiState by viewModel.uiState.collectAsState()
+    val themeConfig = LocalMeshifyThemeConfig.current
     val listState = rememberLazyListState()
-    val haptic = LocalHapticFeedback.current
+    val clipboard = LocalClipboardManager.current
     var selectedFullImage by remember { mutableStateOf<String?>(null) }
+    var menuMessage by remember { mutableStateOf<MessageEntity?>(null) }
 
-    val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        uri?.let { viewModel.setPendingImage(it) }
-    }
-
-    LaunchedEffect(groupedMessages.size) {
-        if (groupedMessages.isNotEmpty()) {
-            val lastIndex = groupedMessages.size - 1
-            val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            if (lastVisibleIndex >= lastIndex - 2) {
-                listState.scrollToItem(lastIndex)
-            }
-        }
+    LaunchedEffect(uiState.messages.size) {
+        if (uiState.messages.isNotEmpty()) listState.animateScrollToItem(uiState.messages.size - 1)
     }
 
     Scaffold(
         topBar = {
-            if (selectedIds.isEmpty()) {
-                TopAppBar(
-                    title = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            MorphingAvatar(
-                                initials = peerName.take(1),
-                                isOnline = isOnline,
-                                size = 40.dp
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(text = peerName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                Text(
-                                    text = if (isPeerTyping) stringResource(R.string.typing_indicator)
-                                           else if (isOnline) stringResource(R.string.status_online)
-                                           else stringResource(R.string.status_offline),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = if (isPeerTyping || isOnline) StatusOnline else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+            TopAppBar(
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        MorphingAvatar(initials = peerName.take(1), isOnline = uiState.isOnline, size = 40.dp)
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text(peerName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(Modifier.size(8.dp).background(if (uiState.isOnline) Color.Green else Color.Gray, CircleShape))
+                                Spacer(Modifier.width(4.dp))
+                                Text(if (uiState.isOnline) "Online" else "Offline", style = MaterialTheme.typography.labelSmall, color = if (uiState.isOnline) StatusOnline else Color.Gray)
                             }
                         }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBackClick) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.content_desc_back))
-                        }
-                    }
-                )
-            } else {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.msg_selected_count, selectedIds.size)) },
-                    navigationIcon = {
-                        IconButton(onClick = { viewModel.clearSelection() }) {
-                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.content_desc_cancel))
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = { /* Handle delete */ }) {
-                            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.content_desc_delete), tint = MaterialTheme.colorScheme.error)
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-                )
-            }
-        },
-        bottomBar = {
-            // ✅ Using the new StandardChatInput ported from LastChat
-            StandardChatInput(
-                text = inputText,
-                onTextChange = viewModel::onInputChanged,
-                onSend = viewModel::sendMessage,
-                onAttachClick = { type ->
-                    when(type) {
-                        "image" -> photoPickerLauncher.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                        "camera" -> { /* Handle camera */ }
-                        "file" -> { /* Handle file */ }
                     }
                 },
-                settingsRepository = settingsRepo
+                navigationIcon = { IconButton(onClick = onBackClick) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } }
             )
-        }
-    ) { padding ->
-        LazyColumn(
-            state = listState,
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            modifier = Modifier.fillMaxSize().padding(padding)
-        ) {
-            itemsIndexed(groupedMessages, key = { _, gm -> gm.message.id }) { _, groupedMessage ->
-                MessageBubble(
-                    message = groupedMessage.message,
-                    isSelected = selectedIds.contains(groupedMessage.message.id),
-                    isGroupedWithPrevious = groupedMessage.isGroupedWithPrevious,
-                    isGroupedWithNext = groupedMessage.isGroupedWithNext,
-                    showAvatar = groupedMessage.showAvatar,
-                    avatarInitials = peerName.take(1),
-                    isOnline = isOnline,
-                    onLongClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        viewModel.toggleMessageSelection(groupedMessage.message.id)
-                    },
-                    onClick = {
-                        if (selectedIds.isNotEmpty()) viewModel.toggleMessageSelection(groupedMessage.message.id)
-                    },
-                    onImageClick = { path ->
-                        if (selectedIds.isEmpty()) selectedFullImage = path
-                        else viewModel.toggleMessageSelection(groupedMessage.message.id)
-                    },
-                    selectedIds = selectedIds
-                )
-
-                Spacer(modifier = Modifier.height(if (!groupedMessage.isGroupedWithNext) 8.dp else 2.dp))
+        },
+        bottomBar = {
+            Column {
+                uiState.replyTo?.let { reply ->
+                    Surface(modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceVariant) {
+                        Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.width(4.dp).height(40.dp).background(MaterialTheme.colorScheme.primary))
+                            Column(Modifier.padding(horizontal = 8.dp).weight(1f)) {
+                                Text(if (reply.isFromMe) "You" else peerName, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                Text(reply.text ?: "[Image]", style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                            }
+                            IconButton(onClick = { viewModel.setReplyTo(null) }) { Icon(Icons.Default.Close, null) }
+                        }
+                    }
+                }
+                StandardChatInput(text = uiState.inputText, onTextChange = viewModel::onInputChanged, onSend = viewModel::sendMessage, onAttachClick = { })
             }
         }
-
-        selectedFullImage?.let { path ->
-            FullImageViewer(imagePath = path, onDismiss = { selectedFullImage = null })
+    ) { padding ->
+        LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp)) {
+            itemsIndexed(uiState.messages, key = { _, m -> m.id }) { index, message ->
+                MessageBubble(
+                    message = message,
+                    peerName = peerName,
+                    bubbleStyle = themeConfig.bubbleStyle,
+                    onLongClick = { menuMessage = message },
+                    onImageClick = { selectedFullImage = it },
+                    onReactionClick = { viewModel.addReaction(message.id, it) }
+                )
+                Spacer(Modifier.height(4.dp))
+            }
         }
     }
+
+    if (menuMessage != null) {
+        ModalBottomSheet(onDismissRequest = { menuMessage = null }) {
+            val msg = menuMessage!!
+            Column(Modifier.padding(bottom = 32.dp)) {
+                Row(Modifier.fillMaxWidth().padding(16.dp), Arrangement.SpaceEvenly) {
+                    listOf("👍", "❤️", "😂", "😮", "😢", "❌").forEach { emoji ->
+                        TextButton(onClick = { viewModel.addReaction(msg.id, emoji); menuMessage = null }) { Text(emoji, fontSize = 24.sp) }
+                    }
+                }
+                ListItem(headlineContent = { Text("Reply") }, leadingContent = { Icon(Icons.AutoMirrored.Filled.Reply, null) }, modifier = Modifier.clickable { viewModel.setReplyTo(msg); menuMessage = null })
+                ListItem(headlineContent = { Text("Copy") }, leadingContent = { Icon(Icons.Default.ContentCopy, null) }, modifier = Modifier.clickable { clipboard.setText(AnnotatedString(msg.text ?: "")); menuMessage = null })
+                ListItem(headlineContent = { Text("Delete for Me") }, leadingContent = { Icon(Icons.Default.Delete, null) }, modifier = Modifier.clickable { viewModel.deleteMessage(msg.id, DeleteType.DELETE_FOR_ME); menuMessage = null })
+                if (msg.isFromMe) ListItem(headlineContent = { Text("Delete for Everyone", color = Color.Red) }, leadingContent = { Icon(Icons.Default.DeleteForever, null, tint = Color.Red) }, modifier = Modifier.clickable { viewModel.deleteMessage(msg.id, DeleteType.DELETE_FOR_EVERYONE); menuMessage = null })
+            }
+        }
+    }
+
+    if (selectedFullImage != null) FullImageViewer(selectedFullImage!!) { selectedFullImage = null }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun MessageBubble(
-    message: MessageEntity,
-    isSelected: Boolean,
-    isGroupedWithPrevious: Boolean,
-    isGroupedWithNext: Boolean,
-    showAvatar: Boolean = false,
-    avatarInitials: String = "",
-    isOnline: Boolean = false,
-    onLongClick: () -> Unit,
-    onClick: () -> Unit,
-    onImageClick: (String) -> Unit,
-    selectedIds: Set<String> = emptySet()
-) {
-    val context = LocalContext.current
-    val themeConfig = LocalMeshifyThemeConfig.current
-
-    val containerColor = if (isSelected) {
-        MaterialTheme.colorScheme.secondaryContainer
-    } else if (message.isFromMe) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        MaterialTheme.colorScheme.surfaceContainerHigh
-    }
-
-    val contentColor = if (message.isFromMe) {
-        MaterialTheme.colorScheme.onPrimaryContainer
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-
-    val timeColor = if (message.isFromMe) {
-        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.65f)
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
-    }
-
-    val bubblePadding = if (message.type == MessageType.TEXT) {
-        PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-    } else {
-        PaddingValues(horizontal = 4.dp, vertical = 4.dp)
-    }
+fun MessageBubble(message: MessageEntity, peerName: String, bubbleStyle: com.p2p.meshify.domain.model.BubbleStyle, onLongClick: () -> Unit, onImageClick: (String) -> Unit, onReactionClick: (String?) -> Unit) {
+    val alignment = if (message.isFromMe) Alignment.End else Alignment.Start
+    val containerColor = if (message.isFromMe) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
 
     val shape = getBubbleShape(
-        bubbleStyle = themeConfig.bubbleStyle,
+        bubbleStyle = bubbleStyle,
         isFromMe = message.isFromMe,
-        isGroupedWithPrevious = isGroupedWithPrevious,
-        isGroupedWithNext = isGroupedWithNext
+        isGroupedWithPrevious = false,
+        isGroupedWithNext = false
     )
 
-    val alignment = if (message.isFromMe) Alignment.End else Alignment.Start
+    Column(Modifier.fillMaxWidth().combinedClickable(onClick = { }, onLongClick = onLongClick), horizontalAlignment = alignment) {
+        Surface(shape = shape, color = containerColor) {
+            Column(Modifier.padding(8.dp)) {
+                if (message.isDeletedForEveryone) {
+                    Text("This message was deleted", style = MaterialTheme.typography.bodyMedium, fontStyle = FontStyle.Italic, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    if (message.replyToId != null) {
+                        Text("Replying to...", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    }
+                    message.text?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
+                    message.mediaPath?.let { AsyncImage(it, null, Modifier.size(200.dp).clip(RoundedCornerShape(8.dp)).clickable { onImageClick(it) }, contentScale = ContentScale.Crop) }
+                }
 
-    if (!message.isFromMe && showAvatar) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Bottom
-        ) {
-            MorphingAvatar(
-                initials = avatarInitials,
-                isOnline = isOnline,
-                size = 32.dp
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            MessageBubbleContent(
-                message = message,
-                isSelected = isSelected,
-                containerColor = containerColor,
-                contentColor = contentColor,
-                timeColor = timeColor,
-                shape = shape,
-                bubblePadding = bubblePadding,
-                context = context,
-                selectedIds = selectedIds,
-                onLongClick = onLongClick,
-                onClick = onClick,
-                onImageClick = onImageClick
-            )
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.align(Alignment.End)) {
+                    Text(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.timestamp)), style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
+                    if (message.isFromMe) {
+                        Spacer(Modifier.width(4.dp))
+                        StatusIcon(message.status)
+                    }
+                }
+            }
         }
-    } else {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .combinedClickable(
-                    onClick = onClick,
-                    onLongClick = onLongClick
-                ),
-            horizontalAlignment = alignment
-        ) {
-            MessageBubbleContent(
-                message = message,
-                isSelected = isSelected,
-                containerColor = containerColor,
-                contentColor = contentColor,
-                timeColor = timeColor,
-                shape = shape,
-                bubblePadding = bubblePadding,
-                context = context,
-                selectedIds = selectedIds,
-                onLongClick = onLongClick,
-                onClick = onClick,
-                onImageClick = onImageClick
-            )
+        message.reaction?.let { reaction ->
+            Surface(modifier = Modifier.offset(y = (-8).dp), shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.secondaryContainer, onClick = { onReactionClick(null) }) {
+                Text(reaction, Modifier.padding(horizontal = 6.dp, vertical = 2.dp), fontSize = 14.sp)
+            }
         }
     }
 }
 
 @Composable
-fun MessageBubbleContent(
-    message: MessageEntity,
-    isSelected: Boolean,
-    containerColor: Color,
-    contentColor: Color,
-    timeColor: Color,
-    shape: RoundedCornerShape,
-    bubblePadding: PaddingValues,
-    context: android.content.Context,
-    selectedIds: Set<String>,
-    onLongClick: () -> Unit,
-    onClick: () -> Unit,
-    onImageClick: (String) -> Unit
-) {
-    Surface(
-        color = containerColor,
-        shape = shape,
-        tonalElevation = if (isSelected) 8.dp else 1.dp,
-        modifier = Modifier
-            .widthIn(max = 280.dp)
-            .then(
-                if (!message.isFromMe) {
-                    Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
-                } else {
-                    Modifier
-                }
-            )
-    ) {
-        Column(
-            modifier = Modifier.padding(bubblePadding)
-        ) {
-            if (message.type == MessageType.IMAGE || message.mediaPath != null) {
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(message.mediaPath)
-                        .memoryCacheKey(message.id)
-                        .diskCacheKey(message.id)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 400.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .clickable {
-                            if (selectedIds.isEmpty()) {
-                                onImageClick(message.mediaPath ?: "")
-                            }
-                        },
-                    contentScale = ContentScale.Crop
-                )
-                if (!message.text.isNullOrEmpty()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = message.text,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = contentColor
-                    )
-                }
-            } else {
-                Text(
-                    text = message.text ?: "",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = contentColor,
-                    lineHeight = 22.sp
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .align(Alignment.End)
-                    .padding(top = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.timestamp)),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = timeColor,
-                    fontSize = 10.sp
-                )
-                if (message.isFromMe) {
-                    Spacer(modifier = Modifier.width(4.dp))
-                    val statusIcon = when (message.status) {
-                        MessageStatus.FAILED -> Icons.Default.Error
-                        MessageStatus.RECEIVED -> Icons.Default.DoneAll
-                        else -> Icons.Default.Check
-                    }
-                    Icon(
-                        imageVector = statusIcon,
-                        contentDescription = null,
-                        modifier = Modifier.size(12.dp),
-                        tint = if (message.status == MessageStatus.FAILED) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            timeColor
-                        }
-                    )
-                }
-            }
-        }
+fun StatusIcon(status: MessageStatus) {
+    when (status) {
+        MessageStatus.QUEUED -> Icon(Icons.Default.Schedule, null, Modifier.size(12.dp))
+        MessageStatus.SENDING -> CircularProgressIndicator(Modifier.size(10.dp), strokeWidth = 1.dp)
+        MessageStatus.SENT -> Icon(Icons.Default.Check, null, Modifier.size(12.dp))
+        MessageStatus.DELIVERED -> Icon(Icons.Default.DoneAll, null, Modifier.size(12.dp))
+        MessageStatus.READ -> Icon(Icons.Default.DoneAll, null, Modifier.size(12.dp), tint = MaterialTheme.colorScheme.primary)
+        MessageStatus.FAILED -> Icon(Icons.Default.Error, null, Modifier.size(12.dp), tint = Color.Red)
+        else -> {}
     }
 }
