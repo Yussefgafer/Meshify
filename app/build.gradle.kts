@@ -28,16 +28,20 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            // Priority: Root dir (for CI) -> Parent dir (for legacy local)
-            val ksFile = file("../meshify.jks")
-            val rootKsFile = file("./meshify.jks")
-            storeFile = if (rootKsFile.exists()) rootKsFile else ksFile
-            
-            // Priority: Environment variables (for CI) -> Hardcoded (for local)
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "01220950"
-            keyAlias = System.getenv("KEY_ALIAS") ?: "meshify"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: "01220950"
+        val ksPass = System.getenv("KEYSTORE_PASSWORD")
+        val kAlias = System.getenv("KEY_ALIAS")
+        val kPass = System.getenv("KEY_PASSWORD")
+        val ksFile = file("./meshify.jks")
+        val ksFileParent = file("../meshify.jks")
+        val finalKsFile = if (ksFile.exists()) ksFile else if (ksFileParent.exists()) ksFileParent else null
+
+        if (ksPass != null && kAlias != null && kPass != null && finalKsFile != null) {
+            create("release") {
+                storeFile = finalKsFile
+                storePassword = ksPass
+                keyAlias = kAlias
+                keyPassword = kPass
+            }
         }
     }
 
@@ -45,17 +49,18 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            // تفعيل التوقيع للـ Release
-            signingConfig = signingConfigs.getByName("release")
+
+            val releaseSigning = signingConfigs.findByName("release")
+            if (releaseSigning != null) {
+                signingConfig = releaseSigning
+            }
             
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
         }
         debug {
-            // Minification in debug can be slow and prevents easy debugging
             isMinifyEnabled = false
             isShrinkResources = false
             proguardFiles(
@@ -90,8 +95,7 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
         freeCompilerArgs.addAll(
             "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
-            "-opt-in=androidx.compose.material3.ExperimentalMaterial3ExpressiveApi",
-            "-opt-in=androidx.graphics.shapes.ExperimentalGraphicsShapesApi"
+            "-opt-in=androidx.compose.material3.ExperimentalMaterial3ExpressiveApi"
         )
     }
 }

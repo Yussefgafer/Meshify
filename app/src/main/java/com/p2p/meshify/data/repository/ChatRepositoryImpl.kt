@@ -1,52 +1,47 @@
 package com.p2p.meshify.data.repository
 
-import com.p2p.meshify.core.util.*
 import com.p2p.meshify.data.local.dao.*
 import com.p2p.meshify.data.local.entity.*
 import com.p2p.meshify.domain.model.*
-import com.p2p.meshify.domain.repository.*
-import com.p2p.meshify.network.base.IMeshTransport
-import com.p2p.meshify.network.lan.LanTransportImpl
-import kotlinx.coroutines.*
+import com.p2p.meshify.domain.repository.IChatRepository
+import com.p2p.meshify.network.base.*
+import com.p2p.meshify.domain.repository.IFileManager
+import com.p2p.meshify.core.util.Logger
+import com.p2p.meshify.core.util.NotificationHelper
+import com.p2p.meshify.domain.repository.ISettingsRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.util.*
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+import java.io.File
+import java.util.*
 
 class ChatRepositoryImpl(
     private val chatDao: ChatDao,
     private val messageDao: MessageDao,
     private val pendingMessageDao: PendingMessageDao,
     private val meshTransport: IMeshTransport,
-    private val settingsRepository: ISettingsRepository,
     private val fileManager: IFileManager,
-    private val notificationHelper: NotificationHelper
+    private val notificationHelper: NotificationHelper,
+    private val settingsRepository: ISettingsRepository
 ) : IChatRepository {
 
+    private val scope = CoroutineScope(Dispatchers.IO)
     private val payloadMutex = Mutex()
 
     override fun getAllChats(): Flow<List<ChatEntity>> = chatDao.getAllChats()
+
     override fun getMessages(chatId: String): Flow<List<MessageEntity>> = messageDao.getAllMessagesForChat(chatId)
-    override fun getMessagesPaged(chatId: String, limit: Int, offset: Int): Flow<List<MessageEntity>> = messageDao.getMessagesPaged(chatId, limit, offset)
 
-    override val onlinePeers: Flow<Set<String>> = if (meshTransport is LanTransportImpl) meshTransport.onlinePeers else flowOf(emptySet())
-    override val typingPeers: Flow<Set<String>> = if (meshTransport is LanTransportImpl) meshTransport.typingPeers else flowOf(emptySet())
+    override fun getMessagesPaged(chatId: String, limit: Int, offset: Int): Flow<List<MessageEntity>> =
+        messageDao.getMessagesPaged(chatId, limit, offset)
 
-    private fun parseName(rawName: String): String {
-        return try {
-            if (rawName.startsWith("{")) {
-                val handshake = Json.decodeFromString<Handshake>(rawName)
-                handshake.name
-            } else {
-                rawName.removePrefix("HELO_")
-            }
-        } catch (e: Exception) {
-            rawName.removePrefix("HELO_")
-        }
-    }
+    override val onlinePeers: Flow<Set<String>> = meshTransport.onlinePeers
+    override val typingPeers: Flow<Set<String>> = meshTransport.typingPeers
 
     override suspend fun sendSystemCommand(peerId: String, command: String) {
         val myId = settingsRepository.getDeviceId()
@@ -108,6 +103,11 @@ class ChatRepositoryImpl(
         return Result.success(Unit)
     }
 
+    override suspend fun deleteChat(peerId: String) {
+        chatDao.deleteChatById(peerId)
+        messageDao.deleteAllMessagesForChat(peerId)
+    }
+
     override suspend fun addReaction(messageId: String, reaction: String?): Result<Unit> {
         val myId = settingsRepository.getDeviceId()
         val message = messageDao.getMessageById(messageId) ?: return Result.failure(Exception("Not found"))
@@ -154,8 +154,23 @@ class ChatRepositoryImpl(
         pending.forEach { pm ->
             val msg = messageDao.getMessageById(pm.id)
             if (msg != null) {
-                val payloadType = if (msg.type == MessageType.TEXT) Payload.PayloadType.TEXT else Payload.PayloadType.FILE
-                val data = msg.text?.toByteArray() ?: byteArrayOf()
+                val data: ByteArray = when (msg.type) {
+                    MessageType.TEXT -> msg.text?.toByteArray() ?: byteArrayOf()
+                    MessageType.IMAGE, MessageType.VIDEO, MessageType.FILE -> {
+                        val path = msg.mediaPath
+                        if (path != null) {
+                            try { File(path).readBytes() }
+                            catch (e: Exception) {
+                                Logger.e("ChatRepo -> Failed to read media for retry: $path"); byteArrayOf()
+                            }
+                        } else byteArrayOf()
+                    }
+                }
+                val payloadType = when (msg.type) {
+                    MessageType.TEXT -> Payload.PayloadType.TEXT
+                    MessageType.VIDEO -> Payload.PayloadType.VIDEO
+                    else -> Payload.PayloadType.FILE
+                }
                 val payload = Payload(id = msg.id, senderId = msg.senderId, timestamp = msg.timestamp, type = payloadType, data = data)
                 if (meshTransport.sendPayload(peerId, payload).isSuccess) {
                     messageDao.updateMessageStatus(msg.id, MessageStatus.SENT)
@@ -222,5 +237,11 @@ class ChatRepositoryImpl(
         val message = MessageEntity(id = messageId, chatId = peerId, senderId = peerId, text = text, mediaPath = mediaPath, type = type, timestamp = timestamp, isFromMe = false, status = MessageStatus.SENT)
         messageDao.insertMessage(message)
         notificationHelper.showMessageNotification(finalName, message)
+    }
+
+    private fun parseName(raw: String): String {
+        return if (raw.contains("name")) {
+             try { Json.decodeFromString<Handshake>(raw).name } catch(e:Exception) { raw.take(20) }
+        } else raw.removePrefix("HELO_")
     }
 }

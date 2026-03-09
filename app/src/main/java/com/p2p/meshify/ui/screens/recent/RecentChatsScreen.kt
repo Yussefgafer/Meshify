@@ -140,6 +140,7 @@ fun RecentChatsScreen(
                 title = "Delete Conversation",
                 text = "Are you sure you want to delete the conversation with ${chat.peerName}?",
                 onConfirm = {
+                    chatToDelete?.let { viewModel.deleteChat(it.peerId) }
                     chatToDelete = null
                 },
                 onDismiss = { chatToDelete = null }
@@ -192,7 +193,7 @@ fun EmptyChatsState(padding: PaddingValues) {
     ) {
         Text(stringResource(R.string.no_recent_chats), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(modifier = Modifier.height(8.dp))
-        Text(stringResource(R.string.no_recent_chats_desc), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+        Text("Tap the + button to discover nearby devices", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
     }
 }
 

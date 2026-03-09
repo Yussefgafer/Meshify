@@ -48,9 +48,9 @@ class AppContainer(private val context: Context) {
             database.messageDao(),
             database.pendingMessageDao(),
             lanTransport,
-            settingsRepository,
             fileManager,
-            notificationHelper
+            notificationHelper,
+            settingsRepository
         )
     }
 

@@ -28,9 +28,6 @@ import com.p2p.meshify.ui.theme.MeshifyDesignSystem
 import com.p2p.meshify.ui.theme.LocalMeshifyMotion
 import com.p2p.meshify.ui.theme.MotionDurations
 
-/**
- * ✅ MD3E Redesigned Discovery Header with Radar Pulse Morph.
- */
 @Composable
 fun DiscoveryHeader(isSearching: Boolean) {
     MeshifyCard(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
@@ -57,9 +54,6 @@ fun DiscoveryHeader(isSearching: Boolean) {
     }
 }
 
-/**
- * Main Discovery Screen Composable.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DiscoveryScreen(
@@ -124,7 +118,7 @@ fun PeerList(
                 leadingContent = {
                     MorphingAvatar(
                         initials = peer.name.take(1),
-                        isOnline = true, // Discovered peers are online
+                        isOnline = true,
                         size = 52.dp
                     )
                 },
@@ -212,13 +206,6 @@ fun EmptyDiscoveryState(isSearching: Boolean) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        if (isSearching) {
-            RadarPulseMorph(
-                isSearching = true,
-                size = 64.dp
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-        }
         Text(
             text = stringResource(R.string.no_peers_found),
             style = MaterialTheme.typography.bodyLarge,
