@@ -22,7 +22,7 @@ This entire codebase, architecture, and UI logic were architected and implemente
 
 <p align="center">
   <img src="https://img.shields.io/github/repo-size/Yussefgafer/Meshify" alt="Repo size">
-  <img src="https://github.com/Yussefgafer/Meshify/actions/workflows/android.yml/badge.svg" alt="Build Status">
+  <img src="https://github.com/Yussefgafer/Meshify/actions/workflows/meshify-build.yml/badge.svg" alt="Build Status">
   <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License">
   <img src="https://img.shields.io/badge/Kotlin-2.3.10-blue.svg" alt="Kotlin">
   <img src="https://img.shields.io/badge/API-21%2B-brightgreen.svg" alt="Min API">
