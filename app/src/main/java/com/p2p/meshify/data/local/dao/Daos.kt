@@ -14,6 +14,9 @@ interface ChatDao {
 
     @Query("SELECT * FROM chats WHERE peerId = :peerId")
     suspend fun getChatById(peerId: String): ChatEntity?
+
+    @Query("DELETE FROM chats WHERE peerId = :peerId")
+    suspend fun deleteChatById(peerId: String)
 }
 
 @Dao
@@ -44,6 +47,9 @@ interface MessageDao {
 
     @Query("SELECT * FROM messages WHERE id = :messageId")
     suspend fun getMessageById(messageId: String): MessageEntity?
+
+    @Query("DELETE FROM messages WHERE chatId = :chatId")
+    suspend fun deleteAllMessagesForChat(chatId: String)
 }
 
 @Dao

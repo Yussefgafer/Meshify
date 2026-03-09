@@ -49,11 +49,11 @@ import kotlinx.coroutines.launch
 fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBackClick: () -> Unit) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
-    val themeConfig = LocalMeshifyThemeConfig.current
     val listState = rememberLazyListState()
+    val themeConfig = LocalMeshifyThemeConfig.current
     val clipboard = LocalClipboardManager.current
-    var selectedFullImage by remember { mutableStateOf<String?>(null) }
     var menuMessage by remember { mutableStateOf<MessageEntity?>(null) }
+    var selectedFullImage by remember { mutableStateOf<String?>(null) }
 
     val imageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let {
@@ -69,6 +69,13 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
         }
     }
 
+    val fileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let {
+            val bytes = context.contentResolver.openInputStream(it)?.readBytes()
+            if (bytes != null) viewModel.sendImage(bytes, "file") // Basic fallback
+        }
+    }
+
     LaunchedEffect(uiState.messages.size) {
         if (uiState.messages.isNotEmpty()) listState.animateScrollToItem(uiState.messages.size - 1)
     }
@@ -79,36 +86,35 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
                 title = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable { /* Show Profile? */ }
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        MorphingAvatar(
-                            initials = peerName.take(1),
-                            isOnline = uiState.isOnline,
-                            size = 42.dp
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Column {
+                        MorphingAvatar(initials = peerName.take(1), isOnline = uiState.isOnline, size = 40.dp)
+                        Column(verticalArrangement = Arrangement.Center) {
                             Text(
-                                text = peerName, 
-                                style = MaterialTheme.typography.titleMedium, 
+                                text = peerName,
+                                style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
                             if (uiState.isOnline) {
-                                MeshifyPill("Online", MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
+                                Text(
+                                    text = "Online",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
                             } else {
                                 Text(
-                                    text = "Offline", 
-                                    style = MaterialTheme.typography.labelSmall, 
+                                    text = "Offline",
+                                    style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                 )
                             }
                         }
                     }
                 },
-                navigationIcon = { 
-                    IconButton(onClick = onBackClick) { 
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") 
-                    } 
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
@@ -117,21 +123,21 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
             )
         },
         bottomBar = {
-            Column {
+            Column(Modifier.navigationBarsPadding()) {
                 uiState.replyTo?.let { reply ->
                     Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        tonalElevation = 4.dp
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh
                     ) {
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Reply, null, tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.Reply, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                             Spacer(Modifier.width(8.dp))
                             Column(Modifier.weight(1f)) {
                                 Text("Replying to", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                                 Text(reply.text ?: "[Media]", style = MaterialTheme.typography.bodySmall, maxLines = 1)
                             }
-                            IconButton(onClick = { viewModel.onInputChanged(uiState.inputText) /* Clear reply */ }) {
+                            IconButton(onClick = { viewModel.setReplyTo(null) }) {
                                 Icon(Icons.Default.Close, null)
                             }
                         }
@@ -141,7 +147,14 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
                     text = uiState.inputText,
                     onTextChange = viewModel::onInputChanged,
                     onSend = viewModel::sendMessage,
-                    onAttachClick = { videoLauncher.launch("video/*") }
+                    onAttachClick = { type ->
+                        when (type) {
+                            "image" -> imageLauncher.launch("image/*")
+                            "camera" -> imageLauncher.launch("image/*") // Fallback as requested
+                            "file" -> fileLauncher.launch("*/*")
+                            else -> imageLauncher.launch("image/*")
+                        }
+                    }
                 )
             }
         }
@@ -164,7 +177,14 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
     if (menuMessage != null) {
         ModalBottomSheet(onDismissRequest = { menuMessage = null }) {
             Column(Modifier.navigationBarsPadding().padding(bottom = 24.dp)) {
-                ListItem(headlineContent = { Text("Reply") }, leadingContent = { Icon(Icons.Default.Reply, null) }, modifier = Modifier.clickable { /* logic */ ; menuMessage = null })
+                ListItem(
+                    headlineContent = { Text("Reply") },
+                    leadingContent = { Icon(Icons.Default.Reply, null) },
+                    modifier = Modifier.clickable {
+                        viewModel.setReplyTo(menuMessage)
+                        menuMessage = null
+                    }
+                )
                 ListItem(headlineContent = { Text("Copy") }, leadingContent = { Icon(Icons.Default.ContentCopy, null) }, modifier = Modifier.clickable { clipboard.setText(androidx.compose.ui.text.AnnotatedString(menuMessage?.text ?: "")); menuMessage = null })
                 ListItem(headlineContent = { Text("Delete for Me") }, leadingContent = { Icon(Icons.Default.Delete, null) }, modifier = Modifier.clickable { viewModel.deleteMessage(menuMessage!!.id, DeleteType.DELETE_FOR_ME); menuMessage = null })
                 ListItem(headlineContent = { Text("Delete for Everyone", color = Color.Red) }, leadingContent = { Icon(Icons.Default.DeleteForever, null, tint = Color.Red) }, modifier = Modifier.clickable { viewModel.deleteMessage(menuMessage!!.id, DeleteType.DELETE_FOR_EVERYONE); menuMessage = null })
@@ -267,7 +287,7 @@ fun MessageBubble(
                                 )
                             }
                             else -> {
-                                Text("File: $path", style = MaterialTheme.typography.bodySmall)
+                                Text("File: ", style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }

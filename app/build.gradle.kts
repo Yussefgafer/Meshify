@@ -29,15 +29,25 @@ android {
 
     signingConfigs {
         create("release") {
-            // Priority: Root dir (for CI) -> Parent dir (for legacy local)
             val ksFile = file("../meshify.jks")
             val rootKsFile = file("./meshify.jks")
             storeFile = if (rootKsFile.exists()) rootKsFile else ksFile
             
-            // Priority: Environment variables (for CI) -> Hardcoded (for local)
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "01220950"
-            keyAlias = System.getenv("KEY_ALIAS") ?: "meshify"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: "01220950"
+            val isCi = System.getenv("CI") == "true"
+            val ksPass = System.getenv("KEYSTORE_PASSWORD")
+            val kAlias = System.getenv("KEY_ALIAS")
+            val kPass = System.getenv("KEY_PASSWORD")
+
+            if (isCi) {
+                storePassword = ksPass ?: throw GradleException("KEYSTORE_PASSWORD env var not set")
+                keyAlias = kAlias ?: throw GradleException("KEY_ALIAS env var not set")
+                keyPassword = kPass ?: throw GradleException("KEY_PASSWORD env var not set")
+            } else {
+                // For local builds, allow falling back to known debug/local keys if env vars are missing
+                storePassword = ksPass ?: "01220950"
+                keyAlias = kAlias ?: "meshify"
+                keyPassword = kPass ?: "01220950"
+            }
         }
     }
 
@@ -45,17 +55,14 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            // تفعيل التوقيع للـ Release
             signingConfig = signingConfigs.getByName("release")
             
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
         }
         debug {
-            // Minification in debug can be slow and prevents easy debugging
             isMinifyEnabled = false
             isShrinkResources = false
             proguardFiles(
