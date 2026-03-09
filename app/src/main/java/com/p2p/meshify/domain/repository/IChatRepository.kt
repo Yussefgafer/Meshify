@@ -16,6 +16,7 @@ interface IChatRepository {
     suspend fun sendImage(peerId: String, peerName: String, imageBytes: ByteArray, extension: String, replyToId: String? = null): Result<Unit>
     suspend fun sendVideo(peerId: String, peerName: String, videoBytes: ByteArray, extension: String, replyToId: String? = null): Result<Unit>
     suspend fun deleteMessage(messageId: String, deleteType: DeleteType): Result<Unit>
+    suspend fun deleteChat(peerId: String)
     suspend fun addReaction(messageId: String, reaction: String?): Result<Unit>
     suspend fun forwardMessage(messageId: String, targetPeerIds: List<String>): Result<Unit>
     suspend fun sendSystemCommand(peerId: String, command: String)

@@ -12,7 +12,7 @@ import com.p2p.meshify.data.local.entity.*
 @Database(
     entities = [ChatEntity::class, MessageEntity::class, PendingMessageEntity::class],
     version = 2,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class MeshifyDatabase : RoomDatabase() {
     abstract fun chatDao(): ChatDao

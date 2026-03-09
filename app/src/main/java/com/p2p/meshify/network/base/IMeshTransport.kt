@@ -2,6 +2,7 @@ package com.p2p.meshify.network.base
 
 import com.p2p.meshify.domain.model.Payload
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Generic interface for all transport implementations (LAN, BT, Wi-Fi Direct).
@@ -11,6 +12,16 @@ interface IMeshTransport {
      * Observable stream of transport events.
      */
     val events: Flow<TransportEvent>
+
+    /**
+     * Set of currently online peer IDs.
+     */
+    val onlinePeers: StateFlow<Set<String>>
+
+    /**
+     * Set of peer IDs currently typing.
+     */
+    val typingPeers: StateFlow<Set<String>>
 
     /**
      * Starts the transport service (e.g., binds sockets, starts mDNS).

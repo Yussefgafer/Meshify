@@ -41,10 +41,10 @@ class LanTransportImpl(
     private val failedSendCounts = ConcurrentHashMap<String, AtomicInteger>()
 
     private val _onlinePeers = MutableStateFlow<Set<String>>(emptySet())
-    val onlinePeers: StateFlow<Set<String>> = _onlinePeers.asStateFlow()
+    override val onlinePeers: StateFlow<Set<String>> = _onlinePeers.asStateFlow()
 
     private val _typingPeers = MutableStateFlow<Set<String>>(emptySet())
-    val typingPeers: StateFlow<Set<String>> = _typingPeers.asStateFlow()
+    override val typingPeers: StateFlow<Set<String>> = _typingPeers.asStateFlow()
 
     // Thread-safe set using ConcurrentHashMap-backed set
     private val resolvingPeers = newSetFromMap(ConcurrentHashMap<String, Boolean>())

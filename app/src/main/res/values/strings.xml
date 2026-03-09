@@ -10,7 +10,7 @@
     <string name="screen_home_title">Meshify</string>
     <string name="chats_recent_header">Recent Chats</string>
     <string name="no_recent_chats">No conversations yet</string>
-    <string name="no_recent_chats_desc">Tap the pulse to discover nearby devices</string>
+    <string name="no_recent_chats_desc">Tap the + button to discover nearby devices</string>
     <string name="last_msg_image">[Image]</string>
     <string name="last_msg_none">No messages yet</string>
     <string name="typing_indicator">typing...</string>
