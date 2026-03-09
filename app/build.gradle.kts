@@ -33,21 +33,11 @@ android {
             val rootKsFile = file("./meshify.jks")
             storeFile = if (rootKsFile.exists()) rootKsFile else ksFile
             
-            val isCi = System.getenv("CI") == "true"
-            val ksPass = System.getenv("KEYSTORE_PASSWORD")
-            val kAlias = System.getenv("KEY_ALIAS")
-            val kPass = System.getenv("KEY_PASSWORD")
-
-            if (isCi) {
-                storePassword = ksPass ?: throw GradleException("KEYSTORE_PASSWORD env var not set")
-                keyAlias = kAlias ?: throw GradleException("KEY_ALIAS env var not set")
-                keyPassword = kPass ?: throw GradleException("KEY_PASSWORD env var not set")
-            } else {
-                // For local builds, allow falling back to known debug/local keys if env vars are missing
-                storePassword = ksPass ?: "01220950"
-                keyAlias = kAlias ?: "meshify"
-                keyPassword = kPass ?: "01220950"
-            }
+            // Set values from environment variables. If they are missing (null),
+            // the build will fail later only if signing is required for the task.
+            storePassword = System.getenv("KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("KEY_ALIAS")
+            keyPassword = System.getenv("KEY_PASSWORD")
         }
     }
 
