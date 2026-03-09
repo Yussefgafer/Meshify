@@ -18,7 +18,7 @@ class AppContainer(private val context: Context) {
 
     private val database: MeshifyDatabase by lazy {
         Room.databaseBuilder(context, MeshifyDatabase::class.java, "meshify.db")
-            .fallbackToDestructiveMigration()
+            .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }
 
