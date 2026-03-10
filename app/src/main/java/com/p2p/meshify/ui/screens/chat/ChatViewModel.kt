@@ -1,5 +1,6 @@
 package com.p2p.meshify.ui.screens.chat
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.p2p.meshify.data.local.entity.*
@@ -7,13 +8,22 @@ import com.p2p.meshify.domain.model.DeleteType
 import com.p2p.meshify.domain.repository.IChatRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+
+data class StagedAttachment(
+    val uri: Uri,
+    val bytes: ByteArray,
+    val type: MessageType
+)
 
 data class ChatUiState(
     val messages: List<MessageEntity> = emptyList(),
     val isOnline: Boolean = false,
     val isPeerTyping: Boolean = false,
     val inputText: String = "",
-    val replyTo: MessageEntity? = null
+    val replyTo: MessageEntity? = null,
+    val stagedAttachments: List<StagedAttachment> = emptyList()
 )
 
 class ChatViewModel(
@@ -24,6 +34,8 @@ class ChatViewModel(
 
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
+    
+    private val stageMutex = Mutex()
 
     init {
         viewModelScope.launch {
@@ -48,10 +60,52 @@ class ChatViewModel(
 
     fun sendMessage() {
         val state = _uiState.value
-        if (state.inputText.isBlank()) return
+        val hasText = state.inputText.isNotBlank()
+        val hasAttachments = state.stagedAttachments.isNotEmpty()
+        
+        if (!hasText && !hasAttachments) return
+        
         viewModelScope.launch {
-            repository.sendMessage(peerId, peerName, state.inputText, state.replyTo?.id)
-            _uiState.update { it.copy(inputText = "", replyTo = null) }
+            if (hasAttachments) {
+                // Send grouped message with attachments
+                val attachments = state.stagedAttachments.map { it.bytes to it.type }
+                repository.sendGroupedMessage(peerId, peerName, state.inputText, attachments, state.replyTo?.id)
+                _uiState.update { it.copy(inputText = "", replyTo = null, stagedAttachments = emptyList()) }
+            } else {
+                // Send text message
+                repository.sendMessage(peerId, peerName, state.inputText, state.replyTo?.id)
+                _uiState.update { it.copy(inputText = "", replyTo = null) }
+            }
+        }
+    }
+
+    fun stageAttachment(uri: Uri, bytes: ByteArray, type: MessageType) {
+        viewModelScope.launch {
+            stageMutex.withLock {
+                val current = _uiState.value.stagedAttachments
+                if (current.size >= 10) return@launch // Limit to 10 attachments
+                
+                val newAttachment = StagedAttachment(uri, bytes, type)
+                val updated = current + newAttachment
+                _uiState.update { it.copy(stagedAttachments = updated) }
+            }
+        }
+    }
+
+    fun removeStagedAttachment(uri: Uri) {
+        viewModelScope.launch {
+            stageMutex.withLock {
+                val updated = _uiState.value.stagedAttachments.filter { it.uri != uri }
+                _uiState.update { it.copy(stagedAttachments = updated) }
+            }
+        }
+    }
+
+    fun clearStagedAttachments() {
+        viewModelScope.launch {
+            stageMutex.withLock {
+                _uiState.update { it.copy(stagedAttachments = emptyList()) }
+            }
         }
     }
 

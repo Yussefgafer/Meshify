@@ -128,6 +128,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.ui.text.google.fonts)
+    implementation(libs.accompanist.permissions)
 
     // Media3 (ExoPlayer)
     implementation(libs.media3.exoplayer)

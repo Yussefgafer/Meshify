@@ -30,11 +30,26 @@ interface MessageDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: MessageEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMessageAttachment(attachment: MessageAttachmentEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMessageAttachments(attachments: List<MessageAttachmentEntity>)
+
+    @Query("SELECT * FROM message_attachments WHERE messageId = :messageId ORDER BY id")
+    suspend fun getAttachmentsForMessage(messageId: String): List<MessageAttachmentEntity>
+
+    @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp ASC")
+    suspend fun getAllMessagesForChatWithAttachments(chatId: String): List<MessageEntity>
+
     @Query("UPDATE messages SET status = :status WHERE id = :messageId")
     suspend fun updateMessageStatus(messageId: String, status: MessageStatus)
 
     @Query("DELETE FROM messages WHERE id IN (:messageIds)")
     suspend fun deleteMessages(messageIds: List<String>)
+
+    @Query("DELETE FROM message_attachments WHERE messageId IN (:messageIds)")
+    suspend fun deleteAttachmentsForMessages(messageIds: List<String>)
 
     @Query("UPDATE messages SET isDeletedForMe = 1 WHERE id = :messageId")
     suspend fun markAsDeletedForMe(messageId: String)

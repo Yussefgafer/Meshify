@@ -1,6 +1,8 @@
 package com.p2p.meshify.data.local.entity
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.UUID
 
@@ -28,7 +30,27 @@ data class MessageEntity(
     val deletedAt: Long? = null,
     val deletedBy: String? = null,
     val reaction: String? = null,
-    val replyToId: String? = null
+    val replyToId: String? = null,
+    val groupId: String? = null
+)
+
+@Entity(
+    tableName = "message_attachments",
+    foreignKeys = [
+        ForeignKey(
+            entity = MessageEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["messageId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index(value = ["messageId"])]
+)
+data class MessageAttachmentEntity(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val type: MessageType,
+    val messageId: String? = null,  // Nullable to work around KSP type inference bug
+    val filePath: String
 )
 
 @Entity(tableName = "pending_messages")

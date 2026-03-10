@@ -17,6 +17,7 @@ room = "2.8.0"
 coil3 = "3.4.0"
 datastore = "1.1.1"
 media3 = "1.5.1"
+accompanist = "0.36.0"
 
 [libraries]
 media3_exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
@@ -50,6 +51,7 @@ coil3_compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref
 coil3_network = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil3" }
 androidx_ui_text_google_fonts = { group = "androidx.compose.ui", name = "ui-text-google-fonts", version.ref = "googleFonts" }
 kotlinx_serialization_json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version = "1.7.3" }
+accompanist_permissions = { group = "com.google.accompanist", name = "accompanist-permissions", version.ref = "accompanist" }
 
 [plugins]
 android_application = { id = "com.android.application", version.ref = "agp" }

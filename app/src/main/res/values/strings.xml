@@ -123,4 +123,19 @@
     <string name="content_desc_attach">Attach file</string>
     <string name="content_desc_settings">Settings</string>
     <string name="content_desc_discovery">Discovery</string>
+    
+    <!-- ChatApp-Compose Chat Input Strings -->
+    <string name="emoji_selector_bt_desc">Emoji Selector</string>
+    <string name="dm_desc">Link</string>
+    <string name="attach_photo_desc">Photo</string>
+    <string name="map_selector_desc">Map</string>
+    <string name="videochat_desc">Video</string>
+    <string name="send_desc">send button</string>
+    <string name="textfield_desc">Text Field</string>
+    <string name="send">Send</string>
+    <string name="record">Record</string>
+    <string name="noInternet">No Internet</string>
+    <string name="noPermission">No Permission</string>
+    <string name="not_available">Not available</string>
+    <string name="not_available_subtitle">This feature is not available yet</string>
 </resources>
