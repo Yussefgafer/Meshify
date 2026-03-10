@@ -7,7 +7,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,38 +16,130 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.ui.hooks.HapticPattern
 import com.p2p.meshify.ui.hooks.LocalPremiumHaptics
+import com.p2p.meshify.ui.theme.MeshifyDesignSystem
 
+/**
+ * MeshifySettingsGroup: A container for settings items with 24.dp rounded corners
+ * and surfaceContainerLow/High background.
+ */
 @Composable
-fun SettingsGroup(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.padding(bottom = 16.dp), Arrangement.spacedBy(4.dp)) {
-        Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 16.dp, bottom = 8.dp))
-        Column(Modifier.padding(horizontal = 16.dp).clip(RoundedCornerShape(28.dp)), Arrangement.spacedBy(2.dp), content = content)
+fun MeshifySettingsGroup(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(
+        modifier = Modifier.padding(bottom = MeshifyDesignSystem.Spacing.Lg)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.ExtraBold,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(
+                start = MeshifyDesignSystem.Spacing.Md,
+                bottom = MeshifyDesignSystem.Spacing.Sm
+            )
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp)),
+            content = content
+        )
     }
 }
 
+/**
+ * MeshifySettingsItem: Interactive settings row with scale animation on press.
+ * Automatically shows KeyboardArrowRight if onClick is provided and no trailing content.
+ */
 @Composable
-fun SettingGroupItem(title: String, subtitle: String? = null, icon: (@Composable () -> Unit)? = null, trailing: @Composable (() -> Unit)? = null, position: ItemPosition = ItemPosition.MIDDLE, settingsRepository: ISettingsRepository, onClick: (() -> Unit)? = null) {
+fun MeshifySettingsItem(
+    title: String,
+    subtitle: String? = null,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    trailing: @Composable (() -> Unit)? = null,
+    onClick: (() -> Unit)? = null
+) {
     val haptics = LocalPremiumHaptics.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (isPressed) 0.97f else 1f, spring(0.6f, 400f), label = "scale")
-    val shape = when (position) {
-        ItemPosition.FIRST -> RoundedCornerShape(28.dp, 28.dp, 4.dp, 4.dp)
-        ItemPosition.LAST -> RoundedCornerShape(4.dp, 4.dp, 28.dp, 28.dp)
-        ItemPosition.ONLY -> RoundedCornerShape(28.dp)
-        ItemPosition.MIDDLE -> RoundedCornerShape(4.dp)
-    }
-    Surface(onClick = { if (onClick != null) { haptics.perform(HapticPattern.Pop); onClick() } }, enabled = onClick != null, color = MaterialTheme.colorScheme.surfaceContainerLow, shape = shape, interactionSource = interactionSource, modifier = Modifier.fillMaxWidth().graphicsLayer { scaleX = scale; scaleY = scale }) {
-        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            if (icon != null) Box(Modifier.size(24.dp), Alignment.Center) { icon() }
-            Column(Modifier.weight(1f).padding(end = 8.dp), Arrangement.spacedBy(2.dp)) {
-                Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.98f else 1f,
+        animationSpec = spring(
+            dampingRatio = 0.75f,
+            stiffness = 350f
+        ),
+        label = "scale"
+    )
+
+    val showChevron = onClick != null && trailing == null
+
+    Surface(
+        onClick = {
+            if (onClick != null) {
+                haptics.perform(HapticPattern.Pop)
+                onClick()
             }
-            if (trailing != null) trailing() else if (onClick != null) Icon(Icons.Rounded.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
+        },
+        enabled = onClick != null,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        interactionSource = interactionSource,
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    horizontal = MeshifyDesignSystem.Spacing.Md,
+                    vertical = MeshifyDesignSystem.Spacing.Sm
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Md)
+        ) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            if (trailing != null) {
+                trailing()
+            } else if (showChevron) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
         }
     }
 }
