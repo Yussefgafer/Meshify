@@ -6,12 +6,17 @@ import com.p2p.meshify.data.local.dao.*
 import com.p2p.meshify.data.local.entity.*
 
 /**
- * Main database for Meshify. 
+ * Main database for Meshify.
  * Stores all chats and messages for offline-first capability.
  */
 @Database(
-    entities = [ChatEntity::class, MessageEntity::class, PendingMessageEntity::class],
-    version = 2,
+    entities = [
+        ChatEntity::class,
+        MessageEntity::class,
+        MessageAttachmentEntity::class,
+        PendingMessageEntity::class
+    ],
+    version = 3,
     exportSchema = true
 )
 abstract class MeshifyDatabase : RoomDatabase() {

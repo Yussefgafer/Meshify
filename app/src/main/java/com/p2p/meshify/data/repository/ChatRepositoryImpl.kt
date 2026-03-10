@@ -89,6 +89,65 @@ class ChatRepositoryImpl(
         return Result.success(Unit)
     }
 
+    override suspend fun sendGroupedMessage(
+        peerId: String,
+        peerName: String,
+        caption: String,
+        attachments: List<Pair<ByteArray, MessageType>>,
+        replyToId: String?
+    ): Result<Unit> {
+        if (attachments.isEmpty()) return Result.failure(Exception("No attachments"))
+
+        val messageId: String = UUID.randomUUID().toString()
+        val myId = settingsRepository.getDeviceId()
+        val timestamp = System.currentTimeMillis()
+        
+        // Create parent message with caption
+        val message = MessageEntity(
+            id = messageId,
+            chatId = peerId,
+            senderId = myId,
+            text = caption.ifBlank { null },
+            mediaPath = null,
+            type = if (attachments.all { it.second == MessageType.VIDEO }) MessageType.VIDEO else MessageType.IMAGE,
+            timestamp = timestamp,
+            isFromMe = true,
+            status = MessageStatus.QUEUED,
+            replyToId = replyToId,
+            groupId = messageId
+        )
+        
+        // Save message
+        val cleanName = parseName(peerName)
+        chatDao.insertChat(ChatEntity(peerId, cleanName, caption.ifBlank { "[Album]" }, timestamp))
+        messageDao.insertMessage(message)
+        
+        // Save attachments - avoid lambda to work around KSP type inference issue
+        val attachmentEntities = ArrayList<MessageAttachmentEntity>(attachments.size)
+        var index = 0
+        for ((bytes, type) in attachments) {
+            val ext = if (type == MessageType.IMAGE) "jpg" else "mp4"
+            val fileName = "sent_album_${messageId}_$index.$ext"
+            val savedPath = fileManager.saveMedia(fileName, bytes)
+            attachmentEntities.add(
+                MessageAttachmentEntity(
+                    id = UUID.randomUUID().toString(),
+                    type = type,
+                    messageId = messageId,
+                    filePath = savedPath
+                )
+            )
+            index++
+        }
+        messageDao.insertMessageAttachments(attachmentEntities)
+        
+        // Send as FILE payload (first attachment bytes as representative)
+        val firstAttachment = attachments.first().first
+        saveAndSend(peerId, peerName, message, Payload.PayloadType.FILE, firstAttachment)
+        
+        return Result.success(Unit)
+    }
+
     override suspend fun deleteMessage(messageId: String, deleteType: DeleteType): Result<Unit> {
         val myId = settingsRepository.getDeviceId()
         val message = messageDao.getMessageById(messageId) ?: return Result.failure(Exception("Not found"))

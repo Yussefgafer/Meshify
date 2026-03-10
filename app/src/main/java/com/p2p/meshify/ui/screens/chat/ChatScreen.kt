@@ -27,8 +27,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextRange
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
@@ -43,6 +46,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,25 +58,41 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
     val clipboard = LocalClipboardManager.current
     var menuMessage by remember { mutableStateOf<MessageEntity?>(null) }
     var selectedFullImage by remember { mutableStateOf<String?>(null) }
+    var textState by rememberSaveable(stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue())
+    }
+    // Store attachments grouped by message ID
+    var messageAttachments by remember { mutableStateOf<Map<String, List<MessageAttachmentEntity>>>(emptyMap()) }
+    
+    // Load attachments for messages with groupId
+    LaunchedEffect(uiState.messages.size) {
+        val attachmentsMap = mutableMapOf<String, List<MessageAttachmentEntity>>()
+        uiState.messages.forEach { message ->
+            if (!message.groupId.isNullOrBlank()) {
+                // In a real implementation, you'd fetch from DAO
+                // For now, we'll handle single-message attachments
+            }
+        }
+        messageAttachments = attachmentsMap
+    }
 
+    // Image launcher - stages attachment
     val imageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let {
             val bytes = context.contentResolver.openInputStream(it)?.readBytes()
-            if (bytes != null) viewModel.sendImage(bytes, "jpg")
+            if (bytes != null) {
+                viewModel.stageAttachment(it, bytes, MessageType.IMAGE)
+            }
         }
     }
 
+    // Video launcher - stages attachment
     val videoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let {
             val bytes = context.contentResolver.openInputStream(it)?.readBytes()
-            if (bytes != null) viewModel.sendVideo(bytes, "mp4")
-        }
-    }
-
-    val fileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let {
-            val bytes = context.contentResolver.openInputStream(it)?.readBytes()
-            if (bytes != null) viewModel.sendImage(bytes, "file") // Basic fallback
+            if (bytes != null) {
+                viewModel.stageAttachment(it, bytes, MessageType.VIDEO)
+            }
         }
     }
 
@@ -124,6 +144,7 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
         },
         bottomBar = {
             Column(Modifier.navigationBarsPadding()) {
+                // Reply indicator
                 uiState.replyTo?.let { reply ->
                     Surface(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
@@ -131,11 +152,11 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
                         color = MaterialTheme.colorScheme.surfaceContainerHigh
                     ) {
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Reply, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.Message, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                             Spacer(Modifier.width(8.dp))
                             Column(Modifier.weight(1f)) {
                                 Text("Replying to", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                                Text(reply.text ?: "[Media]", style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                                Text(uiState.replyTo?.text ?: "[Media]", style = MaterialTheme.typography.bodySmall, maxLines = 1)
                             }
                             IconButton(onClick = { viewModel.setReplyTo(null) }) {
                                 Icon(Icons.Default.Close, null)
@@ -143,26 +164,35 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
                         }
                     }
                 }
-                StandardChatInput(
-                    text = uiState.inputText,
-                    onTextChange = viewModel::onInputChanged,
-                    onSend = viewModel::sendMessage,
-                    onAttachClick = { type ->
-                        when (type) {
-                            "image" -> imageLauncher.launch("image/*")
-                            "camera" -> imageLauncher.launch("image/*") // Fallback as requested
-                            "file" -> fileLauncher.launch("*/*")
-                            else -> imageLauncher.launch("image/*")
-                        }
-                    }
+                
+                // Staged media row
+                StagedMediaRow(
+                    attachments = uiState.stagedAttachments,
+                    onRemoveClick = viewModel::removeStagedAttachment
+                )
+                
+                // Chat input
+                MediaStagingChatInput(
+                    textState = textState,
+                    onTextChange = { textState = it },
+                    onSendClick = {
+                        viewModel.onInputChanged(textState.text)
+                        viewModel.sendMessage()
+                        textState = TextFieldValue()
+                    },
+                    onGalleryClick = { imageLauncher.launch("image/*") },
+                    onVideoClick = { videoLauncher.launch("video/*") },
+                    hasAttachments = uiState.stagedAttachments.isNotEmpty()
                 )
             }
         }
     ) { padding ->
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp)) {
             itemsIndexed(uiState.messages, key = { _, m -> m.id }) { index, message ->
+                val attachments = messageAttachments[message.id] ?: emptyList()
                 MessageBubble(
                     message = message,
+                    attachments = attachments,
                     peerName = peerName,
                     bubbleStyle = themeConfig.bubbleStyle,
                     onLongClick = { menuMessage = message },
@@ -195,14 +225,32 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
     if (selectedFullImage != null) FullImageViewer(selectedFullImage!!) { selectedFullImage = null }
 }
 
+/**
+ * Message status indicator icon
+ */
+@Composable
+fun StatusIcon(status: MessageStatus, tint: Color) {
+    val size = 12.dp
+    when (status) {
+        MessageStatus.QUEUED -> Icon(Icons.Default.Schedule, null, Modifier.size(size), tint = tint.copy(0.5f))
+        MessageStatus.SENDING -> CircularProgressIndicator(Modifier.size(10.dp), strokeWidth = 1.dp, color = tint)
+        MessageStatus.SENT -> Icon(Icons.Default.Check, null, Modifier.size(size), tint = tint.copy(0.7f))
+        MessageStatus.DELIVERED -> Icon(Icons.Default.DoneAll, null, Modifier.size(size), tint = tint.copy(0.7f))
+        MessageStatus.READ -> Icon(Icons.Default.DoneAll, null, Modifier.size(size), tint = MaterialTheme.colorScheme.tertiary)
+        MessageStatus.FAILED -> Icon(Icons.Default.Error, null, Modifier.size(size), tint = MaterialTheme.colorScheme.error)
+        else -> {}
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MessageBubble(
-    message: MessageEntity, 
-    peerName: String, 
-    bubbleStyle: com.p2p.meshify.domain.model.BubbleStyle, 
-    onLongClick: () -> Unit, 
-    onImageClick: (String) -> Unit, 
+    message: MessageEntity,
+    attachments: List<MessageAttachmentEntity>,
+    peerName: String,
+    bubbleStyle: com.p2p.meshify.domain.model.BubbleStyle,
+    onLongClick: () -> Unit,
+    onImageClick: (String) -> Unit,
     onReactionClick: (String?) -> Unit
 ) {
     val alignment = if (message.isFromMe) Alignment.End else Alignment.Start
@@ -219,11 +267,11 @@ fun MessageBubble(
                 onClick = { },
                 onLongClick = onLongClick
             )
-            .padding(vertical = MeshifyDesignSystem.Spacing.Xxs), 
+            .padding(vertical = MeshifyDesignSystem.Spacing.Xxs),
         horizontalAlignment = alignment
     ) {
         Surface(
-            shape = bubbleShape, 
+            shape = bubbleShape,
             color = containerColor,
             contentColor = contentColor,
             tonalElevation = if (message.isFromMe) MeshifyDesignSystem.Elevation.Level0 else MeshifyDesignSystem.Elevation.Level1
@@ -231,9 +279,9 @@ fun MessageBubble(
             Column(Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Md, vertical = MeshifyDesignSystem.Spacing.Xs)) {
                 if (message.isDeletedForEveryone) {
                     Text(
-                        text = "This message was deleted", 
-                        style = MaterialTheme.typography.bodyMedium, 
-                        fontStyle = FontStyle.Italic, 
+                        text = "This message was deleted",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontStyle = FontStyle.Italic,
                         color = contentColor.copy(alpha = 0.6f)
                     )
                 } else {
@@ -244,48 +292,59 @@ fun MessageBubble(
                             modifier = Modifier.padding(bottom = 6.dp)
                         ) {
                             Text(
-                                text = "Replying to...", 
-                                style = MaterialTheme.typography.labelSmall, 
+                                text = "Replying to...",
+                                style = MaterialTheme.typography.labelSmall,
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                 color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
-                    
-                    message.text?.let { 
+
+                    // Caption text
+                    message.text?.let {
                         Text(
-                            text = it, 
+                            text = it,
                             style = MaterialTheme.typography.bodyLarge,
                             lineHeight = 22.sp
-                        ) 
+                        )
                     }
-                    
-                    message.mediaPath?.let { path ->
+
+                    // Album grid for grouped attachments
+                    if (attachments.isNotEmpty()) {
                         if (message.text != null) Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xs))
-                        when (message.type) {
-                            MessageType.IMAGE -> {
-                                AsyncImage(
-                                    model = ImageRequest.Builder(LocalContext.current)
-                                        .data(File(path))
-                                        .crossfade(true)
-                                        .build(),
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .sizeIn(maxWidth = 260.dp, maxHeight = 320.dp)
-                                        .clip(MeshifyDesignSystem.Shapes.CardSmall)
-                                        .clickable { onImageClick(path) },
-                                    contentScale = ContentScale.Crop
-                                )
-                            }
-                            MessageType.VIDEO -> {
-                                VideoPlayer(
-                                    videoUri = Uri.fromFile(File(path)),
-                                    modifier = Modifier
-                                        .width(260.dp)
-                                        .height(180.dp)
-                                        .clip(MeshifyDesignSystem.Shapes.CardSmall)
-                                )
-                            }
+                        AlbumMediaGrid(
+                            attachments = attachments,
+                            caption = null, // Caption already shown above
+                            onImageClick = onImageClick
+                        )
+                    } else {
+                        // Single media (legacy support)
+                        message.mediaPath?.let { path ->
+                            if (message.text != null) Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xs))
+                            when (message.type) {
+                                MessageType.IMAGE -> {
+                                    AsyncImage(
+                                        model = ImageRequest.Builder(LocalContext.current)
+                                            .data(File(path))
+                                            .crossfade(true)
+                                            .build(),
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .sizeIn(maxWidth = 260.dp, maxHeight = 320.dp)
+                                            .clip(MeshifyDesignSystem.Shapes.CardSmall)
+                                            .clickable { onImageClick(path) },
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
+                                MessageType.VIDEO -> {
+                                    VideoPlayer(
+                                        videoUri = Uri.fromFile(File(path)),
+                                        modifier = Modifier
+                                            .width(260.dp)
+                                            .height(180.dp)
+                                            .clip(MeshifyDesignSystem.Shapes.CardSmall)
+                                    )
+                                }
                             else -> {
                                 Text("File: ", style = MaterialTheme.typography.bodySmall)
                             }
@@ -310,7 +369,8 @@ fun MessageBubble(
                 }
             }
         }
-        message.reaction?.let { reaction ->
+    }
+    message.reaction?.let { reaction ->
             Surface(
                 modifier = Modifier.offset(y = (-12).dp, x = if(message.isFromMe) (-12).dp else 12.dp), 
                 shape = MeshifyDesignSystem.Shapes.CardSmall, 
@@ -321,19 +381,5 @@ fun MessageBubble(
                 Text(reaction, Modifier.padding(horizontal = 10.dp, vertical = 4.dp), fontSize = 14.sp)
             }
         }
-    }
-}
-
-@Composable
-fun StatusIcon(status: MessageStatus, tint: Color) {
-    val size = 12.dp
-    when (status) {
-        MessageStatus.QUEUED -> Icon(Icons.Default.Schedule, null, Modifier.size(size), tint = tint.copy(0.5f))
-        MessageStatus.SENDING -> CircularProgressIndicator(Modifier.size(10.dp), strokeWidth = 1.dp, color = tint)
-        MessageStatus.SENT -> Icon(Icons.Default.Check, null, Modifier.size(size), tint = tint.copy(0.7f))
-        MessageStatus.DELIVERED -> Icon(Icons.Default.DoneAll, null, Modifier.size(size), tint = tint.copy(0.7f))
-        MessageStatus.READ -> Icon(Icons.Default.DoneAll, null, Modifier.size(size), tint = MaterialTheme.colorScheme.tertiary)
-        MessageStatus.FAILED -> Icon(Icons.Default.Error, null, Modifier.size(size), tint = MaterialTheme.colorScheme.error)
-        else -> {}
     }
 }
