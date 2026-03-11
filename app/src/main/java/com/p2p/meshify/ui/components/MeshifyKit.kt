@@ -44,24 +44,42 @@ import com.p2p.meshify.ui.hooks.LocalPremiumHaptics
 
 /**
  * Robustly transforms a RoundedPolygon Path to fit and center within a given Size.
- * Fixes the "offset/cut-off" glitch by using a single transformation matrix.
+ * Fixes the "offset/cut-off" glitch by using correct matrix concatenation order.
  */
 fun android.graphics.Path.toCenteredComposePath(size: Size, scaleFactor: Float = 0.9f): Path {
     val path = this.asComposePath()
     val bounds = path.getBounds()
     val matrix = Matrix()
     
-    // 1. Scale to fit while maintaining aspect ratio, with a small safety margin (scaleFactor)
+    // Calculate scale to fit while maintaining aspect ratio
     val scale = minOf(size.width / bounds.width, size.height / bounds.height) * scaleFactor
-    matrix.scale(scale, scale)
     
-    // 2. Center the shape within the target size
-    val dx = (size.width - bounds.width * scale) / 2f - bounds.left * scale
-    val dy = (size.height - bounds.height * scale) / 2f - bounds.top * scale
+    // Calculate centering offsets
+    val dx = (size.width - bounds.width * scale) / 2f
+    val dy = (size.height - bounds.height * scale) / 2f
+    
+    // Compose Matrix is post-concatenated: M' = M * Op
+    // Desired transformation: P' = T_center * S * T_origin * P
     matrix.translate(dx, dy)
+    matrix.scale(scale, scale)
+    matrix.translate(-bounds.left, -bounds.top)
     
     path.transform(matrix)
     return path
+}
+
+/**
+ * A custom Shape that handles morphing between two polygons.
+ */
+class MorphingPolygonShape(
+    private val morph: Morph,
+    private val progress: Float,
+    private val scaleFactor: Float = 0.85f
+) : Shape {
+    override fun createOutline(size: Size, layoutDirection: androidx.compose.ui.unit.LayoutDirection, density: androidx.compose.ui.unit.Density): Outline {
+        val path = morph.toPath(progress).toCenteredComposePath(size, scaleFactor)
+        return Outline.Generic(path)
+    }
 }
 
 @Composable
@@ -90,9 +108,7 @@ fun MorphingAvatar(
     }
 
     Box(
-        modifier = modifier
-            .size(size)
-            .clip(CircleShape),
+        modifier = modifier.size(size),
         contentAlignment = Alignment.Center
     ) {
         if (isOnline) {
@@ -170,7 +186,7 @@ fun RadarPulseMorph(isSearching: Boolean, size: Dp = 44.dp, modifier: Modifier =
 
 /**
  * Enhanced Expressive Morphing FAB.
- * Uses real-time Morphing animation between shapes and fixes clipping issues.
+ * Uses optimized MorphingPolygonShape and fixes clipping/offset issues.
  */
 @Composable
 fun ExpressiveMorphingFAB(onClick: () -> Unit, modifier: Modifier = Modifier) {
@@ -197,12 +213,7 @@ fun ExpressiveMorphingFAB(onClick: () -> Unit, modifier: Modifier = Modifier) {
         Morph(previousPolygon, currentPolygon)
     }
     
-    val animatedShape = remember(morph, morphProgress.value) {
-        GenericShape { size, _ ->
-            // scaleFactor = 0.85f provides enough margin to prevent clipping of shadows/edges
-            addPath(morph.toPath(morphProgress.value).toCenteredComposePath(size, scaleFactor = 0.85f))
-        }
-    }
+    val animatedShape = MorphingPolygonShape(morph, morphProgress.value)
 
     FloatingActionButton(
         onClick = {
@@ -211,8 +222,7 @@ fun ExpressiveMorphingFAB(onClick: () -> Unit, modifier: Modifier = Modifier) {
         },
         modifier = modifier
             .size(64.dp)
-            .navigationBarsPadding()
-            .padding(bottom = 16.dp, end = 16.dp),
+            .navigationBarsPadding(),
         shape = animatedShape,
         containerColor = MaterialTheme.colorScheme.primaryContainer,
         elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp)
