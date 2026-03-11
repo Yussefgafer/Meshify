@@ -70,15 +70,15 @@ jobs:
 
       - name: Build Release APK
         run: |
-          if [ ! -z "$KEYSTORE_PASSWORD" ] || [ -f meshify.jks ]; then
+          if [ -f meshify.jks ]; then
             ./gradlew assembleRelease
           else
-            echo "Signing secrets and keystore file are missing. Skipping release build."
+            echo "Keystore file is missing. Skipping release build."
           fi
         env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEYSTORE_PASSWORD: "01220950"
+          KEY_ALIAS: "meshify"
+          KEY_PASSWORD: "01220950"
 
       - name: Get Version info
         id: version_info
