@@ -35,7 +35,6 @@ import coil3.request.crossfade
 import com.p2p.meshify.R
 import com.p2p.meshify.core.util.FileUtils
 import com.p2p.meshify.domain.model.MotionPreset
-import com.p2p.meshify.domain.model.ShapeStyle
 import com.p2p.meshify.domain.repository.ThemeMode
 import com.p2p.meshify.ui.components.*
 import com.p2p.meshify.ui.hooks.HapticPattern
@@ -64,7 +63,7 @@ fun SettingsScreen(
     val avatarHash by viewModel.avatarHash.collectAsState()
     val deviceId by viewModel.deviceId.collectAsState()
     val appVersion = viewModel.appVersion
-    val shapeStyle by viewModel.shapeStyle.collectAsState()
+    // NOTE: shapeStyle removed - FAB now uses animated morphing between shapes
     val motionPreset by viewModel.motionPreset.collectAsState()
     val visualDensity by viewModel.visualDensity.collectAsState()
     val seedColorInt by viewModel.seedColor.collectAsState()
@@ -73,7 +72,7 @@ fun SettingsScreen(
     // UI State for dialogs and bottom sheets
     var showNameDialog by remember { mutableStateOf(false) }
     var showThemeSheet by remember { mutableStateOf(false) }
-    var showShapeDialog by remember { mutableStateOf(false) }
+    // NOTE: showShapeDialog removed - shape style setting removed
     var showMotionDialog by remember { mutableStateOf(false) }
     var nameInput by remember { mutableStateOf(displayName) }
 
@@ -271,19 +270,7 @@ fun SettingsScreen(
 
             // === SECTION 3: MESH ENGINE (MD3E) ===
             MeshifySettingsGroup(title = "MD3 Expressive System") {
-                // Interface Shape
-                MeshifySettingsItem(
-                    title = context.getString(R.string.settings_shape_style),
-                    subtitle = shapeStyle.name,
-                    icon = Icons.Default.Category,
-                    onClick = { showShapeDialog = true }
-                )
-
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Md),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
-
+                // NOTE: Shape Style removed - FAB now uses animated morphing between shapes
                 // Motion Physics
                 MeshifySettingsItem(
                     title = context.getString(R.string.settings_motion_system),
@@ -384,31 +371,7 @@ fun SettingsScreen(
         )
     }
 
-    // Shape Style Selection Dialog
-    if (showShapeDialog) {
-        MeshifySelectionDialog(
-            title = "Select Shape Style",
-            options = ShapeStyle.entries,
-            selectedOption = shapeStyle,
-            onOptionSelected = {
-                haptics.perform(HapticPattern.Pop)
-                viewModel.setShapeStyle(it)
-            },
-            onDismiss = { showShapeDialog = false },
-            optionLabel = { it.name.lowercase().replaceFirstChar { c -> c.uppercase() } },
-            optionIcon = {
-                when (it) {
-                    ShapeStyle.SUNNY -> Icons.Default.Star
-                    ShapeStyle.BREEZY -> Icons.Default.Air
-                    ShapeStyle.PENTAGON -> Icons.Default.Pentagon
-                    ShapeStyle.BLOB -> Icons.Default.Circle
-                    ShapeStyle.BURST -> Icons.Default.AutoAwesome
-                    ShapeStyle.CLOVER -> Icons.Default.Favorite
-                    ShapeStyle.CIRCLE -> Icons.Default.RadioButtonChecked
-                }
-            }
-        )
-    }
+    // NOTE: Shape Style Selection Dialog removed - shape style setting removed
 
     // Motion Preset Selection Dialog
     if (showMotionDialog) {

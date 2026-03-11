@@ -134,7 +134,7 @@ class ChatRepositoryImpl(
                     id = UUID.randomUUID().toString(),
                     type = type,
                     messageId = messageId,
-                    filePath = savedPath
+                    filePath = savedPath ?: ""
                 )
             )
             index++
