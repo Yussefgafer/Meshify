@@ -3,7 +3,6 @@
 **Status:** Planning / Draft  
 **Version:** 1.1  
 **Last Updated:** Tuesday, March 10, 2026  
-**Architect:** Jo & Void (AI)
 
 ---
 

@@ -72,7 +72,7 @@ fun RecentChatsScreen(
             )
         },
         floatingActionButton = {
-            ExpressiveMorphingFAB(onClick = onDiscoverClick)
+            AnimatedMorphingFAB(onClick = onDiscoverClick)
         }
     ) { padding ->
         if (chats.isEmpty()) {

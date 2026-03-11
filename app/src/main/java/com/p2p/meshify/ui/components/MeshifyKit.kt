@@ -18,6 +18,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -39,6 +42,7 @@ import com.p2p.meshify.ui.theme.MeshifyDesignSystem
 import com.p2p.meshify.core.util.FileUtils
 import java.io.File
 import com.p2p.meshify.domain.model.Handshake
+import androidx.compose.ui.graphics.asComposePath
 
 fun RoundedPolygon.toNormalizedComposePath(): Path {
     val path = this.toPath().asComposePath()
@@ -169,6 +173,150 @@ fun ExpressiveMorphingFAB(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val config = LocalMeshifyThemeConfig.current
     val shape = remember(config.shapeStyle) { MorphPolygonShape(MD3EShapes.getShape(config.shapeStyle)) }
     FloatingActionButton(onClick = onClick, modifier = modifier.size(64.dp), shape = shape, containerColor = MaterialTheme.colorScheme.primaryContainer, elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp)) { Icon(Icons.Default.Add, contentDescription = "New Chat", modifier = Modifier.size(32.dp)) }
+}
+
+/**
+ * AnimatedMorphingFAB - FAB يتحول بشكل ديناميكي بين 4 أشكال
+ *
+ * يستخدم Morph API للتحول السلس بين:
+ * - Circle (دائرة)
+ * - Sunny (نجمة 8 أشعة)
+ * - Burst (انفجار)
+ * - Clover (نونة 4 أوراق)
+ *
+ * الحركة:
+ * - duration: 2000ms لكل دورة كاملة
+ * - Infinite repeat مع Reverse
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun AnimatedMorphingFAB(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    size: Dp = 64.dp
+) {
+    // الأشكال الأربعة المختارة
+    val shapes = remember {
+        listOf(
+            MD3EShapes.Circle,
+            MD3EShapes.Sunny,
+            MD3EShapes.Burst,
+            MD3EShapes.Clover
+        )
+    }
+
+    // InfiniteTransition للـ morphing المستمر
+    val infiniteTransition = rememberInfiniteTransition(label = "fabMorph")
+
+    // التقدم من 0 إلى 1 (دورة كاملة عبر جميع الأشكال)
+    val morphProgress by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = 2000,
+                easing = LinearEasing
+            ),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "fabMorphProgress"
+    )
+
+    // إنشاء android.graphics.Path قابل لإعادة الاستخدام
+    val androidPath = remember { android.graphics.Path() }
+
+    // تحديث الـ Path في كل recomposition بناءً على التقدم
+    // يجب حساب الشكل الديناميكي خارج remember لضمان التحديث
+    val fromIndex = (morphProgress * (shapes.size - 1)).toInt().coerceIn(0, shapes.size - 2)
+    val toIndex = (fromIndex + 1).coerceAtMost(shapes.size - 1)
+    val segmentProgress = if (shapes.size > 1) {
+        ((morphProgress * (shapes.size - 1)) - fromIndex).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+
+    val fromShape = shapes[fromIndex]
+    val toShape = shapes[toIndex]
+
+    // إنشاء Morph جديد لكل زوج من الأشكال
+    val morph = remember(fromShape, toShape) { Morph(fromShape, toShape) }
+
+    // تحديث الـ Path بالشكل الحالي باستخدام toPath مع re-use
+    morph.toPath(segmentProgress, androidPath)
+    
+    // تحويل android.graphics.Path إلى Compose Path
+    val currentShapePath = androidPath.asComposePath()
+
+    // إنشاء Shape ديناميكي
+    val shape = remember(currentShapePath) {
+        object : androidx.compose.ui.graphics.Shape {
+            override fun createOutline(
+                size: androidx.compose.ui.geometry.Size,
+                layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+                density: androidx.compose.ui.unit.Density
+            ): androidx.compose.ui.graphics.Outline {
+                // تطبيق transform لتطابق الـ Path مع الـ Size المطلوب
+                val bounds = currentShapePath.getBounds()
+
+                // إنشاء Path محوَّل جديد في كل مرة (لا re-use)
+                val transformedPath = Path()
+
+                if (bounds.width > 0f && bounds.height > 0f &&
+                    !bounds.width.isNaN() && !bounds.height.isNaN() &&
+                    bounds.width.isFinite() && bounds.height.isFinite()) {
+
+                    // حساب الـ scale
+                    val scaleX = size.width / bounds.width
+                    val scaleY = size.height / bounds.height
+
+                    // استخدام Matrix للـ transform بترتيب صحيح
+                    val matrix = Matrix()
+
+                    // الخطوة 1: نقل الـ Path إلى المركز
+                    matrix.translate(-bounds.left, -bounds.top)
+
+                    // الخطوة 2: تطبيق الـ scale
+                    matrix.scale(scaleX, scaleY)
+
+                    // الخطوة 3: إضافة الـ Path الأصلي
+                    transformedPath.addPath(currentShapePath)
+                    
+                    // الخطوة 4: تطبيق الـ transform على الـ Path
+                    transformedPath.transform(matrix)
+                    
+                    // Debug log
+                    android.util.Log.d("FAB_DEBUG", "Bounds: $bounds, Size: $size, Scale: $scaleX x $scaleY")
+                } else {
+                    // Fallback: إضافة الـ Path بدون transform
+                    transformedPath.addPath(currentShapePath)
+                    
+                    android.util.Log.d("FAB_DEBUG", "Fallback! Bounds: $bounds, Size: $size")
+                }
+
+                return androidx.compose.ui.graphics.Outline.Generic(transformedPath)
+            }
+        }
+    }
+
+    FloatingActionButton(
+        onClick = onClick,
+        modifier = modifier
+            .size(size)
+            .clip(shape),
+        containerColor = MaterialTheme.colorScheme.primaryContainer,
+        elevation = FloatingActionButtonDefaults.elevation(
+            defaultElevation = 6.dp,
+            pressedElevation = 8.dp,
+            hoveredElevation = 10.dp
+        )
+    ) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = "New Chat",
+            modifier = Modifier.size(32.dp),
+            tint = MaterialTheme.colorScheme.onPrimaryContainer
+        )
+    }
 }
 
 @Composable

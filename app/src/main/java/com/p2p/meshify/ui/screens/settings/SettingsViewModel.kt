@@ -9,7 +9,6 @@ import com.p2p.meshify.core.util.FileUtils
 import com.p2p.meshify.domain.model.BubbleStyle
 import com.p2p.meshify.domain.model.FontFamilyPreset
 import com.p2p.meshify.domain.model.MotionPreset
-import com.p2p.meshify.domain.model.ShapeStyle
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.domain.repository.ThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,9 +44,7 @@ class SettingsViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     // MD3E Settings Flows
-    val shapeStyle: StateFlow<ShapeStyle> = settingsRepository.shapeStyle
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ShapeStyle.CIRCLE)
-
+    // NOTE: shapeStyle removed - FAB now uses animated morphing between shapes
     val motionPreset: StateFlow<MotionPreset> = settingsRepository.motionPreset
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MotionPreset.STANDARD)
 
@@ -134,12 +131,8 @@ class SettingsViewModel(
     }
 
     // MD3E Setting Mutators
-    fun setShapeStyle(style: ShapeStyle) {
-        viewModelScope.launch {
-            settingsRepository.setShapeStyle(style)
-        }
-    }
-
+    // NOTE: setShapeStyle removed - FAB now uses animated morphing between shapes
+    
     fun setMotionPreset(preset: MotionPreset) {
         viewModelScope.launch {
             settingsRepository.setMotionPreset(preset)
