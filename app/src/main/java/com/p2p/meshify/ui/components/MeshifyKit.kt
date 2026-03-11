@@ -44,7 +44,7 @@ import com.p2p.meshify.ui.hooks.LocalPremiumHaptics
 
 /**
  * Robustly transforms a RoundedPolygon Path to fit and center within a given Size.
- * Fixes the "offset/cut-off" glitch by using correct matrix concatenation order.
+ * Uses the mathematically correct order: Translate to target center -> Scale -> Translate from source center.
  */
 fun android.graphics.Path.toCenteredComposePath(size: Size, scaleFactor: Float = 0.9f): Path {
     val path = this.asComposePath()
@@ -54,28 +54,36 @@ fun android.graphics.Path.toCenteredComposePath(size: Size, scaleFactor: Float =
     // Calculate scale to fit while maintaining aspect ratio
     val scale = minOf(size.width / bounds.width, size.height / bounds.height) * scaleFactor
     
-    // Calculate centering offsets
-    val dx = (size.width - bounds.width * scale) / 2f
-    val dy = (size.height - bounds.height * scale) / 2f
+    // Target center
+    val targetCenterX = size.width / 2f
+    val targetCenterY = size.height / 2f
     
-    // Correct transformation order: Translate to center -> Scale -> Translate from origin
-    matrix.translate(dx, dy)
+    // Source center (of the polygon's own bounds)
+    val sourceCenterX = bounds.left + bounds.width / 2f
+    val sourceCenterY = bounds.top + bounds.height / 2f
+    
+    // Transformation sequence (Applied in reverse order in post-concat Matrix):
+    // 1. Move source center to origin (0,0)
+    // 2. Scale
+    // 3. Move origin to target center
+    matrix.translate(targetCenterX, targetCenterY)
     matrix.scale(scale, scale)
-    matrix.translate(-bounds.left, -bounds.top)
+    matrix.translate(-sourceCenterX, -sourceCenterY)
     
     path.transform(matrix)
     return path
 }
 
 /**
- * A custom Shape that handles morphing between two polygons.
+ * Optimized Shape for MD3E Morphing.
  */
 class MorphingPolygonShape(
     private val morph: Morph,
     private val progress: Float,
-    private val scaleFactor: Float = 0.8f
+    private val scaleFactor: Float = 0.85f
 ) : Shape {
     override fun createOutline(size: Size, layoutDirection: androidx.compose.ui.unit.LayoutDirection, density: androidx.compose.ui.unit.Density): Outline {
+        // Generate the path at the current morph progress and center it
         val path = morph.toPath(progress).toCenteredComposePath(size, scaleFactor)
         return Outline.Generic(path)
     }
@@ -183,8 +191,8 @@ fun RadarPulseMorph(isSearching: Boolean, size: Dp = 44.dp, modifier: Modifier =
 }
 
 /**
- * Animated Morphing FAB.
- * Fixed name and matrix logic to resolve build failures and clipping issues.
+ * Animated Morphing FAB (Material 3 Expressive).
+ * Fixed matrix centering and naming to resolve visual glitches and build failures.
  */
 @Composable
 fun AnimatedMorphingFAB(onClick: () -> Unit, modifier: Modifier = Modifier) {
@@ -210,7 +218,8 @@ fun AnimatedMorphingFAB(onClick: () -> Unit, modifier: Modifier = Modifier) {
         Morph(previousPolygon, currentPolygon)
     }
     
-    val animatedShape = MorphingPolygonShape(morph, morphProgress.value)
+    // Using a custom Shape class for better performance and clean matrix logic
+    val animatedShape = MorphingPolygonShape(morph, morphProgress.value, scaleFactor = 0.82f)
 
     FloatingActionButton(
         onClick = {
