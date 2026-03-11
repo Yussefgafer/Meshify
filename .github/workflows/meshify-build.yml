@@ -60,7 +60,7 @@ jobs:
         run: |
           if [ ! -z "$KEYSTORE_BASE64" ]; then
             echo "Decoding keystore..."
-            echo "$KEYSTORE_BASE64" | base64 -d > meshify.jks
+            echo -n "$KEYSTORE_BASE64" | base64 -d > meshify.jks
           else
             echo "KEYSTORE_BASE64 is missing. Skipping release signing."
           fi
@@ -70,10 +70,10 @@ jobs:
 
       - name: Build Release APK
         run: |
-          if [ ! -z "$KEYSTORE_PASSWORD" ] || [ -f meshify.jks ]; then
+          if [ -f meshify.jks ]; then
             ./gradlew assembleRelease
           else
-            echo "Signing secrets and keystore file are missing. Skipping release build."
+            echo "Keystore file is missing. Skipping release build."
           fi
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
