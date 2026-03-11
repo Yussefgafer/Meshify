@@ -60,9 +60,20 @@ jobs:
         run: |
           if [ ! -z "$KEYSTORE_BASE64" ]; then
             echo "Decoding keystore..."
-            echo "$KEYSTORE_BASE64" | base64 -d > meshify.jks
+            echo -n "$KEYSTORE_BASE64" | base64 -d > meshify.jks
           else
             echo "KEYSTORE_BASE64 is missing. Skipping release signing."
+          fi
+
+      - name: Verify Keystore Content (Diagnostic)
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          if [ -f meshify.jks ] && [ ! -z "$KEYSTORE_PASSWORD" ]; then
+            echo "Listing aliases in keystore (Diagnostic)..."
+            keytool -list -keystore meshify.jks -storepass "$KEYSTORE_PASSWORD" | grep "Alias name" || echo "Could not list aliases. Check password or file integrity."
+          else
+            echo "Keystore file or password missing. Skipping diagnostic."
           fi
 
       - name: Build Debug APK
