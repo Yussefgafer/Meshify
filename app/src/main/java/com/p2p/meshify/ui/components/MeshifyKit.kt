@@ -58,8 +58,7 @@ fun android.graphics.Path.toCenteredComposePath(size: Size, scaleFactor: Float =
     val dx = (size.width - bounds.width * scale) / 2f
     val dy = (size.height - bounds.height * scale) / 2f
     
-    // Compose Matrix is post-concatenated: M' = M * Op
-    // Desired transformation: P' = T_center * S * T_origin * P
+    // Correct transformation order: Translate to center -> Scale -> Translate from origin
     matrix.translate(dx, dy)
     matrix.scale(scale, scale)
     matrix.translate(-bounds.left, -bounds.top)
@@ -74,7 +73,7 @@ fun android.graphics.Path.toCenteredComposePath(size: Size, scaleFactor: Float =
 class MorphingPolygonShape(
     private val morph: Morph,
     private val progress: Float,
-    private val scaleFactor: Float = 0.85f
+    private val scaleFactor: Float = 0.8f
 ) : Shape {
     override fun createOutline(size: Size, layoutDirection: androidx.compose.ui.unit.LayoutDirection, density: androidx.compose.ui.unit.Density): Outline {
         val path = morph.toPath(progress).toCenteredComposePath(size, scaleFactor)
@@ -99,11 +98,10 @@ fun MorphingAvatar(
         }
     }
 
-    // Dynamic shape based on theme config
     val polygon = remember(config.shapeStyle) { MD3EShapes.getShape(config.shapeStyle) }
     val avatarShape = remember(polygon) {
         GenericShape { targetSize, _ ->
-            addPath(polygon.toPath().toCenteredComposePath(targetSize, scaleFactor = 1.0f))
+            addPath(polygon.toPath().toCenteredComposePath(targetSize, scaleFactor = 0.95f))
         }
     }
 
@@ -185,15 +183,14 @@ fun RadarPulseMorph(isSearching: Boolean, size: Dp = 44.dp, modifier: Modifier =
 }
 
 /**
- * Enhanced Expressive Morphing FAB.
- * Uses optimized MorphingPolygonShape and fixes clipping/offset issues.
+ * Animated Morphing FAB.
+ * Fixed name and matrix logic to resolve build failures and clipping issues.
  */
 @Composable
-fun ExpressiveMorphingFAB(onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun AnimatedMorphingFAB(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val config = LocalMeshifyThemeConfig.current
     val haptics = LocalPremiumHaptics.current
     
-    // Morphing logic
     val targetPolygon = remember(config.shapeStyle) { MD3EShapes.getShape(config.shapeStyle) }
     var previousPolygon by remember { mutableStateOf(targetPolygon) }
     var currentPolygon by remember { mutableStateOf(targetPolygon) }
@@ -206,7 +203,7 @@ fun ExpressiveMorphingFAB(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val morphProgress = remember { Animatable(0f) }
     LaunchedEffect(currentPolygon) {
         morphProgress.snapTo(0f)
-        morphProgress.animateTo(1f, spring(dampingRatio = 0.75f, stiffness = 350f))
+        morphProgress.animateTo(1f, spring(dampingRatio = 0.8f, stiffness = 300f))
     }
     
     val morph = remember(previousPolygon, currentPolygon) {
