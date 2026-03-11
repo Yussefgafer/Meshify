@@ -29,18 +29,20 @@ android {
 
     signingConfigs {
         val ksPass = System.getenv("KEYSTORE_PASSWORD")?.trim()
-        val kAlias = System.getenv("KEY_ALIAS")?.trim() ?: "meshify" // Fallback to 'meshify' as confirmed by diagnostic
-        val kPass = System.getenv("KEY_PASSWORD")?.trim()
+        // Force 'meshify' if the env var is null, empty, or blank
+        val kAlias = System.getenv("KEY_ALIAS")?.trim().let { if (it.isNullOrBlank()) "meshify" else it }
+        val kPass = System.getenv("KEY_PASSWORD")?.trim() ?: ksPass // Fallback to store password if key password is missing
+        
         val ksFile = file("./meshify.jks")
         val ksFileParent = file("../meshify.jks")
         val finalKsFile = if (ksFile.exists()) ksFile else if (ksFileParent.exists()) ksFileParent else null
 
-        if (ksPass != null && kPass != null && finalKsFile != null) {
+        if (ksPass != null && finalKsFile != null) {
             create("release") {
                 storeFile = finalKsFile
                 storePassword = ksPass
                 keyAlias = kAlias
-                keyPassword = kPass
+                keyPassword = kPass ?: ksPass
             }
         }
     }
