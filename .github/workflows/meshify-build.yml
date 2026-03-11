@@ -76,9 +76,9 @@ jobs:
             echo "Keystore file is missing. Skipping release build."
           fi
         env:
-          KEYSTORE_PASSWORD: "01220950"
-          KEY_ALIAS: "meshify"
-          KEY_PASSWORD: "01220950"
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Get Version info
         id: version_info
