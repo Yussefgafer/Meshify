@@ -29,9 +29,9 @@ android {
 
     signingConfigs {
         val ksPass = System.getenv("KEYSTORE_PASSWORD")?.trim()
-        // Force 'meshify' if the env var is null, empty, or blank
-        val kAlias = System.getenv("KEY_ALIAS")?.trim().let { if (it.isNullOrBlank()) "meshify" else it }
-        val kPass = System.getenv("KEY_PASSWORD")?.trim() ?: ksPass // Fallback to store password if key password is missing
+        // Force 'meshify' as the alias since we confirmed it's the correct one
+        val kAlias = "meshify" 
+        val kPass = System.getenv("KEY_PASSWORD")?.trim() ?: ksPass
         
         val ksFile = file("./meshify.jks")
         val ksFileParent = file("../meshify.jks")
