@@ -61,6 +61,8 @@ jobs:
           if [ ! -z "$KEYSTORE_BASE64" ]; then
             echo "Decoding keystore..."
             echo -n "$KEYSTORE_BASE64" | base64 -d > meshify.jks
+            echo "File created. Size:"
+            ls -lh meshify.jks
           else
             echo "KEYSTORE_BASE64 is missing. Skipping release signing."
           fi
@@ -69,11 +71,18 @@ jobs:
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
-          if [ -f meshify.jks ] && [ ! -z "$KEYSTORE_PASSWORD" ]; then
-            echo "Listing aliases in keystore (Diagnostic)..."
-            keytool -list -keystore meshify.jks -storepass "$KEYSTORE_PASSWORD" | grep "Alias name" || echo "Could not list aliases. Check password or file integrity."
+          if [ -f meshify.jks ]; then
+            if [ ! -z "$KEYSTORE_PASSWORD" ]; then
+              echo "Listing aliases in keystore (Diagnostic)..."
+              # We run keytool directly to see the actual error message in the logs
+              keytool -list -keystore meshify.jks -storepass "$KEYSTORE_PASSWORD"
+            else
+              echo "KEYSTORE_PASSWORD is empty in secrets!"
+              exit 1
+            fi
           else
-            echo "Keystore file or password missing. Skipping diagnostic."
+            echo "meshify.jks file was not created!"
+            exit 1
           fi
 
       - name: Build Debug APK
