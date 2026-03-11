@@ -28,9 +28,9 @@ android {
     }
 
     signingConfigs {
-        val ksPass = System.getenv("KEYSTORE_PASSWORD")
-        val kAlias = System.getenv("KEY_ALIAS")
-        val kPass = System.getenv("KEY_PASSWORD")
+        val ksPass = System.getenv("KEYSTORE_PASSWORD")?.trim()
+        val kAlias = System.getenv("KEY_ALIAS")?.trim()
+        val kPass = System.getenv("KEY_PASSWORD")?.trim()
         val ksFile = file("./meshify.jks")
         val ksFileParent = file("../meshify.jks")
         val finalKsFile = if (ksFile.exists()) ksFile else if (ksFileParent.exists()) ksFileParent else null
