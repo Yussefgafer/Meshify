@@ -24,13 +24,22 @@ import androidx.navigation.compose.rememberNavController
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.FontFamilyPreset
 import com.p2p.meshify.domain.model.MotionPreset
-import com.p2p.meshify.network.service.MeshForegroundService
-import com.p2p.meshify.ui.components.PremiumNoiseTexture
-import com.p2p.meshify.ui.navigation.MeshifyNavDisplay
-import com.p2p.meshify.ui.theme.MD3EFontFamilies
-import com.p2p.meshify.ui.theme.MeshifyTheme
-import com.p2p.meshify.ui.hooks.rememberPremiumHaptics
-import com.p2p.meshify.ui.hooks.LocalPremiumHaptics
+import com.p2p.meshify.service.MeshForegroundService
+import com.p2p.meshify.core.ui.components.PremiumNoiseTexture
+import com.p2p.meshify.core.ui.navigation.MeshifyNavHost
+import com.p2p.meshify.core.ui.navigation.Screen
+import com.p2p.meshify.core.ui.theme.MD3EFontFamilies
+import com.p2p.meshify.core.ui.theme.MeshifyTheme
+import com.p2p.meshify.core.ui.hooks.rememberPremiumHaptics
+import com.p2p.meshify.core.ui.hooks.LocalPremiumHaptics
+import com.p2p.meshify.feature.home.RecentChatsScreen
+import com.p2p.meshify.feature.home.RecentChatsViewModel
+import com.p2p.meshify.feature.discovery.DiscoveryScreen
+import com.p2p.meshify.feature.discovery.DiscoveryViewModel
+import com.p2p.meshify.feature.chat.ChatScreen
+import com.p2p.meshify.feature.chat.ChatViewModel
+import com.p2p.meshify.feature.settings.SettingsScreen
+import com.p2p.meshify.feature.settings.SettingsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -115,12 +124,80 @@ class MainActivity : ComponentActivity() {
                         Box(modifier = Modifier.fillMaxSize()) {
                             // High-end tactile feel
                             PremiumNoiseTexture(alpha = 0.03f)
-                            
+
                             Surface(
-                                modifier = Modifier.fillMaxSize(), 
+                                modifier = Modifier.fillMaxSize(),
                                 color = Color.Transparent
                             ) {
-                                MeshifyNavDisplay(context = this@MainActivity, navController = navController, appContainer = appContainer)
+                                MeshifyNavHost(
+                                    navController = navController,
+                                    onHomeRoute = {
+                                        val homeViewModel: RecentChatsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                                            factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+                                                override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                                                    @Suppress("UNCHECKED_CAST")
+                                                    return RecentChatsViewModel(appContainer.chatRepository as com.p2p.meshify.core.data.repository.ChatRepositoryImpl) as T
+                                                }
+                                            }
+                                        )
+                                        RecentChatsScreen(
+                                            viewModel = homeViewModel,
+                                            onChatClick = { chat -> navController.navigate(Screen.Chat(chat.peerId, chat.peerName)) },
+                                            onDiscoverClick = { navController.navigate(Screen.Discovery) },
+                                            onSettingsClick = { navController.navigate(Screen.Settings) }
+                                        )
+                                    },
+                                    onDiscoveryRoute = {
+                                        val discoveryViewModel: DiscoveryViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                                            factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+                                                override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                                                    @Suppress("UNCHECKED_CAST")
+                                                    return DiscoveryViewModel(appContainer.lanTransport) as T
+                                                }
+                                            }
+                                        )
+                                        DiscoveryScreen(
+                                            viewModel = discoveryViewModel,
+                                            onPeerClick = { peer -> navController.navigate(Screen.Chat(peer.id, peer.name)) },
+                                            onSettingsClick = { navController.navigate(Screen.Settings) }
+                                        )
+                                    },
+                                    onChatRoute = { peerId, peerName ->
+                                        val chatViewModel: ChatViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                                            key = peerId,
+                                            factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+                                                override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                                                    @Suppress("UNCHECKED_CAST")
+                                                    return ChatViewModel(
+                                                        peerId = peerId,
+                                                        peerName = peerName ?: "Peer",
+                                                        repository = appContainer.chatRepository as com.p2p.meshify.core.data.repository.ChatRepositoryImpl
+                                                    ) as T
+                                                }
+                                            }
+                                        )
+                                        ChatScreen(
+                                            viewModel = chatViewModel,
+                                            peerId = peerId,
+                                            peerName = peerName ?: "Peer",
+                                            onBackClick = { navController.popBackStack() }
+                                        )
+                                    },
+                                    onSettingsRoute = {
+                                        val settingsViewModel: SettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                                            factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+                                                override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                                                    @Suppress("UNCHECKED_CAST")
+                                                    return SettingsViewModel(appContainer.settingsRepository) as T
+                                                }
+                                            }
+                                        )
+                                        SettingsScreen(
+                                            viewModel = settingsViewModel,
+                                            onBackClick = { navController.popBackStack() }
+                                        )
+                                    }
+                                )
                             }
                         }
                     }

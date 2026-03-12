@@ -2,14 +2,18 @@ package com.p2p.meshify
 
 import android.content.Context
 import androidx.room.Room
-import com.p2p.meshify.data.local.MeshifyDatabase
-import com.p2p.meshify.data.repository.*
-import com.p2p.meshify.domain.repository.*
-import com.p2p.meshify.network.base.IMeshTransport
-import com.p2p.meshify.network.lan.LanTransportImpl
-import com.p2p.meshify.network.lan.SocketManager
+import com.p2p.meshify.core.data.local.MeshifyDatabase
+import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
+import com.p2p.meshify.core.data.repository.FileManagerImpl
+import com.p2p.meshify.core.data.repository.SettingsRepository
+import com.p2p.meshify.core.network.base.IMeshTransport
+import com.p2p.meshify.core.network.lan.LanTransportImpl
+import com.p2p.meshify.core.network.lan.SocketManager
+import com.p2p.meshify.core.network.service.MessageQueueService
 import com.p2p.meshify.core.util.NotificationHelper
-import com.p2p.meshify.network.service.MessageQueueService
+import com.p2p.meshify.domain.repository.IChatRepository
+import com.p2p.meshify.domain.repository.IFileManager
+import com.p2p.meshify.domain.repository.ISettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -62,7 +66,7 @@ class AppContainer(private val context: Context) {
         messageQueueService.start()
         CoroutineScope(Dispatchers.IO).launch {
             lanTransport.events.collect { event ->
-                if (event is com.p2p.meshify.network.base.TransportEvent.PayloadReceived) {
+                if (event is com.p2p.meshify.core.network.base.TransportEvent.PayloadReceived) {
                     chatRepository.handleIncomingPayload(event.deviceId, event.payload)
                 }
             }
