@@ -24,7 +24,7 @@ import androidx.navigation.compose.rememberNavController
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.FontFamilyPreset
 import com.p2p.meshify.domain.model.MotionPreset
-import com.p2p.meshify.service.MeshForegroundService
+import com.p2p.meshify.core.network.service.MeshForegroundService
 import com.p2p.meshify.core.ui.components.PremiumNoiseTexture
 import com.p2p.meshify.core.ui.navigation.MeshifyNavHost
 import com.p2p.meshify.core.ui.navigation.Screen
