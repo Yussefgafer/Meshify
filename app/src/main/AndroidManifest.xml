@@ -49,7 +49,7 @@
         </activity>
 
         <service
-            android:name=".network.service.MeshForegroundService"
+            android:name=".service.MeshForegroundService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
