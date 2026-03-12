@@ -1,0 +1,8 @@
+com.p2p.meshify.feature.chat-pngs-0 /app/feature/chat/build/generated/res/pngs/debug
+com.p2p.meshify.feature.chat-updated_navigation_xml-1 /app/feature/chat/build/generated/updated_navigation_xml/debug
+com.p2p.meshify.feature.chat-mergeDebugResources-2 /app/feature/chat/build/intermediates/incremental/debug/mergeDebugResources/merged.dir
+com.p2p.meshify.feature.chat-mergeDebugResources-3 /app/feature/chat/build/intermediates/incremental/debug/mergeDebugResources/stripped.dir
+com.p2p.meshify.feature.chat-debug-4 /app/feature/chat/build/intermediates/merged_res/debug/mergeDebugResources
+com.p2p.meshify.feature.chat-debug-5 /app/feature/chat/build/intermediates/packaged_res/debug/packageDebugResources
+com.p2p.meshify.feature.chat-debug-6 /app/feature/chat/src/debug/res
+com.p2p.meshify.feature.chat-main-7 /app/feature/chat/src/main/res

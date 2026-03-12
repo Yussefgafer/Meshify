@@ -1,0 +1,8 @@
+com.p2p.meshify.core.common-pngs-0 /app/core/common/build/generated/res/pngs/debug
+com.p2p.meshify.core.common-updated_navigation_xml-1 /app/core/common/build/generated/updated_navigation_xml/debug
+com.p2p.meshify.core.common-mergeDebugResources-2 /app/core/common/build/intermediates/incremental/debug/mergeDebugResources/merged.dir
+com.p2p.meshify.core.common-mergeDebugResources-3 /app/core/common/build/intermediates/incremental/debug/mergeDebugResources/stripped.dir
+com.p2p.meshify.core.common-debug-4 /app/core/common/build/intermediates/merged_res/debug/mergeDebugResources
+com.p2p.meshify.core.common-debug-5 /app/core/common/build/intermediates/packaged_res/debug/packageDebugResources
+com.p2p.meshify.core.common-debug-6 /app/core/common/src/debug/res
+com.p2p.meshify.core.common-main-7 /app/core/common/src/main/res

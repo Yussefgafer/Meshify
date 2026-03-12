@@ -1,0 +1,13 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.p2p.meshify.core.ui" >
+4
+5    <uses-sdk android:minSdkVersion="26" />
+5-->INJECTED
+5-->INJECTED
+6
+7    <uses-permission android:name="android.permission.VIBRATE" />
+7-->/app/core/ui/src/main/AndroidManifest.xml:3:5-66
+7-->/app/core/ui/src/main/AndroidManifest.xml:3:22-63
+8
+9</manifest>

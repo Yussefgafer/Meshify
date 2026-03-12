@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.p2p.meshify.domain.model.SignalStrengthTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-03-12T19:12:42.802Z" hostname="devbox" time="0.091">
+  <properties/>
+  <testcase name="fromRssi returns STRONG for rssi greater than -50" classname="com.p2p.meshify.domain.model.SignalStrengthTest" time="0.001"/>
+  <testcase name="fromRssi returns WEAK for rssi less than -70" classname="com.p2p.meshify.domain.model.SignalStrengthTest" time="0.0"/>
+  <testcase name="getShapePair returns circle for OFFLINE" classname="com.p2p.meshify.domain.model.SignalStrengthTest" time="0.081"/>
+  <testcase name="fromRssi returns MEDIUM for rssi between -70 and -50" classname="com.p2p.meshify.domain.model.SignalStrengthTest" time="0.0"/>
+  <testcase name="getShapePair returns correct shapes for MEDIUM" classname="com.p2p.meshify.domain.model.SignalStrengthTest" time="0.0"/>
+  <testcase name="getShapePair returns correct shapes for STRONG" classname="com.p2p.meshify.domain.model.SignalStrengthTest" time="0.005"/>
+  <testcase name="getMorphDuration returns correct values for each strength" classname="com.p2p.meshify.domain.model.SignalStrengthTest" time="0.0"/>
+  <testcase name="SignalStrength enum values are correct" classname="com.p2p.meshify.domain.model.SignalStrengthTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

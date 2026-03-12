@@ -1,0 +1,8 @@
+com.p2p.meshify.feature.settings-pngs-0 /app/feature/settings/build/generated/res/pngs/debug
+com.p2p.meshify.feature.settings-updated_navigation_xml-1 /app/feature/settings/build/generated/updated_navigation_xml/debug
+com.p2p.meshify.feature.settings-mergeDebugResources-2 /app/feature/settings/build/intermediates/incremental/debug/mergeDebugResources/merged.dir
+com.p2p.meshify.feature.settings-mergeDebugResources-3 /app/feature/settings/build/intermediates/incremental/debug/mergeDebugResources/stripped.dir
+com.p2p.meshify.feature.settings-debug-4 /app/feature/settings/build/intermediates/merged_res/debug/mergeDebugResources
+com.p2p.meshify.feature.settings-debug-5 /app/feature/settings/build/intermediates/packaged_res/debug/packageDebugResources
+com.p2p.meshify.feature.settings-debug-6 /app/feature/settings/src/debug/res
+com.p2p.meshify.feature.settings-main-7 /app/feature/settings/src/main/res

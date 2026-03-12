@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.p2p.meshify.core.util.PayloadSerializerTest" tests="12" skipped="0" failures="0" errors="0" timestamp="2026-03-12T19:12:50.341Z" hostname="devbox" time="0.088">
+  <properties/>
+  <testcase name="serialize and deserialize TEXT payload" classname="com.p2p.meshify.core.util.PayloadSerializerTest" time="0.012"/>
+  <testcase name="serialize preserves payload equality" classname="com.p2p.meshify.core.util.PayloadSerializerTest" time="0.002"/>
+  <testcase name="deserialize HANDSHAKE payload type" classname="com.p2p.meshify.core.util.PayloadSerializerTest" time="0.001"/>
+  <testcase name="deserialize SYSTEM_CONTROL payload type" classname="com.p2p.meshify.core.util.PayloadSerializerTest" time="0.0"/>
+  <testcase name="deserialize V2 payload (backward compatibility)" classname="com.p2p.meshify.core.util.PayloadSerializerTest" time="0.001"/>
+  <testcase name="deserialize empty array returns safe payload" classname="com.p2p.meshify.core.util.PayloadSerializerTest" time="0.026"/>
+  <testcase name="deserialize V3 payload with string type" classname="com.p2p.meshify.core.util.PayloadSerializerTest" time="0.007"/>
+  <testcase name="deserialize unknown version returns error" classname="com.p2p.meshify.core.util.PayloadSerializerTest" time="0.0"/>
+  <testcase name="deserialize corrupted data returns safe payload" classname="com.p2p.meshify.core.util.PayloadSerializerTest" time="0.002"/>
+  <testcase name="deserialize invalid length returns error" classname="com.p2p.meshify.core.util.PayloadSerializerTest" time="0.004"/>
+  <testcase name="serialize and deserialize FILE payload with large data" classname="com.p2p.meshify.core.util.PayloadSerializerTest" time="0.011"/>
+  <testcase name="deserialize payload too small returns error" classname="com.p2p.meshify.core.util.PayloadSerializerTest" time="0.001"/>
+  <system-out><![CDATA[PayloadSerializer -> Corrupted payload received: Payload too small: 0 bytes
+PayloadSerializer -> Corrupted payload received: Payload too small: 3 bytes
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

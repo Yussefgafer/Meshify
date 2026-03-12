@@ -1,0 +1,48 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    xmlns:tools="http://schemas.android.com/tools"
+4    package="com.p2p.meshify.core.network" >
+5
+6    <uses-sdk android:minSdkVersion="26" />
+6-->INJECTED
+6-->INJECTED
+7
+8    <!-- P2P and Network Permissions (Kept in Network Module) -->
+9    <uses-permission android:name="android.permission.INTERNET" />
+9-->/app/core/network/src/main/AndroidManifest.xml:6:5-67
+9-->/app/core/network/src/main/AndroidManifest.xml:6:22-64
+10    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+10-->/app/core/network/src/main/AndroidManifest.xml:7:5-76
+10-->/app/core/network/src/main/AndroidManifest.xml:7:22-73
+11    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+11-->/app/core/network/src/main/AndroidManifest.xml:8:5-76
+11-->/app/core/network/src/main/AndroidManifest.xml:8:22-73
+12    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+12-->/app/core/network/src/main/AndroidManifest.xml:9:5-86
+12-->/app/core/network/src/main/AndroidManifest.xml:9:22-83
+13    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+13-->/app/core/network/src/main/AndroidManifest.xml:10:5-79
+13-->/app/core/network/src/main/AndroidManifest.xml:10:22-76
+14
+15    <!-- Required for Discovery on Android 13+ -->
+16    <uses-permission
+16-->/app/core/network/src/main/AndroidManifest.xml:13:5-16:31
+17        android:name="android.permission.NEARBY_WIFI_DEVICES"
+17-->/app/core/network/src/main/AndroidManifest.xml:14:9-62
+18        android:usesPermissionFlags="neverForLocation"
+18-->/app/core/network/src/main/AndroidManifest.xml:15:9-55
+19        tools:targetApi="s" />
+19-->/app/core/network/src/main/AndroidManifest.xml:16:9-28
+20
+21    <!-- Required for Discovery on older versions -->
+22    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+22-->/app/core/network/src/main/AndroidManifest.xml:19:5-79
+22-->/app/core/network/src/main/AndroidManifest.xml:19:22-76
+23    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+23-->/app/core/network/src/main/AndroidManifest.xml:20:5-81
+23-->/app/core/network/src/main/AndroidManifest.xml:20:22-78
+24
+25    <application />
+25-->/app/core/network/src/main/AndroidManifest.xml:22:5-20
+26
+27</manifest>

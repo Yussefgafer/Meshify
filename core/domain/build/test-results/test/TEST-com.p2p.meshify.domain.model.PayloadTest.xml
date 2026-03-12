@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.p2p.meshify.domain.model.PayloadTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-03-12T19:12:42.780Z" hostname="devbox" time="0.017">
+  <properties/>
+  <testcase name="Payload equals returns false for different id" classname="com.p2p.meshify.domain.model.PayloadTest" time="0.005"/>
+  <testcase name="Payload hashCode is based on id only" classname="com.p2p.meshify.domain.model.PayloadTest" time="0.001"/>
+  <testcase name="Payload default timestamp is current time" classname="com.p2p.meshify.domain.model.PayloadTest" time="0.0"/>
+  <testcase name="String toPayloadType extension works correctly" classname="com.p2p.meshify.domain.model.PayloadTest" time="0.001"/>
+  <testcase name="PayloadTypeFromString returns correct type for valid name" classname="com.p2p.meshify.domain.model.PayloadTest" time="0.0"/>
+  <testcase name="Payload default id is generated UUID" classname="com.p2p.meshify.domain.model.PayloadTest" time="0.001"/>
+  <testcase name="PayloadTypeFromString returns null for invalid name" classname="com.p2p.meshify.domain.model.PayloadTest" time="0.0"/>
+  <testcase name="Payload equals returns true for same id" classname="com.p2p.meshify.domain.model.PayloadTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

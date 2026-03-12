@@ -1,0 +1,56 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /app/core/network/src/main/AndroidManifest.xml:2:1-24:12
+INJECTED from /app/core/network/src/main/AndroidManifest.xml:2:1-24:12
+	package
+		INJECTED from /app/core/network/src/main/AndroidManifest.xml
+	xmlns:tools
+		ADDED from /app/core/network/src/main/AndroidManifest.xml:3:5-51
+	xmlns:android
+		ADDED from /app/core/network/src/main/AndroidManifest.xml:2:11-69
+uses-permission#android.permission.INTERNET
+ADDED from /app/core/network/src/main/AndroidManifest.xml:6:5-67
+	android:name
+		ADDED from /app/core/network/src/main/AndroidManifest.xml:6:22-64
+uses-permission#android.permission.ACCESS_WIFI_STATE
+ADDED from /app/core/network/src/main/AndroidManifest.xml:7:5-76
+	android:name
+		ADDED from /app/core/network/src/main/AndroidManifest.xml:7:22-73
+uses-permission#android.permission.CHANGE_WIFI_STATE
+ADDED from /app/core/network/src/main/AndroidManifest.xml:8:5-76
+	android:name
+		ADDED from /app/core/network/src/main/AndroidManifest.xml:8:22-73
+uses-permission#android.permission.CHANGE_WIFI_MULTICAST_STATE
+ADDED from /app/core/network/src/main/AndroidManifest.xml:9:5-86
+	android:name
+		ADDED from /app/core/network/src/main/AndroidManifest.xml:9:22-83
+uses-permission#android.permission.ACCESS_NETWORK_STATE
+ADDED from /app/core/network/src/main/AndroidManifest.xml:10:5-79
+	android:name
+		ADDED from /app/core/network/src/main/AndroidManifest.xml:10:22-76
+uses-permission#android.permission.NEARBY_WIFI_DEVICES
+ADDED from /app/core/network/src/main/AndroidManifest.xml:13:5-16:31
+	android:usesPermissionFlags
+		ADDED from /app/core/network/src/main/AndroidManifest.xml:15:9-55
+	tools:targetApi
+		ADDED from /app/core/network/src/main/AndroidManifest.xml:16:9-28
+	android:name
+		ADDED from /app/core/network/src/main/AndroidManifest.xml:14:9-62
+uses-permission#android.permission.ACCESS_FINE_LOCATION
+ADDED from /app/core/network/src/main/AndroidManifest.xml:19:5-79
+	android:name
+		ADDED from /app/core/network/src/main/AndroidManifest.xml:19:22-76
+uses-permission#android.permission.ACCESS_COARSE_LOCATION
+ADDED from /app/core/network/src/main/AndroidManifest.xml:20:5-81
+	android:name
+		ADDED from /app/core/network/src/main/AndroidManifest.xml:20:22-78
+application
+ADDED from /app/core/network/src/main/AndroidManifest.xml:22:5-20
+uses-sdk
+INJECTED from /app/core/network/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /app/core/network/src/main/AndroidManifest.xml
+INJECTED from /app/core/network/src/main/AndroidManifest.xml
+	android:targetSdkVersion
+		INJECTED from /app/core/network/src/main/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /app/core/network/src/main/AndroidManifest.xml

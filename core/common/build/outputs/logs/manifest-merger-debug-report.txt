@@ -1,0 +1,16 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /app/core/common/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9835151215553312804.xml:2:13-83
+INJECTED from /app/core/common/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9835151215553312804.xml:2:13-83
+	package
+		INJECTED from /app/core/common/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9835151215553312804.xml
+	xmlns:android
+		ADDED from /app/core/common/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9835151215553312804.xml:2:23-81
+uses-sdk
+INJECTED from /app/core/common/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9835151215553312804.xml reason: use-sdk injection requested
+INJECTED from /app/core/common/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9835151215553312804.xml
+INJECTED from /app/core/common/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9835151215553312804.xml
+	android:targetSdkVersion
+		INJECTED from /app/core/common/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9835151215553312804.xml
+	android:minSdkVersion
+		INJECTED from /app/core/common/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9835151215553312804.xml

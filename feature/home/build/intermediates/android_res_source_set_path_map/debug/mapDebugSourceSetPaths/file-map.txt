@@ -1,0 +1,8 @@
+com.p2p.meshify.feature.home-pngs-0 /app/feature/home/build/generated/res/pngs/debug
+com.p2p.meshify.feature.home-updated_navigation_xml-1 /app/feature/home/build/generated/updated_navigation_xml/debug
+com.p2p.meshify.feature.home-mergeDebugResources-2 /app/feature/home/build/intermediates/incremental/debug/mergeDebugResources/merged.dir
+com.p2p.meshify.feature.home-mergeDebugResources-3 /app/feature/home/build/intermediates/incremental/debug/mergeDebugResources/stripped.dir
+com.p2p.meshify.feature.home-debug-4 /app/feature/home/build/intermediates/merged_res/debug/mergeDebugResources
+com.p2p.meshify.feature.home-debug-5 /app/feature/home/build/intermediates/packaged_res/debug/packageDebugResources
+com.p2p.meshify.feature.home-debug-6 /app/feature/home/src/debug/res
+com.p2p.meshify.feature.home-main-7 /app/feature/home/src/main/res

@@ -1,0 +1,8 @@
+com.p2p.meshify.feature.discovery-pngs-0 /app/feature/discovery/build/generated/res/pngs/debug
+com.p2p.meshify.feature.discovery-updated_navigation_xml-1 /app/feature/discovery/build/generated/updated_navigation_xml/debug
+com.p2p.meshify.feature.discovery-mergeDebugResources-2 /app/feature/discovery/build/intermediates/incremental/debug/mergeDebugResources/merged.dir
+com.p2p.meshify.feature.discovery-mergeDebugResources-3 /app/feature/discovery/build/intermediates/incremental/debug/mergeDebugResources/stripped.dir
+com.p2p.meshify.feature.discovery-debug-4 /app/feature/discovery/build/intermediates/merged_res/debug/mergeDebugResources
+com.p2p.meshify.feature.discovery-debug-5 /app/feature/discovery/build/intermediates/packaged_res/debug/packageDebugResources
+com.p2p.meshify.feature.discovery-debug-6 /app/feature/discovery/src/debug/res
+com.p2p.meshify.feature.discovery-main-7 /app/feature/discovery/src/main/res
