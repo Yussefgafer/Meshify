@@ -27,7 +27,7 @@
 
     <application>
         <service
-            android:name=".service.MeshForegroundService"
+            android:name="com.p2p.meshify.core.network.service.MeshForegroundService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />

@@ -29,6 +29,8 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}
+          generate-job-summary: true
+          gradle-home-cache-cleanup: true
 
       - name: Run Lint
         run: ./gradlew lintDebug --continue
@@ -56,6 +58,8 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}
+          generate-job-summary: true
+          gradle-home-cache-cleanup: true
 
       - name: Decode Keystore
         env:

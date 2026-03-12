@@ -1,4 +1,4 @@
-package com.p2p.meshify.service
+package com.p2p.meshify.core.network.service
 
 import android.app.*
 import android.content.Context
@@ -9,7 +9,7 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.p2p.meshify.core.network.base.TransportEvent
-import com.p2p.meshify.core.util.Logger
+import com.p2p.meshify.core.common.util.Logger
 import com.p2p.meshify.domain.repository.IChatRepository
 import kotlinx.coroutines.*
 
