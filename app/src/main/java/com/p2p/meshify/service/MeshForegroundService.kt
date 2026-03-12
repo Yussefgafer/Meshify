@@ -1,4 +1,4 @@
-package com.p2p.meshify.core.network.service
+package com.p2p.meshify.service
 
 import android.app.*
 import android.content.Context
@@ -9,9 +9,10 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.p2p.meshify.core.network.base.TransportEvent
-import com.p2p.meshify.core.common.util.Logger
+import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.repository.IChatRepository
 import kotlinx.coroutines.*
+import com.p2p.meshify.MeshifyApp
 
 /**
  * Foreground Service to keep the mesh network alive.
@@ -29,7 +30,7 @@ class MeshForegroundService : Service() {
         super.onCreate()
         Logger.i("Service -> onCreate")
 
-        val app = application as com.p2p.meshify.MeshifyApp
+        val app = application as MeshifyApp
         chatRepository = app.container.chatRepository
 
         acquireMulticastLock()
@@ -38,7 +39,7 @@ class MeshForegroundService : Service() {
 
     private fun startMeshNetwork() {
         serviceScope.launch {
-            val app = application as com.p2p.meshify.MeshifyApp
+            val app = application as MeshifyApp
             val transport = app.container.lanTransport
 
             // Listen for incoming payloads globally
@@ -70,7 +71,7 @@ class MeshForegroundService : Service() {
         try {
             // Block until transport.stop() completes
             runBlocking {
-                val app = application as com.p2p.meshify.MeshifyApp
+                val app = application as MeshifyApp
                 app.container.lanTransport.stop()
             }
             transportStarted = false

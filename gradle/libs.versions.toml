@@ -30,6 +30,7 @@ androidx_junit = { group = "androidx.test.ext", name = "junit", version.ref = "j
 androidx_espresso_core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 androidx_lifecycle_runtime_ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
 androidx_lifecycle_runtime_compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }
+androidx_lifecycle_service = { group = "androidx.lifecycle", name = "lifecycle-service", version.ref = "lifecycle" }
 androidx_lifecycle_viewmodel_compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 androidx_activity_compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 androidx_compose_bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
