@@ -103,12 +103,29 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 }
 
 dependencies {
+    // Core Modules
+    implementation(project(":core:common"))
+    implementation(project(":core:domain"))
+    implementation(project(":core:data"))
+    implementation(project(":core:network"))
+    implementation(project(":core:ui"))
+
+    // Feature Modules
+    implementation(project(":feature:home"))
+    implementation(project(":feature:chat"))
+    implementation(project(":feature:discovery"))
+    implementation(project(":feature:settings"))
+    
+    // AndroidX Core
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.activity.compose)
+    
+    // Lifecycle
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.androidx.activity.compose)
     
+    // Compose BOM
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
@@ -117,26 +134,27 @@ dependencies {
     implementation(libs.google.material)
     implementation(libs.androidx.material.icons.extended)
     
+    // Navigation
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.kotlinx.serialization.json)
+    
+    // Room (needed for generated database code)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    ksp(libs.androidx.room.compiler)
     
-    implementation(libs.androidx.graphics.shapes)
-    implementation(libs.androidx.datastore.preferences)
-    
+    // Coil
     implementation(libs.coil3.compose)
     implementation(libs.coil3.network)
     
-    implementation(libs.androidx.navigation.compose)
-    implementation(libs.kotlinx.serialization.json)
-    implementation(libs.androidx.ui.text.google.fonts)
-    implementation(libs.accompanist.permissions)
-
-    // Media3 (ExoPlayer)
+    // Media3
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
     implementation(libs.media3.session)
     
+    // Accompanist
+    implementation(libs.accompanist.permissions)
+    
+    // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Service Strings -->
+    <string name="service_channel_name">Mesh Service</string>
+    <string name="service_mesh_active">Meshify P2P</string>
+    <string name="service_searching_peers">Mesh network is active and searching for peers...</string>
+
+    <!-- App Name -->
+    <string name="app_name">Meshify</string>
+
+    <!-- Home / Recent Chats Screen -->
+    <string name="screen_home_title">Meshify</string>
+    <string name="chats_recent_header">Recent Chats</string>
+    <string name="no_recent_chats">No conversations yet</string>
+    <string name="no_recent_chats_desc">Tap the + button to discover nearby devices</string>
+    <string name="last_msg_image">[Image]</string>
+    <string name="last_msg_none">No messages yet</string>
+    <string name="typing_indicator">typing...</string>
+    <string name="status_online">Online</string>
+    <string name="status_offline">Offline</string>
+
+    <!-- Discovery Screen -->
+    <string name="screen_discovery_title">Discovery</string>
+    <string name="discovery_peers_found">Found Peers</string>
+    <string name="peer_discovered_format">%s Discovered</string>
+    <string name="searching_placeholder">Searching for nearby devices...</string>
+    <string name="no_peers_found">No peers found yet. Ensure Wi-Fi is enabled.</string>
+
+    <!-- Chat Screen -->
+    <string name="screen_chat_title">Chat</string>
+    <string name="input_placeholder">Type a message...</string>
+    <string name="btn_send">Send</string>
+    <string name="attach_image">Image</string>
+    <string name="attach_file">File</string>
+    <string name="attach_video">Video</string>
+    <string name="msg_failed">Send Failed</string>
+    <string name="msg_selected_count">%d selected</string>
+    <string name="delete_confirmation_title">Delete Messages</string>
+    <string name="delete_confirmation_text">Are you sure you want to delete %d selected messages?</string>
+    <string name="btn_delete">Delete</string>
+    <string name="btn_cancel">Cancel</string>
+
+    <!-- Settings Screen -->
+    <string name="screen_settings_title">Settings</string>
+    <string name="setting_display_name">Display Name</string>
+    <string name="setting_language">Language</string>
+    <string name="setting_dark_mode">Dark Mode</string>
+    <string name="setting_device_id">Device ID</string>
+    <string name="setting_app_version">App Version</string>
+    <string name="btn_save_changes">Save Changes</string>
+    <string name="settings_section_identity">Profile Identity</string>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_section_privacy">Privacy &amp; Network</string>
+    <string name="settings_section_info">Device Info</string>
+    <string name="settings_theme_mode">Theme Mode</string>
+    <string name="settings_dynamic_colors">Dynamic Colors</string>
+    <string name="settings_dynamic_colors_desc">Use wallpaper-based colors (Android 12+)</string>
+    <string name="settings_visibility">Visible to Others</string>
+    <string name="settings_visibility_desc">When off, you won\'t appear in discovery scans</string>
+
+    <!-- Signal Strength Badges -->
+    <string name="signal_strong">Excellent Signal ●●●</string>
+    <string name="signal_medium">Good Signal ●●○</string>
+    <string name="signal_weak">Weak Signal ●○○</string>
+    <string name="signal_offline">Offline</string>
+
+    <!-- MD3E Settings - Shape Morphing -->
+    <string name="settings_shape_style">Shape Morphing</string>
+    <string name="settings_shape_style_desc">Select the active shape for morphing animations</string>
+    <string name="settings_shape_active">Active</string>
+    <string name="settings_shape_tap_to_select">Tap to select</string>
+
+    <!-- MD3E Settings - Motion System -->
+    <string name="settings_motion_system">Motion System</string>
+    <string name="settings_motion_system_desc">Configure spring physics and animation speed</string>
+    <string name="settings_motion_scale">Motion Scale</string>
+    <string name="settings_motion_gentle">Calm, subtle animations</string>
+    <string name="settings_motion_standard">Balanced MD3E default</string>
+    <string name="settings_motion_snappy">Quick, responsive</string>
+    <string name="settings_motion_bouncy">Playful, elastic</string>
+
+    <!-- MD3E Settings - Typography -->
+    <string name="settings_typography">Typography</string>
+    <string name="settings_typography_desc">Choose your preferred font family</string>
+    <string name="settings_font_roboto">Default system font</string>
+    <string name="settings_font_poppins">Modern geometric</string>
+    <string name="settings_font_lora">Elegant serif</string>
+    <string name="settings_font_montserrat">Urban contemporary</string>
+    <string name="settings_font_playfair">Display serif</string>
+    <string name="settings_font_inter">Clean UI font</string>
+
+    <!-- MD3E Settings - Chat Bubbles -->
+    <string name="settings_chat_bubbles">Chat Bubbles</string>
+    <string name="settings_chat_bubbles_desc">Select chat bubble shape style</string>
+
+    <!-- MD3E Settings - Visual Density -->
+    <string name="settings_visual_density">Visual Density</string>
+    <string name="settings_visual_density_desc">Adjust UI element sizing and spacing</string>
+    <string name="settings_density_label">Density</string>
+
+    <!-- Attachment Bottom Sheet -->
+    <string name="attach_file_title">Attach File</string>
+    <string name="attach_from_gallery">From gallery</string>
+    <string name="attach_camera">Camera</string>
+    <string name="coming_soon">Coming soon</string>
+
+    <!-- MD3E Settings - Color Picker -->
+    <string name="settings_seed_color">Accent Color</string>
+    <string name="settings_seed_color_desc">Choose your brand color when dynamic colors are off</string>
+    <string name="color_selection_content_description">Select color</string>
+
+    <!-- MD3E Settings - Font Picker -->
+    <string name="settings_custom_font">Custom Font</string>
+    <string name="settings_custom_font_desc">Upload a .ttf or .otf font file from your device</string>
+    <string name="btn_upload_font">Upload Font</string>
+    <string name="btn_clear_font">Clear Custom Font</string>
+    <string name="font_file_selected">Font file selected: %s</string>
+    <string name="no_custom_font">No custom font uploaded</string>
+
+    <!-- Accessibility Content Descriptions -->
+    <string name="content_desc_back">Back</string>
+    <string name="content_desc_cancel">Cancel</string>
+    <string name="content_desc_delete">Delete</string>
+    <string name="content_desc_send">Send</string>
+    <string name="content_desc_attach">Attach file</string>
+    <string name="content_desc_settings">Settings</string>
+    <string name="content_desc_discovery">Discovery</string>
+
+    <!-- ChatApp-Compose Chat Input Strings -->
+    <string name="emoji_selector_bt_desc">Emoji Selector</string>
+    <string name="dm_desc">Link</string>
+    <string name="attach_photo_desc">Photo</string>
+    <string name="map_selector_desc">Map</string>
+    <string name="videochat_desc">Video</string>
+    <string name="send_desc">send button</string>
+    <string name="textfield_desc">Text Field</string>
+    <string name="send">Send</string>
+    <string name="record">Record</string>
+    <string name="noInternet">No Internet</string>
+    <string name="noPermission">No Permission</string>
+    <string name="not_available">Not available</string>
+    <string name="not_available_subtitle">This feature is not available yet</string>
+</resources>

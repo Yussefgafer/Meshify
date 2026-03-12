@@ -10,9 +10,9 @@ on:
 
 jobs:
   validation:
-    name: Lint
+    name: Lint & Test
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -31,7 +31,10 @@ jobs:
           cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}
 
       - name: Run Lint
-        run: ./gradlew lintDebug
+        run: ./gradlew lintDebug --continue
+
+      - name: Run Unit Tests
+        run: ./gradlew testDebugUnitTest --continue
 
   build:
     name: Build APK
@@ -66,12 +69,12 @@ jobs:
           fi
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug
+        run: ./gradlew :app:assembleDebug
 
       - name: Build Release APK
         run: |
           if [ -f meshify.jks ]; then
-            ./gradlew assembleRelease
+            ./gradlew :app:assembleRelease
           else
             echo "Keystore file is missing. Skipping release build."
           fi
@@ -83,7 +86,7 @@ jobs:
       - name: Get Version info
         id: version_info
         run: |
-          VERSION_NAME=$(grep -m1 'versionName' app/build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
+          VERSION_NAME=$(grep "versionName =" app/build.gradle.kts | awk -F'"' '{print $2}')
           echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
           echo "branch=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
 

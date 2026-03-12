@@ -51,11 +51,16 @@ coil3_compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref
 coil3_network = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil3" }
 androidx_ui_text_google_fonts = { group = "androidx.compose.ui", name = "ui-text-google-fonts", version.ref = "googleFonts" }
 kotlinx_serialization_json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version = "1.7.3" }
+kotlinx_coroutines_core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version = "1.9.0" }
+kotlinx_coroutines_test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version = "1.9.0" }
 accompanist_permissions = { group = "com.google.accompanist", name = "accompanist-permissions", version.ref = "accompanist" }
 
 [plugins]
 android_application = { id = "com.android.application", version.ref = "agp" }
+android_library = { id = "com.android.library", version.ref = "agp" }
 kotlin_compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin_jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin_android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 androidx_room = { id = "androidx.room", version.ref = "room" }
 kotlin_serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
