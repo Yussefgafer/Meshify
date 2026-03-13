@@ -1,71 +1,72 @@
-# 🌐 Meshify: The Sovereign P2P Mesh Network
-> **Last Updated:** Monday, March 9, 2026
-> **Status:** Active Development (AI-Native)
+# 🌐 Meshify: AI-Native P2P Mesh Network
 
-## 🎯 Project Identity
-Meshify is a high-performance, decentralized communication engine built on a modular P2P architecture. It bypasses central servers entirely, using local network discovery (NSD) and custom socket transports to create a resilient, device-to-device mesh.
+Meshify is a decentralized, high-performance communication engine built on a modular P2P architecture. It enables resilient, device-to-device messaging without central servers or internet dependency.
+
+---
+# اهم شيء يجب ان تتذكره و هو ان لا لل Mocking و يجب استغلال ال Skills المناسبه
+---
+
+## 🏗 Architecture & Core Design
+Meshify follows a strict **Clean Architecture** pattern with **Domain-Driven Design (DDD)** and **Manual Dependency Injection**.
+
+### 📦 Key Modules
+- **`app/`**: Application entry point, DI wiring (`AppContainer`), and `MeshForegroundService`.
+- **`core/network/`**: The transport layer. Defines `IMeshTransport` and implements `LanTransportImpl` (NSD/Sockets).
+- **`core/data/`**: Persistence layer using Room (`MeshifyDatabase`) and DataStore.
+- **`core/domain/`**: Pure business logic, repository interfaces (`IChatRepository`, `ISettingsRepository`), and domain models.
+- **`core/ui/`**: **Material 3 Expressive (MD3E)** implementation. Contains the shape morphing engine, custom spring physics, and `MeshifyKit` components.
+- **`feature/`**: Module-per-feature (Chat, Discovery, Settings, Home).
+
+### 💉 Dependency Injection
+- **`AppContainer`**: The central DI hub. Manages singletons like `ChatRepository`, `LanTransport`, and `Database`. 
+- **Manual Injection**: ViewModels and Services receive dependencies directly from the `AppContainer` via the custom `Application` class (`MeshifyApp`).
 
 ---
 
-## 🏗 Architecture (Clean & Modular)
-The project follows a strict **Clean Architecture** pattern with **Manual Dependency Injection** via `AppContainer`.
-
-- **`core/`**: Utilities, `Logger`, and `AppConfig`.
-- **`data/`**: 
-    - **Local**: Room DB (`MeshifyDatabase`) with specialized entities for `chats`, `messages`, and `pending_messages`.
-    - **Repository**: Implementations for Chat, Settings, and File Management.
-- **`domain/`**: The business logic layer. Contains repository interfaces and `ChatUseCases`.
-- **`network/`**: 
-    - **LAN**: `LanTransportImpl` using Android NsdManager for discovery (`_Meshify._tcp`).
-    - **Service**: `MeshForegroundService` for persistent background mesh connectivity.
-- **`ui/`**: 
-    - **Theme**: Advanced **Material 3 Expressive (MD3E)** implementation.
-    - **Components**: Custom `MeshifyKit`, `PremiumNoiseTexture`, and `PhysicsSwipeToDelete`.
+## 📡 Networking Stack
+- **Discovery**: Uses Android **NsdManager** (mDNS). Service type: `_Meshify._tcp`.
+- **Transport**: `IMeshTransport` abstraction allows for LAN (Sockets), Bluetooth, or Wi-Fi Direct implementations.
+- **Reliability**: `MessageQueueService` and `PendingMessageDao` handle retries and offline message queuing.
+- **Payload Handling**: Centralized in `ChatRepositoryImpl.handleIncomingPayload`.
 
 ---
 
-## 📡 Networking Stack (The Mesh Engine)
-The transport layer is pluggable via `IMeshTransport`.
-
-- **Discovery:** Uses **mDNS/NSD**. Peers register as `Meshify_{UUID}`.
-- **Handshake:** Automated exchange of Display Name and **Avatar Hashes** upon resolution.
-- **Dead Peer Detection:** Peers are automatically marked as "Dead" and removed from the online list after **3 consecutive socket failures**.
-- **Message Reliability:** A dedicated `MessageQueueService` monitors `pending_messages` and retries delivery when peers come back online.
-
----
-
-## 🎨 Design System: MD3E + Spring Physics
-Meshify uses a custom "Expressive" design system that goes beyond standard Material 3:
-
-- **Shape Engine:** 7 base shapes (`Sunny`, `Clover`, `Burst`, `Blob`, etc.) normalized for fluid morphing.
-- **Motion System:** 4 custom spring presets:
-    - `Gentle`: (0.9 damping, 300 stiffness)
-    - `Standard`: (0.8 damping, 600 stiffness)
-    - `Snappy`: (0.6 damping, 1000 stiffness)
-    - `Bouncy`: (0.4 damping, 800 stiffness) - The "Playful" signature.
-- **Visual Texture:** `PremiumNoiseTexture` applied globally at 3% alpha for a high-end tactile feel.
+## 🎨 UI & Motion System (MD3E)
+Meshify leverages the **Material 3 Expressive** design language:
+- **Shape Engine**: 7 base shapes (`Sunny`, `Breezy`, `Pentagon`, `Blob`, `Burst`, `Clover`, `Circle`) normalized for fluid morphing via `androidx.graphics.shapes`.
+- **Motion System**: 4 signature spring presets defined in `MotionSpecs`:
+  - `Gentle`: (0.9 damping, 300 stiffness)
+  - `Standard`: (0.8 damping, 600 stiffness)
+  - `Snappy`: (0.6 damping, 1000 stiffness)
+  - `Bouncy`: (0.4 damping, 800 stiffness) - Playful "rubber-band" feel.
+- **Components**: `MorphingAvatar`, custom FABs, and `PremiumNoiseTexture` for tactile depth.
 
 ---
 
-## 🛠 Tech Stack Summary
-- **Language:** Kotlin 2.1.x (JVM 21)
-- **UI:** Jetpack Compose (Experimental MD3E)
-- **Persistence:** Room (with Destructive Migration for dev), DataStore (Preferences)
-- **Networking:** Java Sockets + NsdManager
-- **Media:** Coil 3 (Image loading), Media3/ExoPlayer (Video)
-- **DI:** Manual (`AppContainer`)
-
----
-
-## ⚠️ Dev Guidelines & Rules
-1. **Never Revert UI Logic:** The UI depends on specific `ExperimentalMaterial3ExpressiveApi` features. Don't "fix" them by reverting to stable M3.
-2. **Handle Pending Messages:** When adding new message types, ensure they are integrated into `PendingMessageEntity` for reliability.
-3. **P2P Visibility:** Always respect `ISettingsRepository.isNetworkVisible` before registering the NSD service.
-4. **Surgical Edits Only:** The code is highly modular. Edit the specific layer (Data/Domain/UI) without bleeding logic into others.
+## 🛠 Tech Stack
+- **Language**: Kotlin 2.3.x (JVM 21)
+- **Build System**: AGP 9.1.0, Gradle 8.9+
+- **Database**: Room 2.8.0 (with Destructive Migration enabled for development)
+- **UI**: Jetpack Compose (Experimental MD3E APIs)
+- **Media**: Coil 3 (Network & File loading)
 
 ---
 
 ## 🚀 Key Commands
-- **Build & Run:** `./gradlew installDebug`
-- **Check Lint:** `./gradlew lint`
-- **Clear DB:** (Dev shortcut) The project uses `fallbackToDestructiveMigration(dropAllTables = true)`. Simply increment the version in `MeshifyDatabase` to wipe local state.
+| Task | Command |
+|------|---------|
+| **Build Debug APK** | `./gradlew assembleDebug` |
+| **Run Unit Tests** | `./gradlew test` |
+| **Clean Build** | `./gradlew clean` |
+| **Lint Check** | `./gradlew lint` |
+
+---
+
+## ⚠️ Development Context (Critical)
+1. **Surgical Edits**: Follow the Clean Architecture boundaries. Don't leak Network/Data logic into the UI or Domain layers.
+2. **Experimental APIs**: The project uses `@ExperimentalMaterial3ExpressiveApi`. Do not "downgrade" to stable M3 unless explicitly asked.
+3. **P2P Lifecycle**: `MeshForegroundService` manages the network lifecycle. Ensure `transport.stop()` is called deterministically to release socket locks.
+4. **God Object Warning**: `ChatRepositoryImpl` is currently over-burdened (500+ lines). Future tasks should focus on decomposing it into specialized managers (e.g., `MessageSender`, `HandshakeManager`).
+5. **Data Migrations**: Room is currently using `fallbackToDestructiveMigration()`. Be aware that schema changes will wipe local database data.
+
+*Last Updated: March 13, 2026*
