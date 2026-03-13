@@ -10,9 +10,10 @@
 /.idea/assetWizardSettings.xml
 /docs/analysis
 /docs/Examples
-.DS_Store
+.DS_Store/
+docs/
 
-/build
+**/build/
 /captures
 .externalNativeBuild
 .cxx
