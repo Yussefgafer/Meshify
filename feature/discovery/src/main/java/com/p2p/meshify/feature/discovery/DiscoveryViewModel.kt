@@ -45,6 +45,9 @@ class DiscoveryViewModel(
 
     private val _uiState = MutableStateFlow(DiscoveryUiState())
     val uiState: StateFlow<DiscoveryUiState> = _uiState.asStateFlow()
+    
+    // ✅ MINOR FIX m3: Use Map for O(1) lookup instead of O(n) indexOfFirst
+    private val peerMap = mutableMapOf<String, PeerDevice>()
 
     init {
         observeTransportEvents()
@@ -64,30 +67,33 @@ class DiscoveryViewModel(
     }
 
     private fun handleDeviceDiscovered(event: TransportEvent.DeviceDiscovered) {
-        _uiState.update { currentState ->
-            val updatedList = currentState.discoveredPeers.toMutableList()
-            val existingIndex = updatedList.indexOfFirst { it.id == event.deviceId }
-
-            if (existingIndex != -1) {
-                // Update existing device info (like IP if changed) with new RSSI
-                updatedList[existingIndex] = PeerDevice(
-                    id = event.deviceId,
-                    name = event.deviceName,
-                    address = event.address,
-                    rssi = event.rssi,
-                    isConnected = updatedList[existingIndex].isConnected
-                )
-            } else {
-                updatedList.add(PeerDevice(event.deviceId, event.deviceName, event.address, event.rssi))
-            }
-            currentState.copy(discoveredPeers = updatedList)
+        // ✅ MINOR FIX m3: O(1) map update instead of O(n) list search
+        val existingPeer = peerMap[event.deviceId]
+        val updatedPeer = PeerDevice(
+            id = event.deviceId,
+            name = event.deviceName,
+            address = event.address,
+            rssi = event.rssi,
+            isConnected = existingPeer?.isConnected ?: false
+        )
+        peerMap[event.deviceId] = updatedPeer
+        
+        _uiState.update {
+            it.copy(
+                discoveredPeers = peerMap.values.toList(),
+                isSearching = peerMap.isNotEmpty()
+            )
         }
     }
 
     private fun handleDeviceLost(event: TransportEvent.DeviceLost) {
-        _uiState.update { currentState ->
-            val updatedList = currentState.discoveredPeers.filterNot { it.id == event.deviceId }
-            currentState.copy(discoveredPeers = updatedList)
+        // ✅ MINOR FIX m3: O(1) map removal
+        peerMap.remove(event.deviceId)
+        _uiState.update {
+            it.copy(
+                discoveredPeers = peerMap.values.toList(),
+                isSearching = peerMap.isNotEmpty()
+            )
         }
     }
 

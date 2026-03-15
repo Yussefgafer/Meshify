@@ -7,7 +7,10 @@ import androidx.room.PrimaryKey
 import com.p2p.meshify.domain.model.MessageType as DomainMessageType
 import java.util.UUID
 
-@Entity(tableName = "chats")
+@Entity(
+    tableName = "chats",
+    indices = [Index(value = ["lastTimestamp"])]
+)
 data class ChatEntity(
     @PrimaryKey val peerId: String,
     val peerName: String,
@@ -15,7 +18,18 @@ data class ChatEntity(
     val lastTimestamp: Long
 )
 
-@Entity(tableName = "messages")
+@Entity(
+    tableName = "messages",
+    indices = [
+        Index(value = ["chatId"]),
+        Index(value = ["chatId", "timestamp"]),
+        Index(value = ["senderId"]),
+        Index(value = ["status"]),
+        // ✅ CRITICAL FIX: Add index on groupId for faster grouped message queries
+        // This reduces O(n) scan to O(1) lookup when fetching attachments by groupId
+        Index(value = ["groupId"])
+    ]
+)
 data class MessageEntity(
     @PrimaryKey val id: String,
     val chatId: String,
