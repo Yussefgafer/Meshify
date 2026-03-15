@@ -1,5 +1,6 @@
 package com.p2p.meshify.core.data.local.dao
 
+import androidx.paging.PagingSource
 import androidx.room.*
 import com.p2p.meshify.core.data.local.entity.*
 import kotlinx.coroutines.flow.Flow
@@ -21,7 +22,10 @@ interface ChatDao {
 
 @Dao
 interface MessageDao {
-    @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp DESC LIMIT :limit OFFSET :offset")
+    @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp ASC")
+    fun getMessagesPaging(chatId: String): PagingSource<Int, MessageEntity>
+
+    @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp ASC LIMIT :limit OFFSET :offset")
     fun getMessagesPaged(chatId: String, limit: Int, offset: Int): Flow<List<MessageEntity>>
 
     @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp ASC")
@@ -29,6 +33,9 @@ interface MessageDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: MessageEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMessages(messages: List<MessageEntity>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessageAttachment(attachment: MessageAttachmentEntity)

@@ -28,6 +28,8 @@ local.properties
 *.backup
 *~
 log_device1.txt
+GEMINI.md
+QWEN.md
 
 .DS_Store
 Thumbs.db

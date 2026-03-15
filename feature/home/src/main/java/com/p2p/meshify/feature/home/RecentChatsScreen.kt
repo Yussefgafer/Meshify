@@ -196,6 +196,6 @@ fun EmptyChatsState(padding: PaddingValues) {
 }
 
 fun formatRecentTime(timestamp: Long): String {
-    val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+    val sdf = SimpleDateFormat("hh:mm a", Locale.US)
     return sdf.format(Date(timestamp))
 }

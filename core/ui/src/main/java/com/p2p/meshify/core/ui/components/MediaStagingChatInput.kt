@@ -185,9 +185,10 @@ fun MediaStagingChatInput(
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Normal
                     ),
+                    maxLines = 5,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Text,
-                        imeAction = if (hasContent) ImeAction.Send else ImeAction.Default
+                        imeAction = ImeAction.Send
                     ),
                     keyboardActions = KeyboardActions(
                         onSend = {

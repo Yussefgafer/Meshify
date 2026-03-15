@@ -66,16 +66,58 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
     }
     // Store attachments grouped by message ID
     var messageAttachments by remember { mutableStateOf<Map<String, List<MessageAttachmentEntity>>>(emptyMap()) }
+    
+    // Track if user has scrolled away from bottom
+    var hasScrolledToBottom by rememberSaveable { mutableStateOf(false) }
+    
+    // Use derivedStateOf for expensive calculations - avoids unnecessary recompositions
+    val isAtBottom by remember {
+        derivedStateOf {
+            val layoutInfo = listState.layoutInfo
+            val totalItemsNumber = layoutInfo.totalItemsCount
+            val lastVisibleItemIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+            lastVisibleItemIndex >= totalItemsNumber - 5
+        }
+    }
+    
+    // Update hasScrolledToBottom based on derived state
+    LaunchedEffect(isAtBottom) {
+        hasScrolledToBottom = isAtBottom
+    }
 
-    // Load attachments for messages with groupId
-    LaunchedEffect(uiState.messages.size) {
-        val attachmentsMap = mutableMapOf<String, List<MessageAttachmentEntity>>()
-        uiState.messages.forEach { message ->
-            if (!message.groupId.isNullOrBlank()) {
-                // In a real implementation, you'd fetch from DAO
-                // For now, we'll handle single-message attachments
+    // ✅ FIX: Load attachments for messages with groupId - optimized with LazyColumn
+    // Only load attachments for visible messages to reduce memory pressure
+    val visibleMessageIds by remember {
+        derivedStateOf {
+            val visibleItems = listState.layoutInfo.visibleItemsInfo
+            visibleItems.mapNotNull { item ->
+                val index = item.index
+                if (index >= 0 && index < uiState.messages.size) {
+                    uiState.messages[index].id
+                } else null
             }
         }
+    }
+
+    LaunchedEffect(visibleMessageIds) {
+        val attachmentsMap = mutableMapOf<String, List<MessageAttachmentEntity>>()
+        
+        // Only load attachments for visible messages
+        visibleMessageIds.forEach { messageId ->
+            val message = uiState.messages.find { it.id == messageId }
+            if (message != null) {
+                val groupId = message.groupId
+                if (!groupId.isNullOrBlank()) {
+                    // Fetch attachments from DAO
+                    val attachments = viewModel.getAttachmentsForMessage(groupId)
+                    attachmentsMap[messageId] = attachments
+                } else if (message.mediaPath != null) {
+                    // Legacy support for single media - use empty list
+                    attachmentsMap[messageId] = emptyList()
+                }
+            }
+        }
+        
         messageAttachments = attachmentsMap
     }
 
@@ -99,8 +141,43 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
         }
     }
 
+    // Smart scroll: only auto-scroll if user is at bottom
     LaunchedEffect(uiState.messages.size) {
-        if (uiState.messages.isNotEmpty()) listState.animateScrollToItem(uiState.messages.size - 1)
+        if (uiState.messages.isNotEmpty()) {
+            if (hasScrolledToBottom) {
+                // Only scroll if user is near the bottom
+                val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+                val lastIndex = uiState.messages.size - 1
+                
+                if (lastVisibleIndex >= lastIndex - 3) {
+                    listState.animateScrollToItem(lastIndex)
+                }
+            } else {
+                // First scroll to bottom
+                hasScrolledToBottom = true
+                listState.animateScrollToItem(uiState.messages.size - 1)
+            }
+        }
+    }
+    
+    // Track user scroll position
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex }
+            .collect { firstVisibleIndex ->
+                // User is at bottom if within 5 items of the end
+                hasScrolledToBottom = (firstVisibleIndex >= uiState.messages.size - 5)
+            }
+    }
+    
+    // Lazy loading: load more when user scrolls to top
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex }
+            .collect { firstVisibleIndex ->
+                // Load more when user is near the top (first 5 items)
+                if (firstVisibleIndex < 5 && uiState.hasMoreMessages && !uiState.isLoadingMore) {
+                    viewModel.loadMoreMessages()
+                }
+            }
     }
 
     Scaffold(
@@ -191,7 +268,24 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
         }
     ) { padding ->
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp)) {
-            itemsIndexed(uiState.messages, key = { _, m -> m.id }) { index, message ->
+            // Loading indicator at top when loading more messages
+            if (uiState.isLoadingMore) {
+                item(key = "loading_more") {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    }
+                }
+            }
+            
+            itemsIndexed(
+                uiState.messages,
+                // ✅ CRITICAL FIX: Use composite key for better stability
+                // This reduces unnecessary recompositions when messages are added/removed
+                key = { _, m -> "${m.id}_${m.timestamp}_${m.status}" }
+            ) { index, message ->
                 val attachments = messageAttachments[message.id] ?: emptyList()
                 MessageBubble(
                     message = message,
@@ -262,13 +356,19 @@ fun MessageBubble(
 
     // Professional Chat Bubble Shape from Design System
     val bubbleShape = if (message.isFromMe) MeshifyDesignSystem.Shapes.BubbleMe else MeshifyDesignSystem.Shapes.BubblePeer
+    
+    // ✅ CRITICAL FIX: Use rememberUpdatedState to stabilize lambda references
+    // This reduces allocations and GC pressure during recompositions
+    val stableLongClick by rememberUpdatedState(onLongClick)
+    val stableImageClick by rememberUpdatedState(onImageClick)
+    val stableReactionClick by rememberUpdatedState(onReactionClick)
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(
                 onClick = { },
-                onLongClick = onLongClick
+                onLongClick = stableLongClick  // ✅ Use stable reference
             )
             .padding(vertical = MeshifyDesignSystem.Spacing.Xxs),
         horizontalAlignment = alignment
@@ -324,32 +424,67 @@ fun MessageBubble(
                         // Single media (legacy support)
                         message.mediaPath?.let { path ->
                             if (message.text != null) Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xs))
-                            when (message.type) {
-                                MessageType.IMAGE -> {
-                                    AsyncImage(
-                                        model = ImageRequest.Builder(LocalContext.current)
-                                            .data(File(path))
-                                            .crossfade(true)
-                                            .build(),
-                                        contentDescription = null,
-                                        modifier = Modifier
-                                            .sizeIn(maxWidth = 260.dp, maxHeight = 320.dp)
-                                            .clip(MeshifyDesignSystem.Shapes.CardSmall)
-                                            .clickable { onImageClick(path) },
-                                        contentScale = ContentScale.Crop
-                                    )
+                            
+                            // ✅ FIX: Check if file exists before displaying
+                            val file = File(path)
+                            if (file.exists()) {
+                                when (message.type) {
+                                    MessageType.IMAGE -> {
+                                        AsyncImage(
+                                            model = ImageRequest.Builder(LocalContext.current)
+                                                .data(File(path))
+                                                .crossfade(true)
+                                                .build(),
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .sizeIn(maxWidth = 260.dp, maxHeight = 320.dp)
+                                                .clip(MeshifyDesignSystem.Shapes.CardSmall)
+                                                .clickable { onImageClick(path) },
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    }
+                                    MessageType.VIDEO -> {
+                                        VideoPlayer(
+                                            videoUri = Uri.fromFile(File(path)),
+                                            modifier = Modifier
+                                                .width(260.dp)
+                                                .height(180.dp)
+                                                .clip(MeshifyDesignSystem.Shapes.CardSmall)
+                                        )
+                                    }
+                                    else -> {
+                                        Text("File: ${file.name}", style = MaterialTheme.typography.bodySmall)
+                                    }
                                 }
-                                MessageType.VIDEO -> {
-                                    VideoPlayer(
-                                        videoUri = Uri.fromFile(File(path)),
+                            } else {
+                                // ✅ FIX: Show placeholder when file is missing
+                                Surface(
+                                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier
+                                        .sizeIn(maxWidth = 260.dp, maxHeight = 120.dp)
+                                        .padding(vertical = 8.dp)
+                                ) {
+                                    Row(
                                         modifier = Modifier
-                                            .width(260.dp)
-                                            .height(180.dp)
-                                            .clip(MeshifyDesignSystem.Shapes.CardSmall)
-                                    )
-                                }
-                                else -> {
-                                    Text("File: ", style = MaterialTheme.typography.bodySmall)
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            Icons.Default.BrokenImage,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            text = "Media file not found",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -361,7 +496,7 @@ fun MessageBubble(
                     modifier = Modifier.align(Alignment.End).padding(top = MeshifyDesignSystem.Spacing.Xxs)
                 ) {
                     Text(
-                        text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.timestamp)),
+                        text = SimpleDateFormat("hh:mm a", Locale.US).format(Date(message.timestamp)),
                         style = MaterialTheme.typography.labelSmall,
                         fontSize = 10.sp,
                         color = contentColor.copy(alpha = 0.6f)
