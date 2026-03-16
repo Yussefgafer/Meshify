@@ -20,17 +20,20 @@ import com.p2p.meshify.domain.model.ReactionUpdate
 import com.p2p.meshify.domain.repository.IChatRepository
 import com.p2p.meshify.domain.repository.IFileManager
 import com.p2p.meshify.domain.repository.ISettingsRepository
+import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.core.network.base.IMeshTransport
+import com.p2p.meshify.core.network.base.TransportCapability
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -53,7 +56,7 @@ class ChatRepositoryImpl(
     private val chatDao: ChatDao,
     private val messageDao: MessageDao,
     private val pendingMessageDao: PendingMessageDao,
-    private val meshTransport: IMeshTransport,
+    private val transportManager: TransportManager, // ✅ Changed from IMeshTransport
     private val fileManager: IFileManager,
     private val notificationHelper: NotificationHelper,
     private val settingsRepository: ISettingsRepository
@@ -75,13 +78,35 @@ class ChatRepositoryImpl(
     fun getMessagesPaged(chatId: String, limit: Int, offset: Int): Flow<List<MessageEntity>> =
         messageDao.getMessagesPaged(chatId, limit, offset)
 
-    override val onlinePeers: Flow<Set<String>> = meshTransport.onlinePeers
-    override val typingPeers: Flow<Set<String>> = meshTransport.typingPeers
+    // ✅ Delegate to TransportManager - merges all transports
+    override val onlinePeers: Flow<Set<String>> = transportManager.getAllEventsFlow()
+        .map { event -> 
+            // Get latest from all transports
+            transportManager.getAllTransports().flatMap { it.onlinePeers.value }.toSet()
+        }
+    override val typingPeers: Flow<Set<String>> = transportManager.getAllEventsFlow()
+        .map { event ->
+            transportManager.getAllTransports().flatMap { it.typingPeers.value }.toSet()
+        }
+
+    /**
+     * Select the best transport for sending to a specific peer.
+     * Strategy:
+     * 1. Use transport that already has this peer online
+     * 2. Fall back to LAN as default
+     */
+    private fun selectBestTransport(peerId: String): IMeshTransport {
+        return transportManager.selectBestTransport(
+            peerId = peerId,
+            requiredCapabilities = emptySet() // No special requirements for general messaging
+        ) ?: throw IllegalStateException("No available transport for peer: $peerId")
+    }
 
     override suspend fun sendSystemCommand(peerId: String, command: String) {
         val myId = settingsRepository.getDeviceId()
         val payload = Payload(senderId = myId, type = Payload.PayloadType.SYSTEM_CONTROL, data = command.toByteArray())
-        meshTransport.sendPayload(peerId, payload)
+        val transport = selectBestTransport(peerId)
+        transport.sendPayload(peerId, payload)
     }
 
     override suspend fun sendMessage(peerId: String, peerName: String, text: String, replyToId: String?): Result<Unit> {
@@ -225,7 +250,8 @@ class ChatRepositoryImpl(
                 messageDao.markAsDeletedForEveryone(messageId, System.currentTimeMillis(), myId)
                 val request = DeleteRequest(messageId, deleteType, myId)
                 val payload = Payload(senderId = myId, type = Payload.PayloadType.DELETE_REQUEST, data = Json.encodeToString(request).toByteArray())
-                meshTransport.sendPayload(message.chatId, payload)
+                val transport = selectBestTransport(message.chatId)
+                transport.sendPayload(message.chatId, payload)
             }
             Result.success(Unit)
         } catch (e: Exception) {
@@ -251,7 +277,8 @@ class ChatRepositoryImpl(
             messageDao.updateReaction(messageId, reaction)
             val update = ReactionUpdate(messageId, reaction, myId)
             val payload = Payload(senderId = myId, type = Payload.PayloadType.REACTION, data = Json.encodeToString(update).toByteArray())
-            meshTransport.sendPayload(message.chatId, payload)
+            val transport = selectBestTransport(message.chatId)
+            transport.sendPayload(message.chatId, payload)
             Result.success(Unit)
         } catch (e: Exception) {
             Logger.e("ChatRepository -> Failed to add reaction to message: $messageId", e)
@@ -309,8 +336,9 @@ class ChatRepositoryImpl(
             Logger.d("ChatRepository -> Updating message status to SENDING")
             messageDao.updateMessageStatus(message.id, MessageStatus.SENDING)
 
-            Logger.d("ChatRepository -> Sending payload via meshTransport")
-            val result = meshTransport.sendPayload(peerId, payload)
+            Logger.d("ChatRepository -> Sending payload via selected transport")
+            val transport = selectBestTransport(peerId)
+            val result = transport.sendPayload(peerId, payload)
             
             if (result.isFailure) {
                 Logger.e("ChatRepository -> sendPayload failed: ${result.exceptionOrNull()?.message}")
@@ -418,7 +446,8 @@ class ChatRepositoryImpl(
                     data = data
                 )
 
-                val result = meshTransport.sendPayload(pm.recipientId, payload)
+                val transport = selectBestTransport(pm.recipientId)
+                val result = transport.sendPayload(pm.recipientId, payload)
                 
                 if (result.isSuccess) {
                     messageDao.updateMessageStatus(msg.id, MessageStatus.SENT)

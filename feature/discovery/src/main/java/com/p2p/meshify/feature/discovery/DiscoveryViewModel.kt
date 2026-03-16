@@ -3,7 +3,7 @@ package com.p2p.meshify.feature.discovery
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.p2p.meshify.domain.model.SignalStrength
-import com.p2p.meshify.core.network.base.IMeshTransport
+import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.core.network.base.TransportEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,15 +37,15 @@ data class PeerDevice(
 
 /**
  * ViewModel for the Peer Discovery Screen.
- * Observes [IMeshTransport] events and maps them to [DiscoveryUiState].
+ * Observes [TransportManager] events and maps them to [DiscoveryUiState].
  */
 class DiscoveryViewModel(
-    private val meshTransport: IMeshTransport
+    private val transportManager: TransportManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DiscoveryUiState())
     val uiState: StateFlow<DiscoveryUiState> = _uiState.asStateFlow()
-    
+
     // ✅ MINOR FIX m3: Use Map for O(1) lookup instead of O(n) indexOfFirst
     private val peerMap = mutableMapOf<String, PeerDevice>()
 
@@ -55,7 +55,7 @@ class DiscoveryViewModel(
 
     private fun observeTransportEvents() {
         viewModelScope.launch {
-            meshTransport.events.collect { event ->
+            transportManager.getAllEventsFlow().collect { event ->
                 when (event) {
                     is TransportEvent.DeviceDiscovered -> handleDeviceDiscovered(event)
                     is TransportEvent.DeviceLost -> handleDeviceLost(event)

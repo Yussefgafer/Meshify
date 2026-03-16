@@ -1,8 +1,12 @@
 package com.p2p.meshify.core.network.lan
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
+import android.os.Build
+import androidx.core.content.ContextCompat
 import com.p2p.meshify.core.config.AppConfig
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.core.util.FileUtils
@@ -11,6 +15,7 @@ import com.p2p.meshify.domain.model.Handshake
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.core.network.base.IMeshTransport
 import com.p2p.meshify.core.network.base.TransportEvent
+import com.p2p.meshify.core.network.base.TransportCapability
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.Json
@@ -27,19 +32,30 @@ import kotlinx.coroutines.sync.withLock
 
 /**
  * Professional LAN Transport with Reactive Visibility and Peer Tracking.
- * 
+ *
  * Improvements:
  * - Mutex locks for critical operations on peerMap
  * - Periodic cleanup of failedSendCounts to prevent memory leaks
  * - Retry logic with exponential backoff for NSD operations
  * - Improved Dead Peer Detection with accurate failure tracking
  * - Timeout for all async operations
+ * - Fixed RSSI to use actual WiFi signal strength instead of IP estimation
  */
 class LanTransportImpl(
     private val context: Context,
     private val socketManager: SocketManager,
     private val settingsRepository: ISettingsRepository
 ) : IMeshTransport {
+
+    // ✅ Transport metadata
+    override val transportName: String = "lan"
+    override val isAvailable: Boolean = true // LAN is always available on Android devices
+    override val capabilities: Set<TransportCapability> = setOf(
+        TransportCapability.FILE_TRANSFER,
+        TransportCapability.HIGH_BANDWIDTH,
+        TransportCapability.OFFLINE,
+        TransportCapability.LOW_LATENCY
+    )
 
     private val _events = MutableSharedFlow<TransportEvent>(extraBufferCapacity = 128)
     override val events = _events.asSharedFlow()
@@ -190,10 +206,10 @@ class LanTransportImpl(
 
         peerMapMutex.withLock {
             if (!peerMap.containsKey(senderId)) {
-                val estimatedRssi = estimateRssiFromAddress(address)
+                val rssi = getPeerRssi()
                 scope.launch {
                     // ✅ FIX: Use parsed name instead of generic "Peer_"
-                    _events.emit(TransportEvent.DeviceDiscovered(senderId, name, address, hash, estimatedRssi))
+                    _events.emit(TransportEvent.DeviceDiscovered(senderId, name, address, hash, rssi))
                 }
 
                 // Reply with our handshake (cached to avoid blocking)
@@ -256,25 +272,62 @@ class LanTransportImpl(
     }
 
     /**
-     * Estimate RSSI from IP address proximity (simulated for LAN transport).
-     * Real WiFi Direct implementations should use actual WiFi signal strength.
+     * Get actual RSSI from WiFi connection.
+     * Requires android.permission.ACCESS_WIFI_STATE
+     * 
+     * @return Actual RSSI value in dBm, or Int.MIN_VALUE if unavailable
      */
-    private fun estimateRssiFromAddress(address: String): Int {
-        // ✅ FIX: Simulate RSSI based on IP similarity for better realism
-        // Devices on same subnet typically have good signal (-40 to -60 dBm)
-        // Different subnets may indicate weaker connection (-60 to -80 dBm)
+    @Suppress("DEPRECATION")
+    private fun getActualRssi(): Int {
         return try {
-            val ipParts = address.split(".")
-            if (ipParts.size == 4) {
-                // Use last octet to add some variation
-                val lastOctet = ipParts[3].toIntOrNull() ?: 0
-                // Base RSSI: -50 dBm, with small variation based on IP
-                -50 + (lastOctet % 10) - 5  // Range: -55 to -45 dBm
-            } else {
-                -55 // Default fallback
+            val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? android.net.wifi.WifiManager
+            if (wifiManager == null) {
+                Logger.w("LanTransport -> WifiManager not available")
+                return Int.MIN_VALUE
             }
+
+            // Check permission
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                if (ContextCompat.checkSelfPermission(context, Manifest.permission.NEARBY_WIFI_DEVICES)
+                    != PackageManager.PERMISSION_GRANTED) {
+                    Logger.w("LanTransport -> NEARBY_WIFI_DEVICES permission not granted")
+                    return Int.MIN_VALUE
+                }
+            } else {
+                if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_WIFI_STATE)
+                    != PackageManager.PERMISSION_GRANTED) {
+                    Logger.w("LanTransport -> ACCESS_WIFI_STATE permission not granted")
+                    return Int.MIN_VALUE
+                }
+            }
+
+            val wifiInfo = wifiManager.connectionInfo
+            val rssi = wifiInfo.rssi
+            
+            // Validate RSSI value (typical range: -100 to 0 dBm)
+            if (rssi < -100 || rssi > 0) {
+                Logger.w("LanTransport -> Invalid RSSI value: $rssi")
+                return Int.MIN_VALUE
+            }
+            
+            rssi
         } catch (e: Exception) {
-            -55 // Safe default on error
+            Logger.e("LanTransport -> Failed to get RSSI", e)
+            Int.MIN_VALUE // Mark as OFFLINE
+        }
+    }
+
+    /**
+     * Get RSSI for a peer device.
+     * Uses actual WiFi RSSI when available, falls back to reasonable default.
+     */
+    private fun getPeerRssi(): Int {
+        val actualRssi = getActualRssi()
+        return if (actualRssi != Int.MIN_VALUE) {
+            actualRssi
+        } else {
+            // Fallback: return a reasonable default for LAN (-55 dBm = good signal)
+            -55
         }
     }
 
@@ -562,8 +615,8 @@ class LanTransportImpl(
                     data = Json.encodeToString(myHandshake).toByteArray()
                 ))
 
-                val estimatedRssi = estimateRssiFromAddress(address)
-                _events.emit(TransportEvent.DeviceDiscovered(peerId, "Peer_${peerId.take(4)}", address, null, estimatedRssi))
+                val rssi = getPeerRssi()
+                _events.emit(TransportEvent.DeviceDiscovered(peerId, "Peer_${peerId.take(4)}", address, null, rssi))
             }
         }
     }

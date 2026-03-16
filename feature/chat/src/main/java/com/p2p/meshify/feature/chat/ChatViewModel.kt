@@ -38,18 +38,18 @@ class ChatViewModel(
 
     private val stageMutex = Mutex()
     private val paginationMutex = Mutex()
-    
+
     // Pagination state - using ArrayDeque for O(1) prepend operations
     private var currentPage = 0
     private val pageSize = 50
     private var isAllMessagesLoaded = false
     private val allMessages = ArrayDeque<MessageEntity>(initialCapacity = 100)
-    
+
     // Maximum messages to keep in memory (prevent memory leaks in long conversations)
     companion object {
         private const val MAX_MESSAGES_IN_MEMORY = 500
     }
-    
+
     init {
         // Load initial page of messages
         loadMoreMessages()
@@ -78,7 +78,7 @@ class ChatViewModel(
             }
         }
     }
-    
+
     /**
      * Loads more messages for pagination.
      * Called initially and when user scrolls to top.
@@ -87,39 +87,39 @@ class ChatViewModel(
         viewModelScope.launch {
             // Use tryLock to avoid waiting if already loading
             if (!paginationMutex.tryLock()) return@launch
-            
+
             try {
                 if (isAllMessagesLoaded || _uiState.value.isLoadingMore) return@launch
-                
+
                 _uiState.update { it.copy(isLoadingMore = true) }
-                
+
                 try {
                     // ✅ CRITICAL FIX: Use withContext(Dispatchers.IO) for blocking .first() call
                     // This prevents potential UI thread blocking
                     val newPage = withContext(Dispatchers.IO) {
                         repository.getMessagesPaged(peerId, pageSize, currentPage * pageSize).first()
                     }
-                    
+
                     if (newPage.isEmpty()) {
                         isAllMessagesLoaded = true
                     } else {
                         // Prepend new messages efficiently using ArrayDeque
                         allMessages.addAll(0, newPage)
-                        
+
                         // Remove oldest messages if exceeding max to prevent memory leaks
                         while (allMessages.size > MAX_MESSAGES_IN_MEMORY) {
                             allMessages.removeLast()
                         }
-                        
+
                         currentPage++
                     }
-                    
-                    _uiState.update { 
+
+                    _uiState.update {
                         it.copy(
                             messages = allMessages.toList(),
                             hasMoreMessages = !isAllMessagesLoaded,
                             isLoadingMore = false
-                        ) 
+                        )
                     }
                 } catch (e: Exception) {
                     Logger.e("ChatViewModel -> Failed to load messages", e)

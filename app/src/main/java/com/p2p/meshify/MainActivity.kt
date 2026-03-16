@@ -81,7 +81,7 @@ class MainActivity : ComponentActivity() {
                 try {
                     withContext(Dispatchers.IO) {
                         appContainer.chatRepository
-                        appContainer.lanTransport
+                        appContainer.transportManager
                     }
                     isReady = true
                 } catch (e: Exception) {
@@ -152,7 +152,7 @@ class MainActivity : ComponentActivity() {
                                             factory = object : androidx.lifecycle.ViewModelProvider.Factory {
                                                 override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                                                     @Suppress("UNCHECKED_CAST")
-                                                    return DiscoveryViewModel(appContainer.lanTransport) as T
+                                                    return DiscoveryViewModel(appContainer.transportManager) as T
                                                 }
                                             }
                                         )
@@ -171,7 +171,7 @@ class MainActivity : ComponentActivity() {
                                                     return ChatViewModel(
                                                         peerId = peerId,
                                                         peerName = peerName ?: "Peer",
-                                                        repository = appContainer.chatRepository as com.p2p.meshify.core.data.repository.ChatRepositoryImpl
+                                                        repository = appContainer.chatRepository
                                                     ) as T
                                                 }
                                             }
