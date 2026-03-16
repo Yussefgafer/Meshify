@@ -10,6 +10,7 @@ import com.p2p.meshify.core.data.local.entity.PendingMessageEntity
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.model.Payload
+import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.core.network.base.IMeshTransport
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import kotlinx.coroutines.Dispatchers
@@ -22,7 +23,7 @@ import java.util.UUID
 
 /**
  * MessageSender - Responsible for sending messages to peers.
- * 
+ *
  * Handles:
  * - Text messages
  * - Image messages
@@ -35,9 +36,17 @@ class MessageSender(
     private val chatDao: ChatDao,
     private val messageDao: MessageDao,
     private val pendingMessageDao: PendingMessageDao,
-    private val meshTransport: IMeshTransport,
+    private val transportManager: TransportManager, // ✅ Changed from IMeshTransport
     private val settingsRepository: ISettingsRepository
 ) {
+
+    /**
+     * Select best transport for sending to a peer.
+     */
+    private fun selectBestTransport(peerId: String): IMeshTransport {
+        return transportManager.selectBestTransport(peerId)
+            ?: throw IllegalStateException("No available transport for peer: $peerId")
+    }
     
     /**
      * Sends a text message.
@@ -179,14 +188,13 @@ class MessageSender(
             
             // Save message
             messageDao.insertMessage(message)
-            
+
             // Check if peer is online
-            // ✅ MAJOR FIX M2: Use withContext(Dispatchers.IO) for blocking .first() call
-        // This prevents potential coroutine blocking
-        val isOnline = withContext(Dispatchers.IO) {
-            meshTransport.onlinePeers.first().contains(peerId)
-        }
-            
+            val transport = selectBestTransport(peerId)
+            val isOnline = withContext(Dispatchers.IO) {
+                transport.onlinePeers.first().contains(peerId)
+            }
+
             if (!isOnline) {
                 // Queue for later delivery
                 pendingMessageDao.insert(
@@ -213,10 +221,10 @@ class MessageSender(
             
             // Update status to SENDING
             messageDao.updateMessageStatus(message.id, MessageStatus.SENDING)
-            
-            // Send payload
+
+            // Send payload (use existing transport variable)
             val result = withTimeout(30000L) {
-                meshTransport.sendPayload(peerId, payload)
+                transport.sendPayload(peerId, payload)
             }
             
             if (result.isFailure) {

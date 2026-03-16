@@ -7,10 +7,8 @@ import com.p2p.meshify.core.data.local.MeshifyDatabase
 import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
 import com.p2p.meshify.core.data.repository.FileManagerImpl
 import com.p2p.meshify.core.data.repository.SettingsRepository
-import com.p2p.meshify.core.network.base.IMeshTransport
-import com.p2p.meshify.core.network.lan.LanTransportImpl
-import com.p2p.meshify.core.network.lan.SocketManager
-import com.p2p.meshify.core.network.service.MessageQueueService
+import com.p2p.meshify.core.network.TransportManager
+import com.p2p.meshify.core.network.base.TransportEvent
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.core.util.NotificationHelper
 import com.p2p.meshify.domain.repository.IChatRepository
@@ -45,45 +43,46 @@ class AppContainer(private val context: Context) {
         NotificationHelper(context).apply { createNotificationChannels() }
     }
 
-    private val socketManager: SocketManager by lazy {
-        SocketManager()
+    // ✅ Transport Manager - manages all transport protocols (LAN, BT, WiFi-Direct, DHT)
+    val transportManager: TransportManager by lazy {
+        TransportManager.createDefault(context, settingsRepository)
     }
 
-    val lanTransport: IMeshTransport by lazy {
-        LanTransportImpl(context, socketManager, settingsRepository)
-    }
-
-    val chatRepository: IChatRepository by lazy {
+    val chatRepository: ChatRepositoryImpl by lazy {
         ChatRepositoryImpl(
             database.chatDao(),
             database.messageDao(),
             database.pendingMessageDao(),
-            lanTransport,
+            transportManager, // ✅ Use TransportManager instead of hardcoded transport
             fileManager,
             notificationHelper,
             settingsRepository
         )
     }
 
-    private val messageQueueService: MessageQueueService by lazy {
-        MessageQueueService(chatRepository, lanTransport)
-    }
-
     init {
-        messageQueueService.start()
-
-        // Collect events with proper lifecycle management
+        // Start all transports
         containerScope.launch {
-            lanTransport.events.collect { event ->
+            transportManager.startAllTransports()
+        }
+
+        // Start discovery on all transports
+        containerScope.launch {
+            transportManager.startDiscoveryOnAll()
+        }
+
+        // Collect events from ALL transports (merged flow)
+        containerScope.launch {
+            transportManager.getAllEventsFlow().collect { event ->
                 when (event) {
-                    is com.p2p.meshify.core.network.base.TransportEvent.PayloadReceived -> {
+                    is TransportEvent.PayloadReceived -> {
                         Logger.d("AppContainer -> Received payload from ${event.deviceId}, type=${event.payload.type}")
                         chatRepository.handleIncomingPayload(event.deviceId, event.payload)
                     }
-                    is com.p2p.meshify.core.network.base.TransportEvent.DeviceDiscovered -> {
-                        Logger.i("AppContainer -> Device discovered: ${event.deviceId} at ${event.address}")
+                    is TransportEvent.DeviceDiscovered -> {
+                        Logger.i("AppContainer -> Device discovered: ${event.deviceId} at ${event.address} via ${event.rssi} dBm")
                     }
-                    is com.p2p.meshify.core.network.base.TransportEvent.DeviceLost -> {
+                    is TransportEvent.DeviceLost -> {
                         Logger.w("AppContainer -> Device lost: ${event.deviceId}")
                     }
                     else -> {
@@ -93,7 +92,7 @@ class AppContainer(private val context: Context) {
             }
         }
     }
-    
+
     /**
      * Cleanup all resources when application is terminating.
      * Call this from Application.onTerminate() for testing or when app is shutting down.
@@ -101,9 +100,12 @@ class AppContainer(private val context: Context) {
     fun cleanup() {
         Log.d("AppContainer", "Starting cleanup...")
         containerScope.cancel() // Cancel all coroutines
-        socketManager.stopListening()
-        // lanTransport.stop() is suspend, so we can't call it here directly
-        // It will be stopped when socketManager stops
+        
+        // Stop all transports
+        containerScope.launch {
+            transportManager.stopAllTransports()
+        }
+        
         Log.d("AppContainer", "Cleanup completed")
     }
 }

@@ -5,9 +5,28 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Generic interface for all transport implementations (LAN, BT, Wi-Fi Direct).
+ * Generic interface for all transport implementations (LAN, BT, Wi-Fi Direct, DHT).
+ * Each transport represents a different communication medium.
  */
 interface IMeshTransport {
+    /**
+     * Unique transport identifier.
+     * Examples: "lan", "bluetooth", "wifi_direct", "dht"
+     */
+    val transportName: String
+
+    /**
+     * Check if this transport is available on current device.
+     * @return true if hardware supports this transport
+     */
+    val isAvailable: Boolean
+
+    /**
+     * Transport capabilities for smart selection.
+     * Used by TransportManager to choose best transport for a given use case.
+     */
+    val capabilities: Set<TransportCapability>
+
     /**
      * Observable stream of transport events.
      */
@@ -45,7 +64,9 @@ interface IMeshTransport {
 
     /**
      * Sends a payload to a specific device.
-     * @return Result indicating success or failure.
+     * @param targetDeviceId The unique identifier of the target peer
+     * @param payload The payload to send
+     * @return Result indicating success or failure
      */
     suspend fun sendPayload(targetDeviceId: String, payload: Payload): Result<Unit>
 }

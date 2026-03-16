@@ -40,11 +40,11 @@ class MeshForegroundService : Service() {
     private fun startMeshNetwork() {
         serviceScope.launch {
             val app = application as MeshifyApp
-            val transport = app.container.lanTransport
+            val transportManager = app.container.transportManager
 
             // Listen for incoming payloads globally
             launch {
-                transport.events.collect { event ->
+                transportManager.getAllEventsFlow().collect { event ->
                     if (event is TransportEvent.PayloadReceived) {
                         // Corrected: PayloadReceived has 'deviceId' not 'peerId'
                         chatRepository.handleIncomingPayload(event.deviceId, event.payload)
@@ -52,7 +52,7 @@ class MeshForegroundService : Service() {
                 }
             }
 
-            transport.start()
+            transportManager.startAllTransports()
             transportStarted = true
         }
     }
@@ -72,7 +72,7 @@ class MeshForegroundService : Service() {
             // Block until transport.stop() completes
             runBlocking {
                 val app = application as MeshifyApp
-                app.container.lanTransport.stop()
+                app.container.transportManager.stopAllTransports()
             }
             transportStarted = false
             Logger.i("Service -> Transport stopped successfully")
