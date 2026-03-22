@@ -15,8 +15,11 @@ import com.p2p.meshify.domain.model.ShapeStyle
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.domain.repository.ThemeMode
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.util.UUID
 
 private val Context.dataStore by preferencesDataStore(name = "settings")
@@ -45,6 +48,13 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
         val KEY_BUBBLE_STYLE = stringPreferencesKey("bubble_style")
         val KEY_VISUAL_DENSITY = floatPreferencesKey("visual_density")
         val KEY_SEED_COLOR = intPreferencesKey("seed_color")
+
+        // New Settings Keys
+        val KEY_APP_LANGUAGE = stringPreferencesKey("app_language")
+        val KEY_FONT_SIZE_SCALE = floatPreferencesKey("font_size_scale")
+        val KEY_NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
+        val KEY_NOTIFICATION_SOUND = booleanPreferencesKey("notification_sound")
+        val KEY_NOTIFICATION_VIBRATE = booleanPreferencesKey("notification_vibrate")
     }
 
     override val displayName: Flow<String> = context.dataStore.data.map { preferences ->
@@ -124,6 +134,27 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
         preferences[KEY_SEED_COLOR] ?: 0xFF006D68.toInt() // Default teal color
     }
 
+    // ✅ New Settings Flows
+    override val appLanguage: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[KEY_APP_LANGUAGE] ?: "en" // Default English
+    }
+
+    override val fontSizeScale: Flow<Float> = context.dataStore.data.map { preferences ->
+        preferences[KEY_FONT_SIZE_SCALE] ?: 1.0f
+    }
+
+    override val notificationsEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[KEY_NOTIFICATIONS_ENABLED] ?: true
+    }
+
+    override val notificationSound: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[KEY_NOTIFICATION_SOUND] ?: true
+    }
+
+    override val notificationVibrate: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[KEY_NOTIFICATION_VIBRATE] ?: true
+    }
+
     override suspend fun getDeviceId(): String {
         return try {
             val prefs = context.dataStore.data.map { it[KEY_DEVICE_ID] }.firstOrNull()
@@ -199,6 +230,81 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
 
     override suspend fun setSeedColor(color: Int) {
         safeEdit { it[KEY_SEED_COLOR] = color }
+    }
+
+    // ✅ New Settings Mutators
+    override suspend fun setAppLanguage(language: String) {
+        safeEdit { it[KEY_APP_LANGUAGE] = language }
+    }
+
+    override suspend fun setFontSizeScale(scale: Float) {
+        safeEdit { it[KEY_FONT_SIZE_SCALE] = scale.coerceIn(0.8f, 1.5f) }
+    }
+
+    override suspend fun setNotificationsEnabled(enabled: Boolean) {
+        safeEdit { it[KEY_NOTIFICATIONS_ENABLED] = enabled }
+    }
+
+    override suspend fun setNotificationSound(enabled: Boolean) {
+        safeEdit { it[KEY_NOTIFICATION_SOUND] = enabled }
+    }
+
+    override suspend fun setNotificationVibrate(enabled: Boolean) {
+        safeEdit { it[KEY_NOTIFICATION_VIBRATE] = enabled }
+    }
+
+    override suspend fun clearCache() {
+        try {
+            // Clear app cache directory
+            val cacheDir = context.cacheDir
+            if (cacheDir.exists()) {
+                cacheDir.deleteRecursively()
+            }
+            Logger.d("SettingsRepository -> Cache cleared successfully")
+        } catch (e: Exception) {
+            Logger.e("SettingsRepository -> Failed to clear cache", e)
+            throw e
+        }
+    }
+
+    override suspend fun exportBackup(): Result<String> {
+        return try {
+            val prefs = context.dataStore.data.first()
+            val backupData = mapOf(
+                "display_name" to prefs[KEY_DISPLAY_NAME],
+                "theme_mode" to prefs[KEY_THEME_MODE],
+                "dynamic_color" to prefs[KEY_DYNAMIC_COLOR],
+                "app_language" to prefs[KEY_APP_LANGUAGE],
+                "font_size_scale" to prefs[KEY_FONT_SIZE_SCALE],
+                "notifications_enabled" to prefs[KEY_NOTIFICATIONS_ENABLED],
+                "export_timestamp" to System.currentTimeMillis().toString()
+            ).filterValues { it != null }.mapValues { it.value!! }
+            val json = Json.encodeToString(backupData)
+            Logger.d("SettingsRepository -> Backup exported successfully")
+            Result.success(json)
+        } catch (e: Exception) {
+            Logger.e("SettingsRepository -> Failed to export backup", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun importBackup(backupJson: String): Result<Unit> {
+        return try {
+            val backupData = Json.decodeFromString<Map<String, String>>(backupJson)
+            safeEdit { prefs ->
+                backupData["display_name"]?.let { prefs[KEY_DISPLAY_NAME] = it }
+                backupData["theme_mode"]?.let { prefs[KEY_THEME_MODE] = it }
+                backupData["dynamic_color"]?.let { prefs[KEY_DYNAMIC_COLOR] = it.toBoolean() }
+                backupData["app_language"]?.let { prefs[KEY_APP_LANGUAGE] = it }
+                backupData["font_size_scale"]?.let { prefs[KEY_FONT_SIZE_SCALE] = it.toFloat() }
+                backupData["notifications_enabled"]?.let { prefs[KEY_NOTIFICATIONS_ENABLED] = it.toBoolean() }
+            }
+            Logger.d("SettingsRepository -> Backup imported successfully")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Logger.e("SettingsRepository -> Failed to import backup", e)
+            Result.failure(e)
+        }
     }
 
     override fun getAppVersion(): String {

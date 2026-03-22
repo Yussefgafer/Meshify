@@ -1,12 +1,11 @@
 package com.p2p.meshify.core.data.repository
 
+import android.content.Context
 import com.p2p.meshify.core.data.local.dao.ChatDao
 import com.p2p.meshify.core.data.local.dao.MessageDao
-import com.p2p.meshify.core.data.local.dao.PendingMessageDao
 import com.p2p.meshify.core.data.local.entity.ChatEntity
 import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.data.local.entity.MessageStatus
-import com.p2p.meshify.core.data.local.entity.PendingMessageEntity
 import com.p2p.meshify.core.util.ImageCompressor
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.core.util.NotificationHelper
@@ -21,8 +20,6 @@ import com.p2p.meshify.domain.repository.IChatRepository
 import com.p2p.meshify.domain.repository.IFileManager
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.core.network.TransportManager
-import com.p2p.meshify.core.network.base.IMeshTransport
-import com.p2p.meshify.core.network.base.TransportCapability
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -37,51 +34,82 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.delay
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.io.ByteArrayInputStream
 import java.io.File
 import java.util.UUID
-import kotlin.math.pow
-import kotlin.random.Random
 
 /**
- * Chat Repository Implementation with robust error handling.
- * 
- * Improvements:
- * - Timeout for Mutex operations to prevent deadlocks
- * - Improved file reading error handling with existence checks
- * - Exponential backoff retry logic for pending messages
- * - Result<T> returns for better error propagation
+ * ChatRepositoryImpl - Facade pattern for chat operations.
+ *
+ * This class now delegates to specialized repositories following Single Responsibility Principle:
+ * - [messageRepository]: Sending/receiving messages
+ * - [chatManagementRepository]: Chat CRUD operations
+ * - [pendingMessageRepository]: Pending message queue management
+ * - [messageAttachmentRepository]: Message attachments (albums)
+ * - [reactionRepository]: Message reactions
+ *
+ * This facade maintains backward compatibility with existing code while improving maintainability.
  */
 class ChatRepositoryImpl(
+    private val context: android.content.Context,
     private val chatDao: ChatDao,
     private val messageDao: MessageDao,
-    private val pendingMessageDao: PendingMessageDao,
-    private val transportManager: TransportManager, // ✅ Changed from IMeshTransport
+    private val pendingMessageDao: com.p2p.meshify.core.data.local.dao.PendingMessageDao,
+    private val transportManager: TransportManager,
     private val fileManager: IFileManager,
     private val notificationHelper: NotificationHelper,
     private val settingsRepository: ISettingsRepository
 ) : IChatRepository {
+
+    // Specialized repositories
+    private val messageRepository: MessageRepository = MessageRepository(
+        messageDao = messageDao,
+        chatDao = chatDao,
+        pendingMessageDao = pendingMessageDao,
+        transportManager = transportManager,
+        fileManager = fileManager,
+        settingsRepository = settingsRepository
+    )
+
+    private val chatManagementRepository: ChatManagementRepository = ChatManagementRepository(
+        context = context,
+        chatDao = chatDao,
+        messageDao = messageDao
+    )
+
+    private val pendingMessageRepository: PendingMessageRepository = PendingMessageRepository(
+        pendingMessageDao = pendingMessageDao,
+        messageDao = messageDao,
+        transportManager = transportManager,
+        settingsRepository = settingsRepository
+    )
+
+    private val messageAttachmentRepository: MessageAttachmentRepository = MessageAttachmentRepository(
+        messageDao = messageDao,
+        fileManager = fileManager
+    )
+
+    private val reactionRepository: ReactionRepository = ReactionRepository(
+        messageDao = messageDao,
+        transportManager = transportManager,
+        settingsRepository = settingsRepository
+    )
 
     private val scope = CoroutineScope(Dispatchers.IO)
     private val payloadMutex = Mutex()
 
     companion object {
         private const val PAYLOAD_HANDLING_TIMEOUT_MS = 30000L // 30 seconds
-        private const val RETRY_MAX_ATTEMPTS = 5
-        private const val RETRY_BASE_DELAY_MS = 1000L // 1 second base
-        private const val RETRY_MAX_DELAY_MS = 30000L // 30 seconds max
     }
 
-    // Public DAO access methods for ViewModels
-    fun getAllChats(): Flow<List<ChatEntity>> = chatDao.getAllChats()
-    fun getMessages(chatId: String): Flow<List<MessageEntity>> = messageDao.getAllMessagesForChat(chatId)
+    // Public DAO access methods for ViewModels (backward compatibility)
+    fun getAllChats(): Flow<List<ChatEntity>> = chatManagementRepository.getAllChats()
+    fun getMessages(chatId: String): Flow<List<MessageEntity>> = messageRepository.getMessages(chatId)
     fun getMessagesPaged(chatId: String, limit: Int, offset: Int): Flow<List<MessageEntity>> =
-        messageDao.getMessagesPaged(chatId, limit, offset)
+        messageRepository.getMessagesPaged(chatId, limit, offset)
 
-    // ✅ Delegate to TransportManager - merges all transports
+    // Online peers flow (backward compatibility)
     override val onlinePeers: Flow<Set<String>> = transportManager.getAllEventsFlow()
-        .map { event -> 
-            // Get latest from all transports
+        .map { event ->
             transportManager.getAllTransports().flatMap { it.onlinePeers.value }.toSet()
         }
     override val typingPeers: Flow<Set<String>> = transportManager.getAllEventsFlow()
@@ -89,97 +117,35 @@ class ChatRepositoryImpl(
             transportManager.getAllTransports().flatMap { it.typingPeers.value }.toSet()
         }
 
-    /**
-     * Select the best transport for sending to a specific peer.
-     * Strategy:
-     * 1. Use transport that already has this peer online
-     * 2. Fall back to LAN as default
-     */
-    private fun selectBestTransport(peerId: String): IMeshTransport {
-        return transportManager.selectBestTransport(
-            peerId = peerId,
-            requiredCapabilities = emptySet() // No special requirements for general messaging
-        ) ?: throw IllegalStateException("No available transport for peer: $peerId")
+    // ==================== Message Sending ====================
+
+    override suspend fun sendMessage(
+        peerId: String,
+        peerName: String,
+        text: String,
+        replyToId: String?
+    ): Result<Unit> {
+        return messageRepository.sendTextMessage(peerId, peerName, text, replyToId)
     }
 
-    override suspend fun sendSystemCommand(peerId: String, command: String) {
-        val myId = settingsRepository.getDeviceId()
-        val payload = Payload(senderId = myId, type = Payload.PayloadType.SYSTEM_CONTROL, data = command.toByteArray())
-        val transport = selectBestTransport(peerId)
-        transport.sendPayload(peerId, payload)
+    override suspend fun sendImage(
+        peerId: String,
+        peerName: String,
+        imageBytes: ByteArray,
+        extension: String,
+        replyToId: String?
+    ): Result<Unit> {
+        return messageRepository.sendImageMessage(peerId, peerName, imageBytes, extension, replyToId)
     }
 
-    override suspend fun sendMessage(peerId: String, peerName: String, text: String, replyToId: String?): Result<Unit> {
-        val messageId = UUID.randomUUID().toString()
-        val myId = settingsRepository.getDeviceId()
-        val message = MessageEntity(
-            id = messageId, chatId = peerId, senderId = myId, text = text,
-            timestamp = System.currentTimeMillis(), isFromMe = true,
-            type = MessageType.TEXT, status = MessageStatus.QUEUED, replyToId = replyToId
-        )
-        return saveAndSend(peerId, peerName, message, Payload.PayloadType.TEXT, text.toByteArray())
-    }
-
-    override suspend fun sendImage(peerId: String, peerName: String, imageBytes: ByteArray, extension: String, replyToId: String?): Result<Unit> {
-        // Compress image before sending (smart compression)
-        val compressionResult = ImageCompressor.compress(imageBytes, maxSize = 1920, targetSizeKB = 500)
-        Logger.d("ChatRepository -> Image compressed: ${compressionResult.originalSize / 1024}KB → ${compressionResult.compressedSize / 1024}KB (${compressionResult.compressionRatio.toInt()}% reduction)")
-
-        val messageId = UUID.randomUUID().toString()
-        val myId = settingsRepository.getDeviceId()
-        val fileName = "sent_$messageId.$extension"
-        val savedPath = fileManager.saveMedia(fileName, compressionResult.bytes)
-        
-        // ✅ FIX: Verify file was saved successfully before proceeding
-        if (savedPath == null) {
-            Logger.e("ChatRepository -> Failed to save image to disk")
-            return Result.failure(Exception("Failed to save image"))
-        }
-        
-        // ✅ FIX: Verify file exists before sending
-        val file = File(savedPath)
-        if (!file.exists()) {
-            Logger.e("ChatRepository -> Saved file does not exist: $savedPath")
-            return Result.failure(Exception("Saved file not found"))
-        }
-        
-        Logger.d("ChatRepository -> Image saved successfully: $savedPath (${file.length()} bytes)")
-        
-        val message = MessageEntity(
-            id = messageId, chatId = peerId, senderId = myId, text = null, mediaPath = savedPath,
-            type = MessageType.IMAGE, timestamp = System.currentTimeMillis(),
-            isFromMe = true, status = MessageStatus.QUEUED, replyToId = replyToId
-        )
-        return saveAndSend(peerId, peerName, message, Payload.PayloadType.FILE, compressionResult.bytes)
-    }
-
-    override suspend fun sendVideo(peerId: String, peerName: String, videoBytes: ByteArray, extension: String, replyToId: String?): Result<Unit> {
-        val messageId = UUID.randomUUID().toString()
-        val myId = settingsRepository.getDeviceId()
-        val fileName = "sent_vid_$messageId.$extension"
-        val savedPath = fileManager.saveMedia(fileName, videoBytes)
-        
-        // ✅ FIX: Verify file was saved successfully before proceeding
-        if (savedPath == null) {
-            Logger.e("ChatRepository -> Failed to save video to disk")
-            return Result.failure(Exception("Failed to save video"))
-        }
-        
-        // ✅ FIX: Verify file exists before sending
-        val file = File(savedPath)
-        if (!file.exists()) {
-            Logger.e("ChatRepository -> Saved video file does not exist: $savedPath")
-            return Result.failure(Exception("Saved video file not found"))
-        }
-        
-        Logger.d("ChatRepository -> Video saved successfully: $savedPath (${file.length()} bytes)")
-        
-        val message = MessageEntity(
-            id = messageId, chatId = peerId, senderId = myId, text = null, mediaPath = savedPath,
-            type = MessageType.VIDEO, timestamp = System.currentTimeMillis(),
-            isFromMe = true, status = MessageStatus.QUEUED, replyToId = replyToId
-        )
-        return saveAndSend(peerId, peerName, message, Payload.PayloadType.VIDEO, videoBytes)
+    override suspend fun sendVideo(
+        peerId: String,
+        peerName: String,
+        videoBytes: ByteArray,
+        extension: String,
+        replyToId: String?
+    ): Result<Unit> {
+        return messageRepository.sendVideoMessage(peerId, peerName, videoBytes, extension, replyToId)
     }
 
     override suspend fun sendGroupedMessage(
@@ -210,47 +176,54 @@ class ChatRepositoryImpl(
             groupId = messageId
         )
 
-        // Save message
+        // Save chat
         val cleanName = parseName(peerName)
         chatDao.insertChat(ChatEntity(peerId, cleanName, caption.ifBlank { "[Album]" }, timestamp))
+
+        // Save message
         messageDao.insertMessage(message)
 
-        // Save attachments - avoid lambda to work around KSP type inference issue
-        val attachmentEntities = ArrayList<com.p2p.meshify.core.data.local.entity.MessageAttachmentEntity>(attachments.size)
-        var index = 0
-        for ((bytes, type) in attachments) {
-            val ext = if (type == MessageType.IMAGE) "jpg" else "mp4"
-            val fileName = "sent_album_${messageId}_$index.$ext"
-            val savedPath = fileManager.saveMedia(fileName, bytes)
-            attachmentEntities.add(
-                com.p2p.meshify.core.data.local.entity.MessageAttachmentEntity(
-                    id = UUID.randomUUID().toString(),
-                    type = type,
-                    messageId = messageId,
-                    filePath = savedPath ?: ""
-                )
-            )
-            index++
+        // Save attachments
+        val saveResult = messageAttachmentRepository.saveAttachments(messageId, attachments)
+        if (saveResult.isFailure) {
+            return Result.failure(saveResult.exceptionOrNull() ?: Exception("Failed to save attachments"))
         }
-        messageDao.insertMessageAttachments(attachmentEntities)
 
-        // Send as FILE payload (first attachment bytes as representative)
-        val firstAttachment = attachments.first().first
-        return saveAndSend(peerId, peerName, message, Payload.PayloadType.FILE, firstAttachment)
+        // Send first attachment as representative
+        val firstAttachmentBytes = attachments.firstOrNull()?.first
+            ?: return Result.failure(Exception("No attachments to send"))
+        
+        return messageRepository.sendFileMessage(
+            peerId = peerId,
+            peerName = peerName,
+            fileBytes = firstAttachmentBytes,
+            fileName = "Album: $caption",
+            fileType = message.type,
+            replyToId = replyToId
+        )
     }
 
+    // ==================== Chat Management ====================
+
     override suspend fun deleteMessage(messageId: String, deleteType: DeleteType): Result<Unit> {
-        val myId = settingsRepository.getDeviceId()
-        val message = messageDao.getMessageById(messageId) ?: return Result.failure(Exception("Message not found"))
-        
+        val message = messageDao.getMessageById(messageId)
+            ?: return Result.failure(Exception("Message not found"))
+
         return try {
             if (deleteType == DeleteType.DELETE_FOR_ME) {
                 messageDao.markAsDeletedForMe(messageId)
             } else {
-                messageDao.markAsDeletedForEveryone(messageId, System.currentTimeMillis(), myId)
-                val request = DeleteRequest(messageId, deleteType, myId)
-                val payload = Payload(senderId = myId, type = Payload.PayloadType.DELETE_REQUEST, data = Json.encodeToString(request).toByteArray())
-                val transport = selectBestTransport(message.chatId)
+                messageDao.markAsDeletedForEveryone(messageId, System.currentTimeMillis(), message.senderId)
+                
+                // Send delete request to peer
+                val request = DeleteRequest(messageId, deleteType, message.senderId)
+                val payload = Payload(
+                    senderId = message.senderId,
+                    type = Payload.PayloadType.DELETE_REQUEST,
+                    data = Json.encodeToString(request).toByteArray()
+                )
+                val transport = transportManager.selectBestTransport(message.chatId)
+                    ?: return Result.failure(Exception("No available transport"))
                 transport.sendPayload(message.chatId, payload)
             }
             Result.success(Unit)
@@ -261,44 +234,113 @@ class ChatRepositoryImpl(
     }
 
     override suspend fun deleteChat(peerId: String) {
-        try {
-            chatDao.deleteChatById(peerId)
-            messageDao.deleteAllMessagesForChat(peerId)
-        } catch (e: Exception) {
-            Logger.e("ChatRepository -> Failed to delete chat: $peerId", e)
-        }
-    }
-
-    override suspend fun addReaction(messageId: String, reaction: String?): Result<Unit> {
-        val myId = settingsRepository.getDeviceId()
-        val message = messageDao.getMessageById(messageId) ?: return Result.failure(Exception("Message not found"))
-        
-        return try {
-            messageDao.updateReaction(messageId, reaction)
-            val update = ReactionUpdate(messageId, reaction, myId)
-            val payload = Payload(senderId = myId, type = Payload.PayloadType.REACTION, data = Json.encodeToString(update).toByteArray())
-            val transport = selectBestTransport(message.chatId)
-            transport.sendPayload(message.chatId, payload)
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Logger.e("ChatRepository -> Failed to add reaction to message: $messageId", e)
-            Result.failure(e)
-        }
+        chatManagementRepository.deleteChat(peerId)
     }
 
     override suspend fun forwardMessage(messageId: String, targetPeerIds: List<String>): Result<Unit> {
-        val message = messageDao.getMessageById(messageId) ?: return Result.failure(Exception("Message not found"))
-        
+        val message = messageDao.getMessageById(messageId)
+            ?: return Result.failure(Exception("Message not found"))
+
         return try {
-            targetPeerIds.forEach { pid ->
+            var allSuccess = true
+
+            targetPeerIds.forEach { peerId ->
                 scope.launch {
-                    val chat = chatDao.getChatById(pid)
-                    if (message.type == MessageType.TEXT && message.text != null) {
-                        sendMessage(pid, chat?.peerName ?: pid, message.text)
+                    try {
+                        val chat = chatDao.getChatById(peerId)
+                        
+                        // Build forward context
+                        val forwardContext = buildForwardContext(message)
+                        
+                        if (message.type == MessageType.TEXT && message.text != null) {
+                            // ✅ FIX: Send message via network AND copy to local DB
+                            // Create message with forward context
+                            val newMessage = MessageEntity(
+                                id = UUID.randomUUID().toString(),
+                                chatId = peerId,
+                                senderId = message.senderId, // Preserve original sender
+                                text = forwardContext,
+                                mediaPath = null,
+                                type = MessageType.TEXT,
+                                timestamp = System.currentTimeMillis(),
+                                isFromMe = true,
+                                status = MessageStatus.SENDING,
+                                replyToId = null,
+                                groupId = null
+                            )
+                            
+                            // Insert into DB first
+                            messageDao.insertMessage(newMessage)
+                            
+                            // ✅ Send via network
+                            val transport = transportManager.selectBestTransport(peerId)
+                            if (transport != null) {
+                                // Create payload with text content
+                                val payload = Payload(
+                                    id = newMessage.id,
+                                    senderId = settingsRepository.getDeviceId(),
+                                    timestamp = newMessage.timestamp,
+                                    type = Payload.PayloadType.TEXT,
+                                    data = (newMessage.text ?: "").toByteArray()
+                                )
+                                
+                                val sendResult = transport.sendPayload(peerId, payload)
+                                if (sendResult.isSuccess) {
+                                    messageDao.updateMessageStatus(newMessage.id, MessageStatus.SENT)
+                                    Logger.d("ChatRepository -> Forwarded message $messageId to $peerId")
+                                } else {
+                                    messageDao.updateMessageStatus(newMessage.id, MessageStatus.QUEUED)
+                                    Logger.e("ChatRepository -> Failed to forward message to $peerId")
+                                    allSuccess = false
+                                }
+                            } else {
+                                messageDao.updateMessageStatus(newMessage.id, MessageStatus.QUEUED)
+                                Logger.w("ChatRepository -> No transport available for forwarding to $peerId")
+                                allSuccess = false
+                            }
+                        } else {
+                            // For media messages: forward context only (media file reference)
+                            val newMessage = message.copy(
+                                id = UUID.randomUUID().toString(),
+                                chatId = peerId,
+                                isFromMe = true,
+                                timestamp = System.currentTimeMillis(),
+                                text = forwardContext,
+                                status = MessageStatus.SENT // Media already exists, just context
+                            )
+                            messageDao.insertMessage(newMessage)
+                            Logger.d("ChatRepository -> Forwarded media context for $messageId to $peerId")
+                        }
+                        
+                        // Update chat last message
+                        chat?.let {
+                            chatDao.insertChat(it.copy(
+                                lastMessage = forwardContext,
+                                lastTimestamp = System.currentTimeMillis()
+                            ))
+                        } ?: run {
+                            chatDao.insertChat(ChatEntity(
+                                peerId = peerId,
+                                peerName = "Peer_${peerId.take(4)}",
+                                lastMessage = forwardContext,
+                                lastTimestamp = System.currentTimeMillis()
+                            ))
+                        }
+                    } catch (e: Exception) {
+                        Logger.e("ChatRepository -> Failed to forward message to $peerId", e)
+                        allSuccess = false
                     }
                 }
             }
-            Result.success(Unit)
+
+            // Wait a bit for async operations
+            kotlinx.coroutines.delay(500)
+            
+            if (allSuccess) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Some forwards failed"))
+            }
         } catch (e: Exception) {
             Logger.e("ChatRepository -> Failed to forward message: $messageId", e)
             Result.failure(e)
@@ -306,194 +348,49 @@ class ChatRepositoryImpl(
     }
 
     /**
-     * Saves message and sends to peer with proper error handling.
-     * Returns Result<Unit> for better error propagation.
+     * Builds context string for forwarded message.
      */
-    private suspend fun saveAndSend(peerId: String, peerName: String, message: MessageEntity, payloadType: Payload.PayloadType, data: ByteArray): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-            Logger.d("ChatRepository -> saveAndSend START: messageId=${message.id}, peerId=$peerId, text=${message.text?.take(20)}")
-            
-            val cleanName = parseName(peerName)
-            Logger.d("ChatRepository -> Inserting chat: peerId=$peerId, name=$cleanName")
-            chatDao.insertChat(ChatEntity(peerId, cleanName, message.text ?: "[Media]", message.timestamp))
-            
-            Logger.d("ChatRepository -> Inserting message: id=${message.id}, type=${message.type}")
-            messageDao.insertMessage(message)
+    private fun buildForwardContext(original: MessageEntity): String {
+        val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault())
+            .format(java.util.Date(original.timestamp))
 
-            // Check if peer is online
-            Logger.d("ChatRepository -> Checking online status for peer: $peerId")
-            val isOnline = onlinePeers.first().contains(peerId)
-            Logger.d("ChatRepository -> Peer $peerId is online: $isOnline")
-            
-            if (!isOnline) {
-                Logger.w("ChatRepository -> Peer $peerId offline, queuing message")
-                pendingMessageDao.insert(PendingMessageEntity(id = message.id, recipientId = peerId, recipientName = cleanName, content = message.text ?: "[Media]", type = message.type))
-                Logger.d("ChatRepository -> Message queued successfully")
-                return@withContext Result.success(Unit)
+        return when (original.type) {
+            MessageType.TEXT -> {
+                val preview = original.text?.take(100) ?: ""
+                "Forwarded from $timestamp:\n$preview"
             }
-
-            val payload = Payload(id = message.id, senderId = message.senderId, timestamp = message.timestamp, type = payloadType, data = data)
-            Logger.d("ChatRepository -> Updating message status to SENDING")
-            messageDao.updateMessageStatus(message.id, MessageStatus.SENDING)
-
-            Logger.d("ChatRepository -> Sending payload via selected transport")
-            val transport = selectBestTransport(peerId)
-            val result = transport.sendPayload(peerId, payload)
-            
-            if (result.isFailure) {
-                Logger.e("ChatRepository -> sendPayload failed: ${result.exceptionOrNull()?.message}")
-                messageDao.updateMessageStatus(message.id, MessageStatus.FAILED)
-                pendingMessageDao.insert(PendingMessageEntity(id = message.id, recipientId = peerId, recipientName = cleanName, content = message.text ?: "[Media]", type = message.type))
-                return@withContext Result.failure(result.exceptionOrNull() ?: Exception("Send failed"))
-            } else {
-                Logger.d("ChatRepository -> sendPayload succeeded, updating status to SENT")
-                messageDao.updateMessageStatus(message.id, MessageStatus.SENT)
-                Logger.d("ChatRepository -> saveAndSend COMPLETE: messageId=${message.id}")
-                return@withContext Result.success(Unit)
-            }
-        } catch (e: Exception) {
-            Logger.e("ChatRepository -> Failed to save and send message: ${e.message}", e)
-            Logger.e("ChatRepository -> Exception stack trace: ${e.stackTraceToString()}")
-            return@withContext Result.failure(e)
+            MessageType.IMAGE -> "Forwarded image from $timestamp"
+            MessageType.VIDEO -> "Forwarded video from $timestamp"
+            MessageType.AUDIO -> "Forwarded audio from $timestamp"
+            MessageType.FILE -> "Forwarded file from $timestamp"
+            MessageType.DOCUMENT -> "Forwarded document from $timestamp"
+            MessageType.ARCHIVE -> "Forwarded archive from $timestamp"
+            MessageType.APK -> "Forwarded APK from $timestamp"
         }
     }
 
-    /**
-     * Retries pending messages with exponential backoff.
-     * Includes proper file existence checks and error handling.
-     */
-    override suspend fun retryPendingMessages(peerId: String): Result<Unit> = withContext(Dispatchers.IO) {
-        val pending = pendingMessageDao.getByRecipient(peerId)
-        
-        if (pending.isEmpty()) {
-            return@withContext Result.success(Unit)
-        }
+    // ==================== Reactions ====================
 
-        Logger.i("ChatRepository -> Retrying ${pending.size} pending messages for $peerId")
-
-        var successCount = 0
-        var failureCount = 0
-
-        pending.forEach { pm ->
-            val msg = messageDao.getMessageById(pm.id)
-            if (msg != null) {
-                val result = sendMessageWithBackoff(pm, msg)
-                if (result.isSuccess) {
-                    successCount++
-                } else {
-                    failureCount++
-                }
-            } else {
-                // Message not found in database, clean up pending entry
-                Logger.w("ChatRepository -> Pending message ${pm.id} not found in DB, removing")
-                pendingMessageDao.deleteById(pm.id)
-                failureCount++
-            }
-        }
-
-        Logger.i("ChatRepository -> Retry complete: $successCount succeeded, $failureCount failed")
-        
-        if (failureCount == 0) {
-            Result.success(Unit)
-        } else {
-            Result.failure(Exception("$failureCount messages failed to send"))
-        }
+    override suspend fun addReaction(messageId: String, reaction: String?): Result<Unit> {
+        return reactionRepository.addReaction(messageId, reaction)
     }
 
-    /**
-     * Sends a single message with exponential backoff retry logic.
-     */
-    private suspend fun sendMessageWithBackoff(
-        pm: PendingMessageEntity,
-        msg: MessageEntity
-    ): Result<Unit> {
-        var lastException: Exception? = null
+    // ==================== System Commands ====================
 
-        for (attempt in 1..RETRY_MAX_ATTEMPTS) {
-            try {
-                val data: ByteArray = when (msg.type) {
-                    MessageType.TEXT -> msg.text?.toByteArray() ?: byteArrayOf()
-                    MessageType.IMAGE, MessageType.VIDEO, MessageType.FILE, 
-                    MessageType.AUDIO, MessageType.DOCUMENT, MessageType.ARCHIVE, 
-                    MessageType.APK -> {
-                        val path = msg.mediaPath
-                        if (path != null) {
-                            // Check file existence before reading
-                            val file = File(path)
-                            if (!file.exists()) {
-                                Logger.e("ChatRepository -> Media file not found for retry: $path")
-                                return Result.failure(Exception("Media file not found: $path"))
-                            }
-                            file.readBytes()
-                        } else {
-                            Logger.w("ChatRepository -> No media path for message ${msg.id}")
-                            byteArrayOf()
-                        }
-                    }
-                }
-
-                val payloadType = when (msg.type) {
-                    MessageType.TEXT -> Payload.PayloadType.TEXT
-                    MessageType.VIDEO -> Payload.PayloadType.VIDEO
-                    else -> Payload.PayloadType.FILE
-                }
-
-                val payload = Payload(
-                    id = msg.id,
-                    senderId = msg.senderId,
-                    timestamp = msg.timestamp,
-                    type = payloadType,
-                    data = data
-                )
-
-                val transport = selectBestTransport(pm.recipientId)
-                val result = transport.sendPayload(pm.recipientId, payload)
-                
-                if (result.isSuccess) {
-                    messageDao.updateMessageStatus(msg.id, MessageStatus.SENT)
-                    pendingMessageDao.deleteById(pm.id)
-                    Logger.i("ChatRepository -> Message ${msg.id} sent successfully on attempt $attempt")
-                    return Result.success(Unit)
-                } else {
-                    lastException = result.exceptionOrNull() as? Exception ?: Exception("Send failed")
-                }
-
-            } catch (e: Exception) {
-                Logger.e("ChatRepository -> Send attempt $attempt failed for message ${msg.id}", e)
-                lastException = e
-            }
-
-            // Wait before retry (exponential backoff with jitter)
-            if (attempt < RETRY_MAX_ATTEMPTS) {
-                val delay = calculateBackoffDelay(attempt)
-                Logger.d("ChatRepository -> Waiting ${delay}ms before retry $attempt")
-                delay(delay)
-            }
-        }
-
-        // All retries exhausted
-        messageDao.updateMessageStatus(msg.id, MessageStatus.FAILED)
-        Logger.e("ChatRepository -> Message ${msg.id} failed after $RETRY_MAX_ATTEMPTS attempts", lastException)
-        return Result.failure(lastException ?: Exception("Max retries exceeded"))
+    override suspend fun sendSystemCommand(peerId: String, command: String) {
+        val myId = settingsRepository.getDeviceId()
+        val payload = Payload(
+            senderId = myId,
+            type = Payload.PayloadType.SYSTEM_CONTROL,
+            data = command.toByteArray()
+        )
+        val transport = transportManager.selectBestTransport(peerId)
+            ?: throw IllegalStateException("No available transport for peer: $peerId")
+        transport.sendPayload(peerId, payload)
     }
 
-    /**
-     * Calculates exponential backoff delay with jitter.
-     * Formula: min(baseDelay * 2^attempt, maxDelay) + random jitter
-     */
-    private fun calculateBackoffDelay(attempt: Int): Long {
-        val exponentialDelay = RETRY_BASE_DELAY_MS * 2.0.pow(attempt - 1).toInt()
-        val cappedDelay = exponentialDelay.coerceAtMost(RETRY_MAX_DELAY_MS)
-        
-        // Add jitter (±25% randomness) to prevent thundering herd
-        val jitter = (cappedDelay * 0.25 * (Math.random() * 2 - 1)).toLong()
-        
-        return (cappedDelay + jitter).coerceAtLeast(RETRY_BASE_DELAY_MS)
-    }
+    // ==================== Incoming Payload Handling ====================
 
-    /**
-     * Handles incoming payload with timeout to prevent deadlocks.
-     */
     override suspend fun handleIncomingPayload(peerId: String, payload: Payload) {
         try {
             withTimeout(PAYLOAD_HANDLING_TIMEOUT_MS) {
@@ -508,12 +405,9 @@ class ChatRepositoryImpl(
         }
     }
 
-    /**
-     * Processes payload logic (extracted for clarity).
-     */
     private suspend fun processPayload(peerId: String, payload: Payload) {
-        Logger.d("ChatRepository -> Processing payload from $peerId, type=${payload.type}, size=${payload.data.size} bytes")
-        
+        Logger.d("ChatRepository -> Processing payload from $peerId, type=${payload.type}")
+
         when (payload.type) {
             Payload.PayloadType.SYSTEM_CONTROL -> {
                 val command = String(payload.data)
@@ -535,23 +429,20 @@ class ChatRepositoryImpl(
             }
             Payload.PayloadType.TEXT -> {
                 val text = String(payload.data)
-                Logger.i("ChatRepository -> Received text message from $peerId: '$text'")
-                saveIncomingMessage(payload.senderId, text, null, MessageType.TEXT, payload.timestamp, payload.id)
+                Logger.i("ChatRepository -> Received text message from $peerId")
+                saveIncomingMessage(peerId, text, null, MessageType.TEXT, payload.timestamp, payload.id)
                 sendSystemCommand(payload.senderId, "ACK_${payload.id}")
             }
             Payload.PayloadType.FILE -> {
                 val fileName = "img_${payload.id}.jpg"
                 Logger.i("ChatRepository -> Receiving image from $peerId (${payload.data.size} bytes)")
                 val savedPath = fileManager.saveMedia(fileName, payload.data)
-                // ✅ FIX: Verify file was saved before creating message
                 if (savedPath != null) {
-                    // ✅ FIX: Verify file exists
                     val file = File(savedPath)
                     if (file.exists()) {
-                        Logger.d("ChatRepository -> Incoming image saved: $savedPath (${file.length()} bytes)")
-                        saveIncomingMessage(payload.senderId, null, savedPath, MessageType.IMAGE, payload.timestamp, payload.id)
+                        Logger.d("ChatRepository -> Incoming image saved: $savedPath")
+                        saveIncomingMessage(peerId, null, savedPath, MessageType.IMAGE, payload.timestamp, payload.id)
                         sendSystemCommand(payload.senderId, "ACK_${payload.id}")
-                        Logger.i("ChatRepository -> Image message saved to database")
                     } else {
                         Logger.e("ChatRepository -> Saved incoming image file does not exist: $savedPath")
                     }
@@ -563,15 +454,12 @@ class ChatRepositoryImpl(
                 val fileName = "vid_${payload.id}.mp4"
                 Logger.i("ChatRepository -> Receiving video from $peerId (${payload.data.size} bytes)")
                 val savedPath = fileManager.saveMedia(fileName, payload.data)
-                // ✅ FIX: Verify file was saved before creating message
                 if (savedPath != null) {
-                    // ✅ FIX: Verify file exists
                     val file = File(savedPath)
                     if (file.exists()) {
-                        Logger.d("ChatRepository -> Incoming video saved: $savedPath (${file.length()} bytes)")
-                        saveIncomingMessage(payload.senderId, null, savedPath, MessageType.VIDEO, payload.timestamp, payload.id)
+                        Logger.d("ChatRepository -> Incoming video saved: $savedPath")
+                        saveIncomingMessage(peerId, null, savedPath, MessageType.VIDEO, payload.timestamp, payload.id)
                         sendSystemCommand(payload.senderId, "ACK_${payload.id}")
-                        Logger.i("ChatRepository -> Video message saved to database")
                     } else {
                         Logger.e("ChatRepository -> Saved incoming video file does not exist: $savedPath")
                     }
@@ -583,7 +471,7 @@ class ChatRepositoryImpl(
                 val rawData = String(payload.data)
                 val cleanName = parseName(rawData)
                 chatDao.insertChat(ChatEntity(payload.senderId, cleanName, "Connected", payload.timestamp))
-                
+
                 // Retry pending messages in background
                 scope.launch {
                     retryPendingMessages(payload.senderId)
@@ -593,7 +481,14 @@ class ChatRepositoryImpl(
         }
     }
 
-    private suspend fun saveIncomingMessage(peerId: String, text: String?, mediaPath: String?, type: MessageType, timestamp: Long, messageId: String) {
+    private suspend fun saveIncomingMessage(
+        peerId: String,
+        text: String?,
+        mediaPath: String?,
+        type: MessageType,
+        timestamp: Long,
+        messageId: String
+    ) {
         try {
             val existingChat = chatDao.getChatById(peerId)
             val finalName = if (existingChat != null) parseName(existingChat.peerName) else "Peer_${peerId.take(4)}"
@@ -622,11 +517,15 @@ class ChatRepositoryImpl(
         } else raw.removePrefix("HELO_")
     }
 
-    /**
-     * Get attachments for a specific message.
-     * This is a public method for ViewModels to fetch message attachments.
-     */
+    // ==================== Pending Messages ====================
+
+    override suspend fun retryPendingMessages(peerId: String): Result<Unit> {
+        return pendingMessageRepository.retryPendingMessages(peerId)
+    }
+
+    // ==================== Attachments (Backward Compatibility) ====================
+
     suspend fun getMessageAttachments(messageId: String): List<com.p2p.meshify.core.data.local.entity.MessageAttachmentEntity> {
-        return messageDao.getAttachmentsForMessage(messageId)
+        return messageAttachmentRepository.getAttachmentsForMessage(messageId)
     }
 }

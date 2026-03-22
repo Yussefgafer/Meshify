@@ -18,14 +18,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
-import com.p2p.meshify.domain.model.MotionPreset
-import com.p2p.meshify.domain.model.ShapeStyle
-import com.p2p.meshify.domain.repository.ThemeMode
+import com.p2p.meshify.core.ui.R
+import com.p2p.meshify.core.ui.hooks.HapticPattern
+import com.p2p.meshify.core.ui.hooks.LocalPremiumHaptics
 import com.p2p.meshify.core.ui.theme.ColorPresetAmber
 import com.p2p.meshify.core.ui.theme.ColorPresetBlue
 import com.p2p.meshify.core.ui.theme.ColorPresetGreen
@@ -35,6 +36,9 @@ import com.p2p.meshify.core.ui.theme.ColorPresetPurple
 import com.p2p.meshify.core.ui.theme.ColorPresetRed
 import com.p2p.meshify.core.ui.theme.ColorPresetTeal
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
+import com.p2p.meshify.domain.model.MotionPreset
+import com.p2p.meshify.domain.model.ShapeStyle
+import com.p2p.meshify.domain.repository.ThemeMode
 import java.io.File
 
 @Composable
@@ -50,12 +54,12 @@ fun DeleteConfirmationDialog(
         text = { Text(text) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("Delete", color = MaterialTheme.colorScheme.error)
+                Text(stringResource(R.string.dialog_btn_delete), color = MaterialTheme.colorScheme.error)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.dialog_btn_cancel))
             }
         },
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -111,12 +115,12 @@ fun MeshifyTextInputDialog(
         },
         confirmButton = {
             TextButton(onClick = { onConfirm(); onDismiss() }) {
-                Text("Save", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.dialog_btn_save), fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.dialog_btn_cancel))
             }
         },
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -168,7 +172,7 @@ fun <T> MeshifySelectionDialog(
                             optionIcon(option)?.let { icon ->
                                 Icon(
                                     imageVector = icon,
-                                    contentDescription = null,
+                                    contentDescription = stringResource(R.string.dialog_option_desc),
                                     tint = if (isSelected)
                                         MaterialTheme.colorScheme.onSecondaryContainer
                                     else
@@ -188,7 +192,7 @@ fun <T> MeshifySelectionDialog(
                             if (isSelected) {
                                 Icon(
                                     imageVector = Icons.Default.Check,
-                                    contentDescription = null,
+                                    contentDescription = stringResource(R.string.dialog_selected),
                                     tint = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
                             }

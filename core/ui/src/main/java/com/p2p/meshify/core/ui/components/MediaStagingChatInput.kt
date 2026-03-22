@@ -27,13 +27,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Videocam
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,21 +45,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import com.p2p.meshify.core.ui.R
 import com.p2p.meshify.core.ui.hooks.HapticPattern
 import com.p2p.meshify.core.ui.hooks.LocalPremiumHaptics
+import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
+import com.p2p.meshify.domain.model.MessageType
+import java.io.File
 
 /**
  * Professional Media Staging Chat Input.
@@ -65,6 +72,7 @@ import com.p2p.meshify.core.ui.hooks.LocalPremiumHaptics
  * - Video (Videocam) button
  * - Send button (ArrowUpward icon only)
  * - Send enabled when text OR attachments exist
+ * - Loading bar during send operation
  */
 @Composable
 fun MediaStagingChatInput(
@@ -73,8 +81,9 @@ fun MediaStagingChatInput(
     onSendClick: () -> Unit,
     onGalleryClick: () -> Unit,
     onVideoClick: () -> Unit,
+    modifier: Modifier = Modifier,
     hasAttachments: Boolean = false,
-    modifier: Modifier = Modifier
+    isSending: Boolean = false
 ) {
     val haptics = LocalPremiumHaptics.current
     var textFieldFocused by remember { mutableStateOf(false) }
@@ -182,7 +191,7 @@ fun MediaStagingChatInput(
                         .padding(horizontal = 14.dp, vertical = 12.dp),
                     textStyle = LocalTextStyle.current.copy(
                         color = LocalContentColor.current,
-                        fontSize = 16.sp,
+                        fontSize = MaterialTheme.typography.bodyLarge.fontSize,
                         fontWeight = FontWeight.Normal
                     ),
                     maxLines = 5,
@@ -192,6 +201,12 @@ fun MediaStagingChatInput(
                     ),
                     keyboardActions = KeyboardActions(
                         onSend = {
+                            if (hasContent) {
+                                haptics.perform(HapticPattern.Send)
+                                onSendClick()
+                            }
+                        },
+                        onDone = {
                             if (hasContent) {
                                 haptics.perform(HapticPattern.Send)
                                 onSendClick()
@@ -206,9 +221,9 @@ fun MediaStagingChatInput(
                         ) {
                             if (textState.text.isEmpty() && !hasAttachments) {
                                 Text(
-                                    text = "Add a caption...",
+                                    text = stringResource(R.string.chat_input_caption_placeholder),
                                     color = LocalContentColor.current.copy(alpha = 0.5f),
-                                    fontSize = 16.sp
+                                    style = MaterialTheme.typography.bodyLarge
                                 )
                             }
                             innerTextField()
@@ -232,7 +247,7 @@ fun MediaStagingChatInput(
                     .size(44.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .clickable(
-                        enabled = hasContent,
+                        enabled = hasContent && !isSending,
                         interactionSource = sendInteraction,
                         indication = null
                     ) {
@@ -240,18 +255,29 @@ fun MediaStagingChatInput(
                         onSendClick()
                     }
                     .background(
-                        if (hasContent) MaterialTheme.colorScheme.primary
+                        if (hasContent && !isSending) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.surfaceContainerHighest,
                         RoundedCornerShape(12.dp)
                     )
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.Send,
-                    contentDescription = "Send",
-                    tint = if (hasContent) MaterialTheme.colorScheme.onPrimary
-                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                    modifier = Modifier.size(22.dp)
-                )
+                if (isSending) {
+                    // Linear Progress Indicator - modern loading bar
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth(0.6f)
+                            .height(3.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.Send,
+                        contentDescription = "Send",
+                        tint = if (hasContent) MaterialTheme.colorScheme.onPrimary
+                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
         }
     }

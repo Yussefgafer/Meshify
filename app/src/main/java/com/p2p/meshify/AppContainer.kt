@@ -50,6 +50,7 @@ class AppContainer(private val context: Context) {
 
     val chatRepository: ChatRepositoryImpl by lazy {
         ChatRepositoryImpl(
+            context = context,
             database.chatDao(),
             database.messageDao(),
             database.pendingMessageDao(),

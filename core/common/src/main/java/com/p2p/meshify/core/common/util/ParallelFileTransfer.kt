@@ -61,12 +61,14 @@ object ParallelFileTransfer {
             dataOutputStream.writeInt(chunkCount) // Number of chunks
             dataOutputStream.flush() // Flush metadata immediately
 
-            // Send chunks in parallel with error tracking
+            // Send chunks in parallel with error tracking and retry logic
             var totalSent = 0L
             val sendResults = mutableListOf<Result<Unit>>()
+            val failedChunks = mutableListOf<Int>() // Track failed chunk indices for retry
 
             coroutineScope {
-                (0 until chunkCount).map { index ->
+                // First pass: send all chunks
+                val firstPassResults = (0 until chunkCount).map { index ->
                     async {
                         try {
                             val chunkOffset = index * chunkSize
@@ -77,7 +79,7 @@ object ParallelFileTransfer {
                                 dataOutputStream.writeInt(index)
                                 dataOutputStream.writeInt(chunkLength)
                                 dataOutputStream.write(fileBytes, chunkOffset, chunkLength)
-                                
+
                                 // ✅ MAJOR FIX M3: Strategic flush after each chunk
                                 // This prevents buffering delays and ensures immediate transmission
                                 // Only flush for multi-chunk transfers to avoid overhead on small files
@@ -88,19 +90,61 @@ object ParallelFileTransfer {
 
                             totalSent += chunkLength
                             listener?.onProgress(totalSent, fileSize.toLong(), (totalSent.toDouble() / fileSize) * 100)
-                            sendResults.add(Result.success(Unit))
+                            Result.success<Unit>(Unit)
                         } catch (e: Exception) {
                             Logger.e("ParallelFileTransfer -> Chunk $index failed", e)
-                            sendResults.add(Result.failure(e))
+                            failedChunks.add(index) // Track for retry
+                            Result.failure<Unit>(e)
                         }
                     }
                 }.awaitAll()
+
+                sendResults.addAll(firstPassResults)
+
+                // ✅ PF07: Retry failed chunks only (not entire transfer)
+                if (failedChunks.isNotEmpty()) {
+                    Logger.d("ParallelFileTransfer -> Retrying ${failedChunks.size} failed chunks")
+                    
+                    val retryResults = failedChunks.map { index ->
+                        async {
+                            try {
+                                val chunkOffset = index * chunkSize
+                                val chunkLength = minOf(chunkSize, fileSize - chunkOffset)
+
+                                withTimeout(30000L) {
+                                    // Send retry marker
+                                    dataOutputStream.writeInt(-2) // Retry marker
+                                    dataOutputStream.writeInt(index)
+                                    dataOutputStream.writeInt(chunkLength)
+                                    dataOutputStream.write(fileBytes, chunkOffset, chunkLength)
+                                    
+                                    if (chunkCount > 1) {
+                                        dataOutputStream.flush()
+                                    }
+                                }
+
+                                totalSent += chunkLength
+                                listener?.onProgress(totalSent, fileSize.toLong(), (totalSent.toDouble() / fileSize) * 100)
+                                Result.success<Unit>(Unit)
+                            } catch (e: Exception) {
+                                Logger.e("ParallelFileTransfer -> Retry chunk $index failed", e)
+                                Result.failure<Unit>(e)
+                            }
+                        }
+                    }.awaitAll()
+
+                    // Update results with retry results
+                    retryResults.forEachIndexed { i, result ->
+                        val originalIndex = failedChunks[i]
+                        sendResults[originalIndex] = result
+                    }
+                }
             }
 
-            // التحقق من نجاح جميع chunks
+            // التحقق من نجاح جميع chunks بعد retry
             val failedCount = sendResults.count { it.isFailure }
             if (failedCount > 0) {
-                return@withContext Result.failure(Exception("$failedCount chunks failed"))
+                return@withContext Result.failure(Exception("$failedCount chunks failed after retry"))
             }
 
             // Send completion marker

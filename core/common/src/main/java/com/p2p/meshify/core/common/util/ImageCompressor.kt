@@ -113,7 +113,7 @@ object ImageCompressor {
             // ✅ CRITICAL FIX: Ensure memory is freed even in case of exception
             // Close output stream first
             outputStream?.close()
-            
+
             // ✅ Recycle bitmaps in reverse order of creation
             // Recycle oriented bitmap first (if different from original)
             if (orientedBitmap != null && orientedBitmap != bitmap && !orientedBitmap.isRecycled) {
@@ -123,9 +123,9 @@ object ImageCompressor {
             if (!bitmap.isRecycled) {
                 bitmap.recycle()
             }
-            
-            // ✅ Force garbage collection hint for large bitmaps
-            System.gc()
+
+            // ✅ REMOVED: System.gc() was causing 5-50ms stutters
+            // Bitmap.recycle() is sufficient - GC will run naturally
         }
     }
     
