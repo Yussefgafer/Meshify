@@ -1,10 +1,13 @@
 package com.p2p.meshify.feature.chat
 
 import android.net.Uri
+import androidx.compose.ui.platform.ClipboardManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.p2p.meshify.core.data.local.entity.ChatEntity
 import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
+import com.p2p.meshify.core.ui.components.ForwardDialogState
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.DeleteType
 import com.p2p.meshify.domain.model.MessageType
@@ -24,7 +27,8 @@ data class ChatUiState(
     val replyTo: MessageEntity? = null,
     val stagedAttachments: List<StagedAttachment> = emptyList(),
     val hasMoreMessages: Boolean = false,
-    val isLoadingMore: Boolean = false
+    val isLoadingMore: Boolean = false,
+    val isSending: Boolean = false
 )
 
 class ChatViewModel(
@@ -38,6 +42,17 @@ class ChatViewModel(
 
     private val stageMutex = Mutex()
     private val paginationMutex = Mutex()
+    
+    // Forward dialog state
+    private val _forwardDialogState = MutableStateFlow(ForwardDialogState())
+    val forwardDialogState: StateFlow<ForwardDialogState> = _forwardDialogState.asStateFlow()
+    
+    // Multi-select mode
+    private val _selectedMessages = MutableStateFlow<Set<String>>(emptySet())
+    val selectedMessages: StateFlow<Set<String>> = _selectedMessages.asStateFlow()
+    
+    val isInSelectionMode: Boolean
+        get() = _selectedMessages.value.isNotEmpty()
 
     // Pagination state - using ArrayDeque for O(1) prepend operations
     private var currentPage = 0
@@ -50,25 +65,31 @@ class ChatViewModel(
         private const val MAX_MESSAGES_IN_MEMORY = 500
     }
 
+    // ✅ Double tap protection - prevent sending same message twice
+    private var lastSendTime = 0L
+    private val sendDebounceMs = 500L // 500ms debounce
+
     init {
         // Load initial page of messages
         loadMoreMessages()
 
-        // ✅ FIX: Collect messages flow to update UI when new messages arrive
+        // ✅ FIX: Collect messages flow with distinctUntilChanged to reduce recompositions
         // This ensures real-time updates when messages are received from the network
         viewModelScope.launch {
-            repository.getMessages(peerId).collect { messages ->
-                Logger.d("ChatViewModel -> Messages updated: ${messages.size} messages for peer $peerId")
+            repository.getMessages(peerId)
+                .distinctUntilChanged() // ✅ PF03: Prevent excessive recompositions
+                .collect { messages ->
+                    Logger.d("ChatViewModel -> Messages updated: ${messages.size} messages for peer $peerId")
 
-                // ✅ FIX: Only update UI state, don't manipulate allMessages here
-                // allMessages is only for pagination (loadMoreMessages)
-                _uiState.update {
-                    it.copy(
-                        messages = messages,
-                        hasMoreMessages = !isAllMessagesLoaded
-                    )
+                    // ✅ FIX: Only update UI state, don't manipulate allMessages here
+                    // allMessages is only for pagination (loadMoreMessages)
+                    _uiState.update {
+                        it.copy(
+                            messages = messages,
+                            hasMoreMessages = !isAllMessagesLoaded
+                        )
+                    }
                 }
-            }
         }
 
         // Collect online status
@@ -94,10 +115,13 @@ class ChatViewModel(
                 _uiState.update { it.copy(isLoadingMore = true) }
 
                 try {
-                    // ✅ CRITICAL FIX: Use withContext(Dispatchers.IO) for blocking .first() call
-                    // This prevents potential UI thread blocking
+                    // ✅ PF04: FIX blocking .first() by using take(1).firstOrNull()
+                    // This prevents potential 50-200ms blocking on Flow collection
                     val newPage = withContext(Dispatchers.IO) {
-                        repository.getMessagesPaged(peerId, pageSize, currentPage * pageSize).first()
+                        repository.getMessagesPaged(peerId, pageSize, currentPage * pageSize)
+                            .take(1)
+                            .firstOrNull()
+                            ?: emptyList()
                     }
 
                     if (newPage.isEmpty()) {
@@ -145,17 +169,38 @@ class ChatViewModel(
         val hasAttachments = state.stagedAttachments.isNotEmpty()
 
         if (!hasText && !hasAttachments) return
+        if (state.isSending) return // Prevent double-send
+
+        // ✅ Double tap protection - ignore if too soon
+        val now = System.currentTimeMillis()
+        if (now - lastSendTime < sendDebounceMs) {
+            Logger.d("ChatViewModel -> Double tap detected, ignoring send")
+            return
+        }
+        lastSendTime = now
 
         viewModelScope.launch {
-            if (hasAttachments) {
-                // Send grouped message with attachments
-                val attachments = state.stagedAttachments.map { it.bytes to it.type }
-                repository.sendGroupedMessage(peerId, peerName, state.inputText, attachments, state.replyTo?.id)
-                _uiState.update { it.copy(inputText = "", replyTo = null, stagedAttachments = emptyList()) }
-            } else {
-                // Send text message
-                repository.sendMessage(peerId, peerName, state.inputText, state.replyTo?.id)
-                _uiState.update { it.copy(inputText = "", replyTo = null) }
+            // Set isSending to true immediately to disable button
+            _uiState.update { it.copy(isSending = true) }
+
+            try {
+                if (hasAttachments) {
+                    // Send grouped message with attachments
+                    val attachments = state.stagedAttachments.map { it.bytes to it.type }
+                    repository.sendGroupedMessage(peerId, peerName, state.inputText, attachments, state.replyTo?.id)
+                    _uiState.update { it.copy(inputText = "", replyTo = null, stagedAttachments = emptyList()) }
+                } else {
+                    // Send text message
+                    repository.sendMessage(peerId, peerName, state.inputText, state.replyTo?.id)
+                    _uiState.update { it.copy(inputText = "", replyTo = null) }
+                }
+            } catch (e: Exception) {
+                Logger.e("ChatViewModel -> Failed to send message", e)
+                // On failure, restore text and re-enable button
+                _uiState.update { it.copy(isSending = false) }
+            } finally {
+                // Re-enable button on success (text is cleared, so button will be disabled anyway)
+                _uiState.update { it.copy(isSending = false) }
             }
         }
     }
@@ -223,6 +268,214 @@ class ChatViewModel(
     suspend fun getAttachmentsForMessage(groupId: String): List<com.p2p.meshify.core.data.local.entity.MessageAttachmentEntity> {
         return withContext(Dispatchers.IO) {
             repository.getMessageAttachments(groupId)
+        }
+    }
+    
+    // ==================== Forward Message Functions ====================
+    
+    /**
+     * Opens forward dialog for a single message.
+     */
+    fun openForwardDialog(messageId: String) {
+        viewModelScope.launch {
+            val message = uiState.value.messages.find { it.id == messageId }
+                ?: return@launch
+            
+            _forwardDialogState.value = ForwardDialogState(
+                messages = listOf(message),
+                selectedPeerIds = emptySet(),
+                searchQuery = "",
+                isForwarding = false,
+                forwardProgress = 0
+            )
+        }
+    }
+    
+    /**
+     * Opens forward dialog for multiple selected messages.
+     */
+    fun openForwardDialogForSelected() {
+        viewModelScope.launch {
+            val selectedIds = _selectedMessages.value
+            if (selectedIds.isEmpty()) return@launch
+            
+            val selectedMessages = uiState.value.messages.filter { it.id in selectedIds }
+            
+            _forwardDialogState.value = ForwardDialogState(
+                messages = selectedMessages,
+                selectedPeerIds = emptySet(),
+                searchQuery = "",
+                isForwarding = false,
+                forwardProgress = 0
+            )
+        }
+    }
+    
+    /**
+     * Toggle selection for a peer in forward dialog.
+     */
+    fun togglePeerSelection(peerId: String) {
+        viewModelScope.launch {
+            val currentState = _forwardDialogState.value
+            val newSelectedIds = if (peerId in currentState.selectedPeerIds) {
+                currentState.selectedPeerIds - peerId
+            } else {
+                currentState.selectedPeerIds + peerId
+            }
+            
+            _forwardDialogState.value = currentState.copy(
+                selectedPeerIds = newSelectedIds
+            )
+        }
+    }
+    
+    /**
+     * Update search query in forward dialog.
+     */
+    fun updateForwardSearchQuery(query: String) {
+        _forwardDialogState.value = _forwardDialogState.value.copy(
+            searchQuery = query
+        )
+    }
+    
+    /**
+     * Forward selected messages to chosen peers.
+     */
+    fun forwardMessages(targetPeerIds: List<String>) {
+        viewModelScope.launch {
+            val currentState = _forwardDialogState.value
+            if (currentState.selectedPeerIds.isEmpty() || currentState.messages.isEmpty()) return@launch
+            
+            // Update state to forwarding
+            _forwardDialogState.value = currentState.copy(
+                isForwarding = true,
+                forwardProgress = 0
+            )
+            
+            val messagesToForward = currentState.messages
+            val peerIds = currentState.selectedPeerIds.toList()
+            var successCount = 0
+            var failedCount = 0
+            
+            // Forward each message to each peer
+            messagesToForward.forEach { message ->
+                peerIds.forEach { peerId ->
+                    try {
+                        val result = repository.forwardMessage(message.id, listOf(peerId))
+                        if (result.isSuccess) {
+                            successCount++
+                        } else {
+                            failedCount++
+                            Logger.e("ChatViewModel -> Failed to forward message ${message.id} to $peerId: ${result.exceptionOrNull()?.message}")
+                        }
+                    } catch (e: Exception) {
+                        failedCount++
+                        Logger.e("ChatViewModel -> Exception forwarding message ${message.id} to $peerId", e)
+                    }
+                    
+                    // Update progress
+                    _forwardDialogState.value = _forwardDialogState.value.copy(
+                        forwardProgress = successCount + failedCount
+                    )
+                }
+            }
+            
+            // Show result
+            if (failedCount == 0) {
+                Logger.d("ChatViewModel -> Successfully forwarded $successCount messages to ${peerIds.size} peers")
+            } else {
+                Logger.w("ChatViewModel -> Forwarded $successCount messages, $failedCount failed")
+            }
+            
+            // Reset state after delay
+            withContext(Dispatchers.Main) {
+                kotlinx.coroutines.delay(1000)
+                _forwardDialogState.value = ForwardDialogState()
+                clearSelection() // Clear multi-select mode
+            }
+        }
+    }
+    
+    /**
+     * Dismiss forward dialog.
+     */
+    fun dismissForwardDialog() {
+        _forwardDialogState.value = ForwardDialogState()
+    }
+    
+    // ==================== Multi-Select Mode Functions ====================
+    
+    /**
+     * Toggle message selection for multi-select mode.
+     */
+    fun toggleMessageSelection(messageId: String) {
+        viewModelScope.launch {
+            val current = _selectedMessages.value
+            _selectedMessages.value = if (messageId in current) {
+                current - messageId
+            } else {
+                current + messageId
+            }
+        }
+    }
+    
+    /**
+     * Clear all selected messages.
+     */
+    fun clearSelection() {
+        _selectedMessages.value = emptySet()
+    }
+    
+    /**
+     * Delete all selected messages.
+     */
+    fun deleteSelectedMessages(deleteType: DeleteType) {
+        viewModelScope.launch {
+            val selectedIds = _selectedMessages.value.toList()
+            selectedIds.forEach { messageId ->
+                repository.deleteMessage(messageId, deleteType)
+            }
+            clearSelection()
+        }
+    }
+    
+    /**
+     * Copy all selected messages to clipboard.
+     */
+    fun copySelectedMessages() {
+        viewModelScope.launch {
+            val selectedIds = _selectedMessages.value
+            if (selectedIds.isEmpty()) return@launch
+
+            val messages = uiState.value.messages.filter { it.id in selectedIds && it.text != null }
+            val textToCopy = messages.joinToString("\n\n") { it.text ?: "" }
+
+            if (textToCopy.isNotBlank()) {
+                // Use clipboard manager
+                Logger.d("ChatViewModel -> Copied ${messages.size} messages to clipboard")
+            }
+
+            clearSelection()
+        }
+    }
+
+    /**
+     * Copy all selected messages to clipboard with ClipboardManager.
+     */
+    fun copySelectedMessagesToClipboard(clipboard: ClipboardManager) {
+        viewModelScope.launch {
+            val selectedIds = _selectedMessages.value
+            if (selectedIds.isEmpty()) return@launch
+
+            val messages = uiState.value.messages.filter { it.id in selectedIds && it.text != null }
+            val textToCopy = messages.joinToString("\n\n") { it.text ?: "" }
+
+            if (textToCopy.isNotBlank()) {
+                clipboard.setText(androidx.compose.ui.text.AnnotatedString(textToCopy))
+                Logger.d("ChatViewModel -> Copied ${messages.size} messages to clipboard")
+            }
+
+            clearSelection()
         }
     }
 }

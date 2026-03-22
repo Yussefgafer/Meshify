@@ -20,7 +20,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,15 +33,15 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.p2p.meshify.core.ui.R
+import com.p2p.meshify.core.ui.hooks.HapticPattern
+import com.p2p.meshify.core.ui.hooks.LocalPremiumHaptics
 import com.p2p.meshify.core.ui.theme.LocalMeshifyMotion
 import com.p2p.meshify.core.ui.theme.LocalMeshifyThemeConfig
 import com.p2p.meshify.core.ui.theme.MD3EShapes
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
 import com.p2p.meshify.core.util.FileUtils
-import java.io.File
 import com.p2p.meshify.domain.model.Handshake
-import com.p2p.meshify.core.ui.hooks.HapticPattern
-import com.p2p.meshify.core.ui.hooks.LocalPremiumHaptics
+import java.io.File
 
 /**
  * Robustly transforms a RoundedPolygon Path to fit and center within a given Size.
@@ -132,7 +134,7 @@ fun MorphingAvatar(
             if (avatarFile != null) {
                 AsyncImage(
                     model = ImageRequest.Builder(context).data(avatarFile).crossfade(true).build(),
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.avatar_desc),
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )

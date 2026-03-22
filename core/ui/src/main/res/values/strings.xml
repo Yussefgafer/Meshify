@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Accessibility Content Descriptions -->
+    <string name="forward_dialog_search_desc">Search</string>
+    <string name="forward_dialog_error">Error</string>
+    <string name="forward_dialog_error_outline">Error</string>
+    <string name="forward_dialog_message_type">Message</string>
+    <string name="forward_dialog_image_type">Image</string>
+    <string name="forward_dialog_video_type">Video</string>
+    <string name="forward_dialog_file_type">File</string>
+    <string name="forward_dialog_section_icon">Section</string>
+    
+    <string name="avatar_desc">User Avatar</string>
+    
+    <string name="settings_icon_desc">Setting</string>
+    <string name="settings_navigate_desc">Navigate</string>
+    <string name="settings_avatar">User Avatar</string>
+    
+    <string name="dialog_option_desc">Option</string>
+    <string name="dialog_selected">Selected</string>
+    
+    <string name="permission_icon_desc">Permission Icon</string>
+    <string name="permission_check">Check</string>
+    <string name="permission_all_set">All Set</string>
+    
+    <string name="message_image">Message Image</string>
+    <string name="message_status">Message Status</string>
+    <string name="message_reaction">Message Reaction</string>
+
+    <!-- Dialog Buttons -->
+    <string name="dialog_btn_delete">Delete</string>
+    <string name="dialog_btn_save">Save</string>
+    <string name="dialog_btn_cancel">Cancel</string>
+
+    <!-- Settings Backup & Restore -->
+    <string name="settings_backup_title">Backup &amp; Restore</string>
+    <string name="settings_backup_desc">Export your settings to a file or import from a backup file.</string>
+    <string name="settings_backup_export">Export Backup</string>
+    <string name="settings_backup_import">Import Backup</string>
+    <string name="settings_backup_export_success">Backup exported successfully!</string>
+    <string name="settings_backup_export_error">Failed to export: %1$s</string>
+    <string name="settings_backup_import_soon">Import feature coming soon</string>
+
+    <!-- Chat Input -->
+    <string name="chat_input_caption_placeholder">Add a caption…</string>
+</resources>

@@ -60,7 +60,7 @@ fun RecentChatsScreen(
                 },
                 actions = {
                     IconButton(onClick = onSettingsClick) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.home_content_desc_settings))
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -116,7 +116,7 @@ fun RecentChatsScreen(
                                     )
                                     if (isOnline) {
                                         Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xxs))
-                                        MeshifyPill("Online", MaterialTheme.colorScheme.primaryContainer)
+                                        MeshifyPill(stringResource(R.string.chat_status_online), MaterialTheme.colorScheme.primaryContainer)
                                     }
                                 }
                             },
@@ -135,8 +135,8 @@ fun RecentChatsScreen(
 
         chatToDelete?.let { chat ->
             DeleteConfirmationDialog(
-                title = "Delete Conversation",
-                text = "Are you sure you want to delete the conversation with ${chat.peerName}?",
+                title = stringResource(R.string.home_dialog_delete_title),
+                text = stringResource(R.string.home_dialog_delete_text, chat.peerName),
                 onConfirm = {
                     chatToDelete?.let { viewModel.deleteChat(it.peerId) }
                     chatToDelete = null
@@ -191,7 +191,7 @@ fun EmptyChatsState(padding: PaddingValues) {
     ) {
         Text(stringResource(R.string.no_recent_chats), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(modifier = Modifier.height(8.dp))
-        Text("Tap the + button to discover nearby devices", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+        Text(stringResource(R.string.home_empty_state_desc), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
     }
 }
 

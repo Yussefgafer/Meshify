@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Onboarding Screen Strings -->
+    
+    <!-- Page 1: Welcome -->
+    <string name="onboarding_welcome_title">Welcome to Meshify</string>
+    <string name="onboarding_welcome_subtitle">Experience the future of private communication</string>
+    <string name="onboarding_welcome_desc">A decentralized mesh network that keeps your conversations secure and private</string>
+    
+    <!-- Page 2: Privacy -->
+    <string name="onboarding_privacy_title">Private &amp; Secure</string>
+    <string name="onboarding_privacy_subtitle">Your data stays yours</string>
+    <string name="onboarding_privacy_desc">End-to-end encrypted messages with no central servers. Your conversations never leave the mesh network</string>
+    <string name="onboarding_privacy_policy_link">Privacy Policy</string>
+    
+    <!-- Page 3: P2P -->
+    <string name="onboarding_p2p_title">Direct P2P Messaging</string>
+    <string name="onboarding_p2p_subtitle">No internet required</string>
+    <string name="onboarding_p2p_desc">Connect directly with nearby devices using WiFi, Bluetooth, or mesh networking. Send messages even without internet</string>
+    
+    <!-- Page 4: Get Started -->
+    <string name="onboarding_get_started_title">Let\'s Get Started</string>
+    <string name="onboarding_get_started_subtitle">Ready to join the mesh?</string>
+    <string name="onboarding_get_started_desc">We\'ll need a few permissions to enable peer discovery and secure communication</string>
+    <string name="onboarding_btn_get_started">Get Started</string>
+    
+    <!-- Common -->
+    <string name="onboarding_btn_next">Next</string>
+    <string name="onboarding_btn_skip">Skip</string>
+    <string name="onboarding_terms_of_service_link">Terms of Service</string>
+    <string name="onboarding_content_desc_illustration">Onboarding illustration</string>
+    <string name="onboarding_content_desc_dot">Page indicator dot</string>
+    <string name="onboarding_content_desc_avatar">Avatar icon</string>
+    <string name="onboarding_content_desc_shield">Security shield icon</string>
+    <string name="onboarding_content_desc_devices">Connected devices icon</string>
+    <string name="onboarding_content_desc_permissions">Permission icons</string>
+</resources>

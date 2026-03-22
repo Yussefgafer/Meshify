@@ -148,8 +148,7 @@ private fun StagedMediaThumbnail(
             Text(
                 text = "$index",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                fontSize = 10.sp
+                color = MaterialTheme.colorScheme.onPrimaryContainer
             )
         }
     }

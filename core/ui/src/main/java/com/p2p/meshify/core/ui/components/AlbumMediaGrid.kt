@@ -70,12 +70,10 @@ fun AlbumMediaGrid(
             )
         }
 
-        // Media Grid
-        val columns = when {
-            attachments.size == 1 -> 1
-            attachments.size <= 4 -> 2
-            else -> 3
-        }
+        // ✅ PF11: FIX grid columns changing with count - use fixed columns = 3
+        // Previous dynamic columns caused layout recalculations on every item change
+        // Fixed columns provide consistent layout and better performance
+        val columns = 3 // Fixed 3 columns for consistent grid layout
 
         LazyVerticalGrid(
             columns = GridCells.Fixed(columns),

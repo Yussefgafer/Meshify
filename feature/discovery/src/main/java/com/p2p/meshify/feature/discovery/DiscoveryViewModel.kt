@@ -2,6 +2,7 @@ package com.p2p.meshify.feature.discovery
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.p2p.meshify.domain.model.PeerDevice
 import com.p2p.meshify.domain.model.SignalStrength
 import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.core.network.base.TransportEvent
@@ -19,21 +20,6 @@ data class DiscoveryUiState(
     val isSearching: Boolean = true,
     val errorMessage: String? = null
 )
-
-data class PeerDevice(
-    val id: String,
-    val name: String,
-    val address: String,
-    val rssi: Int? = null, // RSSI signal strength in dBm (optional for now)
-    val isConnected: Boolean = false
-) {
-    /**
-     * Get signal strength based on RSSI value.
-     * If RSSI is null but device is discovered/connected, default to MEDIUM instead of OFFLINE.
-     */
-    val signalStrength: SignalStrength
-        get() = rssi?.let { SignalStrength.fromRssi(it) } ?: if (isConnected) SignalStrength.MEDIUM else SignalStrength.WEAK
-}
 
 /**
  * ViewModel for the Peer Discovery Screen.

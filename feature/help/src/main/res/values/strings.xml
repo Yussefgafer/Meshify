@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Help & FAQ Screen -->
+    <string name="help_screen_title">Help &amp; FAQ</string>
+    <string name="help_back_desc">Back</string>
+    
+    <!-- Sections -->
+    <string name="help_section_getting_started">Getting Started</string>
+    <string name="help_section_connectivity">Connectivity</string>
+    <string name="help_section_privacy">Privacy &amp; Security</string>
+    <string name="help_section_troubleshooting">Troubleshooting</string>
+    
+    <!-- FAQ Items - Getting Started -->
+    <string name="help_q1">How to start chatting? Open the app and tap the + button to discover nearby devices. Once connected, tap on a peer to start chatting.</string>
+    <string name="help_q2">How to send messages? Type your message in the text field at the bottom and tap Send. You can also attach images, videos, or files.</string>
+    <string name="help_q3">How to change my name? Go to Settings → Display Name, enter your new name, and tap Save.</string>
+    
+    <!-- FAQ Items - Connectivity -->
+    <string name="help_q4">Why can\'t I find peers? Ensure Wi-Fi is enabled and both devices are on the same network. Make sure you\'re visible in Settings.</string>
+    <string name="help_q5">How does P2P work? Messages are sent directly between devices without any server. All communication happens over local network.</string>
+    
+    <!-- FAQ Items - Privacy & Security -->
+    <string name="help_q6">Are my messages private? Messages are sent directly peer-to-peer. For enhanced privacy, avoid using on public networks.</string>
+    <string name="help_q7">Can I hide from discovery? Yes, go to Settings → Privacy and turn off \"Visible to Others\".</string>
+    
+    <!-- FAQ Items - Troubleshooting -->
+    <string name="help_q8">Messages not sending? Check your network connection. Failed messages are queued and will retry automatically.</string>
+    <string name="help_q9">App crashing? Try clearing app data in Settings → Storage → Clear Data, or reinstall the app.</string>
+    
+    <!-- About Section -->
+    <string name="help_about_title">About Meshify</string>
+    <string name="help_about_desc">Meshify is a decentralized P2P messaging app built with privacy in mind.</string>
+    <string name="help_btn_about">Learn More</string>
+    <string name="help_btn_report">Report Issue</string>
+    
+    <!-- About Screen -->
+    <string name="about_screen_title">About</string>
+    <string name="about_back_desc">Back</string>
+    <string name="about_description">A decentralized peer-to-peer messaging app for secure, private communication without servers.</string>
+    <string name="about_team">Development Team</string>
+    <string name="about_team_desc">Built by Jo with contributions from the open-source community.</string>
+    <string name="about_features">Key Features</string>
+    <string name="about_features_desc">P2P messaging, LAN discovery, offline queue, multi-attachment support, and Material 3 design.</string>
+    <string name="about_tech">Technology Stack</string>
+    <string name="about_tech_desc">Kotlin, Jetpack Compose, Material 3, Room Database, Coroutines &amp; Flow.</string>
+    <string name="about_github">GitHub Repository</string>
+    <string name="about_github_desc">View source code, report issues, and contribute</string>
+    <string name="about_privacy">Privacy Policy</string>
+    <string name="about_privacy_desc">Learn how we protect your data</string>
+    <string name="about_license">License</string>
+    <string name="about_license_desc">MIT License - Open Source</string>
+    <string name="about_made_with">Built with ❤️ for privacy</string>
+    <string name="about_copyright">© 2026 Meshify. All rights reserved.</string>
+</resources>

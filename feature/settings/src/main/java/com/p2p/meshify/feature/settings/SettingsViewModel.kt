@@ -64,6 +64,22 @@ class SettingsViewModel(
     val seedColor: StateFlow<Int> = settingsRepository.seedColor
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0xFF006D68.toInt())
 
+    // ✅ New Settings Flows
+    val appLanguage: StateFlow<String> = settingsRepository.appLanguage
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "en")
+
+    val fontSizeScale: StateFlow<Float> = settingsRepository.fontSizeScale
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1.0f)
+
+    val notificationsEnabled: StateFlow<Boolean> = settingsRepository.notificationsEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val notificationSound: StateFlow<Boolean> = settingsRepository.notificationSound
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val notificationVibrate: StateFlow<Boolean> = settingsRepository.notificationVibrate
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
     private val _deviceId = MutableStateFlow("")
     val deviceId: StateFlow<String> = _deviceId
 
@@ -173,6 +189,62 @@ class SettingsViewModel(
                 (color.blue * 255).toInt()
             )
             settingsRepository.setSeedColor(colorInt)
+        }
+    }
+
+    // ✅ New Settings Functions
+    fun setAppLanguage(language: String) {
+        viewModelScope.launch {
+            settingsRepository.setAppLanguage(language)
+        }
+    }
+
+    fun setFontSizeScale(scale: Float) {
+        viewModelScope.launch {
+            settingsRepository.setFontSizeScale(scale)
+        }
+    }
+
+    fun setNotificationsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setNotificationsEnabled(enabled)
+        }
+    }
+
+    fun setNotificationSound(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setNotificationSound(enabled)
+        }
+    }
+
+    fun setNotificationVibrate(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setNotificationVibrate(enabled)
+        }
+    }
+
+    fun clearCache(onResult: (Result<Unit>) -> Unit) {
+        viewModelScope.launch {
+            try {
+                settingsRepository.clearCache()
+                onResult(Result.success(Unit))
+            } catch (e: Exception) {
+                onResult(Result.failure(e))
+            }
+        }
+    }
+
+    fun exportBackup(onResult: (Result<String>) -> Unit) {
+        viewModelScope.launch {
+            val result = settingsRepository.exportBackup()
+            onResult(result)
+        }
+    }
+
+    fun importBackup(backupJson: String, onResult: (Result<Unit>) -> Unit) {
+        viewModelScope.launch {
+            val result = settingsRepository.importBackup(backupJson)
+            onResult(result)
         }
     }
 }

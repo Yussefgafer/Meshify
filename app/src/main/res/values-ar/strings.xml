@@ -121,4 +121,18 @@
     <string name="content_desc_attach">إرفاق ملف</string>
     <string name="content_desc_settings">الإعدادات</string>
     <string name="content_desc_discovery">الاكتشاف</string>
+
+    <!-- Forward Dialog -->
+    <string name="forward_dialog_btn_forward_retry">إعادة محاولة</string>
+    
+    <!-- Forward Message Context -->
+    <string name="forward_context_text">مُعاد الإرسال من %1$s:\n%2$s</string>
+    <string name="forward_context_image">صورة مُعادة الإرسال من %s</string>
+    <string name="forward_context_video">فيديو مُعاد الإرسال من %s</string>
+    <string name="forward_context_audio">صوت مُعاد الإرسال من %s</string>
+    <string name="forward_context_file">ملف مُعاد الإرسال: %1$s من %2$s</string>
+    <string name="forward_context_document">مستند مُعاد الإرسال من %s</string>
+    <string name="forward_context_archive">أرشيف مُعاد الإرسال: %1$s من %2$s</string>
+    <string name="forward_context_apk">تطبيق APK مُعاد الإرسال: %1$s من %2$s</string>
+    <string name="forward_context_unknown">غير معروف</string>
 </resources>

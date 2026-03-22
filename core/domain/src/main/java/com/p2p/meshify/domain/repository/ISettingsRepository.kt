@@ -44,6 +44,13 @@ interface ISettingsRepository {
     // MD3E Settings - Seed Color (for static theming when dynamic color is off)
     val seedColor: Flow<Int>
 
+    // New Settings - Language, Font Size, Notifications, Storage, Backup
+    val appLanguage: Flow<String>
+    val fontSizeScale: Flow<Float>
+    val notificationsEnabled: Flow<Boolean>
+    val notificationSound: Flow<Boolean>
+    val notificationVibrate: Flow<Boolean>
+
     suspend fun getDeviceId(): String
     suspend fun updateDisplayName(name: String)
     suspend fun setThemeMode(mode: ThemeMode)
@@ -61,6 +68,16 @@ interface ISettingsRepository {
     suspend fun setBubbleStyle(style: BubbleStyle)
     suspend fun setVisualDensity(density: Float)
     suspend fun setSeedColor(color: Int)
+
+    // New Settings Mutators
+    suspend fun setAppLanguage(language: String)
+    suspend fun setFontSizeScale(scale: Float)
+    suspend fun setNotificationsEnabled(enabled: Boolean)
+    suspend fun setNotificationSound(enabled: Boolean)
+    suspend fun setNotificationVibrate(enabled: Boolean)
+    suspend fun clearCache()
+    suspend fun exportBackup(): Result<String>
+    suspend fun importBackup(backupJson: String): Result<Unit>
 
     fun getAppVersion(): String
 }

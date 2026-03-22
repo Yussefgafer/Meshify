@@ -68,6 +68,37 @@ class LanTransportImpl(
     // Dead Peer Detection: track consecutive send failures per peer
     private val failedSendCounts = ConcurrentHashMap<String, AtomicInteger>()
 
+    // ✅ PF10: Cache for settings to avoid repeated firstOrNull() calls (5-10ms delay each)
+    private var cachedDisplayName: String = "Unknown"
+    private var cachedAvatarHash: String? = null
+    private var lastCacheUpdate = 0L
+    private val CACHE_DURATION_MS = 5 * 60 * 1000L // 5 minutes
+
+    /**
+     * Get cached display name to avoid repeated firstOrNull() calls.
+     */
+    private suspend fun getCachedDisplayName(): String {
+        val now = System.currentTimeMillis()
+        if (now - lastCacheUpdate < CACHE_DURATION_MS && cachedDisplayName != "Unknown") {
+            return cachedDisplayName
+        }
+        cachedDisplayName = settingsRepository.displayName.firstOrNull() ?: "Unknown"
+        lastCacheUpdate = now
+        return cachedDisplayName
+    }
+
+    /**
+     * Get cached avatar hash to avoid repeated firstOrNull() calls.
+     */
+    private suspend fun getCachedAvatarHash(): String? {
+        val now = System.currentTimeMillis()
+        if (now - lastCacheUpdate < CACHE_DURATION_MS) {
+            return cachedAvatarHash
+        }
+        cachedAvatarHash = settingsRepository.avatarHash.firstOrNull()
+        return cachedAvatarHash
+    }
+
     // Mutex for protecting failedSendCounts operations
     private val failedCountsMutex = Mutex()
 
@@ -212,10 +243,11 @@ class LanTransportImpl(
                     _events.emit(TransportEvent.DeviceDiscovered(senderId, name, address, hash, rssi))
                 }
 
-                // Reply with our handshake (cached to avoid blocking)
-                val myName = settingsRepository.displayName.firstOrNull() ?: "Unknown"
-                val myAvatarHash = settingsRepository.avatarHash.firstOrNull()
-                val myHandshake = Handshake(myName, myAvatarHash)
+                // ✅ PF10: FIX repeated firstOrNull() by using cached values
+                // Previous code called firstOrNull() twice per handshake (5-10ms delay each)
+                val displayName = getCachedDisplayName()
+                val avatarHash = getCachedAvatarHash()
+                val myHandshake = Handshake(displayName, avatarHash)
 
                 scope.launch {
                     sendPayload(senderId, Payload(

@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -67,12 +68,23 @@ fun SettingsScreen(
     val visualDensity by viewModel.visualDensity.collectAsState()
     val seedColorInt by viewModel.seedColor.collectAsState()
     val seedColor = remember(seedColorInt) { Color(seedColorInt) }
+    
+    // ✅ New Settings State flows
+    val appLanguage by viewModel.appLanguage.collectAsState()
+    val fontSizeScale by viewModel.fontSizeScale.collectAsState()
+    val notificationsEnabled by viewModel.notificationsEnabled.collectAsState()
+    val notificationSound by viewModel.notificationSound.collectAsState()
+    val notificationVibrate by viewModel.notificationVibrate.collectAsState()
 
     // UI State for dialogs and bottom sheets
     var showNameDialog by remember { mutableStateOf(false) }
     var showThemeSheet by remember { mutableStateOf(false) }
     var showMotionDialog by remember { mutableStateOf(false) }
+    var showLanguageDialog by remember { mutableStateOf(false) }
+    var showFontSizeDialog by remember { mutableStateOf(false) }
+    var showBackupDialog by remember { mutableStateOf(false) }
     var nameInput by remember { mutableStateOf(displayName) }
+    var backupStatus by remember { mutableStateOf<String?>(null) }
 
     val scrollState = rememberScrollState()
 
@@ -103,7 +115,7 @@ fun SettingsScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.settings_content_desc_back)
                         )
                     }
                 },
@@ -140,14 +152,14 @@ fun SettingsScreen(
                             .data(avatarFile)
                             .crossfade(true)
                             .build(),
-                        contentDescription = "User Avatar",
+                        contentDescription = stringResource(R.string.settings_content_desc_avatar),
                         modifier = Modifier.fillMaxSize(),
                         contentScale = androidx.compose.ui.layout.ContentScale.Crop
                     )
                 } else {
                     Icon(
                         imageVector = Icons.Default.Person,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.settings_avatar),
                         modifier = Modifier.size(64.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -180,6 +192,7 @@ fun SettingsScreen(
                     subtitle = displayName,
                     icon = Icons.Default.Person,
                     onClick = {
+                        haptics.perform(HapticPattern.Pop) // ✅ UX04: Haptic feedback
                         nameInput = displayName
                         showNameDialog = true
                     }
@@ -193,13 +206,13 @@ fun SettingsScreen(
                 // Device ID Item (Copy full ID on click)
                 MeshifySettingsItem(
                     title = context.getString(R.string.setting_device_id),
-                    subtitle = deviceId.take(8).uppercase() + " (Tap to copy full ID)",
+                    subtitle = deviceId.take(8).uppercase() + stringResource(R.string.settings_label_device_id_suffix),
                     icon = Icons.Default.Fingerprint,
                     onClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         val clip = ClipData.newPlainText("Device ID", deviceId)
                         clipboard.setPrimaryClip(clip)
-                        haptics.perform(HapticPattern.Success)
+                        haptics.perform(HapticPattern.Success) // ✅ UX04: Haptic feedback on copy
                     }
                 )
             }
@@ -210,12 +223,15 @@ fun SettingsScreen(
                 MeshifySettingsItem(
                     title = context.getString(R.string.settings_theme_mode),
                     subtitle = when (themeMode) {
-                        ThemeMode.LIGHT -> "Light"
-                        ThemeMode.DARK -> "Dark"
-                        ThemeMode.SYSTEM -> "System Default"
+                        ThemeMode.LIGHT -> stringResource(R.string.settings_theme_light)
+                        ThemeMode.DARK -> stringResource(R.string.settings_theme_dark)
+                        ThemeMode.SYSTEM -> stringResource(R.string.settings_theme_system)
                     },
                     icon = Icons.Default.Palette,
-                    onClick = { showThemeSheet = true }
+                    onClick = {
+                        haptics.perform(HapticPattern.Pop) // ✅ UX04: Haptic feedback
+                        showThemeSheet = true
+                    }
                 )
 
                 HorizontalDivider(
@@ -250,7 +266,7 @@ fun SettingsScreen(
                             .padding(MeshifyDesignSystem.Spacing.Md)
                     ) {
                         Text(
-                            text = "Accent Color",
+                            text = stringResource(R.string.settings_label_accent_color),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(bottom = MeshifyDesignSystem.Spacing.Sm)
@@ -267,7 +283,7 @@ fun SettingsScreen(
             }
 
             // === SECTION 3: MESH ENGINE (MD3E) ===
-            MeshifySettingsGroup(title = "MD3 Expressive System") {
+            MeshifySettingsGroup(title = stringResource(R.string.settings_label_md3_expressive)) {
                 // Motion Physics
                 MeshifySettingsItem(
                     title = context.getString(R.string.settings_motion_system),
@@ -298,7 +314,138 @@ fun SettingsScreen(
                 )
             }
 
-            // === SECTION 5: ABOUT ===
+            // === SECTION 5: APP SETTINGS ✅ ===
+            MeshifySettingsGroup(title = "App Settings") {
+                // Language
+                MeshifySettingsItem(
+                    title = "Language",
+                    subtitle = if (appLanguage == "ar") "العربية" else "English",
+                    icon = Icons.Default.Language,
+                    onClick = { showLanguageDialog = true }
+                )
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Md),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+
+                // Font Size
+                MeshifySettingsItem(
+                    title = "Font Size",
+                    subtitle = "${(fontSizeScale * 100).toInt()}%",
+                    icon = Icons.Default.TextFields,
+                    onClick = { showFontSizeDialog = true }
+                )
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Md),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+
+                // Notifications
+                MeshifySettingsItem(
+                    title = "Notifications",
+                    subtitle = if (notificationsEnabled) "Enabled" else "Disabled",
+                    icon = Icons.Default.Notifications,
+                    trailing = {
+                        Switch(
+                            checked = notificationsEnabled,
+                            onCheckedChange = {
+                                haptics.perform(HapticPattern.Tick)
+                                viewModel.setNotificationsEnabled(it)
+                            }
+                        )
+                    },
+                    onClick = {
+                        viewModel.setNotificationsEnabled(!notificationsEnabled)
+                    }
+                )
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Md),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+
+                // Notification Sound
+                MeshifySettingsItem(
+                    title = "Notification Sound",
+                    subtitle = "Play sound for new messages",
+                    icon = Icons.Default.VolumeUp,
+                    trailing = {
+                        Switch(
+                            checked = notificationSound,
+                            onCheckedChange = {
+                                haptics.perform(HapticPattern.Tick)
+                                viewModel.setNotificationSound(it)
+                            }
+                        )
+                    },
+                    onClick = {
+                        if (notificationsEnabled) {
+                            viewModel.setNotificationSound(!notificationSound)
+                        }
+                    }
+                )
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Md),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+
+                // Notification Vibrate
+                MeshifySettingsItem(
+                    title = "Vibration",
+                    subtitle = "Vibrate for new messages",
+                    icon = Icons.Default.Vibration,
+                    trailing = {
+                        Switch(
+                            checked = notificationVibrate,
+                            onCheckedChange = {
+                                haptics.perform(HapticPattern.Tick)
+                                viewModel.setNotificationVibrate(it)
+                            }
+                        )
+                    },
+                    onClick = {
+                        if (notificationsEnabled) {
+                            viewModel.setNotificationVibrate(!notificationVibrate)
+                        }
+                    }
+                )
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Md),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+
+                // Clear Cache
+                MeshifySettingsItem(
+                    title = "Clear Cache",
+                    subtitle = "Free up storage space",
+                    icon = Icons.Default.DeleteSweep,
+                    onClick = {
+                        haptics.perform(HapticPattern.Pop)
+                        viewModel.clearCache { result ->
+                            backupStatus = if (result.isSuccess) "Cache cleared!" else "Failed to clear cache"
+                        }
+                    }
+                )
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Md),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+
+                // Backup/Restore
+                MeshifySettingsItem(
+                    title = "Backup & Restore",
+                    subtitle = "Export or import settings",
+                    icon = Icons.Default.CloudUpload,
+                    onClick = { showBackupDialog = true }
+                )
+            }
+
+            // === SECTION 6: ABOUT ===
             MeshifySettingsGroup(title = context.getString(R.string.settings_section_info)) {
                 MeshifySettingsItem(
                     title = context.getString(R.string.setting_app_version),
@@ -313,8 +460,8 @@ fun SettingsScreen(
                 )
 
                 MeshifySettingsItem(
-                    title = "GitHub Repository",
-                    subtitle = "View source code and contribute",
+                    title = stringResource(R.string.settings_label_github_repo),
+                    subtitle = stringResource(R.string.settings_label_github_desc),
                     icon = Icons.Default.Code,
                     onClick = {
                         val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/Yussefgafer/Meshify"))
@@ -328,8 +475,8 @@ fun SettingsScreen(
                 )
 
                 MeshifySettingsItem(
-                    title = "Developer Credits",
-                    subtitle = "Built with ❤️ by Jo",
+                    title = stringResource(R.string.settings_label_credits),
+                    subtitle = stringResource(R.string.settings_label_credits_desc),
                     icon = Icons.Default.Favorite,
                     onClick = {
                         haptics.perform(HapticPattern.Pop)
@@ -347,12 +494,12 @@ fun SettingsScreen(
     // Display Name Dialog
     if (showNameDialog) {
         MeshifyTextInputDialog(
-            title = "Edit Display Name",
+            title = stringResource(R.string.settings_dialog_edit_name),
             value = nameInput,
             onValueChange = { nameInput = it },
             onConfirm = { viewModel.updateDisplayName(nameInput) },
             onDismiss = { showNameDialog = false },
-            placeholder = "Enter your name"
+            placeholder = stringResource(R.string.settings_dialog_name_placeholder)
         )
     }
 
@@ -371,7 +518,7 @@ fun SettingsScreen(
     // Motion Preset Selection Dialog
     if (showMotionDialog) {
         MeshifySelectionDialog(
-            title = "Select Motion Preset",
+            title = stringResource(R.string.settings_dialog_motion_preset),
             options = MotionPreset.entries,
             selectedOption = motionPreset,
             onOptionSelected = {
@@ -381,10 +528,10 @@ fun SettingsScreen(
             onDismiss = { showMotionDialog = false },
             optionLabel = {
                 when (it) {
-                    MotionPreset.GENTLE -> "Gentle (Calm)"
-                    MotionPreset.STANDARD -> "Standard (Balanced)"
-                    MotionPreset.SNAPPY -> "Snappy (Quick)"
-                    MotionPreset.BOUNCY -> "Bouncy (Playful)"
+                    MotionPreset.GENTLE -> context.getString(R.string.settings_motion_gentle_label)
+                    MotionPreset.STANDARD -> context.getString(R.string.settings_motion_standard_label)
+                    MotionPreset.SNAPPY -> context.getString(R.string.settings_motion_snappy_label)
+                    MotionPreset.BOUNCY -> context.getString(R.string.settings_motion_bouncy_label)
                 }
             },
             optionIcon = {
@@ -396,5 +543,95 @@ fun SettingsScreen(
                 }
             }
         )
+    }
+
+    // ✅ Language Selection Dialog
+    if (showLanguageDialog) {
+        MeshifySelectionDialog(
+            title = "Select Language",
+            options = listOf("en", "ar"),
+            selectedOption = appLanguage,
+            onOptionSelected = { lang ->
+                haptics.perform(HapticPattern.Pop)
+                viewModel.setAppLanguage(lang)
+                showLanguageDialog = false
+            },
+            onDismiss = { showLanguageDialog = false },
+            optionLabel = { lang -> if (lang == "ar") "العربية" else "English" },
+            optionIcon = { lang -> if (lang == "ar") Icons.Default.Language else Icons.Default.Translate }
+        )
+    }
+
+    // ✅ Font Size Dialog
+    if (showFontSizeDialog) {
+        MeshifySelectionDialog(
+            title = "Font Size",
+            options = listOf(0.8f, 1.0f, 1.2f, 1.5f),
+            selectedOption = fontSizeScale,
+            onOptionSelected = { scale ->
+                haptics.perform(HapticPattern.Pop)
+                viewModel.setFontSizeScale(scale)
+                showFontSizeDialog = false
+            },
+            onDismiss = { showFontSizeDialog = false },
+            optionLabel = { scale -> "${(scale * 100).toInt()}%" },
+            optionIcon = { _ -> Icons.Default.TextFields }
+        )
+    }
+
+    // ✅ Backup & Restore Dialog
+    if (showBackupDialog) {
+        AlertDialog(
+            onDismissRequest = { showBackupDialog = false },
+            title = { Text(stringResource(R.string.settings_backup_title)) },
+            text = { Text(stringResource(R.string.settings_backup_desc)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        haptics.perform(HapticPattern.Pop)
+                        viewModel.exportBackup { result ->
+                            backupStatus = result.fold(
+                                onSuccess = { stringResource(R.string.settings_backup_export_success) },
+                                onFailure = { stringResource(R.string.settings_backup_export_error, it.message) }
+                            )
+                        }
+                        showBackupDialog = false
+                    }
+                ) {
+                    Text(stringResource(R.string.settings_backup_export))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        // Import functionality (requires file picker)
+                        haptics.perform(HapticPattern.Pop)
+                        backupStatus = stringResource(R.string.settings_backup_import_soon)
+                        showBackupDialog = false
+                    }
+                ) {
+                    Text(stringResource(R.string.settings_backup_import))
+                }
+            }
+        )
+    }
+
+    // ✅ Backup Status Message
+    if (backupStatus != null) {
+        LaunchedEffect(backupStatus) {
+            kotlinx.coroutines.delay(3000)
+            backupStatus = null
+        }
+        
+        Snackbar(
+            modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Md),
+            action = {
+                IconButton(onClick = { backupStatus = null }) {
+                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+                }
+            }
+        ) {
+            Text(backupStatus ?: "")
+        }
     }
 }

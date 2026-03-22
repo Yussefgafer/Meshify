@@ -80,12 +80,12 @@ class SocketManager(
     companion object {
         private const val IDLE_TIMEOUT_MS = 5 * 60 * 1000L // 5 minutes
         private const val CLEANUP_INTERVAL_MS = 60 * 1000L // 1 minute
-        private const val KEEP_ALIVE_INTERVAL_MS = 30 * 1000L // 30 seconds
+        private const val KEEP_ALIVE_INTERVAL_MS = 60 * 1000L // ✅ PF09: 60 seconds (was 30s) - reduce network overhead by 50%
         private const val MAX_POOL_SIZE = 50
         private const val CONNECT_TIMEOUT_MS = 5000L // 5s
         private const val READ_TIMEOUT_MS = 30000L // 30s
         private const val WRITE_TIMEOUT_MS = 5000L // 5s
-        
+
         // Keep-alive ping message (special control message)
         private const val KEEP_ALIVE_PING = "PING"
         private const val KEEP_ALIVE_PONG = "PONG"

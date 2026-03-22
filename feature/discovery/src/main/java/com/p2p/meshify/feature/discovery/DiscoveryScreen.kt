@@ -27,6 +27,7 @@ import com.p2p.meshify.core.ui.components.*
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
 import com.p2p.meshify.core.ui.theme.LocalMeshifyMotion
 import com.p2p.meshify.core.ui.theme.MotionDurations
+import com.p2p.meshify.domain.model.PeerDevice
 
 @Composable
 fun DiscoveryHeader(isSearching: Boolean) {

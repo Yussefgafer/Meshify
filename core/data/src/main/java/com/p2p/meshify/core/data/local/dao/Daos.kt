@@ -72,6 +72,10 @@ interface MessageDao {
 
     @Query("DELETE FROM messages WHERE chatId = :chatId")
     suspend fun deleteAllMessagesForChat(chatId: String)
+
+    // ✅ FIX: Get all attachments in database (for debugging/utility)
+    @Query("SELECT * FROM message_attachments ORDER BY id")
+    suspend fun getAllAttachments(): List<MessageAttachmentEntity>
 }
 
 @Dao
@@ -96,4 +100,8 @@ interface PendingMessageDao {
 
     @Query("DELETE FROM pending_messages WHERE id = :id")
     suspend fun deleteById(id: String)
+
+    // ✅ FIX: Get all pending messages (for debugging/utility)
+    @Query("SELECT * FROM pending_messages ORDER BY timestamp ASC")
+    suspend fun getAll(): List<PendingMessageEntity>
 }
