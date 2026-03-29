@@ -274,9 +274,13 @@ class SocketManager(
                         }
                     }
                 } finally {
-                    // ✅ FIX: Ensure inputStream and socket are closed
-                    try { inputStream.close() } catch (e: Exception) {}
-                    try { client.close() } catch (e: Exception) {}
+                    // ✅ FIX: Ensure inputStream and socket are closed with logging
+                    try { inputStream.close() } catch (e: Exception) {
+                        Logger.w("SocketManager -> Failed to close inputStream for $address", e)
+                    }
+                    try { client.close() } catch (e: Exception) {
+                        Logger.w("SocketManager -> Failed to close client socket for $address", e)
+                    }
                 }
             } catch (e: Exception) {
                 Logger.e("SocketManager -> Connection Error $address", e)
