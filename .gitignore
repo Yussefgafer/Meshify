@@ -32,6 +32,7 @@ local.properties
 log_device1.txt
 GEMINI.md
 QWEN.md
+TODO.md
 
 .DS_Store
 Thumbs.db

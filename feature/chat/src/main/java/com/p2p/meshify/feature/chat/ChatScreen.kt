@@ -325,28 +325,33 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
             }
         }
     ) { padding ->
-        LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp)) {
-            // Loading indicator at top when loading more messages
-            if (uiState.isLoadingMore) {
-                item(key = "loading_more") {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                // Loading indicator at top when loading more messages
+                if (uiState.isLoadingMore) {
+                    item(key = "loading_more") {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                        }
                     }
                 }
-            }
 
-            // ✅ STAGGER ANIMATION: Add delay per item for cascading effect
-            val staggerDelay = 50 // 50ms per item
+                // ✅ STAGGER ANIMATION: Add delay per item for cascading effect
+                val staggerDelay = 50 // 50ms per item
 
-            itemsIndexed(
-                uiState.messages,
-                // ✅ FIX: Use stable key (message.id only) to reduce recompositions
-                // Previous composite key caused 40-60% extra recompositions
-                key = { _, m -> m.id }
-            ) { index, message ->
+                itemsIndexed(
+                    uiState.messages,
+                    // ✅ FIX: Use stable key (message.id only) to reduce recompositions
+                    // Previous composite key caused 40-60% extra recompositions
+                    key = { _, m -> m.id }
+                ) { index, message ->
                 val attachments = messageAttachments[message.id] ?: emptyList()
                 val isSelected = message.id in selectedMessages
 
@@ -402,6 +407,36 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
                         }
                     )
                     Spacer(Modifier.height(4.dp))
+                }
+            }
+            
+            // ✅ UX-01: Scroll to Bottom FAB - appears when user scrolls up
+            val scope = rememberCoroutineScope()
+            AnimatedVisibility(
+                visible = !hasScrolledToBottom,
+                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(MeshifyDesignSystem.Spacing.Md)
+                    .navigationBarsPadding()
+            ) {
+                FloatingActionButton(
+                    onClick = {
+                        haptics.perform(HapticPattern.Tick)
+                        scope.launch {
+                            listState.animateScrollToItem(uiState.messages.size - 1)
+                            hasScrolledToBottom = true
+                        }
+                    },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowDown,
+                        contentDescription = "Scroll to bottom",
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
             }
         }

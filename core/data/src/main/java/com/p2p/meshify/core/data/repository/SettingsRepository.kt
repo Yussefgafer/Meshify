@@ -269,7 +269,15 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
 
     override suspend fun exportBackup(): Result<String> {
         return try {
-            val prefs = context.dataStore.data.first()
+            // ✅ CODE-03: Added error handling for blocking .first() call
+            // Prevents app freeze if DataStore is corrupted or locked
+            val prefs = try {
+                context.dataStore.data.first()
+            } catch (e: Exception) {
+                Logger.e("SettingsRepository -> Failed to read DataStore", e)
+                return Result.failure(Exception("Failed to read preferences: ${e.message}", e))
+            }
+            
             val backupData = mapOf(
                 "display_name" to prefs[KEY_DISPLAY_NAME],
                 "theme_mode" to prefs[KEY_THEME_MODE],
