@@ -1,59 +1,26 @@
 package com.p2p.meshify.feature.discovery
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DeviceHub
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.p2p.meshify.core.common.R
 import com.p2p.meshify.core.ui.components.*
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
-import com.p2p.meshify.core.ui.theme.LocalMeshifyMotion
-import com.p2p.meshify.core.ui.theme.MotionDurations
 import com.p2p.meshify.domain.model.PeerDevice
-
-@Composable
-fun DiscoveryHeader(isSearching: Boolean) {
-    MeshifyCard(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-        Row(
-            modifier = Modifier.padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            RadarPulseMorph(
-                isSearching = isSearching,
-                size = 44.dp
-            )
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Text(
-                text = if (isSearching)
-                    stringResource(R.string.searching_placeholder)
-                else stringResource(R.string.screen_discovery_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-        }
-    }
-}
+import com.p2p.meshify.domain.model.SignalStrength
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,153 +33,170 @@ fun DiscoveryScreen(
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
+            TopAppBar(
                 title = {
                     Text(
-                        text = stringResource(R.string.screen_discovery_title),
-                        fontWeight = FontWeight.Black
+                        text = "Nearby",
+                        fontWeight = FontWeight.Bold
                     )
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
-                )
+                navigationIcon = {
+                    IconButton(onClick = onSettingsClick) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = MeshifyDesignSystem.Spacing.Md)
-        ) {
-            DiscoveryHeader(isSearching = uiState.isSearching)
-
-            Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Lg))
-
-            if (uiState.discoveredPeers.isEmpty()) {
-                EmptyDiscoveryState(isSearching = uiState.isSearching)
-            } else {
-                MeshifySectionHeader(stringResource(R.string.discovery_peers_found))
-                PeerList(
-                    peers = uiState.discoveredPeers,
-                    onPeerClick = onPeerClick
-                )
-            }
+        if (uiState.discoveredPeers.isEmpty()) {
+            EmptyDiscoveryState(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+            )
+        } else {
+            PeerList(
+                modifier = Modifier.padding(padding),
+                peers = uiState.discoveredPeers,
+                onPeerClick = onPeerClick
+            )
         }
     }
 }
 
 @Composable
 fun PeerList(
+    modifier: Modifier = Modifier,
     peers: List<PeerDevice>,
     onPeerClick: (PeerDevice) -> Unit
 ) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = MeshifyDesignSystem.Spacing.Xxl)
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            horizontal = MeshifyDesignSystem.Spacing.Md,
+            vertical = MeshifyDesignSystem.Spacing.Sm
+        ),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         itemsIndexed(peers, key = { _, peer -> peer.id }) { index, peer ->
-            MeshifyListItem(
-                headline = peer.name,
-                supporting = peer.address,
-                leadingContent = {
-                    MorphingAvatar(
-                        initials = peer.name.take(1),
-                        isOnline = true,
-                        size = 52.dp
-                    )
-                },
-                trailingContent = { SignalStrengthBadge(peer.signalStrength) },
+            PeerListItem(
+                peer = peer,
                 onClick = { onPeerClick(peer) }
             )
-            if (index < peers.size - 1) {
-                HorizontalDivider(
-                    modifier = Modifier.padding(start = 84.dp, end = MeshifyDesignSystem.Spacing.Md),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
-            }
         }
     }
 }
 
 @Composable
-fun SignalStrengthBadge(signalStrength: com.p2p.meshify.domain.model.SignalStrength) {
-    val (badgeText, badgeStyle) = when (signalStrength) {
-        com.p2p.meshify.domain.model.SignalStrength.STRONG ->
-            stringResource(R.string.signal_strong) to StrongBadgeStyle()
-        com.p2p.meshify.domain.model.SignalStrength.MEDIUM ->
-            stringResource(R.string.signal_medium) to MediumBadgeStyle()
-        com.p2p.meshify.domain.model.SignalStrength.WEAK ->
-            stringResource(R.string.signal_weak) to WeakBadgeStyle()
-        com.p2p.meshify.domain.model.SignalStrength.OFFLINE ->
-            stringResource(R.string.signal_offline) to OfflineBadgeStyle()
-    }
-
+private fun PeerListItem(
+    peer: PeerDevice,
+    onClick: () -> Unit
+) {
     Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = badgeStyle.backgroundColor
+        modifier = Modifier.fillMaxWidth(),
+        shape = MeshifyDesignSystem.Shapes.CardSmall,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        tonalElevation = 0.dp,
+        onClick = onClick
     ) {
-        Text(
-            text = badgeText,
-            style = MaterialTheme.typography.labelSmall,
-            color = badgeStyle.textColor,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(MeshifyDesignSystem.Spacing.Md),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            MorphingAvatar(
+                initials = peer.name.take(1),
+                isOnline = true,
+                size = 48.dp
+            )
+
+            Spacer(modifier = Modifier.width(MeshifyDesignSystem.Spacing.Md))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = peer.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = peer.address,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            SignalStrengthIndicator(peer.signalStrength)
+        }
     }
 }
 
-data class BadgeStyle(
-    val backgroundColor: Color,
-    val textColor: Color
-)
-
 @Composable
-fun StrongBadgeStyle(): BadgeStyle {
-    return BadgeStyle(
-        backgroundColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
-        textColor = MaterialTheme.colorScheme.primary
-    )
+private fun SignalStrengthIndicator(signalStrength: SignalStrength) {
+    val (bars, color) = when (signalStrength) {
+        SignalStrength.STRONG -> 3 to MaterialTheme.colorScheme.primary
+        SignalStrength.MEDIUM -> 2 to MaterialTheme.colorScheme.secondary
+        SignalStrength.WEAK -> 1 to MaterialTheme.colorScheme.tertiary
+        SignalStrength.OFFLINE -> 0 to MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+    }
+
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        repeat(3) { index ->
+            val height = when (index) {
+                0 -> 8.dp
+                1 -> 12.dp
+                2 -> 16.dp
+                else -> 8.dp
+            }
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .height(height)
+                    .background(
+                        if (index < bars) color
+                        else color.copy(alpha = 0.2f),
+                        RoundedCornerShape(2.dp)
+                    )
+            )
+        }
+    }
 }
 
 @Composable
-fun MediumBadgeStyle(): BadgeStyle {
-    return BadgeStyle(
-        backgroundColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f),
-        textColor = MaterialTheme.colorScheme.secondary
-    )
-}
-
-@Composable
-fun WeakBadgeStyle(): BadgeStyle {
-    return BadgeStyle(
-        backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
-        textColor = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-}
-
-@Composable
-fun OfflineBadgeStyle(): BadgeStyle {
-    return BadgeStyle(
-        backgroundColor = Color.Transparent,
-        textColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-    )
-}
-
-@Composable
-fun EmptyDiscoveryState(isSearching: Boolean) {
+fun EmptyDiscoveryState(modifier: Modifier = Modifier) {
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.padding(MeshifyDesignSystem.Spacing.Xl),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Icon(
+            imageVector = Icons.Outlined.WifiOff,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            modifier = Modifier.size(64.dp)
+        )
+
+        Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Md))
+
         Text(
-            text = stringResource(R.string.no_peers_found),
-            style = MaterialTheme.typography.bodyLarge,
+            text = "No devices nearby",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Xs))
+
+        Text(
+            text = "Make sure Wi-Fi is enabled on other devices",
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 32.dp)
+            textAlign = TextAlign.Center
         )
     }
 }

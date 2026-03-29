@@ -20,7 +20,8 @@ fun MeshifyNavHost(
     onHomeRoute: @Composable () -> Unit = {},
     onDiscoveryRoute: @Composable () -> Unit = {},
     onChatRoute: @Composable (peerId: String, peerName: String?) -> Unit = { _, _ -> },
-    onSettingsRoute: @Composable () -> Unit = {}
+    onSettingsRoute: @Composable () -> Unit = {},
+    onDeveloperRoute: @Composable () -> Unit = {}
 ) {
     NavHost(
         navController = navController,
@@ -41,6 +42,10 @@ fun MeshifyNavHost(
 
         composable<Screen.Settings> {
             onSettingsRoute()
+        }
+
+        composable<Screen.Developer> {
+            onDeveloperRoute()
         }
     }
 }

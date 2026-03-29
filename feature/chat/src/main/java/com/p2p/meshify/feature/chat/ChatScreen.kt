@@ -65,6 +65,7 @@ import kotlinx.coroutines.flow.first
 @Composable
 fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBackClick: () -> Unit) {
     val context = LocalContext.current
+    val haptics = LocalPremiumHaptics.current
     val uiState by viewModel.uiState.collectAsState()
     val selectedMessages by viewModel.selectedMessages.collectAsState()
     val forwardDialogState by viewModel.forwardDialogState.collectAsState()
@@ -268,32 +269,44 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
         },
         bottomBar = {
             Column(Modifier.navigationBarsPadding()) {
-                // Reply indicator
-                uiState.replyTo?.let { reply ->
-                    Surface(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh
-                    ) {
-                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Message, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-                            Spacer(Modifier.width(8.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(stringResource(R.string.chat_reply_label), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                                Text(uiState.replyTo?.text ?: "[Media]", style = MaterialTheme.typography.bodySmall, maxLines = 1)
-                            }
-                            IconButton(onClick = { viewModel.setReplyTo(null) }) {
-                                Icon(Icons.Default.Close, null)
+                // Reply indicator with animation
+                AnimatedVisibility(
+                    visible = uiState.replyTo != null,
+                    enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+                    exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut()
+                ) {
+                    uiState.replyTo?.let { reply ->
+                        Surface(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh
+                        ) {
+                            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Message, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                                Spacer(Modifier.width(8.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(stringResource(R.string.chat_reply_label), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                    Text(uiState.replyTo?.text ?: "[Media]", style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                                }
+                                IconButton(onClick = { viewModel.setReplyTo(null) }) {
+                                    Icon(Icons.Default.Close, null)
+                                }
                             }
                         }
                     }
                 }
 
-                // Staged media row
-                StagedMediaRow(
-                    attachments = uiState.stagedAttachments,
-                    onRemoveClick = viewModel::removeStagedAttachment
-                )
+                // Staged media row with animation
+                AnimatedVisibility(
+                    visible = uiState.stagedAttachments.isNotEmpty(),
+                    enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+                    exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut()
+                ) {
+                    StagedMediaRow(
+                        attachments = uiState.stagedAttachments,
+                        onRemoveClick = viewModel::removeStagedAttachment
+                    )
+                }
 
                 // Chat input
                 MediaStagingChatInput(
@@ -462,10 +475,10 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
  */
 @Composable
 fun StatusIcon(status: MessageStatus, tint: Color) {
-    val size = 12.dp
+    val size = 14.dp
     when (status) {
         MessageStatus.QUEUED -> Icon(Icons.Default.Schedule, null, Modifier.size(size), tint = tint.copy(0.5f))
-        MessageStatus.SENDING -> CircularProgressIndicator(Modifier.size(10.dp), strokeWidth = 1.dp, color = tint)
+        MessageStatus.SENDING -> CircularProgressIndicator(Modifier.size(12.dp), strokeWidth = 1.5.dp, color = tint)
         MessageStatus.SENT -> Icon(Icons.Default.Check, null, Modifier.size(size), tint = tint.copy(0.7f))
         MessageStatus.DELIVERED -> Icon(Icons.Default.DoneAll, null, Modifier.size(size), tint = tint.copy(0.7f))
         MessageStatus.READ -> Icon(Icons.Default.DoneAll, null, Modifier.size(size), tint = MaterialTheme.colorScheme.tertiary)

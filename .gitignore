@@ -11,7 +11,9 @@
 /docs/analysis
 /docs/Examples
 .DS_Store/
+.qwen/
 docs/
+skills/
 
 **/build/
 /captures

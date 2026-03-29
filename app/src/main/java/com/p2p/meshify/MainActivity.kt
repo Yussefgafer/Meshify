@@ -40,6 +40,8 @@ import com.p2p.meshify.feature.chat.ChatScreen
 import com.p2p.meshify.feature.chat.ChatViewModel
 import com.p2p.meshify.feature.settings.SettingsScreen
 import com.p2p.meshify.feature.settings.SettingsViewModel
+import com.p2p.meshify.feature.settings.DeveloperScreen
+import com.p2p.meshify.feature.settings.DeveloperViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -194,6 +196,25 @@ class MainActivity : ComponentActivity() {
                                         )
                                         SettingsScreen(
                                             viewModel = settingsViewModel,
+                                            onBackClick = { navController.popBackStack() },
+                                            onDeveloperModeClick = { navController.navigate(Screen.Developer) }
+                                        )
+                                    },
+                                    onDeveloperRoute = {
+                                        val devDb = (application as MeshifyApp).container.database
+                                        val developerViewModel: DeveloperViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                                            factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+                                                override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                                                    @Suppress("UNCHECKED_CAST")
+                                                    return DeveloperViewModel(
+                                                        chatDao = devDb.chatDao(),
+                                                        messageDao = devDb.messageDao()
+                                                    ) as T
+                                                }
+                                            }
+                                        )
+                                        DeveloperScreen(
+                                            viewModel = developerViewModel,
                                             onBackClick = { navController.popBackStack() }
                                         )
                                     }
