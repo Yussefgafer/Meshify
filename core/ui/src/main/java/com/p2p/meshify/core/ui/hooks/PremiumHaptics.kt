@@ -52,7 +52,9 @@ class PremiumHaptics(
             Log.w("PremiumHaptics", "Vibration failed, using fallback", e)
             try {
                 hapticFeedback.performHapticFeedback(fallback)
-            } catch (e2: Exception) { }
+            } catch (e2: Exception) {
+                Log.w("PremiumHaptics", "Fallback haptic also failed", e2)
+            }
         }
     }
 
