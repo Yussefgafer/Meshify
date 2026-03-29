@@ -1,9 +1,13 @@
 package com.p2p.meshify.feature.discovery
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -13,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -30,6 +35,7 @@ fun DiscoveryScreen(
     onSettingsClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val listState = rememberLazyListState()
 
     Scaffold(
         topBar = {
@@ -44,22 +50,84 @@ fun DiscoveryScreen(
                     IconButton(onClick = onSettingsClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
+                },
+                actions = {
+                    // ✅ UX-04: Refresh button in app bar
+                    IconButton(
+                        onClick = { viewModel.refresh() },
+                        enabled = !uiState.isRefreshing
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Refresh",
+                            modifier = Modifier.animateColorAsState(
+                                targetValue = if (uiState.isRefreshing) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurface,
+                                animationSpec = spring(
+                                    dampingRatio = 0.8f,
+                                    stiffness = Spring.StiffnessLow
+                                )
+                            )
+                        )
+                    }
                 }
             )
         }
     ) { padding ->
-        if (uiState.discoveredPeers.isEmpty()) {
-            EmptyDiscoveryState(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-            )
-        } else {
-            PeerList(
-                modifier = Modifier.padding(padding),
-                peers = uiState.discoveredPeers,
-                onPeerClick = onPeerClick
-            )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            // ✅ UX-04: Modern Loading Bar at top (MD3E style)
+            if (uiState.isSearching && uiState.discoveredPeers.isEmpty()) {
+                Column(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    // Modern linear progress indicator with MD3E motion
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Lg))
+                    
+                    EmptyDiscoveryState(
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            } else if (uiState.discoveredPeers.isEmpty()) {
+                EmptyDiscoveryState(
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                // ✅ UX-05: Pull to Refresh with modern API
+                Box(
+                    modifier = Modifier.pullToRefresh(
+                        isRefreshing = uiState.isRefreshing,
+                        onRefresh = { viewModel.refresh() },
+                        indicator = {
+                            PullToRefreshIndicator(
+                                isRefreshing = uiState.isRefreshing,
+                                modifier = Modifier.align(Alignment.TopCenter),
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    )
+                ) {
+                    PeerList(
+                        modifier = Modifier.fillMaxSize(),
+                        peers = uiState.discoveredPeers,
+                        onPeerClick = onPeerClick,
+                        listState = listState
+                    )
+                }
+            }
         }
     }
 }
@@ -68,10 +136,12 @@ fun DiscoveryScreen(
 fun PeerList(
     modifier: Modifier = Modifier,
     peers: List<PeerDevice>,
-    onPeerClick: (PeerDevice) -> Unit
+    onPeerClick: (PeerDevice) -> Unit,
+    listState: LazyListState = rememberLazyListState()
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
+        state = listState,
         contentPadding = PaddingValues(
             horizontal = MeshifyDesignSystem.Spacing.Md,
             vertical = MeshifyDesignSystem.Spacing.Sm

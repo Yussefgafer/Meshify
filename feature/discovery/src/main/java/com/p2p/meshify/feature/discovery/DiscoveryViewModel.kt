@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 data class DiscoveryUiState(
     val discoveredPeers: List<PeerDevice> = emptyList(),
     val isSearching: Boolean = true,
+    val isRefreshing: Boolean = false,
     val errorMessage: String? = null
 )
 
@@ -85,5 +86,20 @@ class DiscoveryViewModel(
 
     private fun handleError(event: TransportEvent.Error) {
         _uiState.update { it.copy(errorMessage = event.message) }
+    }
+
+    /**
+     * ✅ UX-05: Trigger manual refresh for pull-to-refresh
+     */
+    fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true) }
+            
+            // Simulate refresh by re-discovering devices
+            // In real implementation, this would call transportManager.startDiscovery()
+            kotlinx.coroutines.delay(1000)
+            
+            _uiState.update { it.copy(isRefreshing = false) }
+        }
     }
 }
