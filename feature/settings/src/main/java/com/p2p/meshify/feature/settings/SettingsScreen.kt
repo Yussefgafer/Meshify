@@ -51,7 +51,8 @@ import java.io.File
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onDeveloperModeClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val haptics = LocalPremiumHaptics.current
@@ -447,11 +448,29 @@ fun SettingsScreen(
 
             // === SECTION 6: ABOUT ===
             MeshifySettingsGroup(title = context.getString(R.string.settings_section_info)) {
+                // App Version with easter egg (tap 7 times to unlock developer mode)
+                val versionTapCount = remember { mutableIntStateOf(0) }
+                val lastTapTime = remember { mutableLongStateOf(0L) }
+                
                 MeshifySettingsItem(
                     title = context.getString(R.string.setting_app_version),
                     subtitle = appVersion,
                     icon = Icons.Default.Info,
-                    onClick = { }
+                    onClick = {
+                        val now = System.currentTimeMillis()
+                        if (now - lastTapTime.longValue > 2000) {
+                            versionTapCount.intValue = 0
+                        }
+                        lastTapTime.longValue = now
+                        versionTapCount.intValue++
+                        haptics.perform(HapticPattern.Tick)
+                        
+                        if (versionTapCount.intValue >= 7) {
+                            versionTapCount.intValue = 0
+                            haptics.perform(HapticPattern.Success)
+                            onDeveloperModeClick()
+                        }
+                    }
                 )
 
                 HorizontalDivider(
@@ -581,6 +600,7 @@ fun SettingsScreen(
 
     // ✅ Backup & Restore Dialog
     if (showBackupDialog) {
+        val resources = LocalContext.current.resources
         AlertDialog(
             onDismissRequest = { showBackupDialog = false },
             title = { Text(stringResource(R.string.settings_backup_title)) },
@@ -591,8 +611,8 @@ fun SettingsScreen(
                         haptics.perform(HapticPattern.Pop)
                         viewModel.exportBackup { result ->
                             backupStatus = result.fold(
-                                onSuccess = { stringResource(R.string.settings_backup_export_success) },
-                                onFailure = { stringResource(R.string.settings_backup_export_error, it.message) }
+                                onSuccess = { resources.getString(R.string.settings_backup_export_success) },
+                                onFailure = { resources.getString(R.string.settings_backup_export_error, it.message) }
                             )
                         }
                         showBackupDialog = false
@@ -606,7 +626,7 @@ fun SettingsScreen(
                     onClick = {
                         // Import functionality (requires file picker)
                         haptics.perform(HapticPattern.Pop)
-                        backupStatus = stringResource(R.string.settings_backup_import_soon)
+                        backupStatus = resources.getString(R.string.settings_backup_import_soon)
                         showBackupDialog = false
                     }
                 ) {

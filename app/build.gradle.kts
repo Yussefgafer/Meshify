@@ -153,7 +153,16 @@ dependencies {
     
     // Accompanist
     implementation(libs.accompanist.permissions)
-    
+
+    // Security Libraries
+    implementation(libs.tink)
+    implementation(libs.bouncycastle.bcprov)
+    implementation(libs.bouncycastle.bcpkix)
+    implementation(libs.androidx.security.crypto)
+    implementation(libs.androidx.security.crypto.ktx)
+    implementation(libs.androidx.biometric)
+    implementation(libs.androidx.biometric.ktx)
+
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

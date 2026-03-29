@@ -32,6 +32,7 @@ object MeshifyDesignSystem {
         val BubblePeer = RoundedCornerShape(topStart = 4.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
         val Button = RoundedCornerShape(20.dp)
         val Input = RoundedCornerShape(24.dp)
+        val Pill = RoundedCornerShape(50)
     }
 
     // ✅ FIX: Icon Sizes - use this instead of hardcoded values

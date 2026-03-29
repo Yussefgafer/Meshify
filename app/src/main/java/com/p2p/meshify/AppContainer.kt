@@ -7,6 +7,11 @@ import com.p2p.meshify.core.data.local.MeshifyDatabase
 import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
 import com.p2p.meshify.core.data.repository.FileManagerImpl
 import com.p2p.meshify.core.data.repository.SettingsRepository
+import com.p2p.meshify.core.data.security.impl.EcdhSessionManager
+import com.p2p.meshify.core.data.security.impl.InMemoryNonceCache
+import com.p2p.meshify.core.data.security.impl.MessageEnvelopeCrypto
+import com.p2p.meshify.core.data.security.impl.PeerIdentityManagerImpl
+import com.p2p.meshify.core.data.security.impl.PeerTrustStore
 import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.core.network.base.TransportEvent
 import com.p2p.meshify.core.util.Logger
@@ -25,7 +30,7 @@ class AppContainer(private val context: Context) {
     // Container scope with lifecycle management
     private val containerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    private val database: MeshifyDatabase by lazy {
+    val database: MeshifyDatabase by lazy {
         Room.databaseBuilder(context, MeshifyDatabase::class.java, "meshify.db")
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
@@ -41,6 +46,27 @@ class AppContainer(private val context: Context) {
 
     val notificationHelper: NotificationHelper by lazy {
         NotificationHelper(context).apply { createNotificationChannels() }
+    }
+
+    // Security Components
+    val peerIdentity: PeerIdentityManagerImpl by lazy {
+        PeerIdentityManagerImpl()
+    }
+
+    val nonceCache: InMemoryNonceCache by lazy {
+        InMemoryNonceCache()
+    }
+
+    val peerTrustStore: PeerTrustStore by lazy {
+        PeerTrustStore(database.trustedPeerDao())
+    }
+
+    val ecdhSessionManager: EcdhSessionManager by lazy {
+        EcdhSessionManager()
+    }
+
+    val messageCrypto: MessageEnvelopeCrypto by lazy {
+        MessageEnvelopeCrypto(peerIdentity, nonceCache)
     }
 
     // ✅ Transport Manager - manages all transport protocols (LAN, BT, WiFi-Direct, DHT)

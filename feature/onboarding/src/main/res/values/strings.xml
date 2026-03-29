@@ -34,4 +34,9 @@
     <string name="onboarding_content_desc_shield">Security shield icon</string>
     <string name="onboarding_content_desc_devices">Connected devices icon</string>
     <string name="onboarding_content_desc_permissions">Permission icons</string>
+    
+    <!-- Pre-Permission Dialog Strings -->
+    <string name="permission_icon_desc">Permission icon</string>
+    <string name="permission_check">Permission check icon</string>
+    <string name="permission_all_set">All set icon</string>
 </resources>

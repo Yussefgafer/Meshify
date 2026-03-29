@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -19,18 +20,20 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -48,6 +51,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -232,51 +236,48 @@ fun MediaStagingChatInput(
                 )
             }
 
-            // Send Button
+            // Send Button - Circular and prominent
             val sendInteraction = remember { MutableInteractionSource() }
             val isSendPressed by sendInteraction.collectIsPressedAsState()
             val sendScale by animateFloatAsState(
-                targetValue = if (isSendPressed) 0.92f else 1f,
-                animationSpec = spring(dampingRatio = 0.6f),
+                targetValue = if (isSendPressed) 0.88f else 1f,
+                animationSpec = spring(dampingRatio = 0.5f, stiffness = 400f),
                 label = "send_scale"
             )
 
-            Box(
-                contentAlignment = Alignment.Center,
+            Surface(
                 modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable(
-                        enabled = hasContent && !isSending,
-                        interactionSource = sendInteraction,
-                        indication = null
-                    ) {
+                    .size(48.dp)
+                    .scale(sendScale),
+                shape = CircleShape,
+                color = if (hasContent && !isSending) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.surfaceContainerHighest,
+                tonalElevation = if (hasContent) 4.dp else 1.dp,
+                shadowElevation = if (hasContent && !isSending) 4.dp else 0.dp,
+                onClick = {
+                    if (hasContent && !isSending) {
                         haptics.perform(HapticPattern.Send)
                         onSendClick()
                     }
-                    .background(
-                        if (hasContent && !isSending) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.surfaceContainerHighest,
-                        RoundedCornerShape(12.dp)
-                    )
+                },
+                interactionSource = sendInteraction
             ) {
-                if (isSending) {
-                    // Linear Progress Indicator - modern loading bar
-                    LinearProgressIndicator(
-                        modifier = Modifier
-                            .fillMaxWidth(0.6f)
-                            .height(3.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.Send,
-                        contentDescription = "Send",
-                        tint = if (hasContent) MaterialTheme.colorScheme.onPrimary
-                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                        modifier = Modifier.size(22.dp)
-                    )
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    if (isSending) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.5.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.Send,
+                            contentDescription = "Send",
+                            tint = if (hasContent) MaterialTheme.colorScheme.onPrimary
+                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
             }
         }

@@ -48,6 +48,10 @@ fun RecentChatsScreen(
     val context = LocalContext.current
 
     var chatToDelete by remember { mutableStateOf<ChatEntity?>(null) }
+    
+    // Track swipe state for magnetic neighbor effect
+    var swipingIndex by remember { mutableIntStateOf(-1) }
+    var swipeProgress by remember { mutableFloatStateOf(0f) }
 
     Scaffold(
         topBar = {
@@ -92,42 +96,48 @@ fun RecentChatsScreen(
                         else -> ItemPosition.MIDDLE
                     }
 
-                    PhysicsSwipeToDelete(
-                        onDelete = { chatToDelete = chat },
-                        position = position,
+                    MagneticChatItem(
+                        index = index,
+                        swipingIndex = swipingIndex,
+                        swipeProgress = swipeProgress
                     ) {
-                        val isOnline = onlinePeers.contains(chat.peerId)
-                        MeshifyListItem(
-                            headline = chat.peerName,
-                            supporting = chat.lastMessage ?: stringResource(R.string.last_msg_none),
-                            leadingContent = {
-                                MorphingAvatar(
-                                    initials = chat.peerName.take(1),
-                                    isOnline = isOnline,
-                                    size = 56.dp
-                                )
-                            },
-                            trailingContent = {
-                                Column(horizontalAlignment = Alignment.End) {
-                                    Text(
-                                        text = formatRecentTime(chat.lastTimestamp),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        PhysicsSwipeToDelete(
+                            onDelete = { chatToDelete = chat },
+                            position = position,
+                            groupCornerRadius = 24.dp,
+                            itemIndex = index,
+                            onSwipeProgress = { idx, progress ->
+                                swipingIndex = idx
+                                swipeProgress = progress
+                            }
+                        ) {
+                            val isOnline = onlinePeers.contains(chat.peerId)
+                            MeshifyListItem(
+                                headline = chat.peerName,
+                                supporting = chat.lastMessage ?: stringResource(R.string.last_msg_none),
+                                leadingContent = {
+                                    MorphingAvatar(
+                                        initials = chat.peerName.take(1),
+                                        isOnline = isOnline,
+                                        size = 56.dp
                                     )
-                                    if (isOnline) {
-                                        Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xxs))
-                                        MeshifyPill(stringResource(R.string.chat_status_online), MaterialTheme.colorScheme.primaryContainer)
+                                },
+                                trailingContent = {
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text(
+                                            text = formatRecentTime(chat.lastTimestamp),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        if (isOnline) {
+                                            Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xxs))
+                                            MeshifyPill(stringResource(R.string.chat_status_online), MaterialTheme.colorScheme.primaryContainer)
+                                        }
                                     }
-                                }
-                            },
-                            onClick = { onChatClick(chat) }
-                        )
-                    }
-                    if (index < chats.size - 1) {
-                        HorizontalDivider(
-                            modifier = Modifier.padding(start = 88.dp, end = MeshifyDesignSystem.Spacing.Md),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                        )
+                                },
+                                onClick = { onChatClick(chat) }
+                            )
+                        }
                     }
                 }
             }
