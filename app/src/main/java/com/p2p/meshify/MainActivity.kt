@@ -154,7 +154,7 @@ class MainActivity : ComponentActivity() {
                                             factory = object : androidx.lifecycle.ViewModelProvider.Factory {
                                                 override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                                                     @Suppress("UNCHECKED_CAST")
-                                                    return DiscoveryViewModel(appContainer.transportManager) as T
+                                                    return DiscoveryViewModel(appContainer.transportManager, this@MainActivity) as T
                                                 }
                                             }
                                         )

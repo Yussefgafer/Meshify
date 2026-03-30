@@ -6,12 +6,12 @@ import androidx.room.Room
 import com.p2p.meshify.core.data.local.MeshifyDatabase
 import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
 import com.p2p.meshify.core.data.repository.FileManagerImpl
+import com.p2p.meshify.core.data.repository.PeerTrustStore
 import com.p2p.meshify.core.data.repository.SettingsRepository
 import com.p2p.meshify.core.data.security.impl.EcdhSessionManager
 import com.p2p.meshify.core.data.security.impl.InMemoryNonceCache
 import com.p2p.meshify.core.data.security.impl.MessageEnvelopeCrypto
 import com.p2p.meshify.core.data.security.impl.PeerIdentityManagerImpl
-import com.p2p.meshify.core.data.security.impl.PeerTrustStore
 import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.core.network.base.TransportEvent
 import com.p2p.meshify.core.util.Logger

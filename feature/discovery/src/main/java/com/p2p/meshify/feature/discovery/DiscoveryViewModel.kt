@@ -1,5 +1,7 @@
 package com.p2p.meshify.feature.discovery
 
+import android.content.Context
+import android.net.wifi.WifiManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.p2p.meshify.domain.model.PeerDevice
@@ -19,7 +21,9 @@ data class DiscoveryUiState(
     val discoveredPeers: List<PeerDevice> = emptyList(),
     val isSearching: Boolean = true,
     val isRefreshing: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val isWifiEnabled: Boolean = true,
+    val canDiscover: Boolean = true
 )
 
 /**
@@ -27,8 +31,23 @@ data class DiscoveryUiState(
  * Observes [TransportManager] events and maps them to [DiscoveryUiState].
  */
 class DiscoveryViewModel(
-    private val transportManager: TransportManager
+    private val transportManager: TransportManager,
+    private val context: Context
 ) : ViewModel() {
+
+    private val wifiManager: WifiManager by lazy {
+        context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+    }
+
+    internal fun checkWifiState() {
+        val isWifiEnabled = wifiManager.isWifiEnabled
+        _uiState.update { 
+            it.copy(
+                isWifiEnabled = isWifiEnabled,
+                canDiscover = isWifiEnabled
+            ) 
+        }
+    }
 
     private val _uiState = MutableStateFlow(DiscoveryUiState())
     val uiState: StateFlow<DiscoveryUiState> = _uiState.asStateFlow()
@@ -38,6 +57,7 @@ class DiscoveryViewModel(
 
     init {
         observeTransportEvents()
+        checkWifiState()
     }
 
     private fun observeTransportEvents() {
@@ -92,13 +112,14 @@ class DiscoveryViewModel(
      * ✅ UX-05: Trigger manual refresh for pull-to-refresh
      */
     fun refresh() {
+        checkWifiState()
         viewModelScope.launch {
             _uiState.update { it.copy(isRefreshing = true) }
-            
+
             // Simulate refresh by re-discovering devices
             // In real implementation, this would call transportManager.startDiscovery()
             kotlinx.coroutines.delay(1000)
-            
+
             _uiState.update { it.copy(isRefreshing = false) }
         }
     }
