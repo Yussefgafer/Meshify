@@ -22,6 +22,9 @@ import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.core.network.TransportManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -241,109 +244,148 @@ class ChatRepositoryImpl(
         val message = messageDao.getMessageById(messageId)
             ?: return Result.failure(Exception("Message not found"))
 
-        return try {
-            var allSuccess = true
+        // Validate target list is not empty
+        if (targetPeerIds.isEmpty()) {
+            return Result.failure(Exception("No target peers specified"))
+        }
 
-            targetPeerIds.forEach { peerId ->
-                scope.launch {
-                    try {
-                        val chat = chatDao.getChatById(peerId)
-                        
-                        // Build forward context
-                        val forwardContext = buildForwardContext(message)
-                        
-                        if (message.type == MessageType.TEXT && message.text != null) {
-                            // ✅ FIX: Send message via network AND copy to local DB
-                            // Create message with forward context
-                            val newMessage = MessageEntity(
-                                id = UUID.randomUUID().toString(),
-                                chatId = peerId,
-                                senderId = message.senderId, // Preserve original sender
-                                text = forwardContext,
-                                mediaPath = null,
-                                type = MessageType.TEXT,
-                                timestamp = System.currentTimeMillis(),
-                                isFromMe = true,
-                                status = MessageStatus.SENDING,
-                                replyToId = null,
-                                groupId = null
-                            )
-                            
-                            // Insert into DB first
-                            messageDao.insertMessage(newMessage)
-                            
-                            // ✅ Send via network
-                            val transport = transportManager.selectBestTransport(peerId)
-                            if (transport != null) {
-                                // Create payload with text content
-                                val payload = Payload(
-                                    id = newMessage.id,
-                                    senderId = settingsRepository.getDeviceId(),
-                                    timestamp = newMessage.timestamp,
-                                    type = Payload.PayloadType.TEXT,
-                                    data = (newMessage.text ?: "").toByteArray()
-                                )
-                                
-                                val sendResult = transport.sendPayload(peerId, payload)
-                                if (sendResult.isSuccess) {
-                                    messageDao.updateMessageStatus(newMessage.id, MessageStatus.SENT)
-                                    Logger.d("ChatRepository -> Forwarded message $messageId to $peerId")
-                                } else {
-                                    messageDao.updateMessageStatus(newMessage.id, MessageStatus.QUEUED)
-                                    Logger.e("ChatRepository -> Failed to forward message to $peerId")
-                                    allSuccess = false
-                                }
+        return try {
+            val results = coroutineScope {
+                targetPeerIds.map { peerId ->
+                    async {
+                        try {
+                            val chat = chatDao.getChatById(peerId)
+                            val forwardContext = buildForwardContext(message)
+                            var success = false
+
+                            if (message.type == MessageType.TEXT && message.text != null) {
+                                success = forwardTextMessage(message, peerId, forwardContext)
                             } else {
-                                messageDao.updateMessageStatus(newMessage.id, MessageStatus.QUEUED)
-                                Logger.w("ChatRepository -> No transport available for forwarding to $peerId")
-                                allSuccess = false
+                                success = forwardMediaContext(message, peerId, forwardContext)
                             }
-                        } else {
-                            // For media messages: forward context only (media file reference)
-                            val newMessage = message.copy(
-                                id = UUID.randomUUID().toString(),
-                                chatId = peerId,
-                                isFromMe = true,
-                                timestamp = System.currentTimeMillis(),
-                                text = forwardContext,
-                                status = MessageStatus.SENT // Media already exists, just context
-                            )
-                            messageDao.insertMessage(newMessage)
-                            Logger.d("ChatRepository -> Forwarded media context for $messageId to $peerId")
+
+                            // Update chat last message ONLY if successful
+                            if (success) {
+                                updateChatLastMessage(peerId, chat, forwardContext)
+                            }
+
+                            Pair(peerId, if (success) Result.success(Unit) else Result.failure(Exception("Forward failed")))
+                        } catch (e: Exception) {
+                            Logger.e("ChatRepository -> Failed to forward message to $peerId", e)
+                            Pair(peerId, Result.failure<Unit>(e))
                         }
-                        
-                        // Update chat last message
-                        chat?.let {
-                            chatDao.insertChat(it.copy(
-                                lastMessage = forwardContext,
-                                lastTimestamp = System.currentTimeMillis()
-                            ))
-                        } ?: run {
-                            chatDao.insertChat(ChatEntity(
-                                peerId = peerId,
-                                peerName = "Peer_${peerId.take(4)}",
-                                lastMessage = forwardContext,
-                                lastTimestamp = System.currentTimeMillis()
-                            ))
-                        }
-                    } catch (e: Exception) {
-                        Logger.e("ChatRepository -> Failed to forward message to $peerId", e)
-                        allSuccess = false
                     }
-                }
+                }.awaitAll()
             }
 
-            // Wait a bit for async operations
-            kotlinx.coroutines.delay(500)
-            
-            if (allSuccess) {
-                Result.success(Unit)
+            val failures = results.filter { it.second.isFailure }
+            if (failures.isNotEmpty()) {
+                Logger.e("ChatRepository -> Forward completed with ${failures.size} failures out of ${results.size}")
+                Result.failure(Exception("${failures.size} of ${results.size} forwards failed"))
             } else {
-                Result.failure(Exception("Some forwards failed"))
+                Logger.d("ChatRepository -> All ${results.size} forwards succeeded")
+                Result.success(Unit)
             }
         } catch (e: Exception) {
             Logger.e("ChatRepository -> Failed to forward message: $messageId", e)
             Result.failure(e)
+        }
+    }
+
+    private suspend fun forwardTextMessage(
+        message: MessageEntity,
+        peerId: String,
+        forwardContext: String
+    ): Boolean {
+        val newMessage = MessageEntity(
+            id = UUID.randomUUID().toString(),
+            chatId = peerId,
+            senderId = message.senderId,
+            text = forwardContext,
+            mediaPath = null,
+            type = MessageType.TEXT,
+            timestamp = System.currentTimeMillis(),
+            isFromMe = true,
+            status = MessageStatus.SENDING,
+            replyToId = null,
+            groupId = null
+        )
+
+        messageDao.insertMessage(newMessage)
+
+        val transport = transportManager.selectBestTransport(peerId)
+        if (transport == null) {
+            messageDao.updateMessageStatus(newMessage.id, MessageStatus.QUEUED)
+            Logger.w("ChatRepository -> No transport available for forwarding to $peerId")
+            return false
+        }
+
+        val payload = Payload(
+            id = newMessage.id,
+            senderId = settingsRepository.getDeviceId(),
+            timestamp = newMessage.timestamp,
+            type = Payload.PayloadType.TEXT,
+            data = (newMessage.text ?: "").toByteArray()
+        )
+
+        return try {
+            val sendResult = transport.sendPayload(peerId, payload)
+            if (sendResult.isSuccess) {
+                messageDao.updateMessageStatus(newMessage.id, MessageStatus.SENT)
+                Logger.d("ChatRepository -> Forwarded message ${message.id} to $peerId")
+                true
+            } else {
+                messageDao.updateMessageStatus(newMessage.id, MessageStatus.QUEUED)
+                Logger.e("ChatRepository -> Failed to forward message to $peerId")
+                false
+            }
+        } catch (e: Exception) {
+            messageDao.updateMessageStatus(newMessage.id, MessageStatus.QUEUED)
+            Logger.e("ChatRepository -> Failed to forward message to $peerId", e)
+            false
+        }
+    }
+
+    private suspend fun forwardMediaContext(
+        message: MessageEntity,
+        peerId: String,
+        forwardContext: String
+    ): Boolean {
+        return try {
+            val newMessage = message.copy(
+                id = UUID.randomUUID().toString(),
+                chatId = peerId,
+                isFromMe = true,
+                timestamp = System.currentTimeMillis(),
+                text = forwardContext,
+                status = MessageStatus.SENT
+            )
+            messageDao.insertMessage(newMessage)
+            Logger.d("ChatRepository -> Forwarded media context for ${message.id} to $peerId")
+            true
+        } catch (e: Exception) {
+            Logger.e("ChatRepository -> Failed to forward media context to $peerId", e)
+            false
+        }
+    }
+
+    private suspend fun updateChatLastMessage(
+        peerId: String,
+        existingChat: ChatEntity?,
+        forwardContext: String
+    ) {
+        if (existingChat != null) {
+            chatDao.insertChat(existingChat.copy(
+                lastMessage = forwardContext,
+                lastTimestamp = System.currentTimeMillis()
+            ))
+        } else {
+            chatDao.insertChat(ChatEntity(
+                peerId = peerId,
+                peerName = "Peer_${peerId.take(4)}",
+                lastMessage = forwardContext,
+                lastTimestamp = System.currentTimeMillis()
+            ))
         }
     }
 
