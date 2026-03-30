@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
@@ -21,6 +22,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.p2p.meshify.core.common.R
@@ -43,12 +46,11 @@ fun RecentChatsScreen(
     onDiscoverClick: () -> Unit,
     onSettingsClick: () -> Unit
 ) {
-    val chats by viewModel.recentChats.collectAsState()
-    val onlinePeers by viewModel.onlinePeers.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
     var chatToDelete by remember { mutableStateOf<ChatEntity?>(null) }
-    
+
     // Track swipe state for magnetic neighbor effect
     var swipingIndex by remember { mutableIntStateOf(-1) }
     var swipeProgress by remember { mutableFloatStateOf(0f) }
@@ -77,66 +79,86 @@ fun RecentChatsScreen(
             AnimatedMorphingFAB(onClick = onDiscoverClick)
         }
     ) { padding ->
-        if (chats.isEmpty()) {
-            EmptyChatsState(padding)
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(bottom = MeshifyDesignSystem.Spacing.Xxl)
-            ) {
-                item {
-                    MeshifySectionHeader(stringResource(R.string.chats_recent_header))
-                }
-
-                itemsIndexed(chats, key = { _, chat -> chat.peerId }) { index, chat ->
-                    val position = when {
-                        chats.size == 1 -> ItemPosition.ONLY
-                        index == 0 -> ItemPosition.FIRST
-                        index == chats.size - 1 -> ItemPosition.LAST
-                        else -> ItemPosition.MIDDLE
+        when {
+            // Loading state
+            uiState.isLoading -> {
+                LoadingState(
+                    padding = padding,
+                    contentDescription = stringResource(R.string.home_loading_desc)
+                )
+            }
+            // Error state
+            uiState.error != null -> {
+                ErrorState(
+                    message = uiState.error!!,
+                    padding = padding,
+                    onRetry = { viewModel.retryLoad() }
+                )
+            }
+            // Empty state
+            uiState.chats.isEmpty() -> {
+                EmptyChatsState(padding)
+            }
+            // Content state - show chat list
+            else -> {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    contentPadding = PaddingValues(bottom = MeshifyDesignSystem.Spacing.Xxl)
+                ) {
+                    item {
+                        MeshifySectionHeader(stringResource(R.string.chats_recent_header))
                     }
 
-                    MagneticChatItem(
-                        index = index,
-                        swipingIndex = swipingIndex,
-                        swipeProgress = swipeProgress
-                    ) {
-                        PhysicsSwipeToDelete(
-                            onDelete = { chatToDelete = chat },
-                            position = position,
-                            groupCornerRadius = 24.dp,
-                            itemIndex = index,
-                            onSwipeProgress = { idx, progress ->
-                                swipingIndex = idx
-                                swipeProgress = progress
-                            }
+                    itemsIndexed(uiState.chats, key = { _, chat -> chat.peerId }) { index, chat ->
+                        val position = when {
+                            uiState.chats.size == 1 -> ItemPosition.ONLY
+                            index == 0 -> ItemPosition.FIRST
+                            index == uiState.chats.size - 1 -> ItemPosition.LAST
+                            else -> ItemPosition.MIDDLE
+                        }
+
+                        MagneticChatItem(
+                            index = index,
+                            swipingIndex = swipingIndex,
+                            swipeProgress = swipeProgress
                         ) {
-                            val isOnline = onlinePeers.contains(chat.peerId)
-                            MeshifyListItem(
-                                headline = chat.peerName,
-                                supporting = chat.lastMessage ?: stringResource(R.string.last_msg_none),
-                                leadingContent = {
-                                    MorphingAvatar(
-                                        initials = chat.peerName.take(1),
-                                        isOnline = isOnline,
-                                        size = 56.dp
-                                    )
-                                },
-                                trailingContent = {
-                                    Column(horizontalAlignment = Alignment.End) {
-                                        Text(
-                                            text = formatRecentTime(chat.lastTimestamp),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            PhysicsSwipeToDelete(
+                                onDelete = { chatToDelete = chat },
+                                position = position,
+                                groupCornerRadius = 24.dp,
+                                itemIndex = index,
+                                onSwipeProgress = { idx, progress ->
+                                    swipingIndex = idx
+                                    swipeProgress = progress
+                                }
+                            ) {
+                                val isOnline = uiState.onlinePeers.contains(chat.peerId)
+                                MeshifyListItem(
+                                    headline = chat.peerName,
+                                    supporting = chat.lastMessage ?: stringResource(R.string.last_msg_none),
+                                    leadingContent = {
+                                        MorphingAvatar(
+                                            initials = chat.peerName.take(1),
+                                            isOnline = isOnline,
+                                            size = 56.dp
                                         )
-                                        if (isOnline) {
-                                            Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xxs))
-                                            MeshifyPill(stringResource(R.string.chat_status_online), MaterialTheme.colorScheme.primaryContainer)
+                                    },
+                                    trailingContent = {
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text(
+                                                text = formatRecentTime(chat.lastTimestamp),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            if (isOnline) {
+                                                Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xxs))
+                                                MeshifyPill(stringResource(R.string.chat_status_online), MaterialTheme.colorScheme.primaryContainer)
+                                            }
                                         }
-                                    }
-                                },
-                                onClick = { onChatClick(chat) }
-                            )
+                                    },
+                                    onClick = { onChatClick(chat) }
+                                )
+                            }
                         }
                     }
                 }
@@ -202,6 +224,84 @@ fun EmptyChatsState(padding: PaddingValues) {
         Text(stringResource(R.string.no_recent_chats), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(modifier = Modifier.height(8.dp))
         Text(stringResource(R.string.home_empty_state_desc), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+    }
+}
+
+/**
+ * Loading state composable with circular progress indicator.
+ * Follows MD3E guidelines for loading indicators.
+ */
+@Composable
+private fun LoadingState(
+    padding: PaddingValues,
+    contentDescription: String
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(padding),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            modifier = Modifier
+                .size(48.dp)
+                .semantics { this.contentDescription = contentDescription },
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHighest
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(32.dp),
+                color = MaterialTheme.colorScheme.primary,
+                strokeWidth = 3.dp
+            )
+        }
+    }
+}
+
+/**
+ * Error state composable with retry button.
+ * Shows error message and allows user to retry loading.
+ */
+@Composable
+private fun ErrorState(
+    message: String,
+    padding: PaddingValues,
+    onRetry: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(padding),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Error,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.error
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.home_error_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(onClick = onRetry) {
+                Text(stringResource(R.string.home_error_retry))
+            }
+        }
     }
 }
 
