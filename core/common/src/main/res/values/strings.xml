@@ -130,6 +130,11 @@
     <!-- Home Screen - Empty State -->
     <string name="home_empty_state_desc">Tap the + button to discover nearby devices</string>
 
+    <!-- Home Screen - Loading & Error States -->
+    <string name="home_loading_desc">Loading conversations</string>
+    <string name="home_error_title">Failed to load</string>
+    <string name="home_error_retry">Retry</string>
+
     <!-- MD3E Settings - Shape Morphing -->
     <string name="settings_shape_style">Shape Morphing</string>
     <string name="settings_shape_style_desc">Select the active shape for morphing animations</string>
