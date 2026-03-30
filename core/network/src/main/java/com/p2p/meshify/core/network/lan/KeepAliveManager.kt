@@ -2,7 +2,6 @@ package com.p2p.meshify.core.network.lan
 
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.Payload
-import com.p2p.meshify.domain.model.PayloadType
 import kotlinx.coroutines.withTimeout
 import java.io.DataOutputStream
 
@@ -25,7 +24,7 @@ class KeepAliveManager(
 ) {
     
     companion object {
-        private const val KEEP_ALIVE_INTERVAL_MS = 60_000L // ✅ PF09: 60 seconds (was 30s)
+        private const val KEEP_ALIVE_INTERVAL_MS = 60_000L // 60 seconds (was 30s)
         private const val PING_TIMEOUT_MS = 2_000L // 2 seconds
         private const val KEEP_ALIVE_PING = "PING"
     }
@@ -52,7 +51,7 @@ class KeepAliveManager(
                     // Send PING message
                     val pingPayload = Payload(
                         senderId = "system",
-                        type = PayloadType.SYSTEM_CONTROL,
+                        type = Payload.PayloadType.SYSTEM_CONTROL,
                         data = KEEP_ALIVE_PING.toByteArray()
                     )
                     

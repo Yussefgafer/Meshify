@@ -8,16 +8,6 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Semaphore
 
 /**
- * Pooled socket wrapper with metadata for connection management.
- */
-private data class PooledSocket(
-    val socket: Socket,
-    val createdAt: Long = System.currentTimeMillis(),
-    @Volatile var lastUsedAt: Long = System.currentTimeMillis(),
-    @Volatile var isInUse: Boolean = false
-)
-
-/**
  * Connection pool manager with lifecycle handling.
  * 
  * Responsibilities:
@@ -34,7 +24,7 @@ private data class PooledSocket(
 class ConnectionPool {
     
     companion object {
-        private const val IDLE_TIMEOUT_MS = 5 * 60 * 1000L // 5 minutes
+        const val IDLE_TIMEOUT_MS = 5 * 60 * 1000L // 5 minutes
         private const val CLEANUP_INTERVAL_MS = 60 * 1000L // 1 minute
         private const val MAX_POOL_SIZE = 50
     }
@@ -213,8 +203,9 @@ class ConnectionPool {
     
     /**
      * Gets all active connection keys for iteration.
+     * Internal use only — returns map of PooledSocket for pool management.
      */
-    fun getActiveConnections(): Map<String, PooledSocket> {
+    internal fun getActiveConnections(): Map<String, PooledSocket> {
         return activeConnections.toMap()
     }
     
@@ -226,7 +217,7 @@ class ConnectionPool {
     /**
      * Gets the number of available permits in the pool.
      */
-    fun getAvailablePermits(): Int = poolSemaphore.availablePermits
+    fun getAvailablePermits(): Int = poolSemaphore.availablePermits()
     
     /**
      * Cleans up a connection lock to prevent memory leak.
