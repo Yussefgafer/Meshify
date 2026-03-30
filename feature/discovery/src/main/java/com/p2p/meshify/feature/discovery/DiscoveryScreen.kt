@@ -1,23 +1,40 @@
 package com.p2p.meshify.feature.discovery
 
-import androidx.compose.animation.animateColorAsState
+import android.content.Intent
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.outlined.WifiOff
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -60,27 +77,36 @@ fun DiscoveryScreen(
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Refresh",
-                            modifier = Modifier.animateColorAsState(
-                                targetValue = if (uiState.isRefreshing) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurface,
-                                animationSpec = spring(
-                                    dampingRatio = 0.8f,
-                                    stiffness = Spring.StiffnessLow
-                                )
-                            )
+                            tint = if (uiState.isRefreshing) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
             )
         }
     ) { padding ->
+        val context = LocalContext.current
+
+        LaunchedEffect(Unit) {
+            viewModel.checkWifiState()
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            // Wi-Fi disabled state (CHECK FIRST)
+            if (!uiState.isWifiEnabled) {
+                WifiDisabledState(
+                    onOpenSettings = {
+                        val intent = Intent(android.provider.Settings.ACTION_WIFI_SETTINGS)
+                        context.startActivity(intent)
+                    }
+                )
+            }
             // ✅ UX-04: Modern Loading Bar at top (MD3E style)
-            if (uiState.isSearching && uiState.discoveredPeers.isEmpty()) {
+            else if (uiState.isSearching && uiState.discoveredPeers.isEmpty()) {
                 Column(
                     modifier = Modifier.fillMaxSize()
                 ) {
@@ -93,9 +119,9 @@ fun DiscoveryScreen(
                         color = MaterialTheme.colorScheme.primary,
                         trackColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
                     )
-                    
+
                     Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Lg))
-                    
+
                     EmptyDiscoveryState(
                         modifier = Modifier.fillMaxSize()
                     )
@@ -105,28 +131,12 @@ fun DiscoveryScreen(
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
-                // ✅ UX-05: Pull to Refresh with modern API
-                Box(
-                    modifier = Modifier.pullToRefresh(
-                        isRefreshing = uiState.isRefreshing,
-                        onRefresh = { viewModel.refresh() },
-                        indicator = {
-                            PullToRefreshIndicator(
-                                isRefreshing = uiState.isRefreshing,
-                                modifier = Modifier.align(Alignment.TopCenter),
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    )
-                ) {
-                    PeerList(
-                        modifier = Modifier.fillMaxSize(),
-                        peers = uiState.discoveredPeers,
-                        onPeerClick = onPeerClick,
-                        listState = listState
-                    )
-                }
+                PeerList(
+                    modifier = Modifier.fillMaxSize(),
+                    peers = uiState.discoveredPeers,
+                    onPeerClick = onPeerClick,
+                    listState = listState
+                )
             }
         }
     }
@@ -268,5 +278,60 @@ fun EmptyDiscoveryState(modifier: Modifier = Modifier) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
+    }
+}
+
+@Composable
+private fun WifiDisabledState(
+    onOpenSettings: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(MeshifyDesignSystem.Spacing.Xl),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.WifiOff,
+            contentDescription = stringResource(R.string.discovery_wifi_off_desc),
+            tint = MaterialTheme.colorScheme.error,
+            modifier = Modifier.size(80.dp)
+        )
+
+        Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Md))
+
+        Text(
+            text = stringResource(R.string.discovery_wifi_disabled_title),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Sm))
+
+        Text(
+            text = stringResource(R.string.discovery_wifi_disabled_message),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 32.dp)
+        )
+
+        Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Lg))
+
+        Button(
+            onClick = onOpenSettings,
+            modifier = Modifier.height(48.dp)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(stringResource(R.string.discovery_open_wifi_settings))
+        }
     }
 }

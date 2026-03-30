@@ -25,6 +25,10 @@
     <string name="peer_discovered_format">%s Discovered</string>
     <string name="searching_placeholder">Searching for nearby devices...</string>
     <string name="no_peers_found">No peers found yet. Ensure Wi-Fi is enabled.</string>
+    <string name="discovery_wifi_off_desc">Wi-Fi off icon</string>
+    <string name="discovery_wifi_disabled_title">Wi-Fi is disabled</string>
+    <string name="discovery_wifi_disabled_message">Enable Wi-Fi to discover nearby devices on the same network</string>
+    <string name="discovery_open_wifi_settings">Open Wi-Fi Settings</string>
 
     <!-- Chat Screen -->
     <string name="screen_chat_title">Chat</string>
