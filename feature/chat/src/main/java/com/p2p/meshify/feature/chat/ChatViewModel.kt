@@ -29,7 +29,8 @@ data class ChatUiState(
     val stagedAttachments: List<StagedAttachment> = emptyList(),
     val hasMoreMessages: Boolean = false,
     val isLoadingMore: Boolean = false,
-    val isSending: Boolean = false
+    val isSending: Boolean = false,
+    val sendError: String? = null  // P0-02: Error message or null
 )
 
 class ChatViewModel(
@@ -200,8 +201,22 @@ class ChatViewModel(
                 }
             } catch (e: Exception) {
                 Logger.e("ChatViewModel -> Failed to send message", e)
-                // On failure, restore text and re-enable button
-                _uiState.update { it.copy(isSending = false) }
+                // P0-02: Show error message and restore text on failure
+                val errorMessage = when {
+                    e.message?.contains("offline", ignoreCase = true) == true -> 
+                        "الطرف غير متصل - تم حفظ الرسالة"
+                    e.message?.contains("network", ignoreCase = true) == true || 
+                    e.message?.contains("connection", ignoreCase = true) == true -> 
+                        "خطأ في الشبكة - حاول مرة أخرى"
+                    else -> "فشل إرسال الرسالة: ${e.message ?: "خطأ غير معروف"}"
+                }
+                _uiState.update { 
+                    it.copy(
+                        isSending = false,
+                        sendError = errorMessage,
+                        inputText = state.inputText // Restore text on failure
+                    ) 
+                }
             } finally {
                 // Re-enable button on success (text is cleared, so button will be disabled anyway)
                 _uiState.update { it.copy(isSending = false) }
@@ -481,5 +496,12 @@ class ChatViewModel(
 
             clearSelection()
         }
+    }
+
+    /**
+     * P0-02: Clear the send error message.
+     */
+    fun clearError() {
+        _uiState.update { it.copy(sendError = null) }
     }
 }

@@ -102,6 +102,16 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
         hasScrolledToBottom = isAtBottom
     }
 
+    // ✅ P0-02: Error Snackbar - show error message when send fails
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(uiState.sendError) {
+        uiState.sendError?.let { error ->
+            snackbarHostState.showSnackbar(error)
+            viewModel.clearError()
+        }
+    }
+
     // ✅ PF02: LRU Cache for attachments - prevent 100+ DAO queries per minute during scroll
     // Cache size: 100 entries (enough for most conversations)
     val attachmentsCache = remember {
@@ -441,7 +451,6 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
         }
 
         // ✅ UX-01: Scroll to Bottom FAB - appears when user scrolls up
-        val scope = rememberCoroutineScope()
         AnimatedVisibility(
             visible = !hasScrolledToBottom,
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
@@ -470,6 +479,12 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
             }
         }
     }
+
+    // ✅ P0-02: Snackbar Host for error messages
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Md)
+    )
     }
 
     if (menuMessage != null) {

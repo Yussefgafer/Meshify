@@ -278,6 +278,11 @@
     <!-- Chat Loading State -->
     <string name="chat_loading_desc">Loading messages</string>
 
+    <!-- Chat Error States - P0-02 -->
+    <string name="chat_error_send_failed">فشل إرسال الرسالة</string>
+    <string name="chat_error_peer_offline">الطرف غير متصل - تم حفظ الرسالة</string>
+    <string name="chat_error_network">خطأ في الشبكة - حاول مرة أخرى</string>
+
     <!-- ChatApp-Compose Chat Input Strings -->
     <string name="emoji_selector_bt_desc">Emoji Selector</string>
     <string name="dm_desc">Link</string>
