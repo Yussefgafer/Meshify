@@ -5,7 +5,6 @@ import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.core.util.ParallelFileTransfer
 import com.p2p.meshify.core.util.PayloadSerializer
 import com.p2p.meshify.domain.model.Payload
-import com.p2p.meshify.domain.model.PayloadType
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -46,7 +45,7 @@ class SocketManager(
     // Specialized components
     private val socketFactory = SocketFactory()
     private val connectionPool = ConnectionPool()
-    private lateinit var keepAliveManager: KeepAliveManager
+    private var keepAliveManager: KeepAliveManager? = null
     
     private var serverSocket: ServerSocket? = null
     
@@ -64,6 +63,7 @@ class SocketManager(
     
     companion object {
         private const val CLEANUP_INTERVAL_MS = 60_000L // 1 minute
+        private const val KEEP_ALIVE_INTERVAL_MS = 60_000L // 60 seconds (was 30s) - reduce network overhead by 50%
         private const val CONNECT_TIMEOUT_MS = 5000L // 5s
         private const val READ_TIMEOUT_MS = 30000L // 30s
         private const val WRITE_TIMEOUT_MS = 5000L // 5s
@@ -94,8 +94,8 @@ class SocketManager(
         // Start keep-alive ping job for active connections
         keepAliveJob = connectionScope.launch {
             while (isRunning) {
-                delay(keepAliveManager.getKeepAliveInterval())
-                keepAliveManager.sendKeepAlivePings()
+                delay(keepAliveManager?.getKeepAliveInterval() ?: KEEP_ALIVE_INTERVAL_MS)
+                keepAliveManager?.sendKeepAlivePings()
             }
         }
         
@@ -197,12 +197,13 @@ class SocketManager(
                 } finally {
                     // Ensure cleanup
                     try { inputStream.close() } catch (e: Exception) {
-                        Logger.w("SocketManager -> Failed to close inputStream for $address", e)
+                        Logger.w("SocketManager -> Failed to close inputStream for $address")
                     }
                     socketFactory.closeSocket(pooledSocket, "SocketManager")
                 }
             } catch (e: Exception) {
-                Logger.e("SocketManager -> Connection Error $address", e)
+                Logger.e("SocketManager -> Connection Error $address: ${e.message}")
+                Logger.d("SocketManager -> Exception details: ${e.stackTraceToString()}")
             } finally {
                 Logger.d("SocketManager -> Connection cleanup: $address")
                 connectionPool.removeConnection(address, closeSocket = false)
@@ -428,7 +429,12 @@ class SocketManager(
         keepAliveJob = null
         
         // Close server socket
-        socketFactory.closeSocket(serverSocket, "SocketManager")
+        try {
+            serverSocket?.close()
+            Logger.d("SocketManager -> ServerSocket closed")
+        } catch (e: Exception) {
+            Logger.e("SocketManager -> Failed to close ServerSocket", e)
+        }
         serverSocket = null
         
         // Cancel connection scope
