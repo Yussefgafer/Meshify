@@ -269,6 +269,9 @@
 
     <!-- Chat Input -->
     <string name="chat_input_caption_placeholder">Add a caption…</string>
+    
+    <!-- Chat Loading State -->
+    <string name="chat_loading_desc">Loading messages</string>
 
     <!-- ChatApp-Compose Chat Input Strings -->
     <string name="emoji_selector_bt_desc">Emoji Selector</string>

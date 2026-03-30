@@ -34,7 +34,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.TextRange
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.text.font.FontStyle
@@ -42,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
@@ -326,6 +330,31 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
         }
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            // ✅ UX-02: Initial loading state with MD3E LoadingIndicator (Contained style)
+            // Shows only on initial load when messages are empty
+            if (uiState.messages.isEmpty() && uiState.isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // MD3E LoadingIndicator - using contained style with surfaceContainerHighest background
+                    val loadingDesc = stringResource(R.string.chat_loading_desc)
+                    Surface(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .semantics { contentDescription = loadingDesc },
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(32.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 3.dp
+                        )
+                    }
+                }
+            }
+            
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
@@ -397,49 +426,50 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
                                 viewModel.toggleMessageSelection(message.id)
                             }
                         },
-                        onImageClick = {
+                        onImageClick = { imagePath: String ->
                             haptics.perform(HapticPattern.Pop) // ✅ UX04: Haptic feedback on image click
-                            selectedFullImage = it
+                            selectedFullImage = imagePath
                         },
-                        onReactionClick = {
+                        onReactionClick = { reaction: String? ->
                             haptics.perform(HapticPattern.Tick) // ✅ UX04: Haptic feedback on reaction
-                            viewModel.addReaction(message.id, it)
+                            viewModel.addReaction(message.id, reaction)
                         }
                     )
                     Spacer(Modifier.height(4.dp))
                 }
             }
-            
-            // ✅ UX-01: Scroll to Bottom FAB - appears when user scrolls up
-            val scope = rememberCoroutineScope()
-            AnimatedVisibility(
-                visible = !hasScrolledToBottom,
-                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(MeshifyDesignSystem.Spacing.Md)
-                    .navigationBarsPadding()
+        }
+
+        // ✅ UX-01: Scroll to Bottom FAB - appears when user scrolls up
+        val scope = rememberCoroutineScope()
+        AnimatedVisibility(
+            visible = !hasScrolledToBottom,
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(MeshifyDesignSystem.Spacing.Md)
+                .navigationBarsPadding()
+        ) {
+            FloatingActionButton(
+                onClick = {
+                    haptics.perform(HapticPattern.Tick)
+                    scope.launch {
+                        listState.animateScrollToItem(uiState.messages.size - 1)
+                        hasScrolledToBottom = true
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             ) {
-                FloatingActionButton(
-                    onClick = {
-                        haptics.perform(HapticPattern.Tick)
-                        scope.launch {
-                            listState.animateScrollToItem(uiState.messages.size - 1)
-                            hasScrolledToBottom = true
-                        }
-                    },
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.KeyboardArrowDown,
-                        contentDescription = "Scroll to bottom",
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = "Scroll to bottom",
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
+    }
     }
 
     if (menuMessage != null) {

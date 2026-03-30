@@ -20,6 +20,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 data class ChatUiState(
+    val isLoading: Boolean = true,
     val messages: List<MessageEntity> = emptyList(),
     val isOnline: Boolean = false,
     val isPeerTyping: Boolean = false,
@@ -87,6 +88,7 @@ class ChatViewModel(
                     // allMessages is only for pagination (loadMoreMessages)
                     _uiState.update {
                         it.copy(
+                            isLoading = false,
                             messages = messages,
                             hasMoreMessages = !isAllMessagesLoaded
                         )
