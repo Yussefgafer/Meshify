@@ -1,7 +1,8 @@
 package com.p2p.meshify.core.util
 
+import android.app.Application
+import android.content.pm.ApplicationInfo
 import android.util.Log
-import com.p2p.meshify.core.common.BuildConfig
 
 /**
  * Centralized Logger for Meshify.
@@ -15,8 +16,20 @@ import com.p2p.meshify.core.common.BuildConfig
 object Logger {
     private const val DEFAULT_TAG = "Meshify"
     
-    // ✅ SEC-03: Only log debug/info in debug builds
-    private val isDebug: Boolean = BuildConfig.DEBUG
+    // ✅ SEC-03: Only log debug/info in debug builds (using debuggable flag)
+    private var isDebug: Boolean = false
+    
+    // Public getter for LoggerWrapper
+    val isDebugEnabled: Boolean
+        get() = isDebug
+    
+    /**
+     * Initialize logger with application context.
+     * Call this once at app startup.
+     */
+    fun init(app: Application) {
+        isDebug = (app.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    }
 
     /**
      * Log debug message
@@ -24,7 +37,7 @@ object Logger {
      * @param tag Optional custom tag (uses default if not provided)
      */
     fun d(message: String, tag: String = DEFAULT_TAG) {
-        if (isDebug) Log.d(tag, message)
+        if (isDebugEnabled) Log.d(tag, message)
     }
 
     /**
@@ -45,7 +58,7 @@ object Logger {
      * @param tag Optional custom tag (uses default if not provided)
      */
     fun i(message: String, tag: String = DEFAULT_TAG) {
-        if (isDebug) Log.i(tag, message)
+        if (isDebugEnabled) Log.i(tag, message)
     }
 
     /**
@@ -54,7 +67,7 @@ object Logger {
      * @param tag Optional custom tag (uses default if not provided)
      */
     fun w(message: String, tag: String = DEFAULT_TAG) {
-        if (isDebug) Log.w(tag, message)
+        if (isDebugEnabled) Log.w(tag, message)
     }
 
     /**
@@ -70,13 +83,13 @@ object Logger {
  */
 class LoggerWrapper(private val tag: String) {
     fun d(message: String) {
-        if (BuildConfig.DEBUG) Log.d(tag, message)
+        if (Logger.isDebugEnabled) Log.d(tag, message)
     }
     fun e(message: String, throwable: Throwable? = null) = Log.e(tag, message, throwable)
     fun i(message: String) {
-        if (BuildConfig.DEBUG) Log.i(tag, message)
+        if (Logger.isDebugEnabled) Log.i(tag, message)
     }
     fun w(message: String) {
-        if (BuildConfig.DEBUG) Log.w(tag, message)
+        if (Logger.isDebugEnabled) Log.w(tag, message)
     }
 }

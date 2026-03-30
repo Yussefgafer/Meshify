@@ -21,6 +21,7 @@ class MeshifyApp : Application(), SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
+        Logger.init(this) // ✅ SEC-03: Initialize logger with debug flag
         Logger.i("MeshifyApp -> Application onCreate START")
         Logger.d("MeshifyApp -> Process Name: ${packageName}")
         try {
