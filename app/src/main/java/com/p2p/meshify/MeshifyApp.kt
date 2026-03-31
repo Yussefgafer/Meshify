@@ -10,6 +10,7 @@ import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import com.p2p.meshify.core.util.Logger
+import com.p2p.meshify.receivers.ReplyReceiver
 
 /**
  * Main Application class.
@@ -32,6 +33,17 @@ class MeshifyApp : Application(), SingletonImageLoader.Factory {
             throw e
         }
         Logger.i("MeshifyApp -> Application onCreate COMPLETE")
+    }
+
+    /**
+     * Called when the application is terminating.
+     * Clean up global resources to prevent memory leaks.
+     */
+    override fun onTerminate() {
+        super.onTerminate()
+        Logger.d("MeshifyApp -> Application onTerminate, cleaning up resources")
+        // Clean up ReplyReceiver resources (RateLimiter coroutine scope)
+        ReplyReceiver.cleanup()
     }
 
     /**
