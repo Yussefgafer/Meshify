@@ -11,6 +11,7 @@ import com.p2p.meshify.core.ui.components.ForwardDialogState
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.DeleteType
 import com.p2p.meshify.domain.model.MessageType
+import com.p2p.meshify.domain.security.model.SecurityEvent
 import com.p2p.meshify.core.ui.model.StagedAttachment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -32,7 +33,8 @@ data class ChatUiState(
     val isLoadingMore: Boolean = false,
     val isSending: Boolean = false,
     val sendError: String? = null,  // P0-02: Error message or null
-    val uploadError: String? = null  // Upload error message for file uploads
+    val uploadError: String? = null,  // Upload error message for file uploads
+    val securityWarning: String? = null  // Security warning (decryption failures, etc.)
 )
 
 class ChatViewModel(
@@ -107,6 +109,41 @@ class ChatViewModel(
         viewModelScope.launch {
             repository.onlinePeers.collect { online ->
                 _uiState.update { it.copy(isOnline = online.contains(peerId)) }
+            }
+        }
+
+        // Collect security events from repository
+        viewModelScope.launch {
+            repository.securityEvents.collect { event ->
+                when (event) {
+                    is SecurityEvent.DecryptionFailed -> {
+                        // Show decryption failure warning to user
+                        _uiState.update {
+                            it.copy(
+                                securityWarning = "فشل فك تشفير رسالة من ${event.peerId.take(8)}: ${event.reason}"
+                            )
+                        }
+                        Logger.w("ChatViewModel -> Decryption failed from ${event.peerId.take(8)}: ${event.reason}")
+                    }
+                    is SecurityEvent.TofuViolation -> {
+                        // Show TOFU violation warning
+                        _uiState.update {
+                            it.copy(
+                                securityWarning = "تحذير أمني: تغير مفتاح التشفير لـ ${event.peerId.take(8)}"
+                            )
+                        }
+                        Logger.e("ChatViewModel -> TOFU violation for ${event.peerId.take(8)}")
+                    }
+                    is SecurityEvent.SessionExpired -> {
+                        // Show session expired warning
+                        _uiState.update {
+                            it.copy(
+                                securityWarning = "انتهت الجلسة مع ${event.peerId.take(8)} - يرجى إعادة الاتصال"
+                            )
+                        }
+                        Logger.w("ChatViewModel -> Session expired for ${event.peerId.take(8)}")
+                    }
+                }
             }
         }
     }
@@ -590,5 +627,12 @@ class ChatViewModel(
      */
     fun clearUploadError() {
         _uiState.update { it.copy(uploadError = null) }
+    }
+
+    /**
+     * Clear the security warning after it has been shown.
+     */
+    fun clearSecurityWarning() {
+        _uiState.update { it.copy(securityWarning = null) }
     }
 }

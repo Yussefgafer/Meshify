@@ -12,7 +12,7 @@ import com.p2p.meshify.core.data.security.impl.EcdhSessionManager
 import com.p2p.meshify.core.data.security.impl.InMemoryNonceCache
 import com.p2p.meshify.core.data.security.impl.MessageEnvelopeCrypto
 import com.p2p.meshify.core.data.security.impl.PeerIdentityManagerImpl
-import com.p2p.meshify.core.data.security.impl.EncryptedSessionKeyStore
+import com.p2p.meshify.core.common.security.EncryptedSessionKeyStore
 import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.core.network.WifiStateCheckerImpl
 import com.p2p.meshify.core.domain.interfaces.WifiStateChecker
@@ -72,6 +72,11 @@ class AppContainer(private val context: Context) {
         MessageEnvelopeCrypto(peerIdentity, nonceCache)
     }
 
+    // ✅ Shared EncryptedSessionKeyStore - single instance for all components
+    val sessionKeyStore: EncryptedSessionKeyStore by lazy {
+        EncryptedSessionKeyStore(context)
+    }
+
     // Wi-Fi State Checker
     val wifiStateChecker: WifiStateChecker by lazy {
         WifiStateCheckerImpl(context)
@@ -79,7 +84,7 @@ class AppContainer(private val context: Context) {
 
     // ✅ Transport Manager - manages all transport protocols (LAN, BT, WiFi-Direct, DHT)
     val transportManager: TransportManager by lazy {
-        TransportManager.createDefault(context, settingsRepository, peerIdentity)
+        TransportManager.createDefault(context, settingsRepository, peerIdentity, sessionKeyStore)
     }
 
     val chatRepository: ChatRepositoryImpl by lazy {
@@ -95,7 +100,7 @@ class AppContainer(private val context: Context) {
             peerIdentity,
             messageCrypto,
             ecdhSessionManager,
-            EncryptedSessionKeyStore(context) // Persistent encrypted session storage
+            sessionKeyStore // ✅ Use shared instance
         )
     }
 
