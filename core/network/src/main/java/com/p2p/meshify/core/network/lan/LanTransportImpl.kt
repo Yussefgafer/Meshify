@@ -15,6 +15,10 @@ import com.p2p.meshify.domain.model.Handshake
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.domain.security.interfaces.PeerIdentityRepository
 import com.p2p.meshify.core.network.base.IMeshTransport
+import com.p2p.meshify.core.common.security.EncryptedSessionKeyStore
+import com.p2p.meshify.domain.security.util.EcdhSessionManager
+import com.p2p.meshify.core.common.util.HexUtil
+import java.security.KeyPair
 import com.p2p.meshify.core.network.base.TransportEvent
 import com.p2p.meshify.core.network.base.TransportCapability
 import kotlinx.coroutines.*
@@ -46,7 +50,8 @@ class LanTransportImpl(
     private val context: Context,
     private val socketManager: SocketManager,
     private val settingsRepository: ISettingsRepository,
-    private val peerIdentity: PeerIdentityRepository
+    private val peerIdentity: PeerIdentityRepository,
+    private val sessionKeyStore: EncryptedSessionKeyStore
 ) : IMeshTransport {
 
     // ✅ Transport metadata
@@ -133,6 +138,14 @@ class LanTransportImpl(
     private var watchdogJob: Job? = null
     private var visibilityJob: Job? = null
     private var cleanupFailedCountsJob: Job? = null
+
+    // ECDH V2 Handshake: ephemeral key management
+    // Uses shared sessionKeyStore for session storage
+    private val ecdhSessionManager = EcdhSessionManager()
+
+    // Temporary cache for ephemeral keys during handshake (cleared after session derivation)
+    // Key: peerId, Value: Pair(ephemeralPrivateKeyBytes, nonceBytes)
+    private val pendingEphemeralKeys = ConcurrentHashMap<String, Pair<ByteArray, ByteArray>>()
 
     override suspend fun start() {
         val myId = settingsRepository.getDeviceId()
@@ -237,6 +250,118 @@ class LanTransportImpl(
         val name = handshake.name
         val hash = handshake.avatarHash
 
+        // V2 Handshake: Derive session key if ephemeral keys are present
+        if (handshake.version >= 2 && handshake.ephemeralPubKeyHex != null && handshake.nonceHex != null) {
+            try {
+                // Check if we have stored ephemeral keys for this peer
+                val storedKeys = pendingEphemeralKeys[senderId]
+
+                if (storedKeys != null) {
+                    // We initiated: finalize session key using stored ephemeral private key
+                    val (myEphemeralPrivKey, myNonce) = storedKeys
+                    val peerEphemeralPubKeyHex = handshake.ephemeralPubKeyHex
+                        ?: run {
+                            android.util.Log.e("LanTransport", "Missing ephemeral key in handshake from $senderId")
+                            return
+                        }
+                    val peerEphemeralPubKey = peerEphemeralPubKeyHex.hexToByteArray()
+                    val peerNonceHex = handshake.nonceHex
+                        ?: run {
+                            android.util.Log.e("LanTransport", "Missing nonce in handshake from $senderId")
+                            return
+                        }
+                    val peerNonce = peerNonceHex.hexToByteArray()
+
+                    val sessionKey = ecdhSessionManager.finalizeSessionKey(
+                        peerEphemeralPubKeyBytes = peerEphemeralPubKey,
+                        peerNonce = peerNonce,
+                        myEphemeralPrivateKey = myEphemeralPrivKey,
+                        myNonce = myNonce
+                    )
+
+                    // Zero out ephemeral private key after use (forward secrecy)
+                    ecdhSessionManager.zeroPrivateKey(myEphemeralPrivKey)
+                    pendingEphemeralKeys.remove(senderId)
+
+                    // Store session in shared sessionKeyStore with TOFU validation
+                    handshake.identityPubKeyHex?.let { peerIdentityPubKeyHex ->
+                        // TOFU validation: check if peer's identity key has changed
+                        val tofuResult = sessionKeyStore.validatePeerPublicKey(senderId, peerIdentityPubKeyHex)
+                        if (tofuResult == false) {
+                            android.util.Log.e("LanTransport", "TOFU VIOLATION: Peer $senderId identity key changed!")
+                            val existingKey = sessionKeyStore.getSessionKey(senderId)?.peerPublicKeyHex
+                            val existingKeyRedacted = existingKey?.take(4) + "..." + existingKey?.takeLast(4)
+                            val newKeyRedacted = peerIdentityPubKeyHex.take(4) + "..." + peerIdentityPubKeyHex.takeLast(4)
+                            android.util.Log.e("LanTransport", "Existing key: $existingKeyRedacted")
+                            android.util.Log.e("LanTransport", "New key: $newKeyRedacted")
+                            android.util.Log.e("LanTransport", "BLOCKING session establishment - possible MITM attack")
+                            return // ABORT - do not establish session
+                        }
+
+                        // TOFU passed (or first contact), store session
+                        sessionKeyStore.putSessionKey(senderId, sessionKey, peerIdentityPubKeyHex)
+                        android.util.Log.d("LanTransport", "Session established with $senderId (TOFU validated)")
+                    }
+
+                    Logger.i("LanTransport -> Session key derived (initiator) for $senderId")
+                } else {
+                    // Peer initiated: generate ephemeral keypair and derive session key
+                    val myEphemeralKeypair = ecdhSessionManager.generateEphemeralKeypair()
+                    val myNonce = ecdhSessionManager.generateNonce()
+
+                    val peerEphemeralPubKeyHex = handshake.ephemeralPubKeyHex
+                        ?: run {
+                            android.util.Log.e("LanTransport", "Missing ephemeral key in handshake from $senderId")
+                            return
+                        }
+                    val peerEphemeralPubKey = peerEphemeralPubKeyHex.hexToByteArray()
+                    val peerNonceHex = handshake.nonceHex
+                        ?: run {
+                            android.util.Log.e("LanTransport", "Missing nonce in handshake from $senderId")
+                            return
+                        }
+                    val peerNonce = peerNonceHex.hexToByteArray()
+
+                    val sessionKey = ecdhSessionManager.deriveSessionKeyFromPeer(
+                        peerEphemeralPubKeyBytes = peerEphemeralPubKey,
+                        peerNonce = peerNonce,
+                        myEphemeralKeyPair = myEphemeralKeypair,
+                        myNonce = myNonce
+                    )
+
+                    // Store our ephemeral keys for session finalization
+                    pendingEphemeralKeys[senderId] = Pair(
+                        myEphemeralKeypair.private.encoded,
+                        myNonce
+                    )
+
+                    // Store session in shared sessionKeyStore with TOFU validation
+                    handshake.identityPubKeyHex?.let { peerIdentityPubKeyHex ->
+                        // TOFU validation: check if peer's identity key has changed
+                        val tofuResult = sessionKeyStore.validatePeerPublicKey(senderId, peerIdentityPubKeyHex)
+                        if (tofuResult == false) {
+                            android.util.Log.e("LanTransport", "TOFU VIOLATION: Peer $senderId identity key changed!")
+                            val existingKey = sessionKeyStore.getSessionKey(senderId)?.peerPublicKeyHex
+                            val existingKeyRedacted = existingKey?.take(4) + "..." + existingKey?.takeLast(4)
+                            val newKeyRedacted = peerIdentityPubKeyHex.take(4) + "..." + peerIdentityPubKeyHex.takeLast(4)
+                            android.util.Log.e("LanTransport", "Existing key: $existingKeyRedacted")
+                            android.util.Log.e("LanTransport", "New key: $newKeyRedacted")
+                            android.util.Log.e("LanTransport", "BLOCKING session establishment - possible MITM attack")
+                            return // ABORT - do not establish session
+                        }
+
+                        // TOFU passed (or first contact), store session
+                        sessionKeyStore.putSessionKey(senderId, sessionKey, peerIdentityPubKeyHex)
+                        android.util.Log.d("LanTransport", "Session established with $senderId (TOFU validated)")
+                    }
+
+                    Logger.i("LanTransport -> Session key derived (responder) for $senderId")
+                }
+            } catch (e: Exception) {
+                Logger.e("LanTransport -> Failed to derive session key for $senderId", e)
+            }
+        }
+
         peerMapMutex.withLock {
             if (!peerMap.containsKey(senderId)) {
                 val rssi = getPeerRssi()
@@ -250,11 +375,25 @@ class LanTransportImpl(
                 val displayName = getCachedDisplayName()
                 val avatarHash = getCachedAvatarHash()
                 val identityPubKeyHex = peerIdentity.getPublicKeyHex()
-                
+
+                // V2 Handshake: Generate ephemeral keypair for forward secrecy
+                val ephemeralKeypair = ecdhSessionManager.generateEphemeralKeypair()
+                val ephemeralPubKeyHex = HexUtil.toHex(ephemeralKeypair.public.encoded)
+                val nonceHex = HexUtil.toHex(ecdhSessionManager.generateNonce())
+
+                // Store ephemeral private key and nonce for session finalization
+                pendingEphemeralKeys[senderId] = Pair(
+                    ephemeralKeypair.private.encoded,
+                    nonceHex.hexToByteArray()
+                )
+
                 val myHandshake = Handshake(
+                    version = 2,
                     name = displayName,
                     avatarHash = avatarHash,
                     identityPubKeyHex = identityPubKeyHex,
+                    ephemeralPubKeyHex = ephemeralPubKeyHex,
+                    nonceHex = nonceHex,
                     timestamp = System.currentTimeMillis()
                 )
 
@@ -644,11 +783,25 @@ class LanTransportImpl(
                 val myName = settingsRepository.displayName.firstOrNull() ?: "Unknown"
                 val myAvatarHash = settingsRepository.avatarHash.firstOrNull()
                 val myIdentityPubKeyHex = peerIdentity.getPublicKeyHex()
-                
+
+                // V2 Handshake: Generate ephemeral keypair for forward secrecy
+                val ephemeralKeypair = ecdhSessionManager.generateEphemeralKeypair()
+                val ephemeralPubKeyHex = HexUtil.toHex(ephemeralKeypair.public.encoded)
+                val nonceHex = HexUtil.toHex(ecdhSessionManager.generateNonce())
+
+                // Store ephemeral private key and nonce for session finalization
+                pendingEphemeralKeys[peerId] = Pair(
+                    ephemeralKeypair.private.encoded,
+                    nonceHex.hexToByteArray()
+                )
+
                 val myHandshake = Handshake(
+                    version = 2,
                     name = myName,
                     avatarHash = myAvatarHash,
                     identityPubKeyHex = myIdentityPubKeyHex,
+                    ephemeralPubKeyHex = ephemeralPubKeyHex,
+                    nonceHex = nonceHex,
                     timestamp = System.currentTimeMillis()
                 )
 

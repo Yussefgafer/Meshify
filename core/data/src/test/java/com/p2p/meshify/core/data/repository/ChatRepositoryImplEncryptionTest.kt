@@ -3,7 +3,7 @@ package com.p2p.meshify.core.data.repository
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.p2p.meshify.core.data.security.impl.EcdhSessionManager
-import com.p2p.meshify.core.data.security.impl.EncryptedSessionKeyStore
+import com.p2p.meshify.core.common.security.EncryptedSessionKeyStore
 import com.p2p.meshify.core.data.security.impl.InMemoryNonceCache
 import com.p2p.meshify.core.data.security.impl.MessageEnvelopeCrypto
 import com.p2p.meshify.domain.security.interfaces.NonceCache

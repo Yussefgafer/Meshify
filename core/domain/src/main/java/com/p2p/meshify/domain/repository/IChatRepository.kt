@@ -3,7 +3,9 @@ package com.p2p.meshify.domain.repository
 import com.p2p.meshify.domain.model.DeleteType
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.model.Payload
+import com.p2p.meshify.domain.security.model.SecurityEvent
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharedFlow
 import java.io.File
 
 /**
@@ -19,6 +21,12 @@ import java.io.File
 interface IChatRepository {
     val onlinePeers: Flow<Set<String>>
     val typingPeers: Flow<Set<String>>
+
+    /**
+     * Flow of security events that should be shown to the user.
+     * Collect this flow to display security warnings (decryption failures, TOFU violations, etc.)
+     */
+    val securityEvents: SharedFlow<SecurityEvent>
 
     // Message sending
     suspend fun sendMessage(peerId: String, peerName: String, text: String, replyToId: String? = null): Result<Unit>

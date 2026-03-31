@@ -1,4 +1,4 @@
-package com.p2p.meshify.core.data.security.impl
+package com.p2p.meshify.core.common.security
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -146,10 +146,10 @@ class EncryptedSessionKeyStore(context: Context) {
      */
     fun validatePeerPublicKey(peerId: String, publicKeyHex: String): Boolean? {
         val info = sessionCache[peerId] ?: loadSession(peerId)
-        
+
         // No existing session - this is the first handshake (TOFU trust)
         if (info == null) return null
-        
+
         // Compare keys - return true if match, false if violation
         return info.peerPublicKeyHex == publicKeyHex
     }

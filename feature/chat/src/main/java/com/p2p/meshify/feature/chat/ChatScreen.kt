@@ -129,6 +129,14 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
         }
     }
 
+    // Security warning snackbar - shows decryption failures and other security events
+    LaunchedEffect(uiState.securityWarning) {
+        uiState.securityWarning?.let { warning ->
+            snackbarHostState.showSnackbar(warning)
+            viewModel.clearSecurityWarning()
+        }
+    }
+
     // ✅ PF02: LRU Cache for attachments - prevent 100+ DAO queries per minute during scroll
     // Cache size: 100 entries (enough for most conversations)
     val attachmentsCache = remember {

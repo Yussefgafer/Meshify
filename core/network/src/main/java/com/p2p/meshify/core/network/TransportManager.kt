@@ -7,6 +7,7 @@ import com.p2p.meshify.core.network.lan.LanTransportImpl
 import com.p2p.meshify.core.network.lan.SocketManager
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.domain.security.interfaces.PeerIdentityRepository
+import com.p2p.meshify.core.common.security.EncryptedSessionKeyStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.merge
 
@@ -175,20 +176,22 @@ class TransportManager(
      * @param context Android context
      * @param settingsRepository Settings repository for configuration
      * @param peerIdentity Peer identity repository for key exchange
+     * @param sessionKeyStore Shared encrypted session key store
      * @return TransportManager with default transports registered
      */
     companion object {
         fun createDefault(
             context: Context,
             settingsRepository: ISettingsRepository,
-            peerIdentity: PeerIdentityRepository
+            peerIdentity: PeerIdentityRepository,
+            sessionKeyStore: EncryptedSessionKeyStore
         ): TransportManager {
             val manager = TransportManager(context, settingsRepository)
 
             // Register LAN transport (always available)
             manager.registerTransport(
                 "lan",
-                LanTransportImpl(context, manager.socketManager, settingsRepository, peerIdentity)
+                LanTransportImpl(context, manager.socketManager, settingsRepository, peerIdentity, sessionKeyStore)
             )
 
             // ============================================

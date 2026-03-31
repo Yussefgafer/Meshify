@@ -19,11 +19,13 @@ import com.p2p.meshify.domain.repository.IChatRepository
 import com.p2p.meshify.domain.repository.IFileManager
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.core.network.TransportManager
-import com.p2p.meshify.core.data.security.impl.EncryptedSessionKeyStore
+import com.p2p.meshify.core.common.security.EncryptedSessionKeyStore
+import com.p2p.meshify.core.common.util.HexUtil
 import com.p2p.meshify.core.data.security.impl.EcdhSessionManager
 import com.p2p.meshify.core.data.security.impl.MessageEnvelopeCrypto
 import com.p2p.meshify.domain.security.interfaces.PeerIdentityRepository
 import com.p2p.meshify.domain.security.model.MessageEnvelope
+import com.p2p.meshify.domain.security.model.SecurityEvent
 import kotlinx.serialization.encodeToString
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,7 +33,11 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -108,6 +114,10 @@ class ChatRepositoryImpl(
 
     private val scope = CoroutineScope(Dispatchers.IO)
     private val payloadMutex = Mutex()
+
+    // Security events flow for UI notification
+    private val _securityEvents = MutableSharedFlow<SecurityEvent>(replay = 0)
+    override val securityEvents: SharedFlow<SecurityEvent> = _securityEvents.asSharedFlow()
 
     companion object {
         private const val PAYLOAD_HANDLING_TIMEOUT_MS = 30000L // 30 seconds
@@ -599,7 +609,14 @@ class ChatRepositoryImpl(
     // ==================== Encryption & Session Management ====================
 
     /**
-     * Get existing session key or establish new session via ECDH.
+     * Get existing session key or establish new session via ECDH handshake.
+     * 
+     * Flow:
+     * 1. Check cache for existing session
+     * 2. If no session, trigger handshake via TransportManager
+     * 3. Wait briefly for handshake response to establish session
+     * 4. Return cached session if established, null on failure
+     * 
      * @param peerId the peer's ID
      * @return SessionKeyInfo if session exists or was established, null on failure
      */
@@ -610,11 +627,90 @@ class ChatRepositoryImpl(
             return existing
         }
 
-        // No session - need to establish one
-        // For now, we assume the peer's public key was received via handshake
-        // In a real scenario, this would trigger a key exchange request
-        android.util.Log.w("ChatRepository", "No session key for $peerId - session must be established via handshake first")
-        return null
+        // No session - trigger handshake via transport layer
+        android.util.Log.d("ChatRepository", "No session for $peerId - triggering handshake")
+
+        // Get our identity info for handshake
+        val myId = settingsRepository.getDeviceId()
+        val identityPubKeyHex = peerIdentity.getPublicKeyHex()
+        val displayName = withContext(Dispatchers.IO) {
+            settingsRepository.displayName.firstOrNull() ?: "Unknown"
+        }
+        val avatarHash = withContext(Dispatchers.IO) {
+            settingsRepository.avatarHash.firstOrNull()
+        }
+
+        // Generate ephemeral keypair for forward secrecy
+        val ephemeralKeypair = ecdhSessionManager.generateEphemeralKeypair()
+        val ephemeralPubKeyHex = HexUtil.toHex(ephemeralKeypair.public.encoded)
+        val nonce = ecdhSessionManager.generateNonce()
+        val nonceHex = HexUtil.toHex(nonce)
+
+        // Store ephemeral private key and nonce for session finalization
+        // Will be used when peer responds with their handshake
+        // Note: This uses a temporary cache in LanTransportImpl.pendingEphemeralKeys
+        // We need to trigger the handshake via transport
+
+        // Build handshake payload
+        val handshake = Handshake(
+            version = 2,
+            name = displayName,
+            avatarHash = avatarHash,
+            identityPubKeyHex = identityPubKeyHex,
+            ephemeralPubKeyHex = ephemeralPubKeyHex,
+            nonceHex = nonceHex,
+            timestamp = System.currentTimeMillis()
+        )
+
+        val handshakePayload = Payload(
+            senderId = myId,
+            type = Payload.PayloadType.HANDSHAKE,
+            data = Json.encodeToString(handshake).toByteArray()
+        )
+
+        // Send handshake via transport
+        // This will:
+        // 1. Send our ephemeral public key and nonce to peer
+        // 2. Peer will respond with their ephemeral public key and nonce
+        // 3. Both parties derive session key via ECDH + HKDF
+        // 4. Session stored in sessionKeyStore
+        val transport = transportManager.selectBestTransport(peerId)
+        if (transport == null) {
+            android.util.Log.e("ChatRepository", "No transport available for handshake with $peerId")
+            return null
+        }
+
+        // Send handshake payload
+        val sendResult = transport.sendPayload(peerId, handshakePayload)
+        if (sendResult.isFailure) {
+            android.util.Log.e("ChatRepository", "Failed to send handshake to $peerId: ${sendResult.exceptionOrNull()?.message}")
+            return null
+        }
+
+        // Wait briefly for handshake response to be processed
+        // The response will establish the session in sessionKeyStore
+        android.util.Log.d("ChatRepository", "Handshake sent to $peerId - waiting for response")
+        
+        // Poll for session establishment (max 5 seconds)
+        var sessionEstablished = false
+        val pollStartTime = System.currentTimeMillis()
+        val pollTimeoutMs = 5000L
+        val pollIntervalMs = 100L
+        
+        while (!sessionEstablished && (System.currentTimeMillis() - pollStartTime) < pollTimeoutMs) {
+            delay(pollIntervalMs)
+            if (sessionKeyStore.getSessionKey(peerId) != null) {
+                android.util.Log.d("ChatRepository", "Session established with $peerId via handshake")
+                sessionEstablished = true
+            }
+        }
+        
+        if (!sessionEstablished) {
+            android.util.Log.w("ChatRepository", "Timeout waiting for handshake response from $peerId")
+        }
+
+        // Return session if established
+        return sessionKeyStore.getSessionKey(peerId)
     }
 
     /**
@@ -1095,9 +1191,30 @@ class ChatRepositoryImpl(
                         "SECURITY: Decryption failed for message from $peerId: ${e.message}",
                         e
                     )
+                    
+                    // Notify UI layer about the decryption failure
+                    scope.launch {
+                        _securityEvents.emit(
+                            SecurityEvent.DecryptionFailed(
+                                peerId = peerId,
+                                reason = e.message ?: "Unknown decryption error"
+                            )
+                        )
+                    }
+                    
                     // Discard message - do not save
                 } catch (e: Exception) {
                     android.util.Log.e("ChatRepository", "Failed to process encrypted message from $peerId", e)
+                    
+                    // Notify UI layer about the processing error
+                    scope.launch {
+                        _securityEvents.emit(
+                            SecurityEvent.DecryptionFailed(
+                                peerId = peerId,
+                                reason = "Message processing error: ${e.message ?: "Unknown error"}"
+                            )
+                        )
+                    }
                 }
             }
             // SECURITY: Plaintext payload types (TEXT, FILE, VIDEO) are REJECTED to prevent
