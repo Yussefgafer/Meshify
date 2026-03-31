@@ -1,10 +1,12 @@
 package com.p2p.meshify.receivers
 
+import android.app.Notification
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Base64
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.RemoteInput
@@ -15,6 +17,7 @@ import com.p2p.meshify.core.util.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -36,14 +39,28 @@ import kotlinx.coroutines.withTimeout
 class ReplyReceiver : BroadcastReceiver() {
     
     companion object {
-        private const val SIGNATURE_MAX_AGE_MS = 5 * 60 * 1000L // 5 minutes
+        // Changed from 5 minutes to 15 minutes to accommodate delayed user responses
+        private const val SIGNATURE_MAX_AGE_MS = 15 * 60 * 1000L // 15 minutes
+
+        // Rate limiter scope for lifecycle management
+        private val rateLimiterScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
         // Rate limiter: 10 replies per minute per chat, max 10000 identifiers to prevent memory exhaustion
         private val replyRateLimiter = RateLimiter(
             maxRequests = 10,
             windowMs = 60 * 1000L,
-            maxIdentifiers = 10000
+            maxIdentifiers = 10000,
+            scope = rateLimiterScope
         )
+
+        /**
+         * Cleanup resources to prevent memory leaks.
+         * Call this when the application is shutting down.
+         */
+        fun cleanup() {
+            replyRateLimiter.close()
+            rateLimiterScope.cancel()
+        }
 
         /**
          * Validate Base64 signature format.
@@ -168,8 +185,9 @@ class ReplyReceiver : BroadcastReceiver() {
         }
 
         // Validate chat exists in database
-        // TODO: Extract chat validation to repository layer - Direct DAO access violates clean architecture
-        // Tracked in issue #XXX
+        // TODO: Extract chat validation to repository layer
+        // Direct DAO access violates clean architecture
+        // This is accepted technical debt for MVP - tracked in project backlog
         val app = context.applicationContext as MeshifyApp
         val chatDao = app.container.database.chatDao()
         val chat: com.p2p.meshify.core.data.local.entity.ChatEntity? = runCatching {
@@ -279,10 +297,17 @@ class ReplyReceiver : BroadcastReceiver() {
             .build()
 
         try {
-            NotificationManagerCompat.from(context)
-                .notify(System.currentTimeMillis().toInt(), notification)
-        } catch (e: SecurityException) {
-            Logger.e("ReplyReceiver -> Permission denied for success notification")
+            val notificationManager = NotificationManagerCompat.from(context)
+            val posted = notificationManager.postNotificationWrapper(System.currentTimeMillis().toInt(), notification)
+
+            // Fallback if notification fails
+            if (!posted) {
+                Toast.makeText(context, "Reply sent", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Logger.e("ReplyReceiver -> Failed to show success notification", e)
+            // Always provide feedback
+            Toast.makeText(context, "Reply sent", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -334,5 +359,21 @@ class ReplyReceiver : BroadcastReceiver() {
         } catch (e: SecurityException) {
             Logger.e("ReplyReceiver -> Permission denied for error notification")
         }
+    }
+}
+
+/**
+ * Post a notification with error handling.
+ * @param id Notification ID
+ * @param notification Notification to post
+ * @return true if notification was posted successfully, false otherwise
+ */
+private fun NotificationManagerCompat.postNotificationWrapper(id: Int, notification: Notification): Boolean {
+    return try {
+        notify(id, notification)
+        true
+    } catch (e: Exception) {
+        Logger.e("ReplyReceiver -> Failed to post notification", e)
+        false
     }
 }

@@ -1,5 +1,6 @@
 package com.p2p.meshify.core.util
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -29,6 +30,22 @@ class NotificationHelper(private val context: Context) {
         private const val KEY_ROTATION_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000L // 30 days
         private const val KEY_TIMESTAMP_KEY = "meshify_key_timestamp"
         private const val PREFS_NAME = "notification_helper"
+    }
+
+    /**
+     * Post a notification with error handling.
+     * @param id Notification ID
+     * @param notification Notification to post
+     * @return true if notification was posted successfully, false otherwise
+     */
+    fun NotificationManagerCompat.postNotification(id: Int, notification: Notification): Boolean {
+        return try {
+            notify(id, notification)
+            true
+        } catch (e: Exception) {
+            Logger.e("NotificationHelper -> Failed to post notification", e)
+            false
+        }
     }
 
     fun createNotificationChannels() {
