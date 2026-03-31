@@ -2,6 +2,7 @@ package com.p2p.meshify.core.common.util
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
@@ -15,25 +16,46 @@ import java.util.concurrent.ConcurrentHashMap
  * @param maxRequests Maximum number of requests allowed in the window
  * @param windowMs Time window in milliseconds
  * @param maxIdentifiers Maximum number of identifiers to track (prevents memory exhaustion)
+ * @param scope CoroutineScope for lifecycle management (caller must cancel when done)
  */
 class RateLimiter(
     private val maxRequests: Int,
     private val windowMs: Long,
-    private val maxIdentifiers: Int = 10000 // Limit total tracked identifiers to prevent memory exhaustion
+    private val maxIdentifiers: Int = 10000, // Limit total tracked identifiers to prevent memory exhaustion
+    private val scope: CoroutineScope
 ) {
     private val timestamps = ConcurrentHashMap<String, MutableList<Long>>()
 
     // Periodic cleanup task to prevent memory exhaustion
     private val cleanupInterval = windowMs * 2
 
+    // Cleanup job reference for lifecycle management
+    private val cleanupJob: Job
+
     init {
         // Schedule periodic cleanup
-        CoroutineScope(Dispatchers.Default).launch {
-            while (true) {
-                delay(cleanupInterval)
-                cleanup()
+        cleanupJob = scope.launch {
+            try {
+                while (true) {
+                    delay(cleanupInterval)
+                    cleanup()
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // Expected on close() - cleanup job cancelled
+                throw e
+            } catch (e: Exception) {
+                // Unexpected error - log and continue cleanup loop
+                kotlinx.coroutines.delay(cleanupInterval)
             }
         }
+    }
+
+    /**
+     * Close the rate limiter and cancel the cleanup job.
+     * Call this when the rate limiter is no longer needed to prevent resource leaks.
+     */
+    fun close() {
+        cleanupJob.cancel()
     }
 
     /**
