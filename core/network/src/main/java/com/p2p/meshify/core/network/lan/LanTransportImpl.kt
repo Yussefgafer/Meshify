@@ -13,6 +13,7 @@ import com.p2p.meshify.core.util.FileUtils
 import com.p2p.meshify.domain.model.Payload
 import com.p2p.meshify.domain.model.Handshake
 import com.p2p.meshify.domain.repository.ISettingsRepository
+import com.p2p.meshify.domain.security.interfaces.PeerIdentityRepository
 import com.p2p.meshify.core.network.base.IMeshTransport
 import com.p2p.meshify.core.network.base.TransportEvent
 import com.p2p.meshify.core.network.base.TransportCapability
@@ -44,7 +45,8 @@ import kotlinx.coroutines.sync.withLock
 class LanTransportImpl(
     private val context: Context,
     private val socketManager: SocketManager,
-    private val settingsRepository: ISettingsRepository
+    private val settingsRepository: ISettingsRepository,
+    private val peerIdentity: PeerIdentityRepository
 ) : IMeshTransport {
 
     // ✅ Transport metadata
@@ -247,7 +249,14 @@ class LanTransportImpl(
                 // Previous code called firstOrNull() twice per handshake (5-10ms delay each)
                 val displayName = getCachedDisplayName()
                 val avatarHash = getCachedAvatarHash()
-                val myHandshake = Handshake(displayName, avatarHash)
+                val identityPubKeyHex = peerIdentity.getPublicKeyHex()
+                
+                val myHandshake = Handshake(
+                    name = displayName,
+                    avatarHash = avatarHash,
+                    identityPubKeyHex = identityPubKeyHex,
+                    timestamp = System.currentTimeMillis()
+                )
 
                 scope.launch {
                     sendPayload(senderId, Payload(
@@ -631,10 +640,17 @@ class LanTransportImpl(
                 
                 updateOnlinePeers()
 
-                // Immediately send our Handshake to the newly resolved peer (cached to avoid blocking)
+                // Immediately send our Handshake to the newly resolved peer
                 val myName = settingsRepository.displayName.firstOrNull() ?: "Unknown"
                 val myAvatarHash = settingsRepository.avatarHash.firstOrNull()
-                val myHandshake = Handshake(myName, myAvatarHash)
+                val myIdentityPubKeyHex = peerIdentity.getPublicKeyHex()
+                
+                val myHandshake = Handshake(
+                    name = myName,
+                    avatarHash = myAvatarHash,
+                    identityPubKeyHex = myIdentityPubKeyHex,
+                    timestamp = System.currentTimeMillis()
+                )
 
                 Logger.i("LanTransport -> Resolved peer $peerId at $address. Sending Handshake.")
 

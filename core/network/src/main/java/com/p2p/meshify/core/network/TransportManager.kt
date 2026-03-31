@@ -6,6 +6,7 @@ import com.p2p.meshify.core.network.base.TransportCapability
 import com.p2p.meshify.core.network.lan.LanTransportImpl
 import com.p2p.meshify.core.network.lan.SocketManager
 import com.p2p.meshify.domain.repository.ISettingsRepository
+import com.p2p.meshify.domain.security.interfaces.PeerIdentityRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.merge
 
@@ -173,19 +174,21 @@ class TransportManager(
      * Factory method to create default transport manager with all protocols.
      * @param context Android context
      * @param settingsRepository Settings repository for configuration
+     * @param peerIdentity Peer identity repository for key exchange
      * @return TransportManager with default transports registered
      */
     companion object {
         fun createDefault(
             context: Context,
-            settingsRepository: ISettingsRepository
+            settingsRepository: ISettingsRepository,
+            peerIdentity: PeerIdentityRepository
         ): TransportManager {
             val manager = TransportManager(context, settingsRepository)
 
             // Register LAN transport (always available)
             manager.registerTransport(
                 "lan",
-                LanTransportImpl(context, manager.socketManager, settingsRepository)
+                LanTransportImpl(context, manager.socketManager, settingsRepository, peerIdentity)
             )
 
             // ============================================

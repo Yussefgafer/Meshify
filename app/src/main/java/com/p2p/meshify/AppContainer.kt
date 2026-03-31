@@ -12,6 +12,7 @@ import com.p2p.meshify.core.data.security.impl.EcdhSessionManager
 import com.p2p.meshify.core.data.security.impl.InMemoryNonceCache
 import com.p2p.meshify.core.data.security.impl.MessageEnvelopeCrypto
 import com.p2p.meshify.core.data.security.impl.PeerIdentityManagerImpl
+import com.p2p.meshify.core.data.security.impl.EncryptedSessionKeyStore
 import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.core.network.WifiStateCheckerImpl
 import com.p2p.meshify.core.domain.interfaces.WifiStateChecker
@@ -78,7 +79,7 @@ class AppContainer(private val context: Context) {
 
     // ✅ Transport Manager - manages all transport protocols (LAN, BT, WiFi-Direct, DHT)
     val transportManager: TransportManager by lazy {
-        TransportManager.createDefault(context, settingsRepository)
+        TransportManager.createDefault(context, settingsRepository, peerIdentity)
     }
 
     val chatRepository: ChatRepositoryImpl by lazy {
@@ -90,7 +91,11 @@ class AppContainer(private val context: Context) {
             transportManager, // ✅ Use TransportManager instead of hardcoded transport
             fileManager,
             notificationHelper,
-            settingsRepository
+            settingsRepository,
+            peerIdentity,
+            messageCrypto,
+            ecdhSessionManager,
+            EncryptedSessionKeyStore(context) // Persistent encrypted session storage
         )
     }
 

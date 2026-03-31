@@ -19,6 +19,12 @@ import com.p2p.meshify.domain.repository.IChatRepository
 import com.p2p.meshify.domain.repository.IFileManager
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.core.network.TransportManager
+import com.p2p.meshify.core.data.security.impl.EncryptedSessionKeyStore
+import com.p2p.meshify.core.data.security.impl.EcdhSessionManager
+import com.p2p.meshify.core.data.security.impl.MessageEnvelopeCrypto
+import com.p2p.meshify.domain.security.interfaces.PeerIdentityRepository
+import com.p2p.meshify.domain.security.model.MessageEnvelope
+import kotlinx.serialization.encodeToString
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -59,7 +65,11 @@ class ChatRepositoryImpl(
     private val transportManager: TransportManager,
     private val fileManager: IFileManager,
     private val notificationHelper: NotificationHelper,
-    private val settingsRepository: ISettingsRepository
+    private val settingsRepository: ISettingsRepository,
+    private val peerIdentity: PeerIdentityRepository,
+    private val messageCrypto: MessageEnvelopeCrypto,
+    private val ecdhSessionManager: EcdhSessionManager,
+    private val sessionKeyStore: EncryptedSessionKeyStore
 ) : IChatRepository {
 
     // Specialized repositories
@@ -127,7 +137,23 @@ class ChatRepositoryImpl(
         text: String,
         replyToId: String?
     ): Result<Unit> {
-        return messageRepository.sendTextMessage(peerId, peerName, text, replyToId)
+        // SECURITY: Encryption is mandatory - abort if session cannot be established
+        // No plaintext fallback is allowed
+        val sessionKeyInfo = getOrEstablishSessionKey(peerId)
+            ?: return Result.failure(SecurityException("Secure session required - cannot send plaintext to $peerId"))
+
+        // Encrypt the plaintext message
+        val envelope = messageCrypto.encrypt(
+            plaintext = text.toByteArray(Charsets.UTF_8),
+            recipientId = peerId,
+            sessionKey = sessionKeyInfo.sessionKey
+        )
+
+        // Serialize the envelope to bytes
+        val envelopeBytes = serializeEnvelope(envelope)
+
+        // Send as ENCRYPTED_MESSAGE payload type
+        return sendEncryptedPayload(peerId, peerName, envelopeBytes, replyToId)
     }
 
     override suspend fun sendImage(
@@ -318,6 +344,13 @@ class ChatRepositoryImpl(
         peerId: String,
         forwardContext: String
     ): Boolean {
+        // SECURITY: Forwarded messages MUST be encrypted - no plaintext fallback
+        val sessionKeyInfo = getOrEstablishSessionKey(peerId)
+            ?: run {
+                Logger.e("ChatRepository -> Cannot forward: no secure session with $peerId")
+                return false
+            }
+
         val newMessage = MessageEntity(
             id = UUID.randomUUID().toString(),
             chatId = peerId,
@@ -341,12 +374,27 @@ class ChatRepositoryImpl(
             return false
         }
 
+        // Encrypt the forwarded message
+        val envelope = try {
+            messageCrypto.encrypt(
+                plaintext = forwardContext.toByteArray(Charsets.UTF_8),
+                recipientId = peerId,
+                sessionKey = sessionKeyInfo.sessionKey
+            )
+        } catch (e: Exception) {
+            Logger.e("ChatRepository -> Failed to encrypt forwarded message for $peerId", e)
+            messageDao.updateMessageStatus(newMessage.id, MessageStatus.QUEUED)
+            return false
+        }
+
+        // Serialize and send as ENCRYPTED_MESSAGE
+        val envelopeBytes = serializeEnvelope(envelope)
         val payload = Payload(
             id = newMessage.id,
             senderId = settingsRepository.getDeviceId(),
             timestamp = newMessage.timestamp,
-            type = Payload.PayloadType.TEXT,
-            data = (newMessage.text ?: "").toByteArray()
+            type = Payload.PayloadType.ENCRYPTED_MESSAGE,
+            data = envelopeBytes
         )
 
         return try {
@@ -401,18 +449,14 @@ class ChatRepositoryImpl(
                 mediaFile.readBytes()
             }
 
-            // Step 4: Determine PayloadType
-            val payloadType = when (message.type) {
-                MessageType.IMAGE -> Payload.PayloadType.FILE
-                MessageType.VIDEO -> Payload.PayloadType.VIDEO
-                MessageType.FILE, MessageType.APK -> Payload.PayloadType.FILE
-                else -> {
-                    Logger.e("ChatRepository -> Unsupported media type: ${message.type}")
+            // SECURITY: Forwarded media MUST be encrypted - no plaintext fallback
+            val sessionKeyInfo = getOrEstablishSessionKey(peerId)
+                ?: run {
+                    Logger.e("ChatRepository -> Cannot forward: no secure session with $peerId")
                     return false
                 }
-            }
 
-            // Step 5: Create new message entity
+            // Step 4: Create new message entity
             val newMessage = MessageEntity(
                 id = UUID.randomUUID().toString(),
                 chatId = peerId,
@@ -427,10 +471,10 @@ class ChatRepositoryImpl(
                 groupId = null
             )
 
-            // Step 6: Save to database
+            // Step 5: Save to database
             messageDao.insertMessage(newMessage)
 
-            // Step 7: Get transport
+            // Step 6: Get transport
             val transport = transportManager.selectBestTransport(peerId)
             if (transport == null) {
                 messageDao.updateMessageStatus(newMessage.id, MessageStatus.QUEUED)
@@ -438,13 +482,27 @@ class ChatRepositoryImpl(
                 return false
             }
 
-            // Step 8: Create payload
+            // Step 7: Encrypt the media bytes
+            val envelope = try {
+                messageCrypto.encrypt(
+                    plaintext = mediaBytes,
+                    recipientId = peerId,
+                    sessionKey = sessionKeyInfo.sessionKey
+                )
+            } catch (e: Exception) {
+                Logger.e("ChatRepository -> Failed to encrypt forwarded media for ${peerId.take(8)}", e)
+                messageDao.updateMessageStatus(newMessage.id, MessageStatus.QUEUED)
+                return false
+            }
+
+            // Step 8: Serialize and send as ENCRYPTED_MESSAGE
+            val envelopeBytes = serializeEnvelope(envelope)
             val payload = Payload(
                 id = newMessage.id,
                 senderId = settingsRepository.getDeviceId(),
                 timestamp = newMessage.timestamp,
-                type = payloadType,
-                data = mediaBytes
+                type = Payload.PayloadType.ENCRYPTED_MESSAGE,
+                data = envelopeBytes
             )
 
             // Step 9: Send payload with try-catch
@@ -538,6 +596,406 @@ class ChatRepositoryImpl(
         return reactionRepository.addReaction(messageId, reaction)
     }
 
+    // ==================== Encryption & Session Management ====================
+
+    /**
+     * Get existing session key or establish new session via ECDH.
+     * @param peerId the peer's ID
+     * @return SessionKeyInfo if session exists or was established, null on failure
+     */
+    private suspend fun getOrEstablishSessionKey(peerId: String): EncryptedSessionKeyStore.SessionKeyInfo? {
+        // Check if we already have a session
+        sessionKeyStore.getSessionKey(peerId)?.let { existing ->
+            android.util.Log.d("ChatRepository", "Using cached session key for $peerId")
+            return existing
+        }
+
+        // No session - need to establish one
+        // For now, we assume the peer's public key was received via handshake
+        // In a real scenario, this would trigger a key exchange request
+        android.util.Log.w("ChatRepository", "No session key for $peerId - session must be established via handshake first")
+        return null
+    }
+
+    /**
+     * Establish session key from peer's handshake (called during handshake response).
+     * 
+     * This is the RESPONDER flow:
+     * 1. Receive initiator's handshake with identity key, ephemeral key, and nonce
+     * 2. Validate TOFU - ABORT if peer's identity key changed
+     * 3. Generate our own ephemeral keypair and nonce
+     * 4. Compute ECDH shared secret
+     * 5. Derive session key via HKDF with concatenated salt
+     * 6. Cache the session for future encryption/decryption
+     * 
+     * @param peerId the peer's ID
+     * @param peerIdentityPubKeyHex peer's long-term identity public key (hex)
+     * @param peerEphemeralPubKeyHex peer's ephemeral session public key (hex)
+     * @param peerNonceHex peer's nonce (hex)
+     * @return true if session was established successfully, false on TOFU violation
+     */
+    internal suspend fun establishSessionFromHandshake(
+        peerId: String,
+        peerIdentityPubKeyHex: String,
+        peerEphemeralPubKeyHex: String,
+        peerNonceHex: String
+    ): Boolean {
+        try {
+            // Step 1: TOFU Validation - CRITICAL: ABORT on violation
+            val tofuResult = sessionKeyStore.validatePeerPublicKey(peerId, peerIdentityPubKeyHex)
+            if (tofuResult == false) {
+                // TOFU VIOLATION: Peer's identity key changed!
+                android.util.Log.e(
+                    "ChatRepository",
+                    "TOFU VIOLATION: Peer $peerId identity key changed! Aborting session establishment."
+                )
+                // Do NOT establish session - require user confirmation
+                return false
+            }
+
+            // Step 2: Convert hex to bytes
+            val peerIdentityPubKeyBytes = peerIdentityPubKeyHex.hexToByteArray()
+            val peerEphemeralPubKeyBytes = peerEphemeralPubKeyHex.hexToByteArray()
+            val peerNonce = peerNonceHex.hexToByteArray()
+
+            // Step 3: Generate our own ephemeral keypair and nonce
+            val myEphemeralKeyPair = ecdhSessionManager.generateEphemeralKeypair()
+            val myNonce = ecdhSessionManager.generateNonce()
+
+            // Step 4: Derive session key using ECDH + HKDF
+            // Both parties will compute: sharedSecret = ECDH(ephemeralPriv, peerEphemeralPub)
+            // Then derive: sessionKey = HKDF(sharedSecret, salt=peerNonce||myNonce, info="Meshify-Session-v2")
+            val sessionKey = ecdhSessionManager.deriveSessionKeyFromPeer(
+                peerEphemeralPubKeyBytes = peerEphemeralPubKeyBytes,
+                peerNonce = peerNonce,
+                myEphemeralKeyPair = myEphemeralKeyPair,
+                myNonce = myNonce
+            )
+
+            // Step 5: Cache the session key (encrypted at rest)
+            sessionKeyStore.putSessionKey(peerId, sessionKey, peerIdentityPubKeyHex)
+
+            // Step 6: Zero ephemeral private key (forward secrecy)
+            ecdhSessionManager.zeroPrivateKey(myEphemeralKeyPair.private.encoded)
+
+            android.util.Log.d("ChatRepository", "Session established with peer $peerId (responder)")
+            return true
+        } catch (e: Exception) {
+            android.util.Log.e("ChatRepository", "Failed to establish session with $peerId", e)
+            return false
+        }
+    }
+
+    /**
+     * Initiate session with peer (called when sending first message).
+     * 
+     * This is the INITIATOR flow:
+     * 1. Generate ephemeral keypair and nonce
+     * 2. Compute ECDH with peer's identity key
+     * 3. Derive preliminary session key
+     * 4. Send handshake with identity key, ephemeral key, and nonce
+     * 5. Receive peer's handshake response
+     * 6. Finalize session key with concatenated salt
+     * 
+     * @param peerId the peer's ID
+     * @param peerIdentityPubKeyHex peer's long-term identity public key (hex)
+     * @return LocalSession containing ephemeral keys and preliminary session key
+     */
+    internal suspend fun initiateSession(
+        peerId: String,
+        peerIdentityPubKeyHex: String
+    ): EcdhSessionManager.LocalSession? {
+        try {
+            // Convert hex to bytes
+            val peerIdentityPubKeyBytes = peerIdentityPubKeyHex.hexToByteArray()
+
+            // Generate ephemeral session
+            val session = ecdhSessionManager.createEphemeralSession(peerIdentityPubKeyBytes)
+
+            // Store ephemeral keys temporarily for finalization after peer responds
+            // (In production, you'd persist this in a temporary cache)
+            
+            return session
+        } catch (e: Exception) {
+            android.util.Log.e("ChatRepository", "Failed to initiate session with $peerId", e)
+            return null
+        }
+    }
+
+    /**
+     * Finalize session key after receiving peer's handshake response.
+     * 
+     * @param peerId the peer's ID
+     * @param peerEphemeralPubKeyHex peer's ephemeral public key (hex)
+     * @param peerNonceHex peer's nonce (hex)
+     * @param myEphemeralPrivateKey our ephemeral private key (from initiateSession)
+     * @param myNonce our nonce (from initiateSession)
+     * @param peerIdentityPubKeyHex peer's identity public key (for TOFU)
+     * @return true if session finalized successfully
+     */
+    internal suspend fun finalizeSession(
+        peerId: String,
+        peerEphemeralPubKeyHex: String,
+        peerNonceHex: String,
+        myEphemeralPrivateKey: ByteArray,
+        myNonce: ByteArray,
+        peerIdentityPubKeyHex: String
+    ): Boolean {
+        try {
+            // TOFU validation
+            val tofuResult = sessionKeyStore.validatePeerPublicKey(peerId, peerIdentityPubKeyHex)
+            if (tofuResult == false) {
+                android.util.Log.e(
+                    "ChatRepository",
+                    "TOFU VIOLATION: Peer $peerId identity key changed! Aborting."
+                )
+                return false
+            }
+
+            // Convert hex to bytes
+            val peerEphemeralPubKeyBytes = peerEphemeralPubKeyHex.hexToByteArray()
+            val peerNonce = peerNonceHex.hexToByteArray()
+
+            // Finalize session key with concatenated salt
+            val sessionKey = ecdhSessionManager.finalizeSessionKey(
+                peerEphemeralPubKeyBytes = peerEphemeralPubKeyBytes,
+                peerNonce = peerNonce,
+                myEphemeralPrivateKey = myEphemeralPrivateKey,
+                myNonce = myNonce
+            )
+
+            // Cache the session
+            sessionKeyStore.putSessionKey(peerId, sessionKey, peerIdentityPubKeyHex)
+
+            // Zero ephemeral private key (forward secrecy)
+            ecdhSessionManager.zeroPrivateKey(myEphemeralPrivateKey)
+
+            android.util.Log.d("ChatRepository", "Session finalized with peer $peerId (initiator)")
+            return true
+        } catch (e: Exception) {
+            android.util.Log.e("ChatRepository", "Failed to finalize session with $peerId", e)
+            return false
+        }
+    }
+
+    /**
+     * Send encrypted payload to peer.
+     * @param peerId destination peer ID
+     * @param peerName destination peer name
+     * @param encryptedData encrypted envelope bytes
+     * @param replyToId optional reply-to message ID
+     * @return Result of send operation
+     */
+    private suspend fun sendEncryptedPayload(
+        peerId: String,
+        peerName: String,
+        encryptedData: ByteArray,
+        replyToId: String?
+    ): Result<Unit> {
+        val messageId = UUID.randomUUID().toString()
+        val myId = settingsRepository.getDeviceId()
+        val timestamp = System.currentTimeMillis()
+
+        // Create message entity (status will be updated after send)
+        val message = MessageEntity(
+            id = messageId,
+            chatId = peerId,
+            senderId = myId,
+            text = "[Encrypted]", // Placeholder - actual content is encrypted
+            mediaPath = null,
+            type = MessageType.TEXT,
+            timestamp = timestamp,
+            isFromMe = true,
+            status = MessageStatus.QUEUED,
+            replyToId = replyToId
+        )
+
+        // Save chat
+        val cleanName = parseName(peerName)
+        chatDao.insertChat(ChatEntity(peerId, cleanName, "[Encrypted]", timestamp))
+
+        // Save message
+        messageDao.insertMessage(message)
+
+        // Check if peer is online
+        val isOnline = transportManager.getAllTransports().any { it.onlinePeers.value.contains(peerId) }
+
+        if (!isOnline) {
+            Logger.w("ChatRepository -> Peer $peerId offline, queuing encrypted message")
+            pendingMessageDao.insert(
+                com.p2p.meshify.core.data.local.entity.PendingMessageEntity(
+                    id = messageId,
+                    recipientId = peerId,
+                    recipientName = cleanName,
+                    content = "[Encrypted]",
+                    type = MessageType.TEXT
+                )
+            )
+            return Result.success(Unit)
+        }
+
+        // Create encrypted payload
+        val payload = Payload(
+            id = messageId,
+            senderId = myId,
+            timestamp = timestamp,
+            type = Payload.PayloadType.ENCRYPTED_MESSAGE,
+            data = encryptedData
+        )
+
+        // Send with timeout
+        return try {
+            messageDao.updateMessageStatus(messageId, MessageStatus.SENDING)
+            val transport = transportManager.selectBestTransport(peerId)
+                ?: return Result.failure(Exception("No available transport"))
+
+            withTimeout(30000L) {
+                transport.sendPayload(peerId, payload)
+            }.onSuccess {
+                messageDao.updateMessageStatus(messageId, MessageStatus.SENT)
+                Logger.d("ChatRepository -> Encrypted message sent to $peerId")
+            }.onFailure { error ->
+                messageDao.updateMessageStatus(messageId, MessageStatus.FAILED)
+                Logger.e("ChatRepository -> Failed to send encrypted message to $peerId: ${error.message}")
+                // Queue for retry
+                pendingMessageDao.insert(
+                    com.p2p.meshify.core.data.local.entity.PendingMessageEntity(
+                        id = messageId,
+                        recipientId = peerId,
+                        recipientName = cleanName,
+                        content = "[Encrypted]",
+                        type = MessageType.TEXT
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            messageDao.updateMessageStatus(messageId, MessageStatus.FAILED)
+            Logger.e("ChatRepository -> Exception sending encrypted message", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Serialize MessageEnvelope to bytes for transmission.
+     */
+    private fun serializeEnvelope(envelope: MessageEnvelope): ByteArray {
+        // Format: [senderIdLen:2][senderId][recipientIdLen:2][recipientId][nonceLen:2][nonce][timestamp:8][ivLen:2][iv][ciphertextLen:4][ciphertext][sigLen:2][signature]
+        val senderIdBytes = envelope.senderId.toByteArray(Charsets.UTF_8)
+        val recipientIdBytes = envelope.recipientId.toByteArray(Charsets.UTF_8)
+
+        return buildPacket(
+            senderIdBytes,
+            recipientIdBytes,
+            envelope.nonce,
+            envelope.timestamp,
+            envelope.iv,
+            envelope.ciphertext,
+            envelope.signature
+        )
+    }
+
+    /**
+     * Deserialize MessageEnvelope from bytes.
+     */
+    private fun deserializeEnvelope(data: ByteArray): MessageEnvelope {
+        return parsePacket(data)
+    }
+
+    /**
+     * Build binary packet from envelope fields.
+     */
+    private fun buildPacket(
+        senderIdBytes: ByteArray,
+        recipientIdBytes: ByteArray,
+        nonce: ByteArray,
+        timestamp: Long,
+        iv: ByteArray,
+        ciphertext: ByteArray,
+        signature: ByteArray
+    ): ByteArray {
+        val totalSize = 2 + senderIdBytes.size +
+                2 + recipientIdBytes.size +
+                2 + nonce.size +
+                8 + // timestamp as Long
+                2 + iv.size +
+                4 + ciphertext.size +
+                2 + signature.size
+
+        val buffer = java.nio.ByteBuffer.allocate(totalSize).apply {
+            putShort(senderIdBytes.size.toShort())
+            put(senderIdBytes)
+            putShort(recipientIdBytes.size.toShort())
+            put(recipientIdBytes)
+            putShort(nonce.size.toShort())
+            put(nonce)
+            putLong(timestamp)
+            putShort(iv.size.toShort())
+            put(iv)
+            putInt(ciphertext.size.toInt())
+            put(ciphertext)
+            putShort(signature.size.toShort())
+            put(signature)
+        }
+        return buffer.array()
+    }
+
+    /**
+     * Parse binary packet to MessageEnvelope.
+     */
+    private fun parsePacket(data: ByteArray): MessageEnvelope {
+        val buffer = java.nio.ByteBuffer.wrap(data)
+
+        val senderIdLen = buffer.short.toInt()
+        val senderIdBytes = ByteArray(senderIdLen)
+        buffer.get(senderIdBytes)
+        val senderId = String(senderIdBytes, Charsets.UTF_8)
+
+        val recipientIdLen = buffer.short.toInt()
+        val recipientIdBytes = ByteArray(recipientIdLen)
+        buffer.get(recipientIdBytes)
+        val recipientId = String(recipientIdBytes, Charsets.UTF_8)
+
+        val nonceLen = buffer.short.toInt()
+        val nonce = ByteArray(nonceLen)
+        buffer.get(nonce)
+
+        val timestamp = buffer.long
+
+        val ivLen = buffer.short.toInt()
+        val iv = ByteArray(ivLen)
+        buffer.get(iv)
+
+        val ciphertextLen = buffer.int
+        val ciphertext = ByteArray(ciphertextLen)
+        buffer.get(ciphertext)
+
+        val sigLen = buffer.short.toInt()
+        val signature = ByteArray(sigLen)
+        buffer.get(signature)
+
+        return MessageEnvelope(
+            senderId = senderId,
+            recipientId = recipientId,
+            nonce = nonce,
+            timestamp = timestamp,
+            iv = iv,
+            ciphertext = ciphertext,
+            signature = signature
+        )
+    }
+
+    /**
+     * Get stored public key for a peer.
+     * This is a simplified implementation - in production, you'd store peer keys in a database.
+     * @param peerId the peer's ID
+     * @return peer's public key in hex format, or null if not found
+     */
+    private suspend fun getPeerPublicKey(peerId: String): String? {
+        // For now, we retrieve from session store if available
+        // In a full implementation, this would query a persistent peer key store
+        return sessionKeyStore.getSessionKey(peerId)?.peerPublicKeyHex
+    }
+
     // ==================== System Commands ====================
 
     override suspend fun sendSystemCommand(peerId: String, command: String) {
@@ -568,6 +1026,16 @@ class ChatRepositoryImpl(
         }
     }
 
+    /**
+     * Process incoming payload.
+     *
+     * SECURITY NOTE: Only ENCRYPTED_MESSAGE payload type is accepted for message content.
+     * Plaintext messages (TEXT, FILE, VIDEO) are REJECTED to prevent downgrade attacks.
+     * All communication MUST be encrypted via end-to-end encryption.
+     *
+     * @param peerId the peer's ID
+     * @param payload the payload to process
+     */
     private suspend fun processPayload(peerId: String, payload: Payload) {
         Logger.d("ChatRepository -> Processing payload from $peerId, type=${payload.type}")
 
@@ -590,54 +1058,100 @@ class ChatRepositoryImpl(
                 Logger.d("ChatRepository -> Received reaction ${update.reaction} for message ${update.messageId}")
                 messageDao.updateReaction(update.messageId, update.reaction)
             }
-            Payload.PayloadType.TEXT -> {
-                val text = String(payload.data)
-                Logger.i("ChatRepository -> Received text message from $peerId")
-                saveIncomingMessage(peerId, text, null, MessageType.TEXT, payload.timestamp, payload.id)
-                sendSystemCommand(payload.senderId, "ACK_${payload.id}")
-            }
-            Payload.PayloadType.FILE -> {
-                val fileName = "img_${payload.id}.jpg"
-                Logger.i("ChatRepository -> Receiving image from $peerId (${payload.data.size} bytes)")
-                val savedPath = fileManager.saveMedia(fileName, payload.data)
-                if (savedPath != null) {
-                    val file = File(savedPath)
-                    if (file.exists()) {
-                        Logger.d("ChatRepository -> Incoming image saved: $savedPath")
-                        saveIncomingMessage(peerId, null, savedPath, MessageType.IMAGE, payload.timestamp, payload.id)
-                        sendSystemCommand(payload.senderId, "ACK_${payload.id}")
-                    } else {
-                        Logger.e("ChatRepository -> Saved incoming image file does not exist: $savedPath")
-                    }
-                } else {
-                    Logger.e("ChatRepository -> Failed to save incoming image: $fileName")
-                }
-            }
-            Payload.PayloadType.VIDEO -> {
-                val fileName = "vid_${payload.id}.mp4"
-                Logger.i("ChatRepository -> Receiving video from $peerId (${payload.data.size} bytes)")
-                val savedPath = fileManager.saveMedia(fileName, payload.data)
-                if (savedPath != null) {
-                    val file = File(savedPath)
-                    if (file.exists()) {
-                        Logger.d("ChatRepository -> Incoming video saved: $savedPath")
-                        saveIncomingMessage(peerId, null, savedPath, MessageType.VIDEO, payload.timestamp, payload.id)
-                        sendSystemCommand(payload.senderId, "ACK_${payload.id}")
-                    } else {
-                        Logger.e("ChatRepository -> Saved incoming video file does not exist: $savedPath")
-                    }
-                } else {
-                    Logger.e("ChatRepository -> Failed to save incoming video: $fileName")
-                }
-            }
-            Payload.PayloadType.HANDSHAKE -> {
-                val rawData = String(payload.data)
-                val cleanName = parseName(rawData)
-                chatDao.insertChat(ChatEntity(payload.senderId, cleanName, "Connected", payload.timestamp))
+            Payload.PayloadType.ENCRYPTED_MESSAGE -> {
+                // Decrypt incoming encrypted message
+                try {
+                    // Deserialize envelope
+                    val envelope = deserializeEnvelope(payload.data)
 
-                // Retry pending messages in background
-                scope.launch {
-                    retryPendingMessages(payload.senderId)
+                    // Get session key for this peer
+                    val sessionKeyInfo = sessionKeyStore.getSessionKey(peerId)
+                        ?: throw SecurityException("No session key for peer $peerId - cannot decrypt message")
+
+                    // Get sender's public key from session store
+                    val senderPublicKeyHex = getPeerPublicKey(peerId)
+                        ?: throw SecurityException("Unknown peer $peerId - public key not found")
+
+                    val senderPublicKeyBytes = senderPublicKeyHex.hexToByteArray()
+
+                    // Decrypt the message
+                    val plaintext = messageCrypto.decrypt(
+                        envelope = envelope,
+                        senderPublicKeyBytes = senderPublicKeyBytes,
+                        sessionKey = sessionKeyInfo.sessionKey
+                    )
+
+                    // Process decrypted message
+                    val text = String(plaintext, Charsets.UTF_8)
+                    // SECURITY: Never log decrypted message content - use non-sensitive logging only
+                    android.util.Log.d("ChatRepository", "Message decrypted successfully from ${peerId.take(8)}")
+                    saveIncomingMessage(peerId, text, null, MessageType.TEXT, payload.timestamp, payload.id)
+                    sendSystemCommand(payload.senderId, "ACK_${payload.id}")
+
+                } catch (e: SecurityException) {
+                    // SECURITY: Log decryption failures as potential attacks
+                    android.util.Log.e(
+                        "ChatRepository",
+                        "SECURITY: Decryption failed for message from $peerId: ${e.message}",
+                        e
+                    )
+                    // Discard message - do not save
+                } catch (e: Exception) {
+                    android.util.Log.e("ChatRepository", "Failed to process encrypted message from $peerId", e)
+                }
+            }
+            // SECURITY: Plaintext payload types (TEXT, FILE, VIDEO) are REJECTED to prevent
+            // downgrade attacks. All communication MUST be encrypted via ENCRYPTED_MESSAGE.
+            Payload.PayloadType.HANDSHAKE -> {
+                // Parse handshake with V2 protocol fields
+                try {
+                    val handshake = Json.decodeFromString<Handshake>(String(payload.data))
+                    val cleanName = parseName(handshake.name)
+                    chatDao.insertChat(ChatEntity(payload.senderId, cleanName, "Connected", payload.timestamp))
+
+                    // Check for V2 protocol fields (ephemeral key exchange)
+                    val identityPubKeyHex = handshake.identityPubKeyHex
+                    val ephemeralPubKeyHex = handshake.ephemeralPubKeyHex
+                    val nonceHex = handshake.nonceHex
+
+                    if (!identityPubKeyHex.isNullOrBlank() && 
+                        !ephemeralPubKeyHex.isNullOrBlank() && 
+                        !nonceHex.isNullOrBlank()) {
+                        
+                    android.util.Log.d("ChatRepository", "Handshake V2 from $peerId with ephemeral key exchange")
+                        
+                        // Establish encrypted session using V2 protocol (responder flow)
+                        val sessionEstablished = establishSessionFromHandshake(
+                            peerId = peerId,
+                            peerIdentityPubKeyHex = identityPubKeyHex,
+                            peerEphemeralPubKeyHex = ephemeralPubKeyHex,
+                            peerNonceHex = nonceHex
+                        )
+                        
+                        if (sessionEstablished) {
+                            android.util.Log.d("ChatRepository", "Encrypted V2 session established with $peerId")
+                        } else {
+                            android.util.Log.e("ChatRepository", "TOFU VIOLATION: Session establishment aborted for $peerId")
+                            // Do NOT send response - TOFU violation requires user intervention
+                            return
+                        }
+                    } else if (!identityPubKeyHex.isNullOrBlank()) {
+                        // V1 protocol (identity key only, no forward secrecy)
+                        android.util.Log.w("ChatRepository", "Handshake V1 from $peerId (no forward secrecy)")
+                        // For backward compatibility, could establish V1 session here
+                        // But we prefer V2 only
+                    } else {
+                        // SECURITY: ABORT handshake - missing public keys means no encryption possible
+                        android.util.Log.e("ChatRepository", "Handshake from $peerId missing public keys - REJECTING")
+                        return  // DO NOT establish session - encryption is mandatory
+                    }
+
+                    // Retry pending messages in background
+                    scope.launch {
+                        retryPendingMessages(payload.senderId)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("ChatRepository", "Failed to process handshake from $peerId", e)
                 }
             }
             else -> Logger.w("ChatRepository -> Unknown payload type: ${payload.type}")

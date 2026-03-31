@@ -62,6 +62,10 @@ dependencies {
     // AndroidX Core
     implementation(libs.androidx.core.ktx)
 
+    // Security - EncryptedSharedPreferences
+    implementation(libs.androidx.security.crypto)
+    implementation(libs.androidx.security.crypto.ktx)
+
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

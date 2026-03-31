@@ -15,8 +15,10 @@ class InMemoryNonceCache(
 ) : NonceCache {
     
     companion object {
-        private const val DEFAULT_WINDOW_MS = 30_000L // 30 seconds
-        
+        // SECURITY: Window must match MessageEnvelopeCrypto's 5-minute replay window + 1 minute buffer
+        // to prevent legitimate delayed messages from being incorrectly rejected as replays
+        private const val DEFAULT_WINDOW_MS = 6 * 60 * 1000L // 6 minutes (5 min replay + 1 min buffer)
+
         // Maximum number of nonces to store before forcing cleanup
         private const val MAX_CACHE_SIZE = 10_000
     }

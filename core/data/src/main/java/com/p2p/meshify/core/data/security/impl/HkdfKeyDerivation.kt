@@ -23,8 +23,14 @@ object HkdfKeyDerivation {
     
     /**
      * Full HKDF (RFC 5869) — Extract + Expand.
+     *
+     * Per RFC 5869 Section 3.1:
+     * > If salt is not provided, it is set to a string of HashLen zeros.
+     * > If caller explicitly passes empty byte array, we treat it as "not provided"
+     * > and use default zeros.
+     *
      * @param inputKeyMaterial raw shared secret from ECDH
-     * @param salt optional salt (if null, uses hash-length zeros)
+     * @param salt optional salt (if empty or default, uses hash-length zeros)
      * @param info context/application-specific info (e.g., "meshify-v1-session")
      * @param outputLen desired output length in bytes (default: 32 for AES-256)
      * @return derived key
@@ -35,9 +41,16 @@ object HkdfKeyDerivation {
         info: ByteArray = ByteArray(0),
         outputLen: Int = HASH_LENGTH
     ): ByteArray {
+        // FIX: Treat empty salt as "not provided" - use default zeros per RFC 5869
+        val effectiveSalt = if (salt.isEmpty()) {
+            ByteArray(HASH_LENGTH)  // 32 zeros for SHA-256
+        } else {
+            salt
+        }
+
         // Step 1: Extract — PRK = HMAC-SHA256(salt, IKM)
         val mac = Mac.getInstance("HmacSHA256")
-        mac.init(SecretKeySpec(salt, "HmacSHA256"))
+        mac.init(SecretKeySpec(effectiveSalt, "HmacSHA256"))
         val prk = mac.doFinal(inputKeyMaterial)
         
         // Step 2: Expand — OKM = T(1) | T(2) | ... | T(N)
