@@ -6,15 +6,14 @@ import com.p2p.meshify.core.data.local.dao.MessageDao
 import com.p2p.meshify.core.data.local.entity.ChatEntity
 import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.data.local.entity.MessageStatus
-import com.p2p.meshify.core.util.ImageCompressor
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.core.util.NotificationHelper
 import com.p2p.meshify.domain.model.DeleteRequest
 import com.p2p.meshify.domain.model.DeleteType
+import com.p2p.meshify.domain.model.AppConstants
 import com.p2p.meshify.domain.model.Handshake
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.model.Payload
-import com.p2p.meshify.domain.model.PayloadTypeFromString
 import com.p2p.meshify.domain.model.ReactionUpdate
 import com.p2p.meshify.domain.repository.IChatRepository
 import com.p2p.meshify.domain.repository.IFileManager
@@ -149,6 +148,28 @@ class ChatRepositoryImpl(
         replyToId: String?
     ): Result<Unit> {
         return messageRepository.sendVideoMessage(peerId, peerName, videoBytes, extension, replyToId)
+    }
+
+    override suspend fun sendFileWithProgress(
+        messageId: String,
+        peerId: String,
+        peerName: String,
+        file: File,
+        fileType: MessageType,
+        caption: String,
+        replyToId: String?,
+        progressCallback: ((Int) -> Unit)?
+    ): Result<Unit> {
+        return messageRepository.sendFileWithProgress(
+            messageId = messageId,
+            peerId = peerId,
+            peerName = peerName,
+            file = file,
+            fileType = fileType,
+            caption = caption,
+            replyToId = replyToId,
+            progressCallback = progressCallback
+        )
     }
 
     override suspend fun sendGroupedMessage(
@@ -352,19 +373,119 @@ class ChatRepositoryImpl(
         forwardContext: String
     ): Boolean {
         return try {
-            val newMessage = message.copy(
+            // Step 1: Validate media path
+            val mediaPath = message.mediaPath
+            if (mediaPath == null) {
+                Logger.e("ChatRepository -> Cannot forward media: mediaPath is null")
+                return false
+            }
+
+            // Step 2: Read media file from disk
+            val mediaFile = File(mediaPath)
+            if (!mediaFile.exists()) {
+                Logger.e("ChatRepository -> Media file does not exist: ${mediaFile.name}")
+                return false
+            }
+
+            // CRITICAL: Validate file size (100MB limit to prevent OOM)
+            val fileSize = mediaFile.length()
+            val maxFileSize = AppConstants.MAX_FILE_SIZE_BYTES
+            if (fileSize > maxFileSize) {
+                val maxFileSizeMb = AppConstants.MAX_FILE_SIZE_BYTES / 1024 / 1024
+                Logger.e("ChatRepository -> File size exceeds ${maxFileSizeMb}MB limit: ${fileSize / 1024 / 1024}MB")
+                return false
+            }
+
+            // Step 3: Read media bytes on IO dispatcher
+            val mediaBytes = withContext(Dispatchers.IO) {
+                mediaFile.readBytes()
+            }
+
+            // Step 4: Determine PayloadType
+            val payloadType = when (message.type) {
+                MessageType.IMAGE -> Payload.PayloadType.FILE
+                MessageType.VIDEO -> Payload.PayloadType.VIDEO
+                MessageType.FILE, MessageType.APK -> Payload.PayloadType.FILE
+                else -> {
+                    Logger.e("ChatRepository -> Unsupported media type: ${message.type}")
+                    return false
+                }
+            }
+
+            // Step 5: Create new message entity
+            val newMessage = MessageEntity(
                 id = UUID.randomUUID().toString(),
                 chatId = peerId,
-                isFromMe = true,
-                timestamp = System.currentTimeMillis(),
+                senderId = message.senderId,
                 text = forwardContext,
-                status = MessageStatus.SENT
+                mediaPath = null,
+                type = message.type,
+                timestamp = System.currentTimeMillis(),
+                isFromMe = true,
+                status = MessageStatus.SENDING,
+                replyToId = null,
+                groupId = null
             )
+
+            // Step 6: Save to database
             messageDao.insertMessage(newMessage)
-            Logger.d("ChatRepository -> Forwarded media context for ${message.id} to $peerId")
-            true
+
+            // Step 7: Get transport
+            val transport = transportManager.selectBestTransport(peerId)
+            if (transport == null) {
+                messageDao.updateMessageStatus(newMessage.id, MessageStatus.QUEUED)
+                Logger.w("ChatRepository -> No transport available for forwarding to ${peerId.take(8)}")
+                return false
+            }
+
+            // Step 8: Create payload
+            val payload = Payload(
+                id = newMessage.id,
+                senderId = settingsRepository.getDeviceId(),
+                timestamp = newMessage.timestamp,
+                type = payloadType,
+                data = mediaBytes
+            )
+
+            // Step 9: Send payload with try-catch
+            val sendResult = try {
+                transport.sendPayload(peerId, payload)
+            } catch (e: Exception) {
+                Logger.e("ChatRepository -> sendPayload threw exception for ${peerId.take(8)}", e)
+                Result.failure(e)
+            }
+
+            return if (sendResult.isSuccess) {
+                // Step 10: Save media file for the new message BEFORE updating status
+                val fileName = "forwarded_${newMessage.id}.${mediaFile.extension}"
+                val savedPath = withContext(Dispatchers.IO) {
+                    fileManager.saveMedia(fileName, mediaBytes)
+                }
+
+                // Step 11: Update database with saved path
+                if (savedPath != null) {
+                    messageDao.insertMessage(newMessage.copy(mediaPath = savedPath))
+                }
+
+                // Step 12: Update status to SENT (AFTER file is saved)
+                messageDao.updateMessageStatus(newMessage.id, MessageStatus.SENT)
+
+                Logger.d("ChatRepository -> Forwarded media message ${message.id.take(8)} to ${peerId.take(8)}")
+                true
+            } else {
+                // Step 13: Update status to QUEUED
+                messageDao.updateMessageStatus(newMessage.id, MessageStatus.QUEUED)
+                Logger.e("ChatRepository -> Failed to forward media message to ${peerId.take(8)}")
+                false
+            }
+        } catch (e: java.io.IOException) {
+            Logger.e("ChatRepository -> IO error forwarding media to ${peerId.take(8)}: ${e.message}", e)
+            false
+        } catch (e: SecurityException) {
+            Logger.e("ChatRepository -> Security error forwarding media to ${peerId.take(8)}: ${e.message}", e)
+            false
         } catch (e: Exception) {
-            Logger.e("ChatRepository -> Failed to forward media context to $peerId", e)
+            Logger.e("ChatRepository -> Failed to forward media context to ${peerId.take(8)}", e)
             false
         }
     }
@@ -382,7 +503,7 @@ class ChatRepositoryImpl(
         } else {
             chatDao.insertChat(ChatEntity(
                 peerId = peerId,
-                peerName = "Peer_${peerId.take(4)}",
+                peerName = "${AppConstants.DEFAULT_PEER_NAME_PREFIX}${peerId.take(4)}",
                 lastMessage = forwardContext,
                 lastTimestamp = System.currentTimeMillis()
             ))
@@ -533,7 +654,7 @@ class ChatRepositoryImpl(
     ) {
         try {
             val existingChat = chatDao.getChatById(peerId)
-            val finalName = if (existingChat != null) parseName(existingChat.peerName) else "Peer_${peerId.take(4)}"
+            val finalName = if (existingChat != null) parseName(existingChat.peerName) else "${AppConstants.DEFAULT_PEER_NAME_PREFIX}${peerId.take(4)}"
             chatDao.insertChat(ChatEntity(peerId, finalName, text ?: "[Media]", timestamp))
             val message = MessageEntity(
                 id = messageId,

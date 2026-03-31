@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.io.File
 
 data class ChatUiState(
     val isLoading: Boolean = true,
@@ -30,7 +31,8 @@ data class ChatUiState(
     val hasMoreMessages: Boolean = false,
     val isLoadingMore: Boolean = false,
     val isSending: Boolean = false,
-    val sendError: String? = null  // P0-02: Error message or null
+    val sendError: String? = null,  // P0-02: Error message or null
+    val uploadError: String? = null  // Upload error message for file uploads
 )
 
 class ChatViewModel(
@@ -52,9 +54,13 @@ class ChatViewModel(
     // Multi-select mode
     private val _selectedMessages = MutableStateFlow<Set<String>>(emptySet())
     val selectedMessages: StateFlow<Set<String>> = _selectedMessages.asStateFlow()
-    
+
     val isInSelectionMode: Boolean
         get() = _selectedMessages.value.isNotEmpty()
+
+    // Upload progress tracking - maps messageId to progress percentage (0-100)
+    private val _uploadProgress = MutableStateFlow<Map<String, Int>>(emptyMap())
+    val uploadProgress: StateFlow<Map<String, Int>> = _uploadProgress.asStateFlow()
 
     // Pagination state - using ArrayDeque for O(1) prepend operations
     private var currentPage = 0
@@ -266,6 +272,80 @@ class ChatViewModel(
             repository.sendVideo(peerId, peerName, bytes, extension, _uiState.value.replyTo?.id)
             _uiState.update { it.copy(replyTo = null) }
         }
+    }
+
+    /**
+     * Sends a file with progress tracking.
+     * Used for large files where upload progress should be shown to the user.
+     *
+     * @param messageId Unique ID for this message (generated before calling)
+     * @param file The file to upload
+     * @param fileType The type of file (IMAGE, VIDEO, FILE, etc.)
+     * @param caption Optional caption for the file
+     */
+    fun sendFileWithProgress(messageId: String, file: File, fileType: MessageType, caption: String = "") {
+        viewModelScope.launch {
+            try {
+                // Initialize progress to 0
+                _uploadProgress.update { current ->
+                    current + (messageId to 0)
+                }
+
+                // Send file via repository with progress callback
+                val result = repository.sendFileWithProgress(
+                    messageId = messageId,
+                    peerId = peerId,
+                    peerName = peerName,
+                    file = file,
+                    fileType = fileType,
+                    caption = caption,
+                    replyToId = _uiState.value.replyTo?.id,
+                    progressCallback = { progress ->
+                        // Update progress in UI state
+                        _uploadProgress.update { current ->
+                            current + (messageId to progress)
+                        }
+                    }
+                )
+
+                result.onSuccess {
+                    // Remove from progress map on success
+                    _uploadProgress.update { current ->
+                        current - messageId
+                    }
+                }.onFailure { error ->
+                    // Remove from progress map on failure
+                    _uploadProgress.update { current ->
+                        current - messageId
+                    }
+                    // Show error to user
+                    _uiState.update { 
+                        it.copy(uploadError = "فشل إرسال الملف: ${error.message ?: "خطأ غير معروف"}") 
+                    }
+                }
+            } catch (e: Exception) {
+                Logger.e("ChatViewModel -> File upload exception", e)
+                _uploadProgress.update { current ->
+                    current - messageId
+                }
+                // Show error to user
+                _uiState.update { 
+                    it.copy(uploadError = "خطأ غير متوقع: ${e.message ?: "فشل الإرسال"}") 
+                }
+            }
+        }
+    }
+
+    /**
+     * Cancels an ongoing file upload.
+     * Removes the progress indicator from the UI.
+     */
+    fun cancelUpload(messageId: String) {
+        _uploadProgress.update { current ->
+            current - messageId
+        }
+        // Note: Actual cancellation logic would need to be implemented in repository
+        Logger.d("ChatViewModel -> Upload cancelled for messageId: $messageId")
     }
 
     fun deleteMessage(messageId: String, deleteType: DeleteType) {
@@ -503,5 +583,12 @@ class ChatViewModel(
      */
     fun clearError() {
         _uiState.update { it.copy(sendError = null) }
+    }
+
+    /**
+     * Clear the upload error message after it has been shown.
+     */
+    fun clearUploadError() {
+        _uiState.update { it.copy(uploadError = null) }
     }
 }

@@ -4,10 +4,11 @@ import com.p2p.meshify.domain.model.DeleteType
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.model.Payload
 import kotlinx.coroutines.flow.Flow
+import java.io.File
 
 /**
  * Domain-level repository interface for chat operations.
- * 
+ *
  * Note: This interface is now a facade that delegates to specialized repositories:
  * - MessageRepository: Sending/receiving messages
  * - ChatManagementRepository: Chat CRUD operations
@@ -30,15 +31,27 @@ interface IChatRepository {
         attachments: List<Pair<ByteArray, MessageType>>,
         replyToId: String? = null
     ): Result<Unit>
-    
+
+    // File upload with progress tracking
+    suspend fun sendFileWithProgress(
+        messageId: String,
+        peerId: String,
+        peerName: String,
+        file: File,
+        fileType: MessageType,
+        caption: String = "",
+        replyToId: String? = null,
+        progressCallback: ((Int) -> Unit)? = null
+    ): Result<Unit>
+
     // Chat management
     suspend fun deleteMessage(messageId: String, deleteType: DeleteType): Result<Unit>
     suspend fun deleteChat(peerId: String)
     suspend fun forwardMessage(messageId: String, targetPeerIds: List<String>): Result<Unit>
-    
+
     // Reactions
     suspend fun addReaction(messageId: String, reaction: String?): Result<Unit>
-    
+
     // System
     suspend fun sendSystemCommand(peerId: String, command: String)
     suspend fun handleIncomingPayload(peerId: String, payload: Payload)

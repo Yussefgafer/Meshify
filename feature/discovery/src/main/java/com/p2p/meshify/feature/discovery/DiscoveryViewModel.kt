@@ -1,13 +1,12 @@
 package com.p2p.meshify.feature.discovery
 
-import android.content.Context
-import android.net.wifi.WifiManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.p2p.meshify.domain.model.PeerDevice
 import com.p2p.meshify.domain.model.SignalStrength
 import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.core.network.base.TransportEvent
+import com.p2p.meshify.core.domain.interfaces.WifiStateChecker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,20 +31,16 @@ data class DiscoveryUiState(
  */
 class DiscoveryViewModel(
     private val transportManager: TransportManager,
-    private val context: Context
+    private val wifiStateChecker: WifiStateChecker
 ) : ViewModel() {
 
-    private val wifiManager: WifiManager by lazy {
-        context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-    }
-
     internal fun checkWifiState() {
-        val isWifiEnabled = wifiManager.isWifiEnabled
-        _uiState.update { 
+        val isWifiEnabled = wifiStateChecker.isWifiEnabled
+        _uiState.update {
             it.copy(
                 isWifiEnabled = isWifiEnabled,
                 canDiscover = isWifiEnabled
-            ) 
+            )
         }
     }
 

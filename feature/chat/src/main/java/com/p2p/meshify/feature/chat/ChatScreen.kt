@@ -62,10 +62,14 @@ import com.p2p.meshify.core.ui.hooks.HapticPattern
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlinx.coroutines.flow.sample
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.FlowPreview
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
 @Composable
 fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBackClick: () -> Unit) {
     val context = LocalContext.current
@@ -86,6 +90,11 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
     
     // Track if user has scrolled away from bottom
     var hasScrolledToBottom by rememberSaveable { mutableStateOf(false) }
+
+    // Collect upload progress - throttled to 10 updates/second (100ms)
+    val uploadProgressMap by viewModel.uploadProgress
+        .sample(100.milliseconds)
+        .collectAsStateWithLifecycle(emptyMap())
     
     // Use derivedStateOf for expensive calculations - avoids unnecessary recompositions
     val isAtBottom by remember {
@@ -109,6 +118,14 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
         uiState.sendError?.let { error ->
             snackbarHostState.showSnackbar(error)
             viewModel.clearError()
+        }
+    }
+
+    // Upload error snackbar - shows error when file upload fails
+    LaunchedEffect(uiState.uploadError) {
+        uiState.uploadError?.let { error ->
+            snackbarHostState.showSnackbar(error)
+            viewModel.clearUploadError()
         }
     }
 
@@ -393,6 +410,7 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
                 ) { index, message ->
                 val attachments = messageAttachments[message.id] ?: emptyList()
                 val isSelected = message.id in selectedMessages
+                val progressValue = uploadProgressMap[message.id]
 
                 // ✅ DELETE ANIMATION + STAGGER ENTER
                 AnimatedVisibility(
@@ -423,6 +441,7 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
                         peerName = peerName,
                         bubbleStyle = themeConfig.bubbleStyle,
                         isSelected = isSelected,
+                        uploadProgress = progressValue,
                         onLongClick = {
                             haptics.perform(HapticPattern.Pop) // ✅ UX04: Haptic feedback on long click
                             if (selectedMessages.isEmpty()) {
@@ -575,6 +594,7 @@ fun MessageBubble(
     peerName: String,
     bubbleStyle: com.p2p.meshify.domain.model.BubbleStyle,
     isSelected: Boolean = false,
+    uploadProgress: Int? = null,
     onClick: () -> Unit = {},
     onLongClick: () -> Unit,
     onImageClick: (String) -> Unit,
@@ -721,6 +741,24 @@ fun MessageBubble(
                                 }
                             }
                         }
+                    }
+
+                    // Upload progress indicator (only if uploading)
+                    uploadProgress?.let { progress ->
+                        Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xs))
+                        LinearProgressIndicator(
+                            progress = { progress / 100f },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                        
+                        // Show percentage text
+                        Text(
+                            text = "$progress%",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
 
