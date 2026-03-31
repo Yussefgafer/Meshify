@@ -25,20 +25,31 @@ class EcdhSessionManagerTest {
         val aliceIdentity = generateIdentityKeypair()
         val bobIdentity = generateIdentityKeypair()
 
+        // Alice (Initiator) generates ephemeral session
         val aliceSession = sessionManager.createEphemeralSession(aliceIdentity.public.encoded)
+        // aliceSession.sessionNonce = Alice's nonce (initiator nonce)
 
+        // Bob (Responder) generates his own ephemeral keypair and nonce
+        val bobEphemeralKeyPair = sessionManager.generateEphemeralKeypair()
+        val bobNonce = sessionManager.generateNonce()
+        // bobNonce = Bob's nonce (responder nonce)
+
+        // Bob derives session key using Alice's ephemeral key and nonce
+        // Salt = peerNonce (Alice) + myNonce (Bob) = initiator_nonce || responder_nonce
         val bobSessionKey = sessionManager.deriveSessionKeyFromPeer(
             peerEphemeralPubKeyBytes = aliceSession.ephemeralPublicKey,
-            peerNonce = aliceSession.sessionNonce,
-            myEphemeralKeyPair = bobIdentity,
-            myNonce = aliceSession.sessionNonce
+            peerNonce = aliceSession.sessionNonce,  // Alice's nonce (initiator)
+            myEphemeralKeyPair = bobEphemeralKeyPair,
+            myNonce = bobNonce  // Bob's nonce (responder)
         )
 
+        // Alice finalizes session key using Bob's ephemeral key and nonce
+        // Salt = myNonce (Alice) + peerNonce (Bob) = initiator_nonce || responder_nonce
         val aliceFinalizedKey = sessionManager.finalizeSessionKey(
-            peerEphemeralPubKeyBytes = bobIdentity.public.encoded,
-            peerNonce = aliceSession.sessionNonce,
+            peerEphemeralPubKeyBytes = bobEphemeralKeyPair.public.encoded,
+            peerNonce = bobNonce,  // Bob's nonce (responder)
             myEphemeralPrivateKey = aliceSession.ephemeralPrivateKey,
-            myNonce = aliceSession.sessionNonce
+            myNonce = aliceSession.sessionNonce  // Alice's nonce (initiator)
         )
 
         Assert.assertArrayEquals(
