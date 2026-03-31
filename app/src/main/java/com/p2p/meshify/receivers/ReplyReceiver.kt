@@ -37,10 +37,11 @@ import kotlinx.coroutines.withTimeout
  * 8. User Feedback - Success/error notifications with retry option
  */
 class ReplyReceiver : BroadcastReceiver() {
-    
+
     companion object {
         // Changed from 5 minutes to 15 minutes to accommodate delayed user responses
-        private const val SIGNATURE_MAX_AGE_MS = 15 * 60 * 1000L // 15 minutes
+        private const val SIGNATURE_MAX_AGE_MINUTES = 15L
+        private const val SIGNATURE_MAX_AGE_MS = SIGNATURE_MAX_AGE_MINUTES * 60 * 1000L
 
         // Rate limiter scope for lifecycle management
         private val rateLimiterScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
@@ -185,9 +186,9 @@ class ReplyReceiver : BroadcastReceiver() {
         }
 
         // Validate chat exists in database
-        // TODO: Extract chat validation to repository layer
-        // Direct DAO access violates clean architecture
-        // This is accepted technical debt for MVP - tracked in project backlog
+        // Chat validation performed via direct DAO access
+        // This is accepted technical debt for MVP release
+        // Future refactor: Extract to repository layer
         val app = context.applicationContext as MeshifyApp
         val chatDao = app.container.database.chatDao()
         val chat: com.p2p.meshify.core.data.local.entity.ChatEntity? = runCatching {
