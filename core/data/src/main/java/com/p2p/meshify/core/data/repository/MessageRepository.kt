@@ -15,6 +15,7 @@ import com.p2p.meshify.domain.repository.IFileManager
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.core.network.base.IMeshTransport
+import com.p2p.meshify.core.network.ProgressFileReader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -216,6 +217,153 @@ class MessageRepository(
         )
 
         return saveAndSend(peerId, peerName, message, Payload.PayloadType.FILE, fileBytes)
+    }
+
+    /**
+     * Sends a file with progress tracking using ProgressFileReader.
+     * This function reads the file from disk and sends it while emitting progress updates.
+     * 
+     * @param messageId Unique ID for this message (provided by caller)
+     * @param peerId Destination peer ID
+     * @param peerName Destination peer name
+     * @param file The file to send
+     * @param fileType Type of file (IMAGE, VIDEO, FILE, etc.)
+     * @param caption Optional caption
+     * @param replyToId Optional reply-to message ID
+     */
+    suspend fun sendFileWithProgress(
+        messageId: String,
+        peerId: String,
+        peerName: String,
+        file: File,
+        fileType: MessageType,
+        caption: String,
+        replyToId: String?,
+        progressCallback: ((Int) -> Unit)? = null
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            Logger.d("MessageRepository -> sendFileWithProgress START: messageId=$messageId, file=${file.name}, size=${file.length()} bytes")
+
+            // Validate file exists
+            if (!file.exists()) {
+                Logger.e("MessageRepository -> File does not exist: ${file.absolutePath}")
+                return@withContext Result.failure(Exception("File does not exist"))
+            }
+
+            // Validate file size (100MB limit to prevent OOM)
+            val fileSize = file.length()
+            val maxFileSize = com.p2p.meshify.domain.model.AppConstants.MAX_FILE_SIZE_BYTES
+            if (fileSize > maxFileSize) {
+                val maxFileSizeMb = maxFileSize / 1024 / 1024
+                Logger.e("MessageRepository -> File size exceeds ${maxFileSizeMb}MB limit: ${fileSize / 1024 / 1024}MB")
+                return@withContext Result.failure(Exception("File too large (max ${maxFileSizeMb}MB)"))
+            }
+
+            val myId = settingsRepository.getDeviceId()
+            val cleanName = parseName(peerName)
+
+            // Create message entity
+            val message = MessageEntity(
+                id = messageId,
+                chatId = peerId,
+                senderId = myId,
+                text = caption.ifBlank { file.name },
+                mediaPath = null, // Will be saved after successful send
+                type = fileType,
+                timestamp = System.currentTimeMillis(),
+                isFromMe = true,
+                status = MessageStatus.QUEUED,
+                replyToId = replyToId
+            )
+
+            // Save chat
+            chatDao.insertChat(
+                ChatEntity(
+                    peerId = peerId,
+                    peerName = cleanName,
+                    lastMessage = caption.ifBlank { "[File: ${file.name}]" },
+                    lastTimestamp = message.timestamp
+                )
+            )
+
+            // Save message
+            messageDao.insertMessage(message)
+
+            // Check if peer is online
+            val isOnline = withContext(Dispatchers.Main) {
+                transportManager.getAllTransports().any { it.onlinePeers.value.contains(peerId) }
+            }
+
+            if (!isOnline) {
+                Logger.w("MessageRepository -> Peer $peerId offline, queuing file message")
+                pendingMessageDao.insert(
+                    PendingMessageEntity(
+                        id = message.id,
+                        recipientId = peerId,
+                        recipientName = cleanName,
+                        content = "[File: ${file.name}]",
+                        type = message.type
+                    )
+                )
+                Logger.d("MessageRepository -> File message queued successfully")
+                return@withContext Result.success(Unit)
+            }
+
+            // Read file bytes with progress tracking
+            val progressReader = ProgressFileReader(file, progressCallback)
+            
+            // Read file bytes (progress callback will be invoked during reading)
+            val fileBytes = progressReader.readBytesWithProgress()
+            
+            Logger.d("MessageRepository -> File read: ${fileBytes.size} bytes")
+
+            // Update status to SENDING
+            messageDao.updateMessageStatus(message.id, MessageStatus.SENDING)
+
+            // Create payload
+            val payload = Payload(
+                id = message.id,
+                senderId = message.senderId,
+                timestamp = message.timestamp,
+                type = Payload.PayloadType.FILE,
+                data = fileBytes
+            )
+
+            // Send payload with timeout
+            val transport = transportManager.selectBestTransport(peerId)
+                ?: return@withContext Result.failure(Exception("No available transport"))
+
+            val result = withTimeout(SEND_TIMEOUT_MS) {
+                transport.sendPayload(peerId, payload)
+            }
+
+            // Update status based on result
+            if (result.isFailure) {
+                Logger.e("MessageRepository -> sendPayload failed: ${result.exceptionOrNull()?.message}")
+                messageDao.updateMessageStatus(message.id, MessageStatus.FAILED)
+
+                // Queue for retry
+                pendingMessageDao.insert(
+                    PendingMessageEntity(
+                        id = message.id,
+                        recipientId = peerId,
+                        recipientName = cleanName,
+                        content = "[File: ${file.name}]",
+                        type = message.type
+                    )
+                )
+
+                return@withContext Result.failure(result.exceptionOrNull() ?: Exception("Send failed"))
+            } else {
+                Logger.d("MessageRepository -> sendPayload succeeded, updating status to SENT")
+                messageDao.updateMessageStatus(message.id, MessageStatus.SENT)
+                Logger.d("MessageRepository -> sendFileWithProgress COMPLETE: messageId=$messageId")
+                return@withContext Result.success(Unit)
+            }
+        } catch (e: Exception) {
+            Logger.e("MessageRepository -> Failed to send file with progress", e)
+            return@withContext Result.failure(e)
+        }
     }
 
     // ==================== Internal: Save and Send Logic ====================

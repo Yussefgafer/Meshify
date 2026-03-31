@@ -13,6 +13,8 @@ import com.p2p.meshify.core.data.security.impl.InMemoryNonceCache
 import com.p2p.meshify.core.data.security.impl.MessageEnvelopeCrypto
 import com.p2p.meshify.core.data.security.impl.PeerIdentityManagerImpl
 import com.p2p.meshify.core.network.TransportManager
+import com.p2p.meshify.core.network.WifiStateCheckerImpl
+import com.p2p.meshify.core.domain.interfaces.WifiStateChecker
 import com.p2p.meshify.core.network.base.TransportEvent
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.core.util.NotificationHelper
@@ -67,6 +69,11 @@ class AppContainer(private val context: Context) {
 
     val messageCrypto: MessageEnvelopeCrypto by lazy {
         MessageEnvelopeCrypto(peerIdentity, nonceCache)
+    }
+
+    // Wi-Fi State Checker
+    val wifiStateChecker: WifiStateChecker by lazy {
+        WifiStateCheckerImpl(context)
     }
 
     // ✅ Transport Manager - manages all transport protocols (LAN, BT, WiFi-Direct, DHT)

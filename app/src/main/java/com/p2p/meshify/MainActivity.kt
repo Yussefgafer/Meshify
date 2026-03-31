@@ -42,6 +42,7 @@ import com.p2p.meshify.feature.settings.SettingsScreen
 import com.p2p.meshify.feature.settings.SettingsViewModel
 import com.p2p.meshify.feature.settings.DeveloperScreen
 import com.p2p.meshify.feature.settings.DeveloperViewModel
+import com.p2p.meshify.core.domain.interfaces.WifiStateChecker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -154,7 +155,7 @@ class MainActivity : ComponentActivity() {
                                             factory = object : androidx.lifecycle.ViewModelProvider.Factory {
                                                 override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                                                     @Suppress("UNCHECKED_CAST")
-                                                    return DiscoveryViewModel(appContainer.transportManager, this@MainActivity) as T
+                                                    return DiscoveryViewModel(appContainer.transportManager, appContainer.wifiStateChecker) as T
                                                 }
                                             }
                                         )
