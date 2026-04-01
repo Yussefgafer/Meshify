@@ -387,7 +387,6 @@
     <!-- Permission Dialog -->
     <string name="permission_dialog_what_happens_title">ماذا يحدث:</string>
     <string name="permission_dialog_if_deny_title">إذا رفضت:</string>
-    <string name="permission_storage_title">الصور والملفات</string>
     <string name="permission_dialog_allow">سماح</string>
     <string name="permission_dialog_start_messaging">بدء المراسلة</string>
 
@@ -415,4 +414,81 @@
     <string name="error_reply_empty">لا يمكن أن يكون الرد فارغًا</string>
     <string name="error_reply_invalid_content">محتوى الرسالة غير صالح</string>
     <string name="error_reply_chat_not_found">المحادثة غير موجودة</string>
+
+    <!-- Permission Dialog - Buttons -->
+    <string name="permission_dialog_deny">رفض</string>
+
+    <!-- Permission Dialog - Summary Screen -->
+    <string name="permission_summary_title">أنت جاهز!</string>
+    <string name="permission_summary_desc">ميشفاي جاهز للاستخدام. ابدأ اكتشاف الأجهزة القريبة وإرسال الرسائل!</string>
+    <string name="permission_partial_warning">بعض الميزات قد تكون محدودة.</string>
+
+    <!-- Permission Dialog - Individual Permissions -->
+    <string name="permission_bluetooth_title">إذن البلوتوث</string>
+    <string name="permission_bluetooth_desc">نستخدم البلوتوث لاكتشاف الأجهزة القريبة وإنشاء الاتصالات.</string>
+    <string name="permission_bluetooth_what_happens_1">مسح مستخدمي ميشفاي القريبين</string>
+    <string name="permission_bluetooth_what_happens_2">إنشاء اتصالات آمنة</string>
+    <string name="permission_bluetooth_if_deny_1">لا يمكن اكتشاف أجهزة جديدة</string>
+    <string name="permission_bluetooth_if_deny_2">لا يمكن الاتصال عبر البلوتوث</string>
+
+    <string name="permission_location_title">إذن الموقع</string>
+    <string name="permission_location_desc">الوصول للموقع مطلوب لاكتشاف WiFi Direct في إصدارات أندرويد القديمة.</string>
+
+    <string name="permission_nearby_wifi_title">أجهزة WiFi القريبة</string>
+
+    <string name="permission_notifications_title">الإشعارات</string>
+    <string name="permission_notifications_desc">احصل على إشعارات عند استلام رسائل جديدة من الأجهزة القريبة.</string>
+
+    <string name="permission_storage_title">الصور والملفات</string>
+    <string name="permission_storage_desc">الوصول للصور والملفات لإرسالها للأجهزة القريبة.</string>
+
+    <!-- Settings Screen - App Settings Section -->
+    <string name="settings_group_app">إعدادات التطبيق</string>
+    <string name="settings_language_arabic">العربية</string>
+    <string name="settings_language_english">English</string>
+    <string name="setting_font_size">حجم الخط</string>
+    <string name="setting_notification_sound">صوت الإشعار</string>
+    <string name="setting_notification_sound_desc">تشغيل صوت للرسائل الجديدة</string>
+    <string name="setting_vibration">الاهتزاز</string>
+    <string name="setting_vibration_desc">اهتزاز للرسائل الجديدة</string>
+    <string name="setting_clear_cache">مسح الذاكرة المؤقتة</string>
+    <string name="setting_clear_cache_desc">تحرير مساحة التخزين</string>
+
+    <!-- Settings Screen - Dialogs -->
+    <string name="settings_dialog_select_language">اختر اللغة</string>
+    <string name="settings_dialog_font_size">حجم الخط</string>
+    <string name="settings_dialog_choose_theme">اختر السمة</string>
+
+    <!-- Forward Message Dialog -->
+    <string name="forward_dialog_progress_format">%d/%d</string>
+    <string name="forward_dialog_more_messages">+%d أخرى</string>
+
+    <!-- Staged Media Row - Content Descriptions -->
+    <string name="staged_media_desc">الوسائط المجهزة</string>
+    <string name="video_desc">فيديو</string>
+    <string name="remove_desc">إزالة</string>
+    <string name="media_index_format">%d</string>
+
+    <!-- Media Staging Chat Input - Content Descriptions -->
+    <string name="gallery_desc">المعرض</string>
+    <string name="video_camera_desc">فيديو</string>
+
+    <!-- Meshify Kit - Content Descriptions -->
+    <string name="new_chat_desc">محادثة جديدة</string>
+    <string name="attachment_desc">مرفق</string>
+    <string name="video_thumbnail_desc">فيديو</string>
+    <string name="full_image_desc">الصورة الكاملة</string>
+
+    <!-- Developer Screen -->
+    <string name="developer_screen_title">أدوات المطور</string>
+    <string name="developer_screen_subtitle">بيانات تجريبية وتصحيح</string>
+    <string name="developer_group_mock_data">بيانات تجريبية</string>
+    <string name="developer_add_mock_conversations">إضافة محادثات تجريبية</string>
+    <string name="developer_add_media_messages">إضافة رسائل وسائط</string>
+    <string name="developer_add_reactions_demo">إضافة عرض التفاعلات</string>
+    <string name="developer_add_replies_demo">إضافة عرض الردود</string>
+    <string name="developer_add_long_conversation">إضافة محادثة طويلة</string>
+    <string name="developer_group_cleanup">تنظيف</string>
+    <string name="developer_clear_mock_data">مسح البيانات التجريبية</string>
+    <string name="developer_clear_all_data">مسح جميع البيانات</string>
 </resources>

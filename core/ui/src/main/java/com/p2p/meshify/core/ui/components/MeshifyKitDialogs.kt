@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
-import com.p2p.meshify.core.ui.R
+import com.p2p.meshify.core.common.R
 import com.p2p.meshify.core.ui.hooks.HapticPattern
 import com.p2p.meshify.core.ui.hooks.LocalPremiumHaptics
 import com.p2p.meshify.core.ui.theme.ColorPresetAmber
@@ -248,7 +248,7 @@ fun ThemeSelectionBottomSheet(
                 .padding(MeshifyDesignSystem.Spacing.Md)
         ) {
             Text(
-                text = "Choose Theme",
+                text = stringResource(R.string.settings_dialog_choose_theme),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.ExtraBold,
                 modifier = Modifier.padding(bottom = MeshifyDesignSystem.Spacing.Lg)

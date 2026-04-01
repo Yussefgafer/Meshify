@@ -18,6 +18,7 @@ skills/
 **/build/
 /captures
 /agent
+/.gemini/
 .externalNativeBuild
 .cxx
 local.properties
