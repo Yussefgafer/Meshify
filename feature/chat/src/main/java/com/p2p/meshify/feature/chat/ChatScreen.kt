@@ -1,6 +1,7 @@
 package com.p2p.meshify.feature.chat
 
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -87,9 +88,12 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
     }
     // Store attachments grouped by message ID
     var messageAttachments by remember { mutableStateOf<Map<String, List<MessageAttachmentEntity>>>(emptyMap()) }
-    
+
     // Track if user has scrolled away from bottom
     var hasScrolledToBottom by rememberSaveable { mutableStateOf(false) }
+    
+    // BackHandler confirmation for unsaved drafts
+    var showBackConfirmationDialog by remember { mutableStateOf(false) }
 
     // Collect upload progress - throttled to 10 updates/second (100ms)
     val uploadProgressMap by viewModel.uploadProgress
@@ -251,7 +255,19 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
             }
     }
 
+    // BackHandler for unsaved message drafts
+    BackHandler(enabled = uiState.inputText.isNotBlank()) {
+        if (uiState.inputText.length > 50) {
+            showBackConfirmationDialog = true
+        } else {
+            onBackClick()
+        }
+    }
+
     Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.ime),
         topBar = {
             if (selectedMessages.isNotEmpty()) {
                 SelectionModeTopBar(
@@ -583,6 +599,44 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
     // Full Image Viewer - only show when selectedFullImage is not null
     selectedFullImage?.let { imagePath ->
         FullImageViewer(imagePath) { selectedFullImage = null }
+    }
+
+    // Back Confirmation Dialog
+    if (showBackConfirmationDialog) {
+        AlertDialog(
+            onDismissRequest = { showBackConfirmationDialog = false },
+            icon = {
+                Icon(
+                    Icons.Default.Edit,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            },
+            title = {
+                Text(stringResource(R.string.dialog_discard_message_title))
+            },
+            text = {
+                Text(stringResource(R.string.dialog_discard_message_text))
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showBackConfirmationDialog = false
+                        onBackClick()
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text(stringResource(R.string.dialog_discard_message_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBackConfirmationDialog = false }) {
+                    Text(stringResource(R.string.dialog_discard_message_cancel))
+                }
+            }
+        )
     }
 }
 

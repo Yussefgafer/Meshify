@@ -10,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -22,8 +23,10 @@ import com.p2p.meshify.core.data.local.entity.MessageStatus
 import com.p2p.meshify.core.ui.components.MeshifySettingsGroup
 import com.p2p.meshify.core.ui.components.MeshifySettingsItem
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
+import com.p2p.meshify.core.common.R
 import com.p2p.meshify.domain.model.MessageType
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.firstOrNull
 import java.util.UUID
 
 class DeveloperViewModel(
@@ -31,13 +34,22 @@ class DeveloperViewModel(
     private val messageDao: MessageDao
 ) : ViewModel() {
 
+    fun requestClearAllData(onConfirm: () -> Unit) {
+        // Show confirmation dialog first
+        onConfirm()
+    }
+
     fun clearAllData(onComplete: () -> Unit) {
         viewModelScope.launch {
-            messageDao.deleteMessages(messageDao.getAllAttachments().map { it.messageId ?: "" }.filter { it.isNotEmpty() })
-            messageDao.deleteAllMessagesForChat("")
-            val chats = chatDao.getAllChats()
-            // Clear everything by deleting from DB
-            onComplete()
+            try {
+                messageDao.deleteMessages(messageDao.getAllAttachments().map { it.messageId ?: "" }.filter { it.isNotEmpty() })
+                messageDao.deleteAllMessagesForChat("")
+                val chats = chatDao.getAllChats().firstOrNull() ?: emptyList()
+                chats.forEach { chatDao.deleteChatById(it.peerId) }
+                onComplete()
+            } catch (e: Exception) {
+                onComplete() // Still complete even on error
+            }
         }
     }
 
@@ -448,7 +460,9 @@ fun DeveloperScreen(
     viewModel: DeveloperViewModel,
     onBackClick: () -> Unit
 ) {
+    val context = LocalContext.current
     var statusMessage by remember { mutableStateOf<String?>(null) }
+    var showClearDataConfirmation by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -563,10 +577,64 @@ fun DeveloperScreen(
                         viewModel.clearMockData { statusMessage = it }
                     }
                 )
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Md),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+
+                MeshifySettingsItem(
+                    title = "Clear ALL Data",
+                    subtitle = "Delete everything - cannot be undone!",
+                    icon = Icons.Default.Warning,
+                    onClick = {
+                        showClearDataConfirmation = true
+                    }
+                )
             }
 
             Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xxl))
         }
+    }
+
+    // Clear Data Confirmation Dialog
+    if (showClearDataConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showClearDataConfirmation = false },
+            icon = {
+                Icon(
+                    Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = {
+                Text(stringResource(R.string.developer_clear_data_title))
+            },
+            text = {
+                Text(stringResource(R.string.developer_clear_data_message))
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showClearDataConfirmation = false
+                        viewModel.clearAllData {
+                            statusMessage = context.getString(R.string.developer_clear_success)
+                        }
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text(stringResource(R.string.developer_clear_data_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearDataConfirmation = false }) {
+                    Text(stringResource(R.string.developer_clear_data_cancel))
+                }
+            }
+        )
     }
 
     // Status Snackbar

@@ -20,8 +20,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Secure BroadcastReceiver for handling inline reply actions from notifications.
@@ -178,49 +178,27 @@ class ReplyReceiver : BroadcastReceiver() {
             return
         }
 
-        // Validate chatId format
-        if (chatId.length > 256) {
-            Logger.e("ReplyReceiver -> Invalid chatId format: length ${chatId.length}")
-            showReplyErrorNotification(context, "Invalid chat", null, replyText)
-            return
-        }
-
         // Validate chat exists in database
-        // Chat validation performed via direct DAO access
-        // This is accepted technical debt for MVP release
-        // Future refactor: Extract to repository layer
+        // CRITICAL FIX: Move chat validation inside IO coroutine to prevent ANR
+        // BroadcastReceiver.onReceive() returns immediately after launching coroutine
         val app = context.applicationContext as MeshifyApp
-        val chatDao = app.container.database.chatDao()
-        val chat: com.p2p.meshify.core.data.local.entity.ChatEntity? = runCatching {
-            runBlocking {
-                withTimeout(2000) { // 2 second timeout to prevent ANR
-                    chatDao.getChatById(chatId)
-                }
-            }
-        }.getOrNull()
 
-        if (chat == null) {
-            Logger.e("ReplyReceiver -> Chat not found") // No chatId for security
-            showReplyErrorNotification(context, "Chat not found", chatId, replyText)
-            return
-        }
-
-        // Rate limiting check
+        // Rate limiting check (before launching coroutine)
         if (!replyRateLimiter.allowRequest(chatId)) {
-            Logger.w("ReplyReceiver -> Rate limit exceeded") // No chatId for security
+            Logger.w("Rate limit exceeded", "ReplyReceiver")
             showReplyErrorNotification(context, "Too many replies, please wait", chatId, replyText)
             return
         }
 
         if (replyText.isNullOrBlank()) {
-            Logger.e("ReplyReceiver -> Empty reply text")
+            Logger.e("Empty reply text", null, "ReplyReceiver")
             showReplyErrorNotification(context, "Reply cannot be empty", chatId, replyText)
             return
         }
 
         // Validate message length
         if (replyText.length > 10000) {
-            Logger.e("ReplyReceiver -> Message too long: ${replyText.length} chars")
+            Logger.e("Message too long", null, "ReplyReceiver")
             showReplyErrorNotification(context, "Message too long (max 10000 characters)", chatId, replyText)
             return
         }
@@ -230,15 +208,29 @@ class ReplyReceiver : BroadcastReceiver() {
             .replace(Regex("[\\x00-\\x1F\\x7F]"), "")
 
         if (sanitizedText.isBlank()) {
-            Logger.e("ReplyReceiver -> Message empty after sanitization")
+            Logger.e("Message empty after sanitization", null, "ReplyReceiver")
             showReplyErrorNotification(context, "Invalid message content", chatId, replyText)
             return
         }
 
-        // Send the reply with proper error handling
+        // Send the reply with proper error handling - ALL validation happens inside coroutine
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val repository = app.container.chatRepository
+                val chatDao = app.container.database.chatDao()
+                
+                // Validate chat exists INSIDE coroutine (no main thread blocking)
+                val chat = withTimeoutOrNull(2000) {
+                    chatDao.getChatById(chatId)
+                }
+
+                if (chat == null) {
+                    Logger.e("Chat not found", null, "ReplyReceiver")
+                    withContext(Dispatchers.Main) {
+                        showReplyErrorNotification(context, "Chat not found", chatId, sanitizedText)
+                    }
+                    return@launch
+                }
 
                 val result = repository.sendMessage(chatId, chat.peerName, sanitizedText)
 
