@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.p2p.meshify.core.common.util.HexUtil
+import com.p2p.meshify.core.util.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -195,7 +196,7 @@ class EncryptedSessionKeyStore(context: Context) {
         }
 
         if (toRemove.isNotEmpty()) {
-            android.util.Log.d("EncryptedSessionKeyStore", "Cleaned up ${toRemove.size} expired sessions")
+            Logger.d("EncryptedSessionKeyStore", "Cleaned up ${toRemove.size} expired sessions")
         }
     }
 
@@ -214,7 +215,7 @@ class EncryptedSessionKeyStore(context: Context) {
         val sessionKey = try {
             sessionKeyHex.hexToByteArray()
         } catch (e: Exception) {
-            android.util.Log.e("EncryptedSessionKeyStore", "Failed to decode session key for $peerId", e)
+            Logger.e("Failed to decode session key for ${peerId.take(8)}...", e, "EncryptedSessionKeyStore")
             return null
         }
 
@@ -269,12 +270,17 @@ class EncryptedSessionKeyStore(context: Context) {
 
     /**
      * Cleanup resources when store is no longer needed.
+     * CRITICAL FIX: Cancel scope BEFORE saving to prevent immortal coroutine
      */
     fun destroy() {
-        scope.launch {
-            // Save any pending changes
-            sharedPreferences.edit().apply()
-        }
+        // CRITICAL: Cancel the scope first to stop cleanup loop
         scope.cancel()
+        
+        // Then save any pending changes synchronously
+        try {
+            sharedPreferences.edit().apply()
+        } catch (e: Exception) {
+            android.util.Log.e("EncryptedSessionKeyStore", "Failed to save on destroy", e)
+        }
     }
 }

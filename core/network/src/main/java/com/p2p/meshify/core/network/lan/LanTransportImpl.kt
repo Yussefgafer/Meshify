@@ -261,13 +261,13 @@ class LanTransportImpl(
                     val (myEphemeralPrivKey, myNonce) = storedKeys
                     val peerEphemeralPubKeyHex = handshake.ephemeralPubKeyHex
                         ?: run {
-                            android.util.Log.e("LanTransport", "Missing ephemeral key in handshake from $senderId")
+                            Logger.e("Missing ephemeral key in handshake", null, "LanTransport")
                             return
                         }
                     val peerEphemeralPubKey = peerEphemeralPubKeyHex.hexToByteArray()
                     val peerNonceHex = handshake.nonceHex
                         ?: run {
-                            android.util.Log.e("LanTransport", "Missing nonce in handshake from $senderId")
+                            Logger.e("Missing nonce in handshake", null, "LanTransport")
                             return
                         }
                     val peerNonce = peerNonceHex.hexToByteArray()
@@ -288,22 +288,17 @@ class LanTransportImpl(
                         // TOFU validation: check if peer's identity key has changed
                         val tofuResult = sessionKeyStore.validatePeerPublicKey(senderId, peerIdentityPubKeyHex)
                         if (tofuResult == false) {
-                            android.util.Log.e("LanTransport", "TOFU VIOLATION: Peer $senderId identity key changed!")
-                            val existingKey = sessionKeyStore.getSessionKey(senderId)?.peerPublicKeyHex
-                            val existingKeyRedacted = existingKey?.take(4) + "..." + existingKey?.takeLast(4)
-                            val newKeyRedacted = peerIdentityPubKeyHex.take(4) + "..." + peerIdentityPubKeyHex.takeLast(4)
-                            android.util.Log.e("LanTransport", "Existing key: $existingKeyRedacted")
-                            android.util.Log.e("LanTransport", "New key: $newKeyRedacted")
-                            android.util.Log.e("LanTransport", "BLOCKING session establishment - possible MITM attack")
+                            Logger.e("TOFU VIOLATION: Peer identity key changed", null, "LanTransport")
+                            Logger.e("BLOCKING session establishment - possible MITM attack", null, "LanTransport")
                             return // ABORT - do not establish session
                         }
 
                         // TOFU passed (or first contact), store session
                         sessionKeyStore.putSessionKey(senderId, sessionKey, peerIdentityPubKeyHex)
-                        android.util.Log.d("LanTransport", "Session established with $senderId (TOFU validated)")
+                        Logger.d("Session established with peer (TOFU validated)", "LanTransport")
                     }
 
-                    Logger.i("LanTransport -> Session key derived (initiator) for $senderId")
+                    Logger.i("Session key derived (initiator)", "LanTransport")
                 } else {
                     // Peer initiated: generate ephemeral keypair and derive session key
                     val myEphemeralKeypair = ecdhSessionManager.generateEphemeralKeypair()
@@ -311,13 +306,13 @@ class LanTransportImpl(
 
                     val peerEphemeralPubKeyHex = handshake.ephemeralPubKeyHex
                         ?: run {
-                            android.util.Log.e("LanTransport", "Missing ephemeral key in handshake from $senderId")
+                            Logger.e("Missing ephemeral key in handshake", null, "LanTransport")
                             return
                         }
                     val peerEphemeralPubKey = peerEphemeralPubKeyHex.hexToByteArray()
                     val peerNonceHex = handshake.nonceHex
                         ?: run {
-                            android.util.Log.e("LanTransport", "Missing nonce in handshake from $senderId")
+                            Logger.e("Missing nonce in handshake", null, "LanTransport")
                             return
                         }
                     val peerNonce = peerNonceHex.hexToByteArray()
@@ -340,22 +335,17 @@ class LanTransportImpl(
                         // TOFU validation: check if peer's identity key has changed
                         val tofuResult = sessionKeyStore.validatePeerPublicKey(senderId, peerIdentityPubKeyHex)
                         if (tofuResult == false) {
-                            android.util.Log.e("LanTransport", "TOFU VIOLATION: Peer $senderId identity key changed!")
-                            val existingKey = sessionKeyStore.getSessionKey(senderId)?.peerPublicKeyHex
-                            val existingKeyRedacted = existingKey?.take(4) + "..." + existingKey?.takeLast(4)
-                            val newKeyRedacted = peerIdentityPubKeyHex.take(4) + "..." + peerIdentityPubKeyHex.takeLast(4)
-                            android.util.Log.e("LanTransport", "Existing key: $existingKeyRedacted")
-                            android.util.Log.e("LanTransport", "New key: $newKeyRedacted")
-                            android.util.Log.e("LanTransport", "BLOCKING session establishment - possible MITM attack")
+                            Logger.e("TOFU VIOLATION: Peer identity key changed", null, "LanTransport")
+                            Logger.e("BLOCKING session establishment - possible MITM attack", null, "LanTransport")
                             return // ABORT - do not establish session
                         }
 
                         // TOFU passed (or first contact), store session
                         sessionKeyStore.putSessionKey(senderId, sessionKey, peerIdentityPubKeyHex)
-                        android.util.Log.d("LanTransport", "Session established with $senderId (TOFU validated)")
+                        Logger.d("Session established with peer (TOFU validated)", "LanTransport")
                     }
 
-                    Logger.i("LanTransport -> Session key derived (responder) for $senderId")
+                    Logger.i("Session key derived (responder)", "LanTransport")
                 }
             } catch (e: Exception) {
                 Logger.e("LanTransport -> Failed to derive session key for $senderId", e)

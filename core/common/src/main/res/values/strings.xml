@@ -48,6 +48,21 @@
     <string name="chat_status_online">Online</string>
     <string name="chat_status_offline">Offline</string>
     <string name="chat_message_deleted">This message was deleted</string>
+    <string name="chat_message_you">You: %s</string>
+    
+    <!-- Developer Screen -->
+    <string name="developer_clear_data_title">Clear All Data?</string>
+    <string name="developer_clear_data_message">This will delete ALL conversations, messages, and settings. This cannot be undone.</string>
+    <string name="developer_clear_data_confirm">Delete Everything</string>
+    <string name="developer_clear_data_cancel">Cancel</string>
+    <string name="developer_clear_success">All data cleared</string>
+    <string name="developer_action_ok">OK</string>
+    
+    <!-- Back Handler Dialog -->
+    <string name="dialog_discard_message_title">Discard Message?</string>
+    <string name="dialog_discard_message_text">You have an unsaved message. It will be lost if you leave.</string>
+    <string name="dialog_discard_message_confirm">Discard</string>
+    <string name="dialog_discard_message_cancel">Cancel</string>
     <string name="chat_message_media_not_found">Media file not found</string>
     <string name="chat_message_file_prefix">File: </string>
     

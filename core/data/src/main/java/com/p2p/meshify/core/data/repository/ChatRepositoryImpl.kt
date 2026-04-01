@@ -644,12 +644,12 @@ class ChatRepositoryImpl(
         val handshakeSent = sessionMutex.withLock {
             // Check if we already have a session (inside lock to prevent race condition)
             sessionKeyStore.getSessionKey(peerId)?.let { existing ->
-                android.util.Log.d("ChatRepository", "Using cached session key for $peerId")
+                Logger.d("ChatRepository", "Using cached session key for ${peerId.take(8)}...")
                 return@withLock true // Session already exists
             }
 
             // No session - trigger handshake via transport layer
-            android.util.Log.d("ChatRepository", "No session for $peerId - triggering handshake")
+            Logger.d("ChatRepository", "No session for ${peerId.take(8)}... - triggering handshake")
 
             // Get our identity info for handshake
             val myId = settingsRepository.getDeviceId()
@@ -687,17 +687,17 @@ class ChatRepositoryImpl(
             // Send handshake via transport
             val transport = transportManager.selectBestTransport(peerId)
             if (transport == null) {
-                android.util.Log.e("ChatRepository", "No transport available for handshake with $peerId")
+                Logger.e("No transport available for handshake with ${peerId.take(8)}...", tag = "ChatRepository")
                 return@withLock false
             }
 
             val sendResult = transport.sendPayload(peerId, handshakePayload)
             if (sendResult.isFailure) {
-                android.util.Log.e("ChatRepository", "Failed to send handshake to $peerId: ${sendResult.exceptionOrNull()?.message}")
+                Logger.e("Failed to send handshake to ${peerId.take(8)}...: ${sendResult.exceptionOrNull()?.message}", tag = "ChatRepository")
                 return@withLock false
             }
 
-            android.util.Log.d("ChatRepository", "Handshake sent to $peerId - waiting for response")
+            Logger.d("ChatRepository", "Handshake sent to ${peerId.take(8)}... - waiting for response")
             true // Handshake sent successfully
         } // Mutex RELEASED here - before polling
 
@@ -706,7 +706,13 @@ class ChatRepositoryImpl(
             return null
         }
 
-        return pollForSessionEstablishment(peerId)
+        val session = pollForSessionEstablishment(peerId)
+        if (session != null) {
+            Logger.d("ChatRepository", "Session established with ${peerId.take(8)}... via handshake")
+        } else {
+            Logger.w("ChatRepository", "Timeout waiting for handshake response from ${peerId.take(8)}...")
+        }
+        return session
     }
 
     /**
@@ -724,12 +730,12 @@ class ChatRepositoryImpl(
         while ((System.currentTimeMillis() - pollStartTime) < pollTimeoutMs) {
             delay(pollIntervalMs)
             sessionKeyStore.getSessionKey(peerId)?.let { session ->
-                android.util.Log.d("ChatRepository", "Session established with $peerId via handshake")
+                Logger.d("ChatRepository", "Session established with ${peerId.take(8)}... via handshake")
                 return session
             }
         }
 
-        android.util.Log.w("ChatRepository", "Timeout waiting for handshake response from $peerId")
+        Logger.w("ChatRepository", "Timeout waiting for handshake response from ${peerId.take(8)}...")
         return null
     }
 
@@ -761,9 +767,9 @@ class ChatRepositoryImpl(
             val tofuResult = sessionKeyStore.validatePeerPublicKey(peerId, peerIdentityPubKeyHex)
             if (tofuResult == false) {
                 // TOFU VIOLATION: Peer's identity key changed!
-                android.util.Log.e(
-                    "ChatRepository",
-                    "TOFU VIOLATION: Peer $peerId identity key changed! Aborting session establishment."
+                Logger.e(
+                    "TOFU VIOLATION: Peer identity key changed! Aborting session establishment.",
+                    tag = "ChatRepository"
                 )
                 // Do NOT establish session - require user confirmation
                 return false
@@ -794,10 +800,10 @@ class ChatRepositoryImpl(
             // Step 6: Zero ephemeral private key (forward secrecy)
             ecdhSessionManager.zeroPrivateKey(myEphemeralKeyPair.private.encoded)
 
-            android.util.Log.d("ChatRepository", "Session established with peer $peerId (responder)")
+            Logger.d("ChatRepository", "Session established with peer ${peerId.take(8)}... (responder)")
             return true
         } catch (e: Exception) {
-            android.util.Log.e("ChatRepository", "Failed to establish session with $peerId", e)
+            Logger.e("Failed to establish session with ${peerId.take(8)}...", e, "ChatRepository")
             return false
         }
     }
@@ -830,10 +836,10 @@ class ChatRepositoryImpl(
 
             // Store ephemeral keys temporarily for finalization after peer responds
             // (In production, you'd persist this in a temporary cache)
-            
+
             return session
         } catch (e: Exception) {
-            android.util.Log.e("ChatRepository", "Failed to initiate session with $peerId", e)
+            Logger.e("Failed to initiate session with ${peerId.take(8)}...", e, "ChatRepository")
             return null
         }
     }
@@ -861,9 +867,9 @@ class ChatRepositoryImpl(
             // TOFU validation
             val tofuResult = sessionKeyStore.validatePeerPublicKey(peerId, peerIdentityPubKeyHex)
             if (tofuResult == false) {
-                android.util.Log.e(
-                    "ChatRepository",
-                    "TOFU VIOLATION: Peer $peerId identity key changed! Aborting."
+                Logger.e(
+                    "TOFU VIOLATION: Peer identity key changed! Aborting.",
+                    tag = "ChatRepository"
                 )
                 return false
             }
@@ -886,10 +892,10 @@ class ChatRepositoryImpl(
             // Zero ephemeral private key (forward secrecy)
             ecdhSessionManager.zeroPrivateKey(myEphemeralPrivateKey)
 
-            android.util.Log.d("ChatRepository", "Session finalized with peer $peerId (initiator)")
+            Logger.d("ChatRepository", "Session finalized with peer ${peerId.take(8)}... (initiator)")
             return true
         } catch (e: Exception) {
-            android.util.Log.e("ChatRepository", "Failed to finalize session with $peerId", e)
+            Logger.e("Failed to finalize session with ${peerId.take(8)}...", e, "ChatRepository")
             return false
         }
     }
@@ -1226,7 +1232,7 @@ class ChatRepositoryImpl(
                     // Process decrypted message
                     val text = String(plaintext, Charsets.UTF_8)
                     // SECURITY: Never log decrypted message content - use non-sensitive logging only
-                    android.util.Log.d("ChatRepository", "Message decrypted successfully from ${peerId.take(8)}")
+                    Logger.d("ChatRepository", "Message decrypted successfully from ${peerId.take(8)}...")
                     
                     // Check Result before sending ACK - only send ACK after confirmed save
                     val saveResult = saveIncomingMessage(peerId, text, null, MessageType.TEXT, payload.timestamp, payload.id)
@@ -1256,10 +1262,10 @@ class ChatRepositoryImpl(
 
                 } catch (e: SecurityException) {
                     // SECURITY: Log decryption failures as potential attacks
-                    android.util.Log.e(
-                        "ChatRepository",
-                        "SECURITY: Decryption failed for message from $peerId: ${e.message}",
-                        e
+                    Logger.e(
+                        "SECURITY: Decryption failed for message from ${peerId.take(8)}...: ${e.message}",
+                        e,
+                        "ChatRepository"
                     )
 
                     // Save placeholder message so user sees decryption failure in chat
@@ -1293,7 +1299,7 @@ class ChatRepositoryImpl(
                         }
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("ChatRepository", "Failed to process encrypted message from $peerId", e)
+                    Logger.e("Failed to process encrypted message from ${peerId.take(8)}...", e, "ChatRepository")
 
                     // Save placeholder message so user sees processing failure in chat
                     val saveResult = saveIncomingMessage(
@@ -1341,12 +1347,12 @@ class ChatRepositoryImpl(
                     val ephemeralPubKeyHex = handshake.ephemeralPubKeyHex
                     val nonceHex = handshake.nonceHex
 
-                    if (!identityPubKeyHex.isNullOrBlank() && 
-                        !ephemeralPubKeyHex.isNullOrBlank() && 
+                    if (!identityPubKeyHex.isNullOrBlank() &&
+                        !ephemeralPubKeyHex.isNullOrBlank() &&
                         !nonceHex.isNullOrBlank()) {
-                        
-                    android.util.Log.d("ChatRepository", "Handshake V2 from $peerId with ephemeral key exchange")
-                        
+
+                        Logger.d("ChatRepository", "Handshake V2 from ${peerId.take(8)}... with ephemeral key exchange")
+
                         // Establish encrypted session using V2 protocol (responder flow)
                         val sessionEstablished = establishSessionFromHandshake(
                             peerId = peerId,
@@ -1354,22 +1360,22 @@ class ChatRepositoryImpl(
                             peerEphemeralPubKeyHex = ephemeralPubKeyHex,
                             peerNonceHex = nonceHex
                         )
-                        
+
                         if (sessionEstablished) {
-                            android.util.Log.d("ChatRepository", "Encrypted V2 session established with $peerId")
+                            Logger.d("ChatRepository", "Encrypted V2 session established with ${peerId.take(8)}...")
                         } else {
-                            android.util.Log.e("ChatRepository", "TOFU VIOLATION: Session establishment aborted for $peerId")
+                            Logger.e("TOFU VIOLATION: Session establishment aborted for ${peerId.take(8)}...", tag = "ChatRepository")
                             // Do NOT send response - TOFU violation requires user intervention
                             return
                         }
                     } else if (!identityPubKeyHex.isNullOrBlank()) {
                         // V1 protocol (identity key only, no forward secrecy)
-                        android.util.Log.w("ChatRepository", "Handshake V1 from $peerId (no forward secrecy)")
+                        Logger.w("ChatRepository", "Handshake V1 from ${peerId.take(8)}... (no forward secrecy)")
                         // For backward compatibility, could establish V1 session here
                         // But we prefer V2 only
                     } else {
                         // SECURITY: ABORT handshake - missing public keys means no encryption possible
-                        android.util.Log.e("ChatRepository", "Handshake from $peerId missing public keys - REJECTING")
+                        Logger.e("Handshake from ${peerId.take(8)}... missing public keys - REJECTING", tag = "ChatRepository")
                         return  // DO NOT establish session - encryption is mandatory
                     }
 
@@ -1378,7 +1384,7 @@ class ChatRepositoryImpl(
                         retryPendingMessages(payload.senderId)
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("ChatRepository", "Failed to process handshake from $peerId", e)
+                    Logger.e("Failed to process handshake from ${peerId.take(8)}...", e, "ChatRepository")
                 }
             }
             // SECURITY: Plaintext payload types are REJECTED to prevent downgrade attacks
