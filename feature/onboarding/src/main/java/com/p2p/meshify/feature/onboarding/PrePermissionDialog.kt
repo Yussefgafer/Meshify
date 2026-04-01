@@ -18,6 +18,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.ui.res.stringResource
+import com.p2p.meshify.core.common.R
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.CheckCircle
@@ -159,7 +161,7 @@ fun PrePermissionDialog(
 
                 // What happens section
                 PermissionInfoSection(
-                    title = "What happens:",
+                    title = stringResource(R.string.permission_dialog_what_happens_title),
                     points = currentPermission.whatHappens,
                     iconTint = MaterialTheme.colorScheme.primary
                 )
@@ -168,7 +170,7 @@ fun PrePermissionDialog(
 
                 // If you deny section
                 PermissionInfoSection(
-                    title = "If you deny:",
+                    title = stringResource(R.string.permission_dialog_if_deny_title),
                     points = currentPermission.ifDeny,
                     iconTint = MaterialTheme.colorScheme.error
                 )
@@ -233,7 +235,7 @@ fun PrePermissionDialog(
                         shape = MeshifyDesignSystem.Shapes.Button
                     ) {
                         Text(
-                            text = "Allow",
+                            text = stringResource(R.string.permission_dialog_allow),
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Medium
                         )
@@ -429,7 +431,7 @@ fun PermissionSummaryDialog(
                     shape = MeshifyDesignSystem.Shapes.Button
                 ) {
                     Text(
-                        text = "Start Messaging",
+                        text = stringResource(R.string.permission_dialog_start_messaging),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )

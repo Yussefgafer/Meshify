@@ -59,13 +59,13 @@ fun DiscoveryScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Nearby",
+                        text = stringResource(R.string.discovery_screen_title),
                         fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onSettingsClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.content_desc_back))
                     }
                 },
                 actions = {
@@ -76,7 +76,7 @@ fun DiscoveryScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
-                            contentDescription = "Refresh",
+                            contentDescription = stringResource(R.string.content_desc_refresh),
                             tint = if (uiState.isRefreshing) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurface
                         )
@@ -263,7 +263,7 @@ fun EmptyDiscoveryState(modifier: Modifier = Modifier) {
         Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Md))
 
         Text(
-            text = "No devices nearby",
+            text = stringResource(R.string.discovery_no_devices),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
@@ -273,7 +273,7 @@ fun EmptyDiscoveryState(modifier: Modifier = Modifier) {
         Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Xs))
 
         Text(
-            text = "Make sure Wi-Fi is enabled on other devices",
+            text = stringResource(R.string.discovery_wifi_hint),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center

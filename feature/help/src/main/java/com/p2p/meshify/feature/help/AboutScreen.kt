@@ -18,10 +18,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import com.p2p.meshify.core.common.R
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
 
 /**
@@ -61,22 +64,22 @@ fun AboutScreen(
         ) {
             // App Icon / Logo
             Spacer(modifier = Modifier.height(32.dp))
-            
+
             Text(
-                text = "Meshify",
+                text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.headlineLarge,
                 color = MaterialTheme.colorScheme.primary
             )
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             // Version Badge
             Surface(
                 color = MaterialTheme.colorScheme.primaryContainer,
                 shape = MeshifyDesignSystem.Shapes.Pill
             ) {
                 Text(
-                    text = "Version $appVersion",
+                    text = stringResource(R.string.about_version_format, appVersion),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)

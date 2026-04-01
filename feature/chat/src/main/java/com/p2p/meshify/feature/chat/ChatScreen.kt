@@ -826,7 +826,7 @@ fun MessageBubble(
                         
                         // Show percentage text
                         Text(
-                            text = "$progress%",
+                            text = stringResource(R.string.chat_upload_progress_percent, progress),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

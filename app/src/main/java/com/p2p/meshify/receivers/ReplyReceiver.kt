@@ -11,6 +11,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.RemoteInput
 import com.p2p.meshify.MeshifyApp
+import com.p2p.meshify.core.common.R
 import com.p2p.meshify.core.common.util.RateLimiter
 import com.p2p.meshify.core.util.NotificationHelper
 import com.p2p.meshify.core.util.Logger
@@ -135,20 +136,20 @@ class ReplyReceiver : BroadcastReceiver() {
         // Validate required fields
         if (chatId.isNullOrBlank()) {
             Logger.e("ReplyReceiver -> Missing chat_id")
-            showReplyErrorNotification(context, "Invalid chat", null, replyText)
+            showReplyErrorNotification(context, context.getString(R.string.error_reply_invalid_chat), null, replyText)
             return
         }
 
         if (signature.isNullOrBlank()) {
             Logger.e("ReplyReceiver -> Missing signature")
-            showReplyErrorNotification(context, "Invalid reply", null, replyText)
+            showReplyErrorNotification(context, context.getString(R.string.error_reply_invalid_message), null, replyText)
             return
         }
 
         // Validate signature is valid Base64 format
         if (!isValidBase64(signature)) {
             Logger.e("ReplyReceiver -> Invalid Base64 signature format")
-            showReplyErrorNotification(context, "Unauthorized reply", null, replyText)
+            showReplyErrorNotification(context, context.getString(R.string.error_reply_unauthorized), null, replyText)
             return
         }
 
@@ -159,7 +160,7 @@ class ReplyReceiver : BroadcastReceiver() {
         // Reject future timestamps (clock manipulation attack)
         if (age < 0) {
             Logger.e("ReplyReceiver -> Future timestamp detected, rejecting")
-            showReplyErrorNotification(context, "Invalid timestamp", null, replyText)
+            showReplyErrorNotification(context, context.getString(R.string.error_reply_invalid_timestamp), null, replyText)
             return
         }
 
@@ -227,7 +228,7 @@ class ReplyReceiver : BroadcastReceiver() {
                 if (chat == null) {
                     Logger.e("Chat not found", null, "ReplyReceiver")
                     withContext(Dispatchers.Main) {
-                        showReplyErrorNotification(context, "Chat not found", chatId, sanitizedText)
+                        showReplyErrorNotification(context, context.getString(R.string.error_reply_chat_not_found), chatId, sanitizedText)
                     }
                     return@launch
                 }
@@ -283,8 +284,8 @@ class ReplyReceiver : BroadcastReceiver() {
 
         val notification = NotificationCompat.Builder(context, NotificationHelper.CHANNEL_ID_MESSAGES)
             .setSmallIcon(android.R.drawable.stat_notify_chat)
-            .setContentTitle("Reply Sent")
-            .setContentText("Reply: $previewText")
+            .setContentTitle(context.getString(R.string.notification_reply_sent_title))
+            .setContentText(context.getString(R.string.notification_reply_sent_text, previewText))
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
@@ -295,12 +296,12 @@ class ReplyReceiver : BroadcastReceiver() {
 
             // Fallback if notification fails
             if (!posted) {
-                Toast.makeText(context, "Reply sent", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.notification_reply_sent_toast), Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
             Logger.e("ReplyReceiver -> Failed to show success notification", e)
             // Always provide feedback
-            Toast.makeText(context, "Reply sent", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.notification_reply_sent_toast), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -333,7 +334,7 @@ class ReplyReceiver : BroadcastReceiver() {
 
         val notification = NotificationCompat.Builder(context, NotificationHelper.CHANNEL_ID_MESSAGES)
             .setSmallIcon(android.R.drawable.stat_notify_error)
-            .setContentTitle("Reply Failed")
+            .setContentTitle(context.getString(R.string.notification_reply_failed_title))
             .setContentText(error)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -341,7 +342,7 @@ class ReplyReceiver : BroadcastReceiver() {
             .setContentIntent(retryPendingIntent)
             .addAction(
                 android.R.drawable.ic_menu_send,
-                "Retry",
+                context.getString(R.string.notification_action_retry),
                 retryPendingIntent
             )
             .build()

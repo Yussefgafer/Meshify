@@ -48,8 +48,23 @@
     <string name="chat_status_online">متصل</string>
     <string name="chat_status_offline">غير متصل</string>
     <string name="chat_message_deleted">تم حذف هذه الرسالة</string>
+    <string name="chat_message_you">أنت: %s</string>
     <string name="chat_message_media_not_found">ملف الوسائط غير موجود</string>
     <string name="chat_message_file_prefix">ملف: </string>
+
+    <!-- Developer Screen -->
+    <string name="developer_clear_data_title">مسح جميع البيانات؟</string>
+    <string name="developer_clear_data_message">سيتم حذف جميع المحادثات والرسائل والإعدادات. لا يمكن التراجع عن هذا الإجراء.</string>
+    <string name="developer_clear_data_confirm">حذف كل شيء</string>
+    <string name="developer_clear_data_cancel">إلغاء</string>
+    <string name="developer_clear_success">تم مسح جميع البيانات</string>
+    <string name="developer_action_ok">موافق</string>
+
+    <!-- Back Handler Dialog -->
+    <string name="dialog_discard_message_title">تجاهل الرسالة؟</string>
+    <string name="dialog_discard_message_text">لديك رسالة غير محفوظة. ستفقد إذا غادرت.</string>
+    <string name="dialog_discard_message_confirm">تجاهل</string>
+    <string name="dialog_discard_message_cancel">إلغاء</string>
 
     <!-- Chat Screen - Reply -->
     <string name="chat_reply_label">جارٍ الرد على</string>
@@ -78,6 +93,7 @@
     <string name="setting_dark_mode">الوضع الداكن</string>
     <string name="setting_device_id">معرف الجهاز</string>
     <string name="setting_app_version">إصدار التطبيق</string>
+    <string name="setting_notifications">الإشعارات</string>
     <string name="btn_save_changes">حفظ التغييرات</string>
     <string name="settings_section_identity">الهوية والملف الشخصي</string>
     <string name="settings_section_appearance">المظهر</string>
@@ -201,11 +217,31 @@
     <!-- MD3E Settings - Chat Bubbles -->
     <string name="settings_chat_bubbles">فقاعات المحادثة</string>
     <string name="settings_chat_bubbles_desc">اختر نمط شكل فقاعات المحادثة</string>
+    <string name="about_version_format">الإصدار %s</string>
 
     <!-- MD3E Settings - Visual Density -->
     <string name="settings_visual_density">الكثافة البصرية</string>
     <string name="settings_visual_density_desc">اضبط حجم وعناصر واجهة المستخدم والتباعد</string>
     <string name="settings_density_label">الكثافة</string>
+
+    <!-- About Screen -->
+    <string name="about_screen_title">حول</string>
+    <string name="about_back_desc">رجوع</string>
+    <string name="about_description">مشيفاي هو تطبيق مراسلة نظير إلى نظير آمن يعمل بدون إنترنت باستخدام وايفاي دايركت والبلوتوث.</string>
+    <string name="about_team">فريقنا</string>
+    <string name="about_team_desc">تعرف على المطورين وراء مشيفاي</string>
+    <string name="about_features">الميزات</string>
+    <string name="about_features_desc">اكتشف ما يجعل مشيفاي مميزًا</string>
+    <string name="about_tech">التقنية</string>
+    <string name="about_tech_desc">تعرف على الأمان والهندسة المعمارية</string>
+    <string name="about_github">GitHub</string>
+    <string name="about_github_desc">عرض الكود المصدري</string>
+    <string name="about_privacy">سياسة الخصوصية</string>
+    <string name="about_privacy_desc">اقرأ سياسة الخصوصية</string>
+    <string name="about_license">الترخيص</string>
+    <string name="about_license_desc">ترخيص MIT</string>
+    <string name="about_made_with">صنع بـ ❤️ بواسطة Jo</string>
+    <string name="about_copyright">© ٢٠٢٦ مشيفاي. جميع الحقوق محفوظة.</string>
 
     <!-- Attachment Bottom Sheet -->
     <string name="attach_file_title">إرفاق ملف</string>
@@ -315,4 +351,68 @@
     <string name="noPermission">لا يوجد إذن</string>
     <string name="not_available">غير متوفر</string>
     <string name="not_available_subtitle">هذه الميزة غير متوفرة بعد</string>
+
+    <!-- Discovery Screen -->
+    <string name="discovery_screen_title">الأجهزة القريبة</string>
+    <string name="discovery_no_devices">لا توجد أجهزة قريبة</string>
+    <string name="discovery_wifi_hint">تأكد من تفعيل الواي فاي على الأجهزة الأخرى</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_status_enabled">مفعّل</string>
+    <string name="settings_status_disabled">معطّل</string>
+    <string name="settings_cache_cleared_success">تم مسح الذاكرة المؤقتة!</string>
+    <string name="settings_cache_cleared_error">فشل مسح الذاكرة المؤقتة</string>
+    <string name="settings_close_dialog">إغلاق</string>
+
+    <!-- Developer Screen -->
+    <string name="developer_mock_media_name">اختبار الوسائط</string>
+    <string name="developer_mock_media_success">تم إضافة محادثة اختبار الوسائط</string>
+    <string name="developer_mock_reactions_name">عرض التفاعلات</string>
+    <string name="developer_mock_reactions_success">تم إضافة محادثة عرض التفاعلات</string>
+    <string name="developer_mock_replies_name">عرض الردود</string>
+    <string name="developer_mock_replies_success">تم إضافة محادثة عرض الردود</string>
+    <string name="developer_mock_long_chat_name">محادثة طويلة</string>
+    <string name="developer_mock_clear_success">تم مسح جميع البيانات التجريبية</string>
+    <string name="developer_mock_conversations_subtitle">7 محادثات بأنواع رسائل مختلفة</string>
+    <string name="developer_mock_media_subtitle">صور وفيديوهات وملفات في محادثة</string>
+    <string name="developer_mock_reactions_subtitle">محادثة مع تفاعلات إيموجي</string>
+    <string name="developer_mock_replies_subtitle">محادثة مع سلاسل ردود</string>
+    <string name="developer_mock_long_chat_subtitle">50 رسالة مع تفاعلات</string>
+    <string name="developer_mock_clear_subtitle">إزالة جميع المحادثات التجريبية</string>
+    <string name="developer_clear_all_warning">حذف كل شيء - لا يمكن التراجع!</string>
+
+    <!-- Chat Screen -->
+    <string name="chat_upload_progress_percent">%d%%</string>
+
+    <!-- Permission Dialog -->
+    <string name="permission_dialog_what_happens_title">ماذا يحدث:</string>
+    <string name="permission_dialog_if_deny_title">إذا رفضت:</string>
+    <string name="permission_storage_title">الصور والملفات</string>
+    <string name="permission_dialog_allow">سماح</string>
+    <string name="permission_dialog_start_messaging">بدء المراسلة</string>
+
+    <!-- Notifications -->
+    <string name="notification_reply_sent_title">تم إرسال الرد</string>
+    <string name="notification_reply_sent_text">الرد: %s</string>
+    <string name="notification_reply_sent_toast">تم إرسال الرد</string>
+    <string name="notification_reply_failed_title">فشل الرد</string>
+    <string name="notification_action_retry">إعادة المحاولة</string>
+
+    <!-- Accessibility -->
+    <string name="content_desc_refresh">تحديث</string>
+    <string name="content_desc_close">إغلاق</string>
+    <string name="content_desc_scroll_to_bottom">التمرير للأسفل</string>
+    <string name="onboarding_page_indicator">صفحة %d</string>
+    <string name="onboarding_go_to_page">الانتقال لصفحة %d</string>
+    <string name="permission_deny_accessibility">رفض %s</string>
+    <string name="permission_allow_accessibility">سماح %s</string>
+
+    <!-- Reply Receiver Error Messages -->
+    <string name="error_reply_invalid_chat">محادثة غير صالحة</string>
+    <string name="error_reply_invalid_message">رد غير صالح</string>
+    <string name="error_reply_unauthorized">رد غير مصرح به</string>
+    <string name="error_reply_invalid_timestamp">طابع زمني غير صالح</string>
+    <string name="error_reply_empty">لا يمكن أن يكون الرد فارغًا</string>
+    <string name="error_reply_invalid_content">محتوى الرسالة غير صالح</string>
+    <string name="error_reply_chat_not_found">المحادثة غير موجودة</string>
 </resources>

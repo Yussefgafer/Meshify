@@ -93,6 +93,7 @@
     <string name="setting_dark_mode">Dark Mode</string>
     <string name="setting_device_id">Device ID</string>
     <string name="setting_app_version">App Version</string>
+    <string name="setting_notifications">Notifications</string>
     <string name="btn_save_changes">Save Changes</string>
     <string name="settings_section_identity">Profile Identity</string>
     <string name="settings_section_appearance">Appearance</string>
@@ -216,11 +217,31 @@
     <!-- MD3E Settings - Chat Bubbles -->
     <string name="settings_chat_bubbles">Chat Bubbles</string>
     <string name="settings_chat_bubbles_desc">Select chat bubble shape style</string>
+    <string name="about_version_format">Version %s</string>
 
     <!-- MD3E Settings - Visual Density -->
     <string name="settings_visual_density">Visual Density</string>
     <string name="settings_visual_density_desc">Adjust UI element sizing and spacing</string>
     <string name="settings_density_label">Density</string>
+
+    <!-- About Screen -->
+    <string name="about_screen_title">About</string>
+    <string name="about_back_desc">Back</string>
+    <string name="about_description">Meshify is a secure peer-to-peer messaging app that works without internet using Wi-Fi Direct and Bluetooth.</string>
+    <string name="about_team">Our Team</string>
+    <string name="about_team_desc">Meet the developers behind Meshify</string>
+    <string name="about_features">Features</string>
+    <string name="about_features_desc">Discover what makes Meshify special</string>
+    <string name="about_tech">Technology</string>
+    <string name="about_tech_desc">Learn about our security &amp; architecture</string>
+    <string name="about_github">GitHub</string>
+    <string name="about_github_desc">View source code</string>
+    <string name="about_privacy">Privacy Policy</string>
+    <string name="about_privacy_desc">Read our privacy policy</string>
+    <string name="about_license">License</string>
+    <string name="about_license_desc">MIT License</string>
+    <string name="about_made_with">Made with ❤️ by Jo</string>
+    <string name="about_copyright">© 2026 Meshify. All rights reserved.</string>
 
     <!-- Attachment Bottom Sheet -->
     <string name="attach_file_title">Attach File</string>
@@ -330,4 +351,68 @@
     <string name="noPermission">No Permission</string>
     <string name="not_available">Not available</string>
     <string name="not_available_subtitle">This feature is not available yet</string>
+
+    <!-- Discovery Screen -->
+    <string name="discovery_screen_title">Nearby</string>
+    <string name="discovery_no_devices">No devices nearby</string>
+    <string name="discovery_wifi_hint">Make sure Wi-Fi is enabled on other devices</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_status_enabled">Enabled</string>
+    <string name="settings_status_disabled">Disabled</string>
+    <string name="settings_cache_cleared_success">Cache cleared!</string>
+    <string name="settings_cache_cleared_error">Failed to clear cache</string>
+    <string name="settings_close_dialog">Close</string>
+
+    <!-- Developer Screen -->
+    <string name="developer_mock_media_name">Media Test</string>
+    <string name="developer_mock_media_success">Added media test conversation</string>
+    <string name="developer_mock_reactions_name">Reactions Demo</string>
+    <string name="developer_mock_reactions_success">Added reactions demo conversation</string>
+    <string name="developer_mock_replies_name">Replies Demo</string>
+    <string name="developer_mock_replies_success">Added replies demo conversation</string>
+    <string name="developer_mock_long_chat_name">Long Chat</string>
+    <string name="developer_mock_clear_success">Cleared all mock data</string>
+    <string name="developer_mock_conversations_subtitle">7 chats with different message types</string>
+    <string name="developer_mock_media_subtitle">Images, videos, and files in a chat</string>
+    <string name="developer_mock_reactions_subtitle">Chat with emoji reactions</string>
+    <string name="developer_mock_replies_subtitle">Chat with reply threads</string>
+    <string name="developer_mock_long_chat_subtitle">50 messages with reactions</string>
+    <string name="developer_mock_clear_subtitle">Remove all mock conversations</string>
+    <string name="developer_clear_all_warning">Delete everything - cannot be undone!</string>
+
+    <!-- Chat Screen -->
+    <string name="chat_upload_progress_percent">%d%%</string>
+
+    <!-- Permission Dialog -->
+    <string name="permission_dialog_what_happens_title">What happens:</string>
+    <string name="permission_dialog_if_deny_title">If you deny:</string>
+    <string name="permission_storage_title">Photos &amp; Files</string>
+    <string name="permission_dialog_allow">Allow</string>
+    <string name="permission_dialog_start_messaging">Start Messaging</string>
+
+    <!-- Notifications -->
+    <string name="notification_reply_sent_title">Reply Sent</string>
+    <string name="notification_reply_sent_text">Reply: %s</string>
+    <string name="notification_reply_sent_toast">Reply sent</string>
+    <string name="notification_reply_failed_title">Reply Failed</string>
+    <string name="notification_action_retry">Retry</string>
+
+    <!-- Accessibility -->
+    <string name="content_desc_refresh">Refresh</string>
+    <string name="content_desc_close">Close</string>
+    <string name="content_desc_scroll_to_bottom">Scroll to bottom</string>
+    <string name="onboarding_page_indicator">Page %d</string>
+    <string name="onboarding_go_to_page">Go to page %d</string>
+    <string name="permission_deny_accessibility">Deny %s</string>
+    <string name="permission_allow_accessibility">Allow %s</string>
+
+    <!-- Reply Receiver Error Messages -->
+    <string name="error_reply_invalid_chat">Invalid chat</string>
+    <string name="error_reply_invalid_message">Invalid reply</string>
+    <string name="error_reply_unauthorized">Unauthorized reply</string>
+    <string name="error_reply_invalid_timestamp">Invalid timestamp</string>
+    <string name="error_reply_empty">Reply cannot be empty</string>
+    <string name="error_reply_invalid_content">Invalid message content</string>
+    <string name="error_reply_chat_not_found">Chat not found</string>
 </resources>

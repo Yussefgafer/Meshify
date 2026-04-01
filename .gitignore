@@ -17,6 +17,7 @@ skills/
 
 **/build/
 /captures
+/agent
 .externalNativeBuild
 .cxx
 local.properties

@@ -211,7 +211,7 @@ fun SettingsScreen(
                     icon = Icons.Default.Fingerprint,
                     onClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        val clip = ClipData.newPlainText("Device ID", deviceId)
+                        val clip = ClipData.newPlainText(context.getString(R.string.setting_device_id), deviceId)
                         clipboard.setPrimaryClip(clip)
                         haptics.perform(HapticPattern.Success) // ✅ UX04: Haptic feedback on copy
                     }
@@ -345,8 +345,8 @@ fun SettingsScreen(
 
                 // Notifications
                 MeshifySettingsItem(
-                    title = "Notifications",
-                    subtitle = if (notificationsEnabled) "Enabled" else "Disabled",
+                    title = stringResource(R.string.setting_notifications),
+                    subtitle = if (notificationsEnabled) stringResource(R.string.settings_status_enabled) else stringResource(R.string.settings_status_disabled),
                     icon = Icons.Default.Notifications,
                     trailing = {
                         Switch(
@@ -647,7 +647,7 @@ fun SettingsScreen(
             modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Md),
             action = {
                 IconButton(onClick = { backupStatus = null }) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.content_desc_close), tint = Color.White)
                 }
             }
         ) {
