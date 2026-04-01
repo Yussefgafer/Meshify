@@ -42,6 +42,9 @@ class NotificationHelper(private val context: Context) {
         return try {
             notify(id, notification)
             true
+        } catch (e: SecurityException) {
+            Logger.e("NotificationHelper -> POST_NOTIFICATIONS permission denied", e)
+            false
         } catch (e: Exception) {
             Logger.e("NotificationHelper -> Failed to post notification", e)
             false

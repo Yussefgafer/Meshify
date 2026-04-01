@@ -107,7 +107,7 @@ class DeveloperViewModel(
         viewModelScope.launch {
             try {
                 val peerId = "peer_media_test"
-                val peerName = "Media Test"
+                val peerName = "Media Test" // TODO: Use string resource
                 val baseTime = System.currentTimeMillis()
 
                 chatDao.insertChat(ChatEntity(peerId, peerName, "[Media Messages]", baseTime))
@@ -169,7 +169,7 @@ class DeveloperViewModel(
                 )
 
                 mediaMessages.forEach { messageDao.insertMessage(it) }
-                onComplete("Added media test conversation")
+                onComplete("Added media test conversation") // TODO: Use stringResource
             } catch (e: Exception) {
                 onComplete("Error: ${e.message}")
             }
@@ -180,7 +180,7 @@ class DeveloperViewModel(
         viewModelScope.launch {
             try {
                 val peerId = "peer_reactions"
-                val peerName = "Reactions Demo"
+                val peerName = "Reactions Demo" // TODO: Use stringResource
                 val baseTime = System.currentTimeMillis()
 
                 chatDao.insertChat(ChatEntity(peerId, peerName, "👍", baseTime))
@@ -246,7 +246,7 @@ class DeveloperViewModel(
         viewModelScope.launch {
             try {
                 val peerId = "peer_replies"
-                val peerName = "Replies Demo"
+                val peerName = "Replies Demo" // TODO: Use stringResource
                 val baseTime = System.currentTimeMillis()
 
                 chatDao.insertChat(ChatEntity(peerId, peerName, "Got it!", baseTime))
@@ -308,7 +308,7 @@ class DeveloperViewModel(
         viewModelScope.launch {
             try {
                 val peerId = "peer_long_chat"
-                val peerName = "Long Chat"
+                val peerName = "Long Chat" // TODO: Use stringResource
                 val baseTime = System.currentTimeMillis()
 
                 val messages = mutableListOf<MessageEntity>()
@@ -358,7 +358,7 @@ class DeveloperViewModel(
                     chatDao.deleteChatById(peerId)
                 }
 
-                onComplete("Cleared all mock data")
+                onComplete("Cleared all mock data") // TODO: Use stringResource
             } catch (e: Exception) {
                 onComplete("Error: ${e.message}")
             }
@@ -501,7 +501,7 @@ fun DeveloperScreen(
             MeshifySettingsGroup(title = "Mock Data") {
                 MeshifySettingsItem(
                     title = "Add Mock Conversations",
-                    subtitle = "7 chats with different message types",
+                    subtitle = stringResource(R.string.developer_mock_conversations_subtitle),
                     icon = Icons.Default.Chat,
                     onClick = {
                         viewModel.insertMockConversations { statusMessage = it }
@@ -515,7 +515,7 @@ fun DeveloperScreen(
 
                 MeshifySettingsItem(
                     title = "Add Media Messages",
-                    subtitle = "Images, videos, and files in a chat",
+                    subtitle = stringResource(R.string.developer_mock_media_subtitle),
                     icon = Icons.Default.Image,
                     onClick = {
                         viewModel.insertMockMediaMessages { statusMessage = it }
@@ -529,7 +529,7 @@ fun DeveloperScreen(
 
                 MeshifySettingsItem(
                     title = "Add Reactions Demo",
-                    subtitle = "Chat with emoji reactions",
+                    subtitle = stringResource(R.string.developer_mock_reactions_subtitle),
                     icon = Icons.Default.EmojiEmotions,
                     onClick = {
                         viewModel.insertMockChatWithReactions { statusMessage = it }
@@ -543,7 +543,7 @@ fun DeveloperScreen(
 
                 MeshifySettingsItem(
                     title = "Add Replies Demo",
-                    subtitle = "Chat with reply threads",
+                    subtitle = stringResource(R.string.developer_mock_replies_subtitle),
                     icon = Icons.Default.Reply,
                     onClick = {
                         viewModel.insertMockChatWithReplies { statusMessage = it }
@@ -557,7 +557,7 @@ fun DeveloperScreen(
 
                 MeshifySettingsItem(
                     title = "Add Long Conversation",
-                    subtitle = "50 messages with reactions",
+                    subtitle = stringResource(R.string.developer_mock_long_chat_subtitle),
                     icon = Icons.Default.FormatListNumbered,
                     onClick = {
                         viewModel.insertMockLongConversation { statusMessage = it }
@@ -571,7 +571,7 @@ fun DeveloperScreen(
             MeshifySettingsGroup(title = "Cleanup") {
                 MeshifySettingsItem(
                     title = "Clear Mock Data",
-                    subtitle = "Remove all mock conversations",
+                    subtitle = stringResource(R.string.developer_mock_clear_subtitle),
                     icon = Icons.Default.DeleteSweep,
                     onClick = {
                         viewModel.clearMockData { statusMessage = it }
@@ -585,7 +585,7 @@ fun DeveloperScreen(
 
                 MeshifySettingsItem(
                     title = "Clear ALL Data",
-                    subtitle = "Delete everything - cannot be undone!",
+                    subtitle = stringResource(R.string.developer_clear_all_warning),
                     icon = Icons.Default.Warning,
                     onClick = {
                         showClearDataConfirmation = true

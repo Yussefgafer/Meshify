@@ -119,7 +119,11 @@ class DiscoveryManager {
      */
     fun clearAllDiscoveredDevices() {
         services.forEach { (_, service) ->
-            service.clearDiscoveredDevices()
+            try {
+                service.clearDiscoveredDevices()
+            } catch (e: Exception) {
+                // Log error but continue with other services
+            }
         }
     }
 

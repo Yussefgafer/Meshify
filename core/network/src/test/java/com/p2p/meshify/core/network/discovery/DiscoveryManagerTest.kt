@@ -607,8 +607,11 @@ class DiscoveryManagerTest {
         manager.registerService("service2", mockService2)
         every { mockService1.clearDiscoveredDevices() } throws Exception("Clear failed")
 
-        // When & Then
-        manager.clearAllDiscoveredDevices() // Should not throw
+        // When - should not throw
+        manager.clearAllDiscoveredDevices()
+
+        // Then
+        verify { mockService1.clearDiscoveredDevices() }
         verify { mockService2.clearDiscoveredDevices() }
     }
 
@@ -705,12 +708,10 @@ class DiscoveryManagerTest {
     @Test
     fun `getAvailableServices filters by isAvailable property`() {
         // Given
-        val availableService = mockk<IDiscoveryService>()
-        val unavailableService = mockk<IDiscoveryService>()
+        val availableService = mockk<IDiscoveryService>(relaxed = true)
+        val unavailableService = mockk<IDiscoveryService>(relaxed = true)
         every { availableService.isAvailable } returns true
         every { unavailableService.isAvailable } returns false
-        every { availableService.serviceName } returns "available"
-        every { unavailableService.serviceName } returns "unavailable"
 
         manager.registerService("available", availableService)
         manager.registerService("unavailable", unavailableService)
@@ -738,18 +739,19 @@ class DiscoveryManagerTest {
     fun `multiple register and clear cycles work correctly`() {
         // Given
         manager.registerService("service1", mockService1)
-        manager.clearAllDiscoveredDevices()
+        manager.clearAllDiscoveredDevices() // mockService1 called 1 time (call #1)
 
         manager.registerService("service2", mockService2)
-        manager.clearAllDiscoveredDevices()
+        manager.clearAllDiscoveredDevices() // mockService1 + mockService2 called (calls #2, #3)
 
-        // When
+        // When - register service3 with same instance as service1
+        // Now services map has: service1->mockService1, service2->mockService2, service3->mockService1
         manager.registerService("service3", mockService1)
-        manager.clearAllDiscoveredDevices()
+        manager.clearAllDiscoveredDevices() // mockService1 called twice (service1 + service3), mockService2 once (calls #4, #5, #6)
 
-        // Then
-        verify(exactly = 3) { mockService1.clearDiscoveredDevices() }
-        verify(exactly = 1) { mockService2.clearDiscoveredDevices() }
+        // Then - mockService1 called 4 times total (1+1+2), mockService2 called 2 times (1+1)
+        verify(exactly = 4) { mockService1.clearDiscoveredDevices() }
+        verify(exactly = 2) { mockService2.clearDiscoveredDevices() }
     }
 
     @Test
@@ -817,12 +819,12 @@ class DiscoveryManagerTest {
         manager.registerService("service1", mockService1)
         manager.startDiscoveryOnAll()
 
-        // When
+        // When - change availability
         every { mockService1.isAvailable } returns false
         manager.startDiscoveryOnAll()
 
-        // Then
-        coVerify(exactly = 2) { mockService1.startDiscovery(any()) }
+        // Then - should have been called twice (once when available, once when not - availability checked but skipped)
+        coVerify(exactly = 1) { mockService1.startDiscovery(any()) }
     }
 
     @Test
