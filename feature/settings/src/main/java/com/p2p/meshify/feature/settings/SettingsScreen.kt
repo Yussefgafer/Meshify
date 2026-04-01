@@ -316,11 +316,11 @@ fun SettingsScreen(
             }
 
             // === SECTION 5: APP SETTINGS ✅ ===
-            MeshifySettingsGroup(title = "App Settings") {
+            MeshifySettingsGroup(title = stringResource(R.string.settings_group_app)) {
                 // Language
                 MeshifySettingsItem(
-                    title = "Language",
-                    subtitle = if (appLanguage == "ar") "العربية" else "English",
+                    title = stringResource(R.string.setting_language),
+                    subtitle = if (appLanguage == "ar") stringResource(R.string.settings_language_arabic) else stringResource(R.string.settings_language_english),
                     icon = Icons.Default.Language,
                     onClick = { showLanguageDialog = true }
                 )
@@ -332,7 +332,7 @@ fun SettingsScreen(
 
                 // Font Size
                 MeshifySettingsItem(
-                    title = "Font Size",
+                    title = stringResource(R.string.setting_font_size),
                     subtitle = "${(fontSizeScale * 100).toInt()}%",
                     icon = Icons.Default.TextFields,
                     onClick = { showFontSizeDialog = true }
@@ -369,9 +369,9 @@ fun SettingsScreen(
 
                 // Notification Sound
                 MeshifySettingsItem(
-                    title = "Notification Sound",
-                    subtitle = "Play sound for new messages",
-                    icon = Icons.Default.VolumeUp,
+                    title = stringResource(R.string.setting_notification_sound),
+                    subtitle = stringResource(R.string.setting_notification_sound_desc),
+                    icon = Icons.Filled.VolumeUp,
                     trailing = {
                         Switch(
                             checked = notificationSound,
@@ -395,8 +395,8 @@ fun SettingsScreen(
 
                 // Notification Vibrate
                 MeshifySettingsItem(
-                    title = "Vibration",
-                    subtitle = "Vibrate for new messages",
+                    title = stringResource(R.string.setting_vibration),
+                    subtitle = stringResource(R.string.setting_vibration_desc),
                     icon = Icons.Default.Vibration,
                     trailing = {
                         Switch(
@@ -421,13 +421,13 @@ fun SettingsScreen(
 
                 // Clear Cache
                 MeshifySettingsItem(
-                    title = "Clear Cache",
-                    subtitle = "Free up storage space",
+                    title = stringResource(R.string.setting_clear_cache),
+                    subtitle = stringResource(R.string.setting_clear_cache_desc),
                     icon = Icons.Default.DeleteSweep,
                     onClick = {
                         haptics.perform(HapticPattern.Pop)
                         viewModel.clearCache { result ->
-                            backupStatus = if (result.isSuccess) "Cache cleared!" else "Failed to clear cache"
+                            backupStatus = if (result.isSuccess) context.getString(R.string.settings_cache_cleared_success) else context.getString(R.string.settings_cache_cleared_error)
                         }
                     }
                 )
@@ -440,7 +440,7 @@ fun SettingsScreen(
                 // Backup/Restore
                 MeshifySettingsItem(
                     title = "Backup & Restore",
-                    subtitle = "Export or import settings",
+                    subtitle = stringResource(R.string.settings_backup_desc),
                     icon = Icons.Default.CloudUpload,
                     onClick = { showBackupDialog = true }
                 )
@@ -567,7 +567,7 @@ fun SettingsScreen(
     // ✅ Language Selection Dialog
     if (showLanguageDialog) {
         MeshifySelectionDialog(
-            title = "Select Language",
+            title = stringResource(R.string.settings_dialog_select_language),
             options = listOf("en", "ar"),
             selectedOption = appLanguage,
             onOptionSelected = { lang ->
@@ -576,7 +576,7 @@ fun SettingsScreen(
                 showLanguageDialog = false
             },
             onDismiss = { showLanguageDialog = false },
-            optionLabel = { lang -> if (lang == "ar") "العربية" else "English" },
+            optionLabel = { lang -> if (lang == "ar") context.getString(R.string.settings_language_arabic) else context.getString(R.string.settings_language_english) },
             optionIcon = { lang -> if (lang == "ar") Icons.Default.Language else Icons.Default.Translate }
         )
     }
@@ -584,7 +584,7 @@ fun SettingsScreen(
     // ✅ Font Size Dialog
     if (showFontSizeDialog) {
         MeshifySelectionDialog(
-            title = "Font Size",
+            title = stringResource(R.string.settings_dialog_font_size),
             options = listOf(0.8f, 1.0f, 1.2f, 1.5f),
             selectedOption = fontSizeScale,
             onOptionSelected = { scale ->

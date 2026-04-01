@@ -200,10 +200,10 @@ fun PrePermissionDialog(
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp)
-                            .semantics { contentDescription = "Deny ${currentPermission.title}" }
+                            .semantics { contentDescription = "Deny " + currentPermission.title }
                     ) {
                         Text(
-                            text = "Deny",
+                            text = stringResource(R.string.permission_dialog_deny),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -356,7 +356,7 @@ fun PermissionSummaryDialog(
 
                 // Title
                 Text(
-                    text = "You're All Set!",
+                    text = stringResource(R.string.permission_summary_title),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -367,7 +367,7 @@ fun PermissionSummaryDialog(
 
                 // Description
                 Text(
-                    text = "Meshify is ready to use. Start discovering nearby devices and send messages!",
+                    text = stringResource(R.string.permission_summary_desc),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -389,7 +389,7 @@ fun PermissionSummaryDialog(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "Some features may be limited.",
+                        text = stringResource(R.string.permission_partial_warning),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error,
                         textAlign = TextAlign.Center
@@ -457,7 +457,7 @@ data class PermissionInfo(
  * All permission definitions.
  */
 object PermissionDefinitions {
-    
+
     fun getPermissions(): List<PermissionInfo> {
         val permissions = mutableListOf<PermissionInfo>()
 
