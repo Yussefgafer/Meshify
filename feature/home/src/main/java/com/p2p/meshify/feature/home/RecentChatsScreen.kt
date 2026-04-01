@@ -87,10 +87,10 @@ fun RecentChatsScreen(
                     contentDescription = stringResource(R.string.home_loading_desc)
                 )
             }
-            // Error state
+            // Error state - uiState.error is guaranteed non-null here
             uiState.error != null -> {
                 ErrorState(
-                    message = uiState.error!!,
+                    message = uiState.error ?: "Unknown error",
                     padding = padding,
                     onRetry = { viewModel.retryLoad() }
                 )

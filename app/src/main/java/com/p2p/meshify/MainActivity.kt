@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.rememberNavController
@@ -107,6 +108,7 @@ class MainActivity : ComponentActivity() {
                 seedColor = seedColor
             ) {
                 CompositionLocalProvider(LocalPremiumHaptics provides premiumHaptics) {
+                    val context = LocalContext.current
                     val isDark = MaterialTheme.colorScheme.surface.toArgb().let { colorInt ->
                         val r = (colorInt shr 16 and 0xff) / 255.0
                         val g = (colorInt shr 8 and 0xff) / 255.0
@@ -172,6 +174,7 @@ class MainActivity : ComponentActivity() {
                                                 override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                                                     @Suppress("UNCHECKED_CAST")
                                                     return ChatViewModel(
+                                                        context = context,
                                                         peerId = peerId,
                                                         peerName = peerName ?: "Peer",
                                                         repository = appContainer.chatRepository

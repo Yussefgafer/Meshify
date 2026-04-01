@@ -7,6 +7,8 @@ import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.util.UUID
 
+private const val TAG = "PayloadSerializer"
+
 /**
  * Enhanced Utility for serializing and deserializing Payload objects.
  *
@@ -68,8 +70,8 @@ object PayloadSerializer {
         return when (val result = deserializeSafe(bytes)) {
             is DeserializeResult.Success -> result.payload
             is DeserializeResult.Error -> {
-                // Log corrupted payload for debugging (using simple println for core module)
-                println("PayloadSerializer -> Corrupted payload received: ${result.reason}")
+                // Log corrupted payload for debugging
+                Logger.e("Corrupted payload received: ${result.reason}", tag = TAG)
                 // Return a safe empty payload instead of preserving corrupted data
                 Payload(
                     id = UUID.randomUUID().toString(),
@@ -143,7 +145,7 @@ object PayloadSerializer {
                     val typeName = try {
                         String(typeBytes, StandardCharsets.UTF_8)
                     } catch (e: Exception) {
-                        println("PayloadSerializer -> Invalid UTF-8 type name, using default charset")
+                        Logger.w("Invalid UTF-8 type name, using default charset", tag = TAG)
                         String(typeBytes) // Fallback to default charset
                     }
                     typeName.toPayloadType() ?: Payload.PayloadType.SYSTEM_CONTROL

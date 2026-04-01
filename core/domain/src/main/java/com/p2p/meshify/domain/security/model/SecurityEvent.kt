@@ -30,4 +30,14 @@ sealed class SecurityEvent {
      * @param peerId The ID of the peer
      */
     data class SessionExpired(val peerId: String) : SecurityEvent()
+
+    /**
+     * Failed to send an encrypted message to a peer.
+     * This indicates a transmission failure after encryption succeeded.
+     *
+     * @param messageId The ID of the message that failed to send
+     * @param peerId The ID of the intended recipient
+     * @param reason Human-readable explanation of the failure
+     */
+    data class MessageSendFailed(val messageId: String, val peerId: String, val reason: String) : SecurityEvent()
 }

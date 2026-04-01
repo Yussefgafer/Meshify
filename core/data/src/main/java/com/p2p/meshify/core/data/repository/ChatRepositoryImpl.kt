@@ -1,6 +1,7 @@
 package com.p2p.meshify.core.data.repository
 
 import android.content.Context
+import com.p2p.meshify.core.common.R
 import com.p2p.meshify.core.data.local.dao.ChatDao
 import com.p2p.meshify.core.data.local.dao.MessageDao
 import com.p2p.meshify.core.data.local.entity.ChatEntity
@@ -21,6 +22,7 @@ import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.core.common.security.EncryptedSessionKeyStore
 import com.p2p.meshify.core.common.util.HexUtil
+import com.p2p.meshify.core.common.util.StringResourceProvider
 import com.p2p.meshify.core.data.security.impl.EcdhSessionManager
 import com.p2p.meshify.core.data.security.impl.MessageEnvelopeCrypto
 import com.p2p.meshify.domain.security.interfaces.PeerIdentityRepository
@@ -65,6 +67,7 @@ import java.util.UUID
  */
 class ChatRepositoryImpl(
     private val context: android.content.Context,
+    private val stringProvider: StringResourceProvider,
     private val chatDao: ChatDao,
     private val messageDao: MessageDao,
     private val pendingMessageDao: com.p2p.meshify.core.data.local.dao.PendingMessageDao,
@@ -77,6 +80,13 @@ class ChatRepositoryImpl(
     private val ecdhSessionManager: EcdhSessionManager,
     private val sessionKeyStore: EncryptedSessionKeyStore
 ) : IChatRepository {
+
+    // BUG FIX #1: Validate context is Application Context to prevent memory leaks
+    init {
+        require(context.applicationContext != null) {
+            "Context must be Application Context to prevent memory leaks"
+        }
+    }
 
     // Specialized repositories
     private val messageRepository: MessageRepository = MessageRepository(
@@ -114,6 +124,7 @@ class ChatRepositoryImpl(
 
     private val scope = CoroutineScope(Dispatchers.IO)
     private val payloadMutex = Mutex()
+    private val sessionMutex = Mutex()
 
     // Security events flow for UI notification
     private val _securityEvents = MutableSharedFlow<SecurityEvent>(replay = 0)
@@ -584,19 +595,20 @@ class ChatRepositoryImpl(
     private fun buildForwardContext(original: MessageEntity): String {
         val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault())
             .format(java.util.Date(original.timestamp))
+        val unknown = stringProvider.getString(R.string.forward_context_unknown)
 
         return when (original.type) {
             MessageType.TEXT -> {
                 val preview = original.text?.take(100) ?: ""
-                "Forwarded from $timestamp:\n$preview"
+                stringProvider.getString(R.string.forward_context_text, timestamp, preview)
             }
-            MessageType.IMAGE -> "Forwarded image from $timestamp"
-            MessageType.VIDEO -> "Forwarded video from $timestamp"
-            MessageType.AUDIO -> "Forwarded audio from $timestamp"
-            MessageType.FILE -> "Forwarded file from $timestamp"
-            MessageType.DOCUMENT -> "Forwarded document from $timestamp"
-            MessageType.ARCHIVE -> "Forwarded archive from $timestamp"
-            MessageType.APK -> "Forwarded APK from $timestamp"
+            MessageType.IMAGE -> stringProvider.getString(R.string.forward_context_image, timestamp)
+            MessageType.VIDEO -> stringProvider.getString(R.string.forward_context_video, timestamp)
+            MessageType.AUDIO -> stringProvider.getString(R.string.forward_context_audio, timestamp)
+            MessageType.FILE -> stringProvider.getString(R.string.forward_context_file, original.text ?: unknown, timestamp)
+            MessageType.DOCUMENT -> stringProvider.getString(R.string.forward_context_document, timestamp)
+            MessageType.ARCHIVE -> stringProvider.getString(R.string.forward_context_archive, original.text ?: unknown, timestamp)
+            MessageType.APK -> stringProvider.getString(R.string.forward_context_apk, original.text ?: unknown, timestamp)
         }
     }
 
@@ -610,107 +622,115 @@ class ChatRepositoryImpl(
 
     /**
      * Get existing session key or establish new session via ECDH handshake.
-     * 
+     *
      * Flow:
-     * 1. Check cache for existing session
-     * 2. If no session, trigger handshake via TransportManager
-     * 3. Wait briefly for handshake response to establish session
-     * 4. Return cached session if established, null on failure
-     * 
+     * 1. Check cache for existing session (protected by mutex)
+     * 2. If no session, trigger handshake via TransportManager (protected by mutex)
+     * 3. Release mutex BEFORE polling to prevent deadlock
+     * 4. Poll for session establishment outside mutex
+     * 5. Return cached session if established, null on failure
+     *
+     * Thread Safety: Uses sessionMutex to prevent race condition where multiple
+     * coroutines could simultaneously check for session (both find null) and then
+     * both send HANDSHAKE, resulting in duplicate sessions and wasted resources.
+     *
+     * BUG FIX #4: Mutex is now released before polling to prevent deadlock risk.
+     *
      * @param peerId the peer's ID
      * @return SessionKeyInfo if session exists or was established, null on failure
      */
     private suspend fun getOrEstablishSessionKey(peerId: String): EncryptedSessionKeyStore.SessionKeyInfo? {
-        // Check if we already have a session
-        sessionKeyStore.getSessionKey(peerId)?.let { existing ->
-            android.util.Log.d("ChatRepository", "Using cached session key for $peerId")
-            return existing
-        }
+        // Step 1 & 2: Check cache and send handshake (protected by mutex)
+        val handshakeSent = sessionMutex.withLock {
+            // Check if we already have a session (inside lock to prevent race condition)
+            sessionKeyStore.getSessionKey(peerId)?.let { existing ->
+                android.util.Log.d("ChatRepository", "Using cached session key for $peerId")
+                return@withLock true // Session already exists
+            }
 
-        // No session - trigger handshake via transport layer
-        android.util.Log.d("ChatRepository", "No session for $peerId - triggering handshake")
+            // No session - trigger handshake via transport layer
+            android.util.Log.d("ChatRepository", "No session for $peerId - triggering handshake")
 
-        // Get our identity info for handshake
-        val myId = settingsRepository.getDeviceId()
-        val identityPubKeyHex = peerIdentity.getPublicKeyHex()
-        val displayName = withContext(Dispatchers.IO) {
-            settingsRepository.displayName.firstOrNull() ?: "Unknown"
-        }
-        val avatarHash = withContext(Dispatchers.IO) {
-            settingsRepository.avatarHash.firstOrNull()
-        }
+            // Get our identity info for handshake
+            val myId = settingsRepository.getDeviceId()
+            val identityPubKeyHex = peerIdentity.getPublicKeyHex()
+            val displayName = withContext(Dispatchers.IO) {
+                settingsRepository.displayName.firstOrNull() ?: "Unknown"
+            }
+            val avatarHash = withContext(Dispatchers.IO) {
+                settingsRepository.avatarHash.firstOrNull()
+            }
 
-        // Generate ephemeral keypair for forward secrecy
-        val ephemeralKeypair = ecdhSessionManager.generateEphemeralKeypair()
-        val ephemeralPubKeyHex = HexUtil.toHex(ephemeralKeypair.public.encoded)
-        val nonce = ecdhSessionManager.generateNonce()
-        val nonceHex = HexUtil.toHex(nonce)
+            // Generate ephemeral keypair for forward secrecy
+            val ephemeralKeypair = ecdhSessionManager.generateEphemeralKeypair()
+            val ephemeralPubKeyHex = HexUtil.toHex(ephemeralKeypair.public.encoded)
+            val nonce = ecdhSessionManager.generateNonce()
+            val nonceHex = HexUtil.toHex(nonce)
 
-        // Store ephemeral private key and nonce for session finalization
-        // Will be used when peer responds with their handshake
-        // Note: This uses a temporary cache in LanTransportImpl.pendingEphemeralKeys
-        // We need to trigger the handshake via transport
+            // Build handshake payload
+            val handshake = Handshake(
+                version = 2,
+                name = displayName,
+                avatarHash = avatarHash,
+                identityPubKeyHex = identityPubKeyHex,
+                ephemeralPubKeyHex = ephemeralPubKeyHex,
+                nonceHex = nonceHex,
+                timestamp = System.currentTimeMillis()
+            )
 
-        // Build handshake payload
-        val handshake = Handshake(
-            version = 2,
-            name = displayName,
-            avatarHash = avatarHash,
-            identityPubKeyHex = identityPubKeyHex,
-            ephemeralPubKeyHex = ephemeralPubKeyHex,
-            nonceHex = nonceHex,
-            timestamp = System.currentTimeMillis()
-        )
+            val handshakePayload = Payload(
+                senderId = myId,
+                type = Payload.PayloadType.HANDSHAKE,
+                data = Json.encodeToString(handshake).toByteArray()
+            )
 
-        val handshakePayload = Payload(
-            senderId = myId,
-            type = Payload.PayloadType.HANDSHAKE,
-            data = Json.encodeToString(handshake).toByteArray()
-        )
+            // Send handshake via transport
+            val transport = transportManager.selectBestTransport(peerId)
+            if (transport == null) {
+                android.util.Log.e("ChatRepository", "No transport available for handshake with $peerId")
+                return@withLock false
+            }
 
-        // Send handshake via transport
-        // This will:
-        // 1. Send our ephemeral public key and nonce to peer
-        // 2. Peer will respond with their ephemeral public key and nonce
-        // 3. Both parties derive session key via ECDH + HKDF
-        // 4. Session stored in sessionKeyStore
-        val transport = transportManager.selectBestTransport(peerId)
-        if (transport == null) {
-            android.util.Log.e("ChatRepository", "No transport available for handshake with $peerId")
+            val sendResult = transport.sendPayload(peerId, handshakePayload)
+            if (sendResult.isFailure) {
+                android.util.Log.e("ChatRepository", "Failed to send handshake to $peerId: ${sendResult.exceptionOrNull()?.message}")
+                return@withLock false
+            }
+
+            android.util.Log.d("ChatRepository", "Handshake sent to $peerId - waiting for response")
+            true // Handshake sent successfully
+        } // Mutex RELEASED here - before polling
+
+        // Step 3: Poll for session establishment OUTSIDE mutex to prevent deadlock
+        if (!handshakeSent) {
             return null
         }
 
-        // Send handshake payload
-        val sendResult = transport.sendPayload(peerId, handshakePayload)
-        if (sendResult.isFailure) {
-            android.util.Log.e("ChatRepository", "Failed to send handshake to $peerId: ${sendResult.exceptionOrNull()?.message}")
-            return null
-        }
+        return pollForSessionEstablishment(peerId)
+    }
 
-        // Wait briefly for handshake response to be processed
-        // The response will establish the session in sessionKeyStore
-        android.util.Log.d("ChatRepository", "Handshake sent to $peerId - waiting for response")
-        
-        // Poll for session establishment (max 5 seconds)
-        var sessionEstablished = false
+    /**
+     * Polls for session establishment after handshake was sent.
+     * Must be called OUTSIDE of sessionMutex to prevent deadlock.
+     *
+     * @param peerId the peer's ID
+     * @return SessionKeyInfo if session was established, null on timeout
+     */
+    private suspend fun pollForSessionEstablishment(peerId: String): EncryptedSessionKeyStore.SessionKeyInfo? {
         val pollStartTime = System.currentTimeMillis()
         val pollTimeoutMs = 5000L
         val pollIntervalMs = 100L
-        
-        while (!sessionEstablished && (System.currentTimeMillis() - pollStartTime) < pollTimeoutMs) {
+
+        while ((System.currentTimeMillis() - pollStartTime) < pollTimeoutMs) {
             delay(pollIntervalMs)
-            if (sessionKeyStore.getSessionKey(peerId) != null) {
+            sessionKeyStore.getSessionKey(peerId)?.let { session ->
                 android.util.Log.d("ChatRepository", "Session established with $peerId via handshake")
-                sessionEstablished = true
+                return session
             }
         }
-        
-        if (!sessionEstablished) {
-            android.util.Log.w("ChatRepository", "Timeout waiting for handshake response from $peerId")
-        }
 
-        // Return session if established
-        return sessionKeyStore.getSessionKey(peerId)
+        android.util.Log.w("ChatRepository", "Timeout waiting for handshake response from $peerId")
+        return null
     }
 
     /**
@@ -963,6 +983,24 @@ class ChatRepositoryImpl(
                         type = MessageType.TEXT
                     )
                 )
+                // Emit security event to notify UI
+                scope.launch {
+                    try {
+                        _securityEvents.emit(
+                            SecurityEvent.MessageSendFailed(
+                                messageId = messageId,
+                                peerId = peerId,
+                                reason = error.message ?: "Unknown send error"
+                            )
+                        )
+                    } catch (emitError: Exception) {
+                        Logger.e(
+                            message = "Failed to emit security event for message $messageId: ${emitError.message}",
+                            throwable = emitError,
+                            tag = "ChatRepository"
+                        )
+                    }
+                }
             }
         } catch (e: Exception) {
             messageDao.updateMessageStatus(messageId, MessageStatus.FAILED)
@@ -1123,7 +1161,15 @@ class ChatRepositoryImpl(
     }
 
     /**
-     * Process incoming payload.
+     * Process incoming payload from peer.
+     *
+     * Structure:
+     * - ENCRYPTED_MESSAGE: Decrypts message, saves to database, sends ACK on success
+     * - HANDSHAKE: Processes V2/V1 handshake, establishes encrypted session via ECDH
+     * - SYSTEM_CONTROL, DELETE_REQUEST, REACTION: Basic command processing
+     * - Unhandled types (TEXT, FILE, VIDEO, DELIVERY_ACK, AVATAR_REQUEST, AVATAR_RESPONSE): Rejected
+     *
+     * TODO: Extract into separate handler functions for testability (currently ~205 lines)
      *
      * SECURITY NOTE: Only ENCRYPTED_MESSAGE payload type is accepted for message content.
      * Plaintext messages (TEXT, FILE, VIDEO) are REJECTED to prevent downgrade attacks.
@@ -1181,8 +1227,32 @@ class ChatRepositoryImpl(
                     val text = String(plaintext, Charsets.UTF_8)
                     // SECURITY: Never log decrypted message content - use non-sensitive logging only
                     android.util.Log.d("ChatRepository", "Message decrypted successfully from ${peerId.take(8)}")
-                    saveIncomingMessage(peerId, text, null, MessageType.TEXT, payload.timestamp, payload.id)
-                    sendSystemCommand(payload.senderId, "ACK_${payload.id}")
+                    
+                    // Check Result before sending ACK - only send ACK after confirmed save
+                    val saveResult = saveIncomingMessage(peerId, text, null, MessageType.TEXT, payload.timestamp, payload.id)
+                    
+                    if (saveResult.isSuccess) {
+                        // Only send ACK after confirmed save
+                        sendSystemCommand(payload.senderId, "ACK_${payload.id}")
+                    } else {
+                        // Log the failure and do NOT send ACK
+                        Logger.e(
+                            message = "Failed to save incoming message from ${peerId.take(8)}: ${saveResult.exceptionOrNull()?.message}",
+                            tag = "ChatRepository"
+                        )
+                        
+                        // Emit security event so UI knows save failed
+                        scope.launch {
+                            _securityEvents.emit(
+                                SecurityEvent.DecryptionFailed(
+                                    peerId = peerId,
+                                    reason = "Database save failed: ${saveResult.exceptionOrNull()?.message}"
+                                )
+                            )
+                        }
+                        
+                        // Do NOT send ACK - sender should retry
+                    }
 
                 } catch (e: SecurityException) {
                     // SECURITY: Log decryption failures as potential attacks
@@ -1191,29 +1261,69 @@ class ChatRepositoryImpl(
                         "SECURITY: Decryption failed for message from $peerId: ${e.message}",
                         e
                     )
-                    
+
+                    // Save placeholder message so user sees decryption failure in chat
+                    val saveResult = saveIncomingMessage(
+                        peerId = peerId,
+                        text = context.getString(R.string.error_decryption_failed),
+                        mediaPath = null,
+                        type = MessageType.TEXT,
+                        timestamp = payload.timestamp,
+                        messageId = "decryption_failed_${UUID.randomUUID()}"
+                    )
+
                     // Notify UI layer about the decryption failure
                     scope.launch {
-                        _securityEvents.emit(
-                            SecurityEvent.DecryptionFailed(
-                                peerId = peerId,
-                                reason = e.message ?: "Unknown decryption error"
+                        if (saveResult.isFailure) {
+                            // Emit security event for save failure (this is a decryption/processing failure, not TOFU)
+                            _securityEvents.emit(
+                                SecurityEvent.DecryptionFailed(
+                                    peerId = peerId,
+                                    reason = "Failed to save decryption error placeholder: ${saveResult.exceptionOrNull()?.message}"
+                                )
                             )
-                        )
+                        } else {
+                            // Only emit decryption event if save succeeded
+                            _securityEvents.emit(
+                                SecurityEvent.DecryptionFailed(
+                                    peerId = peerId,
+                                    reason = e.message ?: "Unknown decryption error"
+                                )
+                            )
+                        }
                     }
-                    
-                    // Discard message - do not save
                 } catch (e: Exception) {
                     android.util.Log.e("ChatRepository", "Failed to process encrypted message from $peerId", e)
-                    
+
+                    // Save placeholder message so user sees processing failure in chat
+                    val saveResult = saveIncomingMessage(
+                        peerId = peerId,
+                        text = context.getString(R.string.error_message_processing_failed),
+                        mediaPath = null,
+                        type = MessageType.TEXT,
+                        timestamp = payload.timestamp,
+                        messageId = "processing_failed_${UUID.randomUUID()}"
+                    )
+
                     // Notify UI layer about the processing error
                     scope.launch {
-                        _securityEvents.emit(
-                            SecurityEvent.DecryptionFailed(
-                                peerId = peerId,
-                                reason = "Message processing error: ${e.message ?: "Unknown error"}"
+                        if (saveResult.isFailure) {
+                            // Emit security event for save failure (this is a decryption/processing failure, not TOFU)
+                            _securityEvents.emit(
+                                SecurityEvent.DecryptionFailed(
+                                    peerId = peerId,
+                                    reason = "Failed to save processing error placeholder: ${saveResult.exceptionOrNull()?.message}"
+                                )
                             )
-                        )
+                        } else {
+                            // Only emit decryption event if save succeeded
+                            _securityEvents.emit(
+                                SecurityEvent.DecryptionFailed(
+                                    peerId = peerId,
+                                    reason = "Message processing error: ${e.message ?: "Unknown error"}"
+                                )
+                            )
+                        }
                     }
                 }
             }
@@ -1271,7 +1381,27 @@ class ChatRepositoryImpl(
                     android.util.Log.e("ChatRepository", "Failed to process handshake from $peerId", e)
                 }
             }
-            else -> Logger.w("ChatRepository -> Unknown payload type: ${payload.type}")
+            // SECURITY: Plaintext payload types are REJECTED to prevent downgrade attacks
+            Payload.PayloadType.TEXT -> {
+                Logger.w("ChatRepository -> REJECTED: Plaintext TEXT from $peerId (downgrade attack prevented)")
+            }
+            Payload.PayloadType.FILE -> {
+                Logger.w("ChatRepository -> REJECTED: Plaintext FILE from $peerId (downgrade attack prevented)")
+            }
+            Payload.PayloadType.VIDEO -> {
+                Logger.w("ChatRepository -> REJECTED: Plaintext VIDEO from $peerId (downgrade attack prevented)")
+            }
+            // Unimplemented payload types - logged for future implementation
+            Payload.PayloadType.DELIVERY_ACK -> {
+                Logger.w("ChatRepository -> Unimplemented payload type: DELIVERY_ACK from $peerId")
+            }
+            Payload.PayloadType.AVATAR_REQUEST -> {
+                Logger.w("ChatRepository -> Unimplemented payload type: AVATAR_REQUEST from $peerId")
+            }
+            Payload.PayloadType.AVATAR_RESPONSE -> {
+                Logger.w("ChatRepository -> Unimplemented payload type: AVATAR_RESPONSE from $peerId")
+            }
+            // NOTE: No else branch - compiler error if new PayloadType added without explicit handling
         }
     }
 
@@ -1282,8 +1412,8 @@ class ChatRepositoryImpl(
         type: MessageType,
         timestamp: Long,
         messageId: String
-    ) {
-        try {
+    ): Result<Unit> {
+        return try {
             val existingChat = chatDao.getChatById(peerId)
             val finalName = if (existingChat != null) parseName(existingChat.peerName) else "${AppConstants.DEFAULT_PEER_NAME_PREFIX}${peerId.take(4)}"
             chatDao.insertChat(ChatEntity(peerId, finalName, text ?: "[Media]", timestamp))
@@ -1300,8 +1430,10 @@ class ChatRepositoryImpl(
             )
             messageDao.insertMessage(message)
             notificationHelper.showMessageNotification(finalName, message)
+            Result.success(Unit)
         } catch (e: Exception) {
             Logger.e("ChatRepository -> Failed to save incoming message", e)
+            Result.failure(e)
         }
     }
 

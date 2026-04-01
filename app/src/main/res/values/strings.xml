@@ -138,4 +138,24 @@
     <string name="noPermission">No Permission</string>
     <string name="not_available">Not available</string>
     <string name="not_available_subtitle">This feature is not available yet</string>
+
+    <!-- Forward Message Context (English fallback) -->
+    <string name="forward_context_text">Forwarded from %1$s:\n%2$s</string>
+    <string name="forward_context_image">Forwarded image from %s</string>
+    <string name="forward_context_video">Forwarded video from %s</string>
+    <string name="forward_context_audio">Forwarded audio from %s</string>
+    <string name="forward_context_file">Forwarded file: %1$s from %2$s</string>
+    <string name="forward_context_document">Forwarded document from %s</string>
+    <string name="forward_context_archive">Forwarded archive: %1$s from %2$s</string>
+    <string name="forward_context_apk">Forwarded APK: %1$s from %2$s</string>
+    <string name="forward_context_unknown">Unknown</string>
+
+    <!-- Error Messages (English fallback) -->
+    <string name="error_peer_offline_message_saved">Peer offline - message saved</string>
+    <string name="error_network_retry">Network error - try again</string>
+    <string name="error_message_send_failed">Failed to send message: %s</string>
+    <string name="error_file_send_failed">Failed to send file: %s</string>
+    <string name="error_unknown">Unknown error</string>
+    <string name="error_decryption_failed">[⚠️ Decryption Failed — Security Error]</string>
+    <string name="error_message_processing_failed">[⚠️ Message Processing Failed]</string>
 </resources>

@@ -160,7 +160,9 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
             val prefs = context.dataStore.data.map { it[KEY_DEVICE_ID] }.firstOrNull()
             if (prefs != null) return prefs
             val newId = UUID.randomUUID().toString()
-            safeEdit { it[KEY_DEVICE_ID] = newId }
+            safeEdit { it[KEY_DEVICE_ID] = newId }.onFailure { e ->
+                Logger.e("SettingsRepository -> Failed to save device ID", e)
+            }
             newId
         } catch (e: Exception) {
             UUID.randomUUID().toString()
@@ -168,89 +170,131 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
     }
 
     override suspend fun updateDisplayName(name: String) {
-        safeEdit { it[KEY_DISPLAY_NAME] = name }
+        safeEdit { it[KEY_DISPLAY_NAME] = name }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to update display name", e)
+        }
     }
 
     override suspend fun setThemeMode(mode: ThemeMode) {
-        safeEdit { it[KEY_THEME_MODE] = mode.name }
+        safeEdit { it[KEY_THEME_MODE] = mode.name }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set theme mode", e)
+        }
     }
 
     override suspend fun setHapticFeedback(enabled: Boolean) {
-        safeEdit { it[KEY_HAPTIC_FEEDBACK] = enabled }
+        safeEdit { it[KEY_HAPTIC_FEEDBACK] = enabled }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set haptic feedback", e)
+        }
     }
 
     override suspend fun setDynamicColor(enabled: Boolean) {
-        safeEdit { it[KEY_DYNAMIC_COLOR] = enabled }
+        safeEdit { it[KEY_DYNAMIC_COLOR] = enabled }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set dynamic color", e)
+        }
     }
 
     override suspend fun setNetworkVisibility(visible: Boolean) {
-        safeEdit { it[KEY_NETWORK_VISIBLE] = visible }
+        safeEdit { it[KEY_NETWORK_VISIBLE] = visible }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set network visibility", e)
+        }
     }
 
     override suspend fun updateAvatarHash(hash: String?) {
         if (hash != null) {
-            safeEdit { it[KEY_AVATAR_HASH] = hash }
+            safeEdit { it[KEY_AVATAR_HASH] = hash }.onFailure { e ->
+                Logger.e("SettingsRepository -> Failed to update avatar hash", e)
+            }
         } else {
-            safeEdit { it.remove(KEY_AVATAR_HASH) }
+            safeEdit { it.remove(KEY_AVATAR_HASH) }.onFailure { e ->
+                Logger.e("SettingsRepository -> Failed to remove avatar hash", e)
+            }
         }
     }
 
     // MD3E Setting Mutators
     override suspend fun setShapeStyle(style: ShapeStyle) {
-        safeEdit { it[KEY_SHAPE_STYLE] = style.name }
+        safeEdit { it[KEY_SHAPE_STYLE] = style.name }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set shape style", e)
+        }
     }
 
     override suspend fun setMotionPreset(preset: MotionPreset) {
-        safeEdit { it[KEY_MOTION_PRESET] = preset.name }
+        safeEdit { it[KEY_MOTION_PRESET] = preset.name }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set motion preset", e)
+        }
     }
 
     override suspend fun setMotionScale(scale: Float) {
-        safeEdit { it[KEY_MOTION_SCALE] = scale.coerceIn(0.5f, 2.0f) }
+        safeEdit { it[KEY_MOTION_SCALE] = scale.coerceIn(0.5f, 2.0f) }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set motion scale", e)
+        }
     }
 
     override suspend fun setFontFamilyPreset(family: FontFamilyPreset) {
-        safeEdit { it[KEY_FONT_FAMILY] = family.name }
+        safeEdit { it[KEY_FONT_FAMILY] = family.name }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set font family", e)
+        }
     }
 
     override suspend fun setCustomFontUri(uri: String?) {
         if (uri != null) {
-            safeEdit { it[KEY_CUSTOM_FONT_URI] = uri }
+            safeEdit { it[KEY_CUSTOM_FONT_URI] = uri }.onFailure { e ->
+                Logger.e("SettingsRepository -> Failed to set custom font", e)
+            }
         } else {
-            safeEdit { it.remove(KEY_CUSTOM_FONT_URI) }
+            safeEdit { it.remove(KEY_CUSTOM_FONT_URI) }.onFailure { e ->
+                Logger.e("SettingsRepository -> Failed to clear custom font", e)
+            }
         }
     }
 
     override suspend fun setBubbleStyle(style: BubbleStyle) {
-        safeEdit { it[KEY_BUBBLE_STYLE] = style.name }
+        safeEdit { it[KEY_BUBBLE_STYLE] = style.name }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set bubble style", e)
+        }
     }
 
     override suspend fun setVisualDensity(density: Float) {
-        safeEdit { it[KEY_VISUAL_DENSITY] = density.coerceIn(0.8f, 1.5f) }
+        safeEdit { it[KEY_VISUAL_DENSITY] = density.coerceIn(0.8f, 1.5f) }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set visual density", e)
+        }
     }
 
     override suspend fun setSeedColor(color: Int) {
-        safeEdit { it[KEY_SEED_COLOR] = color }
+        safeEdit { it[KEY_SEED_COLOR] = color }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set seed color", e)
+        }
     }
 
     // ✅ New Settings Mutators
     override suspend fun setAppLanguage(language: String) {
-        safeEdit { it[KEY_APP_LANGUAGE] = language }
+        safeEdit { it[KEY_APP_LANGUAGE] = language }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set app language", e)
+        }
     }
 
     override suspend fun setFontSizeScale(scale: Float) {
-        safeEdit { it[KEY_FONT_SIZE_SCALE] = scale.coerceIn(0.8f, 1.5f) }
+        safeEdit { it[KEY_FONT_SIZE_SCALE] = scale.coerceIn(0.8f, 1.5f) }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set font size scale", e)
+        }
     }
 
     override suspend fun setNotificationsEnabled(enabled: Boolean) {
-        safeEdit { it[KEY_NOTIFICATIONS_ENABLED] = enabled }
+        safeEdit { it[KEY_NOTIFICATIONS_ENABLED] = enabled }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set notifications", e)
+        }
     }
 
     override suspend fun setNotificationSound(enabled: Boolean) {
-        safeEdit { it[KEY_NOTIFICATION_SOUND] = enabled }
+        safeEdit { it[KEY_NOTIFICATION_SOUND] = enabled }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set notification sound", e)
+        }
     }
 
     override suspend fun setNotificationVibrate(enabled: Boolean) {
-        safeEdit { it[KEY_NOTIFICATION_VIBRATE] = enabled }
+        safeEdit { it[KEY_NOTIFICATION_VIBRATE] = enabled }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set notification vibrate", e)
+        }
     }
 
     override suspend fun clearCache() {
@@ -286,7 +330,11 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
                 "font_size_scale" to prefs[KEY_FONT_SIZE_SCALE],
                 "notifications_enabled" to prefs[KEY_NOTIFICATIONS_ENABLED],
                 "export_timestamp" to System.currentTimeMillis().toString()
-            ).filterValues { it != null }.mapValues { it.value!! }
+            )
+            // ✅ SAFE: filterValues removes all nulls, so mapValues with !! is safe
+            // This is verified by the type system: after filterValues { it != null },
+            // the type is Map<String, String> (no longer nullable values)
+            .filterValues { it != null }.mapValues { it.value }
             val json = Json.encodeToString(backupData)
             Logger.d("SettingsRepository -> Backup exported successfully")
             Result.success(json)
@@ -299,7 +347,7 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
     override suspend fun importBackup(backupJson: String): Result<Unit> {
         return try {
             val backupData = Json.decodeFromString<Map<String, String>>(backupJson)
-            safeEdit { prefs ->
+            val editResult = safeEdit { prefs ->
                 backupData["display_name"]?.let { prefs[KEY_DISPLAY_NAME] = it }
                 backupData["theme_mode"]?.let { prefs[KEY_THEME_MODE] = it }
                 backupData["dynamic_color"]?.let { prefs[KEY_DYNAMIC_COLOR] = it.toBoolean() }
@@ -307,6 +355,11 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
                 backupData["font_size_scale"]?.let { prefs[KEY_FONT_SIZE_SCALE] = it.toFloat() }
                 backupData["notifications_enabled"]?.let { prefs[KEY_NOTIFICATIONS_ENABLED] = it.toBoolean() }
             }
+            
+            if (editResult.isFailure) {
+                return Result.failure(editResult.exceptionOrNull() ?: Exception("Failed to import backup"))
+            }
+            
             Logger.d("SettingsRepository -> Backup imported successfully")
             Result.success(Unit)
         } catch (e: Exception) {
@@ -324,11 +377,17 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
         }
     }
 
-    private suspend fun safeEdit(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
-        try {
+    /**
+     * Safely edits preferences with error handling.
+     * BUG FIX #5: Now returns Result<Unit> to allow callers to handle errors properly.
+     */
+    private suspend fun safeEdit(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit): Result<Unit> {
+        return try {
             context.dataStore.edit { block(it) }
+            Result.success(Unit)
         } catch (e: Exception) {
             Logger.e("SettingsRepository -> Write Failed", e)
+            Result.failure(e)
         }
     }
 }

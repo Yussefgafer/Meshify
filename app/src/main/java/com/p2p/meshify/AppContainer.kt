@@ -13,6 +13,8 @@ import com.p2p.meshify.core.data.security.impl.InMemoryNonceCache
 import com.p2p.meshify.core.data.security.impl.MessageEnvelopeCrypto
 import com.p2p.meshify.core.data.security.impl.PeerIdentityManagerImpl
 import com.p2p.meshify.core.common.security.EncryptedSessionKeyStore
+import com.p2p.meshify.core.common.util.AndroidStringResourceProvider
+import com.p2p.meshify.core.common.util.StringResourceProvider
 import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.core.network.WifiStateCheckerImpl
 import com.p2p.meshify.core.domain.interfaces.WifiStateChecker
@@ -77,6 +79,11 @@ class AppContainer(private val context: Context) {
         EncryptedSessionKeyStore(context)
     }
 
+    // String Resource Provider for core:data module
+    val stringResourceProvider: StringResourceProvider by lazy {
+        AndroidStringResourceProvider(context)
+    }
+
     // Wi-Fi State Checker
     val wifiStateChecker: WifiStateChecker by lazy {
         WifiStateCheckerImpl(context)
@@ -90,6 +97,7 @@ class AppContainer(private val context: Context) {
     val chatRepository: ChatRepositoryImpl by lazy {
         ChatRepositoryImpl(
             context = context,
+            stringProvider = stringResourceProvider,
             database.chatDao(),
             database.messageDao(),
             database.pendingMessageDao(),
