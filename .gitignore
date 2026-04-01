@@ -29,6 +29,7 @@ local.properties
 *.old
 *.backup
 *~
+qwen-code-export-*.md
 log_device1.txt
 GEMINI.md
 QWEN.md

@@ -9,12 +9,10 @@ import com.p2p.meshify.core.common.util.HexUtil
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
 
-@RunWith(RobolectricTestRunner::class)
-@Config(sdk = [28])
+@RunWith(AndroidJUnit4::class)
 class EncryptedSessionKeyStoreTest {
 
     private lateinit var context: Context
