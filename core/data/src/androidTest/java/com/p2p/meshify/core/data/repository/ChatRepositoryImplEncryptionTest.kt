@@ -2,6 +2,7 @@ package com.p2p.meshify.core.data.repository
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.p2p.meshify.core.data.security.impl.EcdhSessionManager
 import com.p2p.meshify.core.common.security.EncryptedSessionKeyStore
 import com.p2p.meshify.core.data.security.impl.InMemoryNonceCache
@@ -9,19 +10,17 @@ import com.p2p.meshify.core.data.security.impl.MessageEnvelopeCrypto
 import com.p2p.meshify.domain.security.interfaces.NonceCache
 import com.p2p.meshify.domain.security.interfaces.PeerIdentityRepository
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
 import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.spec.ECGenParameterSpec
 import java.security.SecureRandom
 
-@RunWith(RobolectricTestRunner::class)
-@Config(sdk = [28])
+@RunWith(AndroidJUnit4::class)
 class ChatRepositoryImplEncryptionTest {
 
     private lateinit var context: Context
@@ -127,7 +126,7 @@ class ChatRepositoryImplEncryptionTest {
         val tamperedEnvelope = envelope.copy(ciphertext = tamperedCiphertext)
 
         val exception = Assert.assertThrows(SecurityException::class.java) {
-            runTest {
+            runBlocking {
                 messageCrypto.decrypt(
                     envelope = tamperedEnvelope,
                     senderPublicKeyBytes = peerIdentity.getPublicKeyBytes(),
@@ -151,7 +150,7 @@ class ChatRepositoryImplEncryptionTest {
         val envelope = messageCrypto.encrypt(plaintext, "recipient", key1)
 
         val exception = Assert.assertThrows(SecurityException::class.java) {
-            runTest {
+            runBlocking {
                 messageCrypto.decrypt(
                     envelope = envelope,
                     senderPublicKeyBytes = peerIdentity.getPublicKeyBytes(),
@@ -173,7 +172,7 @@ class ChatRepositoryImplEncryptionTest {
         val plaintext = "Secret".toByteArray(Charsets.UTF_8)
         val envelope = messageCrypto.encrypt(plaintext, "recipient", sessionKey)
 
-        runTest {
+        runBlocking {
             messageCrypto.decrypt(
                 envelope = envelope,
                 senderPublicKeyBytes = peerIdentity.getPublicKeyBytes(),
@@ -182,7 +181,7 @@ class ChatRepositoryImplEncryptionTest {
         }
 
         val exception = Assert.assertThrows(SecurityException::class.java) {
-            runTest {
+            runBlocking {
                 messageCrypto.decrypt(
                     envelope = envelope,
                     senderPublicKeyBytes = peerIdentity.getPublicKeyBytes(),
@@ -207,7 +206,7 @@ class ChatRepositoryImplEncryptionTest {
         val oldEnvelope = envelope.copy(timestamp = oldTimestamp)
 
         val exception = Assert.assertThrows(SecurityException::class.java) {
-            runTest {
+            runBlocking {
                 messageCrypto.decrypt(
                     envelope = oldEnvelope,
                     senderPublicKeyBytes = peerIdentity.getPublicKeyBytes(),
@@ -234,7 +233,7 @@ class ChatRepositoryImplEncryptionTest {
         val futureEnvelope = envelope.copy(timestamp = futureTimestamp)
 
         val exception = Assert.assertThrows(SecurityException::class.java) {
-            runTest {
+            runBlocking {
                 messageCrypto.decrypt(
                     envelope = futureEnvelope,
                     senderPublicKeyBytes = peerIdentity.getPublicKeyBytes(),
@@ -275,7 +274,7 @@ class ChatRepositoryImplEncryptionTest {
         val plaintext = "Test".toByteArray(Charsets.UTF_8)
 
         val exception = Assert.assertThrows(SecurityException::class.java) {
-            runTest {
+            runBlocking {
                 messageCrypto.encrypt(plaintext, "recipient", wrongKey)
             }
         }
@@ -295,7 +294,7 @@ class ChatRepositoryImplEncryptionTest {
         val wrongKey = ByteArray(16) { 0x55 }
 
         val exception = Assert.assertThrows(SecurityException::class.java) {
-            runTest {
+            runBlocking {
                 messageCrypto.decrypt(
                     envelope = envelope,
                     senderPublicKeyBytes = peerIdentity.getPublicKeyBytes(),
@@ -317,7 +316,7 @@ class ChatRepositoryImplEncryptionTest {
         val plaintext = ByteArray(17 * 1024 * 1024) { 0x42 }
 
         val exception = Assert.assertThrows(SecurityException::class.java) {
-            runTest {
+            runBlocking {
                 messageCrypto.encrypt(plaintext, "recipient", sessionKey)
             }
         }
@@ -364,7 +363,7 @@ class ChatRepositoryImplEncryptionTest {
 
         val tamperedEnvelope = envelope.copy(recipientId = "attacker")
         val exception = Assert.assertThrows(SecurityException::class.java) {
-            runTest {
+            runBlocking {
                 messageCrypto.decrypt(
                     envelope = tamperedEnvelope,
                     senderPublicKeyBytes = peerIdentity.getPublicKeyBytes(),

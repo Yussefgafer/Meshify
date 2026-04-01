@@ -1,14 +1,27 @@
 package com.p2p.meshify.core.util
 
 import com.p2p.meshify.domain.model.Payload
+import android.util.Log
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowLog
 import java.util.UUID
 
 /**
  * Unit tests for PayloadSerializer.
  */
+@RunWith(RobolectricTestRunner::class)
+@Config(shadows = [ShadowLog::class])
 class PayloadSerializerTest {
+
+    @org.junit.Before
+    fun setup() {
+        // Initialize ShadowLog to capture log output
+        ShadowLog.stream = System.out
+    }
 
     @Test
     fun `serialize and deserialize TEXT payload`() {
