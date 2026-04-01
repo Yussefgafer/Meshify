@@ -287,6 +287,20 @@
     <string name="chat_error_peer_offline">الطرف غير متصل - تم حفظ الرسالة</string>
     <string name="chat_error_network">خطأ في الشبكة - حاول مرة أخرى</string>
 
+    <!-- Error Messages (English fallback for core:data module) -->
+    <string name="error_peer_offline_message_saved">Peer offline - message saved</string>
+    <string name="error_network_retry">Network error - try again</string>
+    <string name="error_message_send_failed">Failed to send message: %s</string>
+    <string name="error_file_send_failed">Failed to send file: %s</string>
+    <string name="error_unknown">Unknown error</string>
+    <string name="error_decryption_failed">[⚠️ Decryption Failed — Security Error]</string>
+    <string name="error_message_processing_failed">[⚠️ Message Processing Failed]</string>
+
+    <!-- Security Warning Messages (for ChatViewModel) -->
+    <string name="security_warning_decryption_failed">Decryption failed for message from %1$s: %2$s</string>
+    <string name="security_warning_tofu_violation">Security Warning: Encryption key changed for %1$s</string>
+    <string name="security_warning_session_expired">Session expired with %1$s - please reconnect</string>
+
     <!-- ChatApp-Compose Chat Input Strings -->
     <string name="emoji_selector_bt_desc">Emoji Selector</string>
     <string name="dm_desc">Link</string>

@@ -1,0 +1,318 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Service Strings -->
+    <string name="service_channel_name">خدمة الشبكة</string>
+    <string name="service_mesh_active">مشيفاي P2P نشط</string>
+    <string name="service_searching_peers">الشبكة نشطة وجارٍ البحث عن أجهزة...</string>
+
+    <!-- App Name -->
+    <string name="app_name">مشيفاي</string>
+
+    <!-- Home / Recent Chats Screen -->
+    <string name="screen_home_title">مشيفاي</string>
+    <string name="chats_recent_header">المحادثات الأخيرة</string>
+    <string name="no_recent_chats">لا توجد محادثات بعد</string>
+    <string name="no_recent_chats_desc">المس النبض لاكتشاف الأجهزة القريبة</string>
+    <string name="last_msg_image">[صورة]</string>
+    <string name="last_msg_none">لا توجد رسائل بعد</string>
+    <string name="typing_indicator">يكتب الآن...</string>
+    <string name="status_online">متصل</string>
+    <string name="status_offline">غير متصل</string>
+
+    <!-- Discovery Screen -->
+    <string name="screen_discovery_title">اكتشاف الأجهزة</string>
+    <string name="discovery_peers_found">تم العثور على أجهزة</string>
+    <string name="peer_discovered_format">تم اكتشاف %s</string>
+    <string name="searching_placeholder">جارٍ البحث عن أجهزة قريبة...</string>
+    <string name="no_peers_found">لم يتم العثور على أجهزة بعد. تأكد من تفعيل الواي فاي.</string>
+    <string name="discovery_wifi_off_desc">أيقونة الواي فاي متوقف</string>
+    <string name="discovery_wifi_disabled_title">الواي فاي معطل</string>
+    <string name="discovery_wifi_disabled_message">فعّل الواي فاي لاكتشاف الأجهزة القريبة على نفس الشبكة</string>
+    <string name="discovery_open_wifi_settings">فتح إعدادات الواي فاي</string>
+
+    <!-- Chat Screen -->
+    <string name="screen_chat_title">المحادثة</string>
+    <string name="input_placeholder">اكتب رسالة...</string>
+    <string name="btn_send">إرسال</string>
+    <string name="attach_image">صورة</string>
+    <string name="attach_file">ملف</string>
+    <string name="attach_video">فيديو</string>
+    <string name="msg_failed">فشل الإرسال</string>
+    <string name="msg_selected_count">تم تحديد %d</string>
+    <string name="delete_confirmation_title">حذف الرسائل</string>
+    <string name="delete_confirmation_text">هل أنت متأكد من حذف %d رسالة مختارة؟</string>
+    <string name="btn_delete">حذف</string>
+    <string name="btn_cancel">إلغاء</string>
+
+    <!-- Chat Screen - Status & States -->
+    <string name="chat_status_online">متصل</string>
+    <string name="chat_status_offline">غير متصل</string>
+    <string name="chat_message_deleted">تم حذف هذه الرسالة</string>
+    <string name="chat_message_media_not_found">ملف الوسائط غير موجود</string>
+    <string name="chat_message_file_prefix">ملف: </string>
+
+    <!-- Chat Screen - Reply -->
+    <string name="chat_reply_label">جارٍ الرد على</string>
+    <string name="chat_reply_placeholder">جارٍ الرد على...</string>
+
+    <!-- Chat Screen - Actions -->
+    <string name="chat_action_reply">رد</string>
+    <string name="chat_action_forward">إعادة توجيه</string>
+    <string name="chat_action_copy">نسخ</string>
+    <string name="chat_action_delete">حذف</string>
+    <string name="chat_action_delete_for_me">حذف لي</string>
+    <string name="chat_action_delete_for_everyone">حذف للجميع</string>
+
+    <!-- Chat Screen - Selection Mode -->
+    <string name="chat_selection_selected">تم تحديد %d</string>
+    <string name="chat_selection_subtitle">حدد المزيد أو اتخذ إجراءً</string>
+    <string name="chat_selection_exit_desc">الخروج من وضع التحديد</string>
+    <string name="chat_selection_copy_desc">نسخ</string>
+    <string name="chat_selection_forward_desc">إعادة توجيه</string>
+    <string name="chat_selection_delete_desc">حذف</string>
+
+    <!-- Settings Screen -->
+    <string name="screen_settings_title">الإعدادات</string>
+    <string name="setting_display_name">الاسم المستعار</string>
+    <string name="setting_language">اللغة</string>
+    <string name="setting_dark_mode">الوضع الداكن</string>
+    <string name="setting_device_id">معرف الجهاز</string>
+    <string name="setting_app_version">إصدار التطبيق</string>
+    <string name="btn_save_changes">حفظ التغييرات</string>
+    <string name="settings_section_identity">الهوية والملف الشخصي</string>
+    <string name="settings_section_appearance">المظهر</string>
+    <string name="settings_section_privacy">الخصوصية والشبكة</string>
+    <string name="settings_section_info">معلومات الجهاز</string>
+    <string name="settings_theme_mode">وضع الثيم</string>
+    <string name="settings_dynamic_colors">الألوان الديناميكية</string>
+    <string name="settings_dynamic_colors_desc">استخدام ألوان مستوحاة من خلفية الشاشة</string>
+    <string name="settings_visibility">الظهور للآخرين</string>
+    <string name="settings_visibility_desc">عند الإغلاق، لن تظهر في عمليات البحث</string>
+
+    <!-- Settings Screen - Content Descriptions -->
+    <string name="settings_content_desc_back">رجوع</string>
+    <string name="settings_content_desc_avatar">صورة المستخدم</string>
+
+    <!-- Settings Screen - Theme Modes -->
+    <string name="settings_theme_light">فاتح</string>
+    <string name="settings_theme_dark">داكن</string>
+    <string name="settings_theme_system">افتراضي النظام</string>
+
+    <!-- Settings Screen - Labels -->
+    <string name="settings_label_accent_color">لون التمييز</string>
+    <string name="settings_label_md3_expressive">نظام MD3 Expressive</string>
+    <string name="settings_label_github_repo">مستودع GitHub</string>
+    <string name="settings_label_github_desc">عرض الكود المصدري والمساهمة</string>
+    <string name="settings_label_credits">اعتمادات المطور</string>
+    <string name="settings_label_credits_desc">بُني بواسطة ❤️ بواسطة Jo</string>
+    <string name="settings_label_device_id_suffix">(اضغط لنسخ المعرف الكامل)</string>
+
+    <!-- Settings Screen - Dialogs -->
+    <string name="settings_dialog_edit_name">تحرير الاسم المستعار</string>
+    <string name="settings_dialog_name_placeholder">أدخل اسمك</string>
+    <string name="settings_dialog_motion_preset">اختر إعداد الحركة</string>
+
+    <!-- Settings Screen - Motion Presets -->
+    <string name="settings_motion_gentle_label">لطيف (هادئ)</string>
+    <string name="settings_motion_standard_label">قياسي (متوازن)</string>
+    <string name="settings_motion_snappy_label">سريع (سريع)</string>
+    <string name="settings_motion_bouncy_label">مرن (لاعب)</string>
+
+    <!-- Signal Strength Badges -->
+    <string name="signal_strong">إشارة ممتازة ●●●</string>
+    <string name="signal_medium">إشارة جيدة ●●○</string>
+    <string name="signal_weak">إشارة ضعيفة ●○○</string>
+    <string name="signal_offline">غير متصل</string>
+
+    <!-- Home Screen - Content Descriptions -->
+    <string name="home_content_desc_settings">الإعدادات</string>
+
+    <!-- Home Screen - Delete Dialog -->
+    <string name="home_dialog_delete_title">حذف المحادثة</string>
+    <string name="home_dialog_delete_text">هل أنت متأكد من حذف المحادثة مع %s؟</string>
+
+    <!-- Home Screen - Empty State -->
+    <string name="home_empty_state_desc">المس النبض لاكتشاف الأجهزة القريبة</string>
+
+    <!-- Home Screen - Loading & Error States -->
+    <string name="home_loading_desc">جارٍ تحميل المحادثات</string>
+    <string name="home_error_title">فشل التحميل</string>
+    <string name="home_error_retry">إعادة المحاولة</string>
+
+    <!-- MD3E Settings - Shape Morphing -->
+    <string name="settings_shape_style">تشكيل الأشكال</string>
+    <string name="settings_shape_style_desc">اختر الشكل النشط لرسوم التحول</string>
+    <string name="settings_shape_active">نشط</string>
+    <string name="settings_shape_tap_to_select">اضغط للاختيار</string>
+
+    <!-- Forward Message Dialog -->
+    <string name="forward_dialog_title">إعادة توجيه</string>
+    <string name="forward_dialog_close_desc">إغلاق</string>
+    <string name="forward_dialog_search_placeholder">البحث في المحادثات...</string>
+    <string name="forward_dialog_clear_desc">مسح</string>
+    <string name="forward_dialog_preview">معاينة</string>
+    <string name="forward_dialog_forwarding">جارٍ توجيه %1$d/%2$d...</string>
+    <string name="forward_dialog_section_quick">الوصول السريع (%d)</string>
+    <string name="forward_dialog_section_discovered">الأجهزة المكتشفة (%d)</string>
+    <string name="forward_dialog_section_all">جميع المحادثات (%d)</string>
+    <string name="forward_dialog_btn_cancel">إلغاء</string>
+    <string name="forward_dialog_btn_forward">إعادة توجيه (%d)</string>
+    <string name="forward_dialog_btn_forward_retry">إعادة محاولة</string>
+
+    <!-- Forward Message Context -->
+    <string name="forward_context_text">مُعاد الإرسال من %1$s:\n%2$s</string>
+    <string name="forward_context_image">صورة مُعادة الإرسال من %s</string>
+    <string name="forward_context_video">فيديو مُعاد الإرسال من %s</string>
+    <string name="forward_context_audio">صوت مُعاد الإرسال من %s</string>
+    <string name="forward_context_file">ملف مُعاد الإرسال: %1$s من %2$s</string>
+    <string name="forward_context_document">مستند مُعاد الإرسال من %s</string>
+    <string name="forward_context_archive">أرشيف مُعاد الإرسال: %1$s من %2$s</string>
+    <string name="forward_context_apk">تطبيق APK مُعاد الإرسال: %1$s من %2$s</string>
+    <string name="forward_context_unknown">غير معروف</string>
+    <string name="forward_dialog_media_image">صورة</string>
+    <string name="forward_dialog_media_video">فيديو</string>
+    <string name="forward_dialog_media_file">ملف</string>
+    <string name="forward_dialog_signal_strong">قوية</string>
+    <string name="forward_dialog_signal_medium">متوسطة</string>
+    <string name="forward_dialog_signal_weak">ضعيفة</string>
+    <string name="forward_dialog_signal_offline">غير متصل</string>
+    <string name="forward_dialog_empty_search">لم يتم العثور على محادثات</string>
+    <string name="forward_dialog_empty_search_desc">حاول البحث عن \"%s\" أو استخدم كلمات مفتاحية مختلفة</string>
+
+    <!-- MD3E Settings - Motion System -->
+    <string name="settings_motion_system">نظام الحركة</string>
+    <string name="settings_motion_system_desc">اضبط فيزياء الزنبرك وسرعة الرسوم المتحركة</string>
+    <string name="settings_motion_scale">مقياس الحركة</string>
+    <string name="settings_motion_gentle">حركة هادئة ورقيقة</string>
+    <string name="settings_motion_standard">متوازن - افتراضي MD3E</string>
+    <string name="settings_motion_snappy">سريع ومتجاوب</string>
+    <string name="settings_motion_bouncy">مرن ولاعب</string>
+
+    <!-- MD3E Settings - Typography -->
+    <string name="settings_typography">الخطوط</string>
+    <string name="settings_typography_desc">اختر عائلة الخطوط المفضلة</string>
+    <string name="settings_font_roboto">خط النظام الافتراضي</string>
+    <string name="settings_font_poppins">هندسي حديث</string>
+    <string name="settings_font_lora">Serif أنيق</string>
+    <string name="settings_font_montserrat">عصري حضري</string>
+    <string name="settings_font_playfair">Serif استعراضي</string>
+    <string name="settings_font_inter">خط واجهة نظيف</string>
+
+    <!-- MD3E Settings - Chat Bubbles -->
+    <string name="settings_chat_bubbles">فقاعات المحادثة</string>
+    <string name="settings_chat_bubbles_desc">اختر نمط شكل فقاعات المحادثة</string>
+
+    <!-- MD3E Settings - Visual Density -->
+    <string name="settings_visual_density">الكثافة البصرية</string>
+    <string name="settings_visual_density_desc">اضبط حجم وعناصر واجهة المستخدم والتباعد</string>
+    <string name="settings_density_label">الكثافة</string>
+
+    <!-- Attachment Bottom Sheet -->
+    <string name="attach_file_title">إرفاق ملف</string>
+    <string name="attach_from_gallery">من معرض الجهاز</string>
+    <string name="attach_camera">الكاميرا</string>
+    <string name="coming_soon">قريباً</string>
+
+    <!-- MD3E Settings - Color Picker -->
+    <string name="settings_seed_color">لون التمييز</string>
+    <string name="settings_seed_color_desc">اختر لون علامتك التجارية عند إيقاف الألوان الديناميكية</string>
+    <string name="color_selection_content_description">اختيار اللون</string>
+
+    <!-- MD3E Settings - Font Picker -->
+    <string name="settings_custom_font">خط مخصص</string>
+    <string name="settings_custom_font_desc">ارفع ملف خط بصيغة .ttf أو .otf من جهازك</string>
+    <string name="btn_upload_font">رفع خط</string>
+    <string name="btn_clear_font">مسح الخط المخصص</string>
+    <string name="font_file_selected">تم اختيار ملف الخط: %s</string>
+    <string name="no_custom_font">لم يتم رفع خط مخصص</string>
+
+    <!-- Accessibility Content Descriptions -->
+    <string name="content_desc_back">رجوع</string>
+    <string name="content_desc_cancel">إلغاء</string>
+    <string name="content_desc_delete">حذف</string>
+    <string name="content_desc_send">إرسال</string>
+    <string name="content_desc_attach">إرفاق ملف</string>
+    <string name="content_desc_settings">الإعدادات</string>
+    <string name="content_desc_discovery">الاكتشاف</string>
+
+    <!-- Accessibility Content Descriptions - Added for TalkBack support -->
+    <string name="forward_dialog_search_desc">بحث</string>
+    <string name="forward_dialog_error">خطأ</string>
+    <string name="forward_dialog_error_outline">خطأ</string>
+    <string name="forward_dialog_message_type">رسالة</string>
+    <string name="forward_dialog_image_type">صورة</string>
+    <string name="forward_dialog_video_type">فيديو</string>
+    <string name="forward_dialog_file_type">ملف</string>
+    <string name="forward_dialog_section_icon">قسم</string>
+
+    <string name="avatar_desc">صورة المستخدم</string>
+
+    <string name="settings_icon_desc">إعداد</string>
+    <string name="settings_navigate_desc">تنقل</string>
+    <string name="settings_avatar">صورة المستخدم</string>
+
+    <string name="dialog_option_desc">خيار</string>
+    <string name="dialog_selected">محدد</string>
+
+    <string name="permission_icon_desc">أيقونة الإذن</string>
+    <string name="permission_check">تحقق</string>
+    <string name="permission_all_set">كل شيء جاهز</string>
+
+    <string name="message_image">صورة الرسالة</string>
+    <string name="message_status">حالة الرسالة</string>
+    <string name="message_reaction">تفاعل الرسالة</string>
+
+    <!-- Dialog Buttons -->
+    <string name="dialog_btn_delete">حذف</string>
+    <string name="dialog_btn_save">حفظ</string>
+    <string name="dialog_btn_cancel">إلغاء</string>
+
+    <!-- Settings Backup & Restore -->
+    <string name="settings_backup_title">النسخ الاحتياطي والاستعادة</string>
+    <string name="settings_backup_desc">صدّر إعداداتك إلى ملف أو استورد من ملف نسخ احتياطي.</string>
+    <string name="settings_backup_export">تصدير نسخة احتياطية</string>
+    <string name="settings_backup_import">استيراد نسخة احتياطية</string>
+    <string name="settings_backup_export_success">تم تصدير النسخة الاحتياطية بنجاح!</string>
+    <string name="settings_backup_export_error">فشل التصدير: %1$s</string>
+    <string name="settings_backup_import_soon">ميزة الاستيراد قادمة قريباً</string>
+
+    <!-- Chat Input -->
+    <string name="chat_input_caption_placeholder">أضف تعليقاً...</string>
+
+    <!-- Chat Loading State -->
+    <string name="chat_loading_desc">جارٍ تحميل الرسائل</string>
+
+    <!-- Chat Error States - P0-02 -->
+    <string name="chat_error_send_failed">فشل إرسال الرسالة</string>
+    <string name="chat_error_peer_offline">الطرف غير متصل - تم حفظ الرسالة</string>
+    <string name="chat_error_network">خطأ في الشبكة - حاول مرة أخرى</string>
+
+    <!-- Error Messages (Arabic translations) -->
+    <string name="error_peer_offline_message_saved">الطرف غير متصل - تم حفظ الرسالة</string>
+    <string name="error_network_retry">خطأ في الشبكة - حاول مرة أخرى</string>
+    <string name="error_message_send_failed">فشل إرسال الرسالة: %s</string>
+    <string name="error_file_send_failed">فشل إرسال الملف: %s</string>
+    <string name="error_unknown">خطأ غير معروف</string>
+    <string name="error_decryption_failed">[⚠️ فشل فك التشفير — خطأ أمني]</string>
+    <string name="error_message_processing_failed">[⚠️ فشل معالجة الرسالة]</string>
+
+    <!-- Security Warning Messages (for ChatViewModel) -->
+    <string name="security_warning_decryption_failed">فشل فك تشفير رسالة من %1$s: %2$s</string>
+    <string name="security_warning_tofu_violation">تحذير أمني: تغير مفتاح التشفير لـ %1$s</string>
+    <string name="security_warning_session_expired">انتهت الجلسة مع %1$s - يرجى إعادة الاتصال</string>
+
+    <!-- ChatApp-Compose Chat Input Strings -->
+    <string name="emoji_selector_bt_desc">محدد الرموز التعبيرية</string>
+    <string name="dm_desc">رابط</string>
+    <string name="attach_photo_desc">صورة</string>
+    <string name="map_selector_desc">خريطة</string>
+    <string name="videochat_desc">فيديو</string>
+    <string name="send_desc">زر الإرسال</string>
+    <string name="textfield_desc">حقل النص</string>
+    <string name="send">إرسال</string>
+    <string name="record">تسجيل</string>
+    <string name="noInternet">لا يوجد إنترنت</string>
+    <string name="noPermission">لا يوجد إذن</string>
+    <string name="not_available">غير متوفر</string>
+    <string name="not_available_subtitle">هذه الميزة غير متوفرة بعد</string>
+</resources>

@@ -529,7 +529,9 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
                     headlineContent = { Text(stringResource(R.string.chat_action_forward)) },
                     leadingContent = { Icon(Icons.Default.Forward, null) },
                     modifier = Modifier.clickable {
-                        viewModel.openForwardDialog(menuMessage!!.id)
+                        menuMessage?.let {
+                            viewModel.openForwardDialog(it.id)
+                        }
                         menuMessage = null
                     }
                 )
@@ -545,7 +547,9 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
                     headlineContent = { Text(stringResource(R.string.chat_action_delete_for_me)) },
                     leadingContent = { Icon(Icons.Default.Delete, null) },
                     modifier = Modifier.clickable {
-                        viewModel.deleteMessage(menuMessage!!.id, DeleteType.DELETE_FOR_ME)
+                        menuMessage?.let {
+                            viewModel.deleteMessage(it.id, DeleteType.DELETE_FOR_ME)
+                        }
                         menuMessage = null
                     }
                 )
@@ -553,7 +557,9 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
                     headlineContent = { Text(stringResource(R.string.chat_action_delete_for_everyone)) },
                     leadingContent = { Icon(Icons.Default.DeleteForever, null, tint = Color.Red) },
                     modifier = Modifier.clickable {
-                        viewModel.deleteMessage(menuMessage!!.id, DeleteType.DELETE_FOR_EVERYONE)
+                        menuMessage?.let {
+                            viewModel.deleteMessage(it.id, DeleteType.DELETE_FOR_EVERYONE)
+                        }
                         menuMessage = null
                     }
                 )
@@ -574,7 +580,10 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
         )
     }
 
-    if (selectedFullImage != null) FullImageViewer(selectedFullImage!!) { selectedFullImage = null }
+    // Full Image Viewer - only show when selectedFullImage is not null
+    selectedFullImage?.let { imagePath ->
+        FullImageViewer(imagePath) { selectedFullImage = null }
+    }
 }
 
 /**

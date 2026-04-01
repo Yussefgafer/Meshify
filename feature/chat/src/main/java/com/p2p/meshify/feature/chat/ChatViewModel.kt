@@ -1,9 +1,11 @@
 package com.p2p.meshify.feature.chat
 
+import android.content.Context
 import android.net.Uri
 import androidx.compose.ui.platform.ClipboardManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.p2p.meshify.core.common.R
 import com.p2p.meshify.core.data.local.entity.ChatEntity
 import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
@@ -38,6 +40,7 @@ data class ChatUiState(
 )
 
 class ChatViewModel(
+    private val context: Context,
     private val peerId: String,
     private val peerName: String,
     private val repository: ChatRepositoryImpl
@@ -118,30 +121,36 @@ class ChatViewModel(
                 when (event) {
                     is SecurityEvent.DecryptionFailed -> {
                         // Show decryption failure warning to user
+                        val warningText = context.getString(R.string.security_warning_decryption_failed, event.peerId.take(8), event.reason)
                         _uiState.update {
-                            it.copy(
-                                securityWarning = "فشل فك تشفير رسالة من ${event.peerId.take(8)}: ${event.reason}"
-                            )
+                            it.copy(securityWarning = warningText)
                         }
                         Logger.w("ChatViewModel -> Decryption failed from ${event.peerId.take(8)}: ${event.reason}")
                     }
                     is SecurityEvent.TofuViolation -> {
                         // Show TOFU violation warning
+                        val warningText = context.getString(R.string.security_warning_tofu_violation, event.peerId.take(8))
                         _uiState.update {
-                            it.copy(
-                                securityWarning = "تحذير أمني: تغير مفتاح التشفير لـ ${event.peerId.take(8)}"
-                            )
+                            it.copy(securityWarning = warningText)
                         }
                         Logger.e("ChatViewModel -> TOFU violation for ${event.peerId.take(8)}")
                     }
                     is SecurityEvent.SessionExpired -> {
                         // Show session expired warning
+                        val warningText = context.getString(R.string.security_warning_session_expired, event.peerId.take(8))
                         _uiState.update {
-                            it.copy(
-                                securityWarning = "انتهت الجلسة مع ${event.peerId.take(8)} - يرجى إعادة الاتصال"
-                            )
+                            it.copy(securityWarning = warningText)
                         }
                         Logger.w("ChatViewModel -> Session expired for ${event.peerId.take(8)}")
+                    }
+                    is SecurityEvent.MessageSendFailed -> {
+                        // Show send error message to user
+                        _uiState.update {
+                            it.copy(
+                                sendError = context.getString(R.string.error_message_send_failed, event.reason)
+                            )
+                        }
+                        Logger.e("ChatViewModel -> Message send failed: ${event.messageId}")
                     }
                 }
             }
@@ -246,19 +255,19 @@ class ChatViewModel(
                 Logger.e("ChatViewModel -> Failed to send message", e)
                 // P0-02: Show error message and restore text on failure
                 val errorMessage = when {
-                    e.message?.contains("offline", ignoreCase = true) == true -> 
-                        "الطرف غير متصل - تم حفظ الرسالة"
-                    e.message?.contains("network", ignoreCase = true) == true || 
-                    e.message?.contains("connection", ignoreCase = true) == true -> 
-                        "خطأ في الشبكة - حاول مرة أخرى"
-                    else -> "فشل إرسال الرسالة: ${e.message ?: "خطأ غير معروف"}"
+                    e.message?.contains("offline", ignoreCase = true) == true ->
+                        context.getString(R.string.error_peer_offline_message_saved)
+                    e.message?.contains("network", ignoreCase = true) == true ||
+                    e.message?.contains("connection", ignoreCase = true) == true ->
+                        context.getString(R.string.error_network_retry)
+                    else -> context.getString(R.string.error_message_send_failed, e.message ?: context.getString(R.string.error_unknown))
                 }
-                _uiState.update { 
+                _uiState.update {
                     it.copy(
                         isSending = false,
                         sendError = errorMessage,
                         inputText = state.inputText // Restore text on failure
-                    ) 
+                    )
                 }
             } finally {
                 // Re-enable button on success (text is cleared, so button will be disabled anyway)
@@ -356,8 +365,8 @@ class ChatViewModel(
                         current - messageId
                     }
                     // Show error to user
-                    _uiState.update { 
-                        it.copy(uploadError = "فشل إرسال الملف: ${error.message ?: "خطأ غير معروف"}") 
+                    _uiState.update {
+                        it.copy(uploadError = context.getString(R.string.error_file_send_failed, error.message ?: context.getString(R.string.error_unknown)))
                     }
                 }
             } catch (e: Exception) {
@@ -366,8 +375,8 @@ class ChatViewModel(
                     current - messageId
                 }
                 // Show error to user
-                _uiState.update { 
-                    it.copy(uploadError = "خطأ غير متوقع: ${e.message ?: "فشل الإرسال"}") 
+                _uiState.update {
+                    it.copy(uploadError = context.getString(R.string.error_message_send_failed, e.message ?: context.getString(R.string.error_unknown)))
                 }
             }
         }
