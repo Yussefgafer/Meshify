@@ -70,6 +70,9 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE id = :messageId")
     suspend fun getMessageById(messageId: String): MessageEntity?
 
+    @Query("SELECT * FROM messages WHERE id IN (:ids)")
+    suspend fun getMessagesByIds(ids: List<String>): List<MessageEntity>
+
     @Query("DELETE FROM messages WHERE chatId = :chatId")
     suspend fun deleteAllMessagesForChat(chatId: String)
 

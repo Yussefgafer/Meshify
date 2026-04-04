@@ -85,11 +85,18 @@ class PendingMessageRepository(
 
         Logger.i("PendingMessageRepository -> Retrying ${pending.size} pending messages for $peerId")
 
+        // Batch fetch with chunking to avoid SQLite 999 parameter limit
+        val messageIds = pending.map { it.id }.distinct()
+        val messages = messageIds
+            .chunked(999)
+            .flatMap { chunk -> messageDao.getMessagesByIds(chunk) }
+            .associateBy { it.id }
+
         var successCount = 0
         var failureCount = 0
 
         pending.forEach { pm ->
-            val msg = messageDao.getMessageById(pm.id)
+            val msg = messages[pm.id]
             if (msg != null) {
                 val result = sendMessageWithBackoff(pm, msg)
                 if (result.isSuccess) {
@@ -98,14 +105,13 @@ class PendingMessageRepository(
                     failureCount++
                 }
             } else {
-                // Message not found in database, clean up pending entry
                 Logger.w("PendingMessageRepository -> Pending message ${pm.id} not found in DB, removing")
                 pendingMessageDao.deleteById(pm.id)
                 failureCount++
             }
         }
 
-        Logger.i("PendingMessageRepository -> Retry complete: $successCount succeeded, $failureCount failed")
+        Logger.i("PendingMessageRepository -> Retry complete for $peerId: $successCount success, $failureCount failed")
 
         if (failureCount == 0) {
             Result.success(Unit)
