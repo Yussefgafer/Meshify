@@ -391,6 +391,8 @@
     <string name="permission_dialog_start_messaging">Start Messaging</string>
 
     <!-- Notifications -->
+    <string name="notification_new_message">New message</string>
+    <string name="notification_new_message_text">Tap to view</string>
     <string name="notification_reply_sent_title">Reply Sent</string>
     <string name="notification_reply_sent_text">Reply: %s</string>
     <string name="notification_reply_sent_toast">Reply sent</string>
