@@ -12,6 +12,7 @@ import com.p2p.meshify.core.network.base.TransportEvent
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.repository.IChatRepository
 import kotlinx.coroutines.*
+import kotlinx.coroutines.TimeoutCancellationException
 import com.p2p.meshify.MeshifyApp
 
 /**
@@ -21,6 +22,7 @@ import com.p2p.meshify.MeshifyApp
 class MeshForegroundService : Service() {
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val shutdownScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var multicastLock: WifiManager.MulticastLock? = null
 
     private lateinit var chatRepository: IChatRepository
@@ -59,27 +61,29 @@ class MeshForegroundService : Service() {
 
     /**
      * Deterministic shutdown - stops transport BEFORE cancelling scope.
-     * Uses runBlocking to ensure transport.stop() completes.
+     * Uses runBlocking with timeout to prevent ANR if stopAllTransports() hangs.
      */
     private fun stopMeshNetworkDeterministic() {
         if (!transportStarted) return
 
         Logger.i("Service -> Stopping transport deterministically...")
 
-        // Use a fresh scope that won't be cancelled by serviceScope.cancel()
-        val shutdownScope = CoroutineScope(Dispatchers.IO)
-        try {
-            // Block until transport.stop() completes
-            runBlocking {
-                val app = application as MeshifyApp
-                app.container.transportManager.stopAllTransports()
+        // Use runBlocking with timeout to prevent ANR
+        runBlocking(Dispatchers.IO) {
+            try {
+                withTimeout(3000L) { // 3 second timeout
+                    val app = application as MeshifyApp
+                    app.container.transportManager.stopAllTransports()
+                }
+                transportStarted = false
+                Logger.i("Service -> Transport stopped successfully")
+            } catch (e: TimeoutCancellationException) {
+                Logger.e("Service -> Transport stop timed out after 3s, forcing shutdown")
+                transportStarted = false
+            } catch (e: Exception) {
+                Logger.e("Service -> Failed to stop transport", e)
+                transportStarted = false
             }
-            transportStarted = false
-            Logger.i("Service -> Transport stopped successfully")
-        } catch (e: Exception) {
-            Logger.e("Service -> Failed to stop transport", e)
-        } finally {
-            shutdownScope.cancel()
         }
     }
 
@@ -116,22 +120,24 @@ class MeshForegroundService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         Logger.i("Service -> onDestroy")
-        // 1. Stop transport FIRST (deterministic, blocking)
+        // 1. Stop transport FIRST (deterministic, blocking with timeout)
         stopMeshNetworkDeterministic()
         // 2. Release multicast lock
         multicastLock?.let { if (it.isHeld) it.release() }
-        // 3. Cancel coroutine scope LAST
+        // 3. Cancel coroutine scopes
+        shutdownScope.cancel()
         serviceScope.cancel()
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
         Logger.i("Service -> onTaskRemoved - App removed from recents")
-        // 1. Stop transport FIRST (deterministic, blocking)
+        // 1. Stop transport FIRST (deterministic, blocking with timeout)
         stopMeshNetworkDeterministic()
         // 2. Release multicast lock
         multicastLock?.let { if (it.isHeld) it.release() }
-        // 3. Cancel coroutine scope
+        // 3. Cancel coroutine scopes
+        shutdownScope.cancel()
         serviceScope.cancel()
         // 4. Stop the service
         stopSelf()
