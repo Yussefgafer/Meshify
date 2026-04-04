@@ -44,6 +44,8 @@ class MeshifyApp : Application(), SingletonImageLoader.Factory {
         Logger.d("MeshifyApp -> Application onTerminate, cleaning up resources")
         // Clean up ReplyReceiver resources (RateLimiter coroutine scope)
         ReplyReceiver.cleanup()
+        // Clean up AppContainer resources (transport manager, chat repository, etc.)
+        container.cleanup()
     }
 
     /**
