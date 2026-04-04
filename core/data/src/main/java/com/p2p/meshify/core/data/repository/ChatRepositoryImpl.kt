@@ -2,6 +2,7 @@ package com.p2p.meshify.core.data.repository
 
 import android.content.Context
 import com.p2p.meshify.core.common.R
+import com.p2p.meshify.core.data.local.MeshifyDatabase
 import com.p2p.meshify.core.data.local.dao.ChatDao
 import com.p2p.meshify.core.data.local.dao.MessageDao
 import com.p2p.meshify.core.data.local.entity.ChatEntity
@@ -70,6 +71,7 @@ import java.util.UUID
 class ChatRepositoryImpl(
     private val context: android.content.Context,
     private val stringProvider: StringResourceProvider,
+    private val database: MeshifyDatabase,
     private val chatDao: ChatDao,
     private val messageDao: MessageDao,
     private val pendingMessageDao: com.p2p.meshify.core.data.local.dao.PendingMessageDao,
@@ -92,6 +94,7 @@ class ChatRepositoryImpl(
 
     // Specialized repositories
     private val messageRepository: MessageRepository = MessageRepository(
+        database = database,
         messageDao = messageDao,
         chatDao = chatDao,
         pendingMessageDao = pendingMessageDao,
