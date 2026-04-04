@@ -290,9 +290,7 @@ class MessageRepository(
             messageDao.insertMessage(message)
 
             // Check if peer is online
-            val isOnline = withContext(Dispatchers.Main) {
-                transportManager.getAllTransports().any { it.onlinePeers.value.contains(peerId) }
-            }
+            val isOnline = transportManager.getAllTransports().any { it.onlinePeers.value.contains(peerId) }
 
             if (!isOnline) {
                 Logger.w("MessageRepository -> Peer $peerId offline, queuing file message")
@@ -408,9 +406,7 @@ class MessageRepository(
 
             // Step 3: Check if peer is online
             Logger.d("MessageRepository -> Checking online status for peer: $peerId")
-            val isOnline = withContext(Dispatchers.IO) {
-                transportManager.getAllTransports().any { it.onlinePeers.value.contains(peerId) }
-            }
+            val isOnline = transportManager.getAllTransports().any { it.onlinePeers.value.contains(peerId) }
             Logger.d("MessageRepository -> Peer $peerId is online: $isOnline")
 
             // Step 4: If offline, queue for later delivery
