@@ -31,6 +31,7 @@ import com.p2p.meshify.domain.security.model.SecurityEvent
 import kotlinx.serialization.encodeToString
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -50,6 +51,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.delay
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.io.Closeable
 import java.io.File
 import java.util.UUID
 
@@ -79,7 +81,7 @@ class ChatRepositoryImpl(
     private val messageCrypto: MessageEnvelopeCrypto,
     private val ecdhSessionManager: EcdhSessionManager,
     private val sessionKeyStore: EncryptedSessionKeyStore
-) : IChatRepository {
+) : IChatRepository, Closeable {
 
     // BUG FIX #1: Validate context is Application Context to prevent memory leaks
     init {
@@ -122,7 +124,8 @@ class ChatRepositoryImpl(
         settingsRepository = settingsRepository
     )
 
-    private val scope = CoroutineScope(Dispatchers.IO)
+    private val repositoryJob = SupervisorJob()
+    private val scope = CoroutineScope(Dispatchers.IO + repositoryJob)
     private val payloadMutex = Mutex()
     private val sessionMutex = Mutex()
 
@@ -1459,5 +1462,10 @@ class ChatRepositoryImpl(
 
     suspend fun getMessageAttachments(messageId: String): List<com.p2p.meshify.core.data.local.entity.MessageAttachmentEntity> {
         return messageAttachmentRepository.getAttachmentsForMessage(messageId)
+    }
+
+    override fun close() {
+        repositoryJob.cancel()
+        Logger.d("ChatRepositoryImpl -> Repository scope cancelled")
     }
 }

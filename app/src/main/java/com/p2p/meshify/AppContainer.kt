@@ -152,12 +152,15 @@ class AppContainer(private val context: Context) {
     fun cleanup() {
         Log.d("AppContainer", "Starting cleanup...")
         containerScope.cancel() // Cancel all coroutines
-        
+
         // Stop all transports
         containerScope.launch {
             transportManager.stopAllTransports()
         }
-        
+
+        // Close chat repository to cancel its internal scope
+        chatRepository.close()
+
         Log.d("AppContainer", "Cleanup completed")
     }
 }
