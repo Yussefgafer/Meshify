@@ -391,6 +391,8 @@
     <string name="permission_dialog_start_messaging">بدء المراسلة</string>
 
     <!-- Notifications -->
+    <string name="notification_new_message">رسالة جديدة</string>
+    <string name="notification_new_message_text">اضغط للعرض</string>
     <string name="notification_reply_sent_title">تم إرسال الرد</string>
     <string name="notification_reply_sent_text">الرد: %s</string>
     <string name="notification_reply_sent_toast">تم إرسال الرد</string>
