@@ -1,5 +1,7 @@
 package com.p2p.meshify.core.data.repository
 
+import androidx.room.withTransaction
+import com.p2p.meshify.core.data.local.MeshifyDatabase
 import com.p2p.meshify.core.data.local.dao.ChatDao
 import com.p2p.meshify.core.data.local.dao.MessageDao
 import com.p2p.meshify.core.data.local.dao.PendingMessageDao
@@ -41,6 +43,7 @@ import java.util.UUID
  * - MessageSender (saveAndSend logic with offline queuing)
  */
 class MessageRepository(
+    private val database: MeshifyDatabase,
     private val messageDao: MessageDao,
     private val chatDao: ChatDao,
     private val pendingMessageDao: PendingMessageDao,
@@ -276,18 +279,18 @@ class MessageRepository(
                 replyToId = replyToId
             )
 
-            // Save chat
-            chatDao.insertChat(
-                ChatEntity(
-                    peerId = peerId,
-                    peerName = cleanName,
-                    lastMessage = caption.ifBlank { "[File: ${file.name}]" },
-                    lastTimestamp = message.timestamp
+            // Save chat + message atomically in a single transaction
+            database.withTransaction {
+                chatDao.insertChat(
+                    ChatEntity(
+                        peerId = peerId,
+                        peerName = cleanName,
+                        lastMessage = caption.ifBlank { "[File: ${file.name}]" },
+                        lastTimestamp = message.timestamp
+                    )
                 )
-            )
-
-            // Save message
-            messageDao.insertMessage(message)
+                messageDao.insertMessage(message)
+            }
 
             // Check if peer is online
             val isOnline = transportManager.getAllTransports().any { it.onlinePeers.value.contains(peerId) }
@@ -384,25 +387,23 @@ class MessageRepository(
         payloadType: Payload.PayloadType,
         data: ByteArray
     ): Result<Unit> = withContext(Dispatchers.IO) {
+        val cleanName = parseName(peerName)
         try {
             Logger.d("MessageRepository -> saveAndSend START: messageId=${message.id}, peerId=$peerId")
 
-            val cleanName = parseName(peerName)
-
-            // Step 1: Save chat
-            Logger.d("MessageRepository -> Inserting chat: peerId=$peerId, name=$cleanName")
-            chatDao.insertChat(
-                ChatEntity(
-                    peerId = peerId,
-                    peerName = cleanName,
-                    lastMessage = message.text ?: "[${message.type.name}]",
-                    lastTimestamp = message.timestamp
+            // Step 1 & 2: Atomic save of chat + message in a single transaction
+            Logger.d("MessageRepository -> Inserting chat and message in transaction: peerId=$peerId, name=$cleanName")
+            database.withTransaction {
+                chatDao.insertChat(
+                    ChatEntity(
+                        peerId = peerId,
+                        peerName = cleanName,
+                        lastMessage = message.text ?: "[${message.type.name}]",
+                        lastTimestamp = message.timestamp
+                    )
                 )
-            )
-
-            // Step 2: Save message
-            Logger.d("MessageRepository -> Inserting message: id=${message.id}, type=${message.type}")
-            messageDao.insertMessage(message)
+                messageDao.insertMessage(message)
+            }
 
             // Step 3: Check if peer is online
             Logger.d("MessageRepository -> Checking online status for peer: $peerId")
@@ -443,12 +444,36 @@ class MessageRepository(
                 transport.sendPayload(peerId, payload)
             }
 
-            // Step 6: Update status based on result
+            // Step 6: Update status based on result (atomic transaction)
             if (result.isFailure) {
                 Logger.e("MessageRepository -> sendPayload failed: ${result.exceptionOrNull()?.message}")
+                database.withTransaction {
+                    messageDao.updateMessageStatus(message.id, MessageStatus.FAILED)
+                    pendingMessageDao.insert(
+                        PendingMessageEntity(
+                            id = message.id,
+                            recipientId = peerId,
+                            recipientName = cleanName,
+                            content = message.text ?: "[${message.type.name}]",
+                            type = message.type
+                        )
+                    )
+                }
+
+                return@withContext Result.failure(result.exceptionOrNull() ?: Exception("Send failed"))
+            } else {
+                Logger.d("MessageRepository -> sendPayload succeeded, updating status to SENT")
+                database.withTransaction {
+                    messageDao.updateMessageStatus(message.id, MessageStatus.SENT)
+                }
+                Logger.d("MessageRepository -> saveAndSend COMPLETE: messageId=${message.id}")
+                return@withContext Result.success(Unit)
+            }
+        } catch (e: Exception) {
+            Logger.e("MessageRepository -> Failed to save and send message", e)
+            // Ensure message is not left in limbo — mark as FAILED and queue for retry
+            try {
                 messageDao.updateMessageStatus(message.id, MessageStatus.FAILED)
-                
-                // Queue for retry
                 pendingMessageDao.insert(
                     PendingMessageEntity(
                         id = message.id,
@@ -458,17 +483,9 @@ class MessageRepository(
                         type = message.type
                     )
                 )
-                
-                return@withContext Result.failure(result.exceptionOrNull() ?: Exception("Send failed"))
-            } else {
-                Logger.d("MessageRepository -> sendPayload succeeded, updating status to SENT")
-                messageDao.updateMessageStatus(message.id, MessageStatus.SENT)
-                Logger.d("MessageRepository -> saveAndSend COMPLETE: messageId=${message.id}")
-                return@withContext Result.success(Unit)
+            } catch (dbError: Exception) {
+                Logger.e("MessageRepository -> Failed to update message status after exception", dbError)
             }
-        } catch (e: Exception) {
-            Logger.e("MessageRepository -> Failed to save and send message", e)
-            Logger.e("MessageRepository -> Exception stack trace: ${e.stackTraceToString()}")
             return@withContext Result.failure(e)
         }
     }

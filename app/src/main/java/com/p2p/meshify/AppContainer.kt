@@ -98,17 +98,18 @@ class AppContainer(private val context: Context) {
         ChatRepositoryImpl(
             context = context,
             stringProvider = stringResourceProvider,
-            database.chatDao(),
-            database.messageDao(),
-            database.pendingMessageDao(),
-            transportManager, // ✅ Use TransportManager instead of hardcoded transport
-            fileManager,
-            notificationHelper,
-            settingsRepository,
-            peerIdentity,
-            messageCrypto,
-            ecdhSessionManager,
-            sessionKeyStore // ✅ Use shared instance
+            database = database,
+            chatDao = database.chatDao(),
+            messageDao = database.messageDao(),
+            pendingMessageDao = database.pendingMessageDao(),
+            transportManager = transportManager,
+            fileManager = fileManager,
+            notificationHelper = notificationHelper,
+            settingsRepository = settingsRepository,
+            peerIdentity = peerIdentity,
+            messageCrypto = messageCrypto,
+            ecdhSessionManager = ecdhSessionManager,
+            sessionKeyStore = sessionKeyStore
         )
     }
 
