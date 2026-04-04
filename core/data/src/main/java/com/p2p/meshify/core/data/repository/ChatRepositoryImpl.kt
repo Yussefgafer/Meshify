@@ -1255,12 +1255,20 @@ class ChatRepositoryImpl(
                         
                         // Emit security event so UI knows save failed
                         scope.launch {
-                            _securityEvents.emit(
-                                SecurityEvent.DecryptionFailed(
-                                    peerId = peerId,
-                                    reason = "Database save failed: ${saveResult.exceptionOrNull()?.message}"
+                            try {
+                                _securityEvents.emit(
+                                    SecurityEvent.DecryptionFailed(
+                                        peerId = peerId,
+                                        reason = "Database save failed: ${saveResult.exceptionOrNull()?.message}"
+                                    )
                                 )
-                            )
+                            } catch (emitError: Exception) {
+                                Logger.e(
+                                    message = "Failed to emit security event for DB save failure: ${emitError.message}",
+                                    throwable = emitError,
+                                    tag = "ChatRepository"
+                                )
+                            }
                         }
                         
                         // Do NOT send ACK - sender should retry
@@ -1286,21 +1294,29 @@ class ChatRepositoryImpl(
 
                     // Notify UI layer about the decryption failure
                     scope.launch {
-                        if (saveResult.isFailure) {
-                            // Emit security event for save failure (this is a decryption/processing failure, not TOFU)
-                            _securityEvents.emit(
-                                SecurityEvent.DecryptionFailed(
-                                    peerId = peerId,
-                                    reason = "Failed to save decryption error placeholder: ${saveResult.exceptionOrNull()?.message}"
+                        try {
+                            if (saveResult.isFailure) {
+                                // Emit security event for save failure (this is a decryption/processing failure, not TOFU)
+                                _securityEvents.emit(
+                                    SecurityEvent.DecryptionFailed(
+                                        peerId = peerId,
+                                        reason = "Failed to save decryption error placeholder: ${saveResult.exceptionOrNull()?.message}"
+                                    )
                                 )
-                            )
-                        } else {
-                            // Only emit decryption event if save succeeded
-                            _securityEvents.emit(
-                                SecurityEvent.DecryptionFailed(
-                                    peerId = peerId,
-                                    reason = e.message ?: "Unknown decryption error"
+                            } else {
+                                // Only emit decryption event if save succeeded
+                                _securityEvents.emit(
+                                    SecurityEvent.DecryptionFailed(
+                                        peerId = peerId,
+                                        reason = e.message ?: "Unknown decryption error"
+                                    )
                                 )
+                            }
+                        } catch (emitError: Exception) {
+                            Logger.e(
+                                message = "Failed to emit security event for decryption failure: ${emitError.message}",
+                                throwable = emitError,
+                                tag = "ChatRepository"
                             )
                         }
                     }
@@ -1319,21 +1335,29 @@ class ChatRepositoryImpl(
 
                     // Notify UI layer about the processing error
                     scope.launch {
-                        if (saveResult.isFailure) {
-                            // Emit security event for save failure (this is a decryption/processing failure, not TOFU)
-                            _securityEvents.emit(
-                                SecurityEvent.DecryptionFailed(
-                                    peerId = peerId,
-                                    reason = "Failed to save processing error placeholder: ${saveResult.exceptionOrNull()?.message}"
+                        try {
+                            if (saveResult.isFailure) {
+                                // Emit security event for save failure (this is a decryption/processing failure, not TOFU)
+                                _securityEvents.emit(
+                                    SecurityEvent.DecryptionFailed(
+                                        peerId = peerId,
+                                        reason = "Failed to save processing error placeholder: ${saveResult.exceptionOrNull()?.message}"
+                                    )
                                 )
-                            )
-                        } else {
-                            // Only emit decryption event if save succeeded
-                            _securityEvents.emit(
-                                SecurityEvent.DecryptionFailed(
-                                    peerId = peerId,
-                                    reason = "Message processing error: ${e.message ?: "Unknown error"}"
+                            } else {
+                                // Only emit decryption event if save succeeded
+                                _securityEvents.emit(
+                                    SecurityEvent.DecryptionFailed(
+                                        peerId = peerId,
+                                        reason = "Message processing error: ${e.message ?: "Unknown error"}"
+                                    )
                                 )
+                            }
+                        } catch (emitError: Exception) {
+                            Logger.e(
+                                message = "Failed to emit security event for processing error: ${emitError.message}",
+                                throwable = emitError,
+                                tag = "ChatRepository"
                             )
                         }
                     }
@@ -1387,7 +1411,15 @@ class ChatRepositoryImpl(
 
                     // Retry pending messages in background
                     scope.launch {
-                        retryPendingMessages(payload.senderId)
+                        try {
+                            retryPendingMessages(payload.senderId)
+                        } catch (e: Exception) {
+                            Logger.e(
+                                message = "Failed to retry pending messages for ${payload.senderId.take(8)}: ${e.message}",
+                                throwable = e,
+                                tag = "ChatRepository"
+                            )
+                        }
                     }
                 } catch (e: Exception) {
                     Logger.e("Failed to process handshake from ${peerId.take(8)}...", e, "ChatRepository")
