@@ -47,6 +47,9 @@ class ReplyReceiver : BroadcastReceiver() {
         // Rate limiter scope for lifecycle management
         private val rateLimiterScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
+        // Shared retry scope to prevent memory leak
+        private val retryScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
         // Rate limiter: 10 replies per minute per chat, max 10000 identifiers to prevent memory exhaustion
         private val replyRateLimiter = RateLimiter(
             maxRequests = 10,
@@ -62,6 +65,7 @@ class ReplyReceiver : BroadcastReceiver() {
         fun cleanup() {
             replyRateLimiter.close()
             rateLimiterScope.cancel()
+            retryScope.cancel()
         }
 
         /**
@@ -89,11 +93,16 @@ class ReplyReceiver : BroadcastReceiver() {
             // Exponential backoff: 1s, 2s, 4s, capped at 30 seconds
             val delayMs = minOf(30000L, 1000L * (1L shl retryCount))
 
-            CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+            // Use shared retryScope instead of creating a new CoroutineScope each time
+            retryScope.launch {
                 delay(delayMs)
 
                 try {
-                    val app = context.applicationContext as MeshifyApp
+                    val app = context.applicationContext as? MeshifyApp
+                        ?: run {
+                            Logger.e("ReplyReceiver -> Application context lost during retry, cannot proceed")
+                            return@launch
+                        }
                     val repository = app.container.chatRepository
                     val chatDao = app.container.database.chatDao()
                     val chat = chatDao.getChatById(chatId)
@@ -182,7 +191,12 @@ class ReplyReceiver : BroadcastReceiver() {
         // Validate chat exists in database
         // CRITICAL FIX: Move chat validation inside IO coroutine to prevent ANR
         // BroadcastReceiver.onReceive() returns immediately after launching coroutine
-        val app = context.applicationContext as MeshifyApp
+        // Safe cast to prevent ClassCastException
+        val app = context.applicationContext as? MeshifyApp
+            ?: run {
+                Logger.e("ReplyReceiver -> Application context is not MeshifyApp, cannot proceed")
+                return
+            }
 
         // Rate limiting check (before launching coroutine)
         if (!replyRateLimiter.allowRequest(chatId)) {
@@ -217,8 +231,15 @@ class ReplyReceiver : BroadcastReceiver() {
         // Send the reply with proper error handling - ALL validation happens inside coroutine
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val repository = app.container.chatRepository
-                val chatDao = app.container.database.chatDao()
+                // Safe cast inside coroutine as well
+                val localApp = context.applicationContext as? MeshifyApp
+                    ?: run {
+                        Logger.e("ReplyReceiver -> Application context is not MeshifyApp inside coroutine")
+                        return@launch
+                    }
+
+                val repository = localApp.container.chatRepository
+                val chatDao = localApp.container.database.chatDao()
                 
                 // Validate chat exists INSIDE coroutine (no main thread blocking)
                 val chat = withTimeoutOrNull(2000) {
