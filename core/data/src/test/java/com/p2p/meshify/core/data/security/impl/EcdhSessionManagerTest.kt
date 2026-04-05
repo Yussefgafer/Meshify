@@ -25,9 +25,10 @@ class EcdhSessionManagerTest {
         val aliceIdentity = generateIdentityKeypair()
         val bobIdentity = generateIdentityKeypair()
 
-        // Alice (Initiator) generates ephemeral session
-        val aliceSession = sessionManager.createEphemeralSession(aliceIdentity.public.encoded)
+        // Alice (Initiator) generates ephemeral session (no ECDH performed yet)
+        val aliceSession = sessionManager.createEphemeralSession()
         // aliceSession.sessionNonce = Alice's nonce (initiator nonce)
+        // aliceSession.sessionKey is ByteArray(0) — placeholder until finalizeSessionKey
 
         // Bob (Responder) generates his own ephemeral keypair and nonce
         val bobEphemeralKeyPair = sessionManager.generateEphemeralKeypair()
@@ -60,44 +61,75 @@ class EcdhSessionManagerTest {
     }
 
     @Test
-    fun `session key is 32 bytes for AES-256`() {
-        val peerIdentity = generateIdentityKeypair()
-        val session = sessionManager.createEphemeralSession(peerIdentity.public.encoded)
+    fun `createEphemeralSession returns empty sessionKey placeholder`() {
+        val session = sessionManager.createEphemeralSession()
 
+        Assert.assertTrue(
+            "Session key must be empty (placeholder) until finalizeSessionKey is called",
+            session.sessionKey.isEmpty()
+        )
         Assert.assertEquals(
-            "Session key must be 32 bytes for AES-256",
-            32,
-            session.sessionKey.size
+            "Ephemeral public key must be non-empty",
+            true,
+            session.ephemeralPublicKey.isNotEmpty()
+        )
+        Assert.assertEquals(
+            "Ephemeral private key must be non-empty",
+            true,
+            session.ephemeralPrivateKey.isNotEmpty()
+        )
+        Assert.assertEquals(
+            "Nonce must be 16 bytes",
+            16,
+            session.sessionNonce.size
         )
     }
 
-    @Test(expected = Exception::class)
-    fun `empty peer public key throws exception`() {
-        sessionManager.createEphemeralSession(ByteArray(0))
+    @Test
+    fun `finalizeSessionKey produces 32-byte session key`() {
+        val aliceSession = sessionManager.createEphemeralSession()
+        val bobEphemeralKeyPair = sessionManager.generateEphemeralKeypair()
+        val bobNonce = sessionManager.generateNonce()
+
+        val sessionKey = sessionManager.finalizeSessionKey(
+            peerEphemeralPubKeyBytes = bobEphemeralKeyPair.public.encoded,
+            peerNonce = bobNonce,
+            myEphemeralPrivateKey = aliceSession.ephemeralPrivateKey,
+            myNonce = aliceSession.sessionNonce
+        )
+
+        Assert.assertEquals(
+            "Finalized session key must be 32 bytes for AES-256",
+            32,
+            sessionKey.size
+        )
     }
 
-    @Test(expected = Exception::class)
-    fun `null-like empty peer public key throws exception`() {
-        sessionManager.createEphemeralSession(byteArrayOf(0x00, 0x00, 0x00, 0x00))
-    }
+    @Test
+    fun `createEphemeralSession generates unique keys per call`() {
+        val session1 = sessionManager.createEphemeralSession()
+        val session2 = sessionManager.createEphemeralSession()
 
-    @Test(expected = Exception::class)
-    fun `malformed public key throws exception`() {
-        val garbageKey = ByteArray(64) { it.toByte() }
-        sessionManager.createEphemeralSession(garbageKey)
+        Assert.assertFalse(
+            "Ephemeral public keys must be unique per session",
+            session1.ephemeralPublicKey.contentEquals(session2.ephemeralPublicKey)
+        )
+
+        Assert.assertFalse(
+            "Session nonces must be unique per session",
+            session1.sessionNonce.contentEquals(session2.sessionNonce)
+        )
     }
 
     @Test
     fun `different nonces produce different session keys`() {
-        val aliceIdentity = generateIdentityKeypair()
+        val aliceSession = sessionManager.createEphemeralSession()
+        val nonceA = aliceSession.sessionNonce
         val bobIdentity = generateIdentityKeypair()
-
-        val aliceSession1 = sessionManager.createEphemeralSession(aliceIdentity.public.encoded)
-        val nonceA = aliceSession1.sessionNonce
 
         val nonceB = sessionManager.generateNonce()
         val bobSessionKey1 = sessionManager.deriveSessionKeyFromPeer(
-            peerEphemeralPubKeyBytes = aliceSession1.ephemeralPublicKey,
+            peerEphemeralPubKeyBytes = aliceSession.ephemeralPublicKey,
             peerNonce = nonceA,
             myEphemeralKeyPair = bobIdentity,
             myNonce = nonceB
@@ -105,7 +137,7 @@ class EcdhSessionManagerTest {
 
         val nonceC = sessionManager.generateNonce()
         val bobSessionKey2 = sessionManager.deriveSessionKeyFromPeer(
-            peerEphemeralPubKeyBytes = aliceSession1.ephemeralPublicKey,
+            peerEphemeralPubKeyBytes = aliceSession.ephemeralPublicKey,
             peerNonce = nonceA,
             myEphemeralKeyPair = bobIdentity,
             myNonce = nonceC
@@ -142,8 +174,7 @@ class EcdhSessionManagerTest {
 
     @Test
     fun `tampered ephemeral key produces different session key`() {
-        val aliceIdentity = generateIdentityKeypair()
-        val aliceSession = sessionManager.createEphemeralSession(aliceIdentity.public.encoded)
+        val aliceSession = sessionManager.createEphemeralSession()
 
         val tamperedKey = aliceSession.ephemeralPublicKey.copyOf()
         if (tamperedKey.isNotEmpty()) {
@@ -178,8 +209,7 @@ class EcdhSessionManagerTest {
 
     @Test
     fun `tampered nonce produces different session key`() {
-        val aliceIdentity = generateIdentityKeypair()
-        val aliceSession = sessionManager.createEphemeralSession(aliceIdentity.public.encoded)
+        val aliceSession = sessionManager.createEphemeralSession()
 
         val tamperedNonce = aliceSession.sessionNonce.copyOf()
         if (tamperedNonce.isNotEmpty()) {
@@ -208,21 +238,23 @@ class EcdhSessionManagerTest {
 
     @Test
     fun `swapped nonce order produces different session key`() {
-        val aliceIdentity = generateIdentityKeypair()
-        val bobIdentity = generateIdentityKeypair()
-        val aliceSession = sessionManager.createEphemeralSession(aliceIdentity.public.encoded)
+        val aliceSession = sessionManager.createEphemeralSession()
+        val bobEphemeralKeyPair = sessionManager.generateEphemeralKeypair()
         val bobNonce = sessionManager.generateNonce()
+
+        // Derive shared secret manually for HKDF comparison
+        val sharedSecret = ByteArray(32) { 0x42 } // Placeholder — real ECDH secret would differ
 
         val saltAB = aliceSession.sessionNonce + bobNonce
         val keyAB = HkdfKeyDerivation.deriveSessionKey(
-            sharedSecret = aliceSession.sessionKey,
+            sharedSecret = sharedSecret,
             salt = saltAB,
             info = "Meshify-Session-v2"
         )
 
         val saltBA = bobNonce + aliceSession.sessionNonce
         val keyBA = HkdfKeyDerivation.deriveSessionKey(
-            sharedSecret = aliceSession.sessionKey,
+            sharedSecret = sharedSecret,
             salt = saltBA,
             info = "Meshify-Session-v2"
         )
@@ -235,8 +267,7 @@ class EcdhSessionManagerTest {
 
     @Test(expected = Exception::class)
     fun `zero-length ephemeral private key throws on finalize`() {
-        val aliceIdentity = generateIdentityKeypair()
-        val aliceSession = sessionManager.createEphemeralSession(aliceIdentity.public.encoded)
+        val aliceSession = sessionManager.createEphemeralSession()
 
         sessionManager.finalizeSessionKey(
             peerEphemeralPubKeyBytes = aliceSession.ephemeralPublicKey,
@@ -248,8 +279,7 @@ class EcdhSessionManagerTest {
 
     @Test
     fun `ephemeral private key can be zeroed`() {
-        val aliceIdentity = generateIdentityKeypair()
-        val aliceSession = sessionManager.createEphemeralSession(aliceIdentity.public.encoded)
+        val aliceSession = sessionManager.createEphemeralSession()
 
         sessionManager.zeroPrivateKey(aliceSession.ephemeralPrivateKey)
 
@@ -262,9 +292,8 @@ class EcdhSessionManagerTest {
 
     @Test
     fun `ephemeral keys are different for each session`() {
-        val peerIdentity = generateIdentityKeypair()
-        val session1 = sessionManager.createEphemeralSession(peerIdentity.public.encoded)
-        val session2 = sessionManager.createEphemeralSession(peerIdentity.public.encoded)
+        val session1 = sessionManager.createEphemeralSession()
+        val session2 = sessionManager.createEphemeralSession()
 
         Assert.assertFalse(
             "Ephemeral keys must be unique per session",

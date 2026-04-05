@@ -1,12 +1,9 @@
 package com.p2p.meshify.domain.security.util
 
-import java.security.KeyFactory
 import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.SecureRandom
 import java.security.spec.ECGenParameterSpec
-import java.security.spec.PKCS8EncodedKeySpec
-import java.security.spec.X509EncodedKeySpec
 import javax.crypto.KeyAgreement
 
 /**
@@ -41,7 +38,7 @@ class EcdhSessionManager {
      * @property ephemeralPublicKey Our ephemeral public key (to send to peer)
      * @property ephemeralPrivateKey Our ephemeral private key (keep secret, delete after use)
      * @property sessionNonce Our random nonce for HKDF salt
-     * @property sessionKey Derived 32-byte AES-256 session key
+     * @property sessionKey Derived 32-byte AES-256 session key (may be ByteArray(0) until finalizeSessionKey is called)
      */
     data class LocalSession(
         val ephemeralPublicKey: ByteArray,
@@ -51,17 +48,20 @@ class EcdhSessionManager {
     )
 
     /**
-     * Step 1 (Initiator): Generate ephemeral keypair and derive session key.
+     * Step 1 (Initiator): Generate ephemeral keypair and nonce for handshake.
      *
      * This is called by the party initiating the connection.
-     * They generate an ephemeral keypair and perform ECDH with the peer's identity key.
+     * They generate an ephemeral keypair and nonce to include in the handshake.
      *
-     * @param peerIdentityPubKeyBytes Peer's long-term identity public key (DER-encoded X.509)
-     * @return LocalSession containing ephemeral keys, nonce, and derived session key
-     * @throws IllegalArgumentException if peer public key format is invalid
-     * @throws IllegalStateException if key generation or ECDH fails
+     * IMPORTANT: This method does NOT perform ECDH.
+     * The sessionKey field in LocalSession is set to ByteArray(0) as a placeholder.
+     * The actual session key is derived later in finalizeSessionKey() after receiving
+     * the responder's ephemeral public key.
+     *
+     * @return LocalSession containing ephemeral keys and nonce (sessionKey is placeholder)
+     * @throws IllegalStateException if key generation fails
      */
-    fun createEphemeralSession(peerIdentityPubKeyBytes: ByteArray): LocalSession {
+    fun createEphemeralSession(): LocalSession {
         // Generate ephemeral EC keypair (secp256r1 / P-256)
         val ephemeralKeyPair = try {
             val kpg = KeyPairGenerator.getInstance("EC")
@@ -71,42 +71,16 @@ class EcdhSessionManager {
             throw IllegalStateException("Failed to generate ephemeral keypair: ${e.message}", e)
         }
 
-        // Parse peer's identity public key
-        val peerIdentityPubKey = try {
-            val keyFactory = KeyFactory.getInstance("EC")
-            val spec = X509EncodedKeySpec(peerIdentityPubKeyBytes)
-            keyFactory.generatePublic(spec)
-        } catch (e: IllegalArgumentException) {
-            throw IllegalArgumentException("Invalid peer public key format: ${e.message}", e)
-        } catch (e: Exception) {
-            throw IllegalStateException("Failed to parse peer public key: ${e.message}", e)
-        }
-
-        // Perform ECDH: sharedSecret = ECDH(ephemeralPriv, peerIdentityPub)
-        val ka = KeyAgreement.getInstance("ECDH")
-        ka.init(ephemeralKeyPair.private)
-        ka.doPhase(peerIdentityPubKey, true)
-        val rawSharedSecret = ka.generateSecret()
-
         // Generate random 16-byte nonce for HKDF salt
         val nonce = ByteArray(16).also { SecureRandom().nextBytes(it) }
 
-        // Derive session key via HKDF-SHA256
-        // Note: For initiator, we use only our nonce initially; responder will contribute theirs
-        val sessionKey = HkdfKeyDerivation.deriveSessionKey(
-            sharedSecret = rawSharedSecret,
-            salt = nonce,
-            info = "Meshify-Session-v2"
-        )
-
-        // Zero raw shared secret immediately (forward secrecy)
-        rawSharedSecret.fill(0)
-
+        // Session key is NOT derived yet — it will be derived in finalizeSessionKey()
+        // after receiving the responder's ephemeral public key
         return LocalSession(
             ephemeralPublicKey = ephemeralKeyPair.public.encoded,
             ephemeralPrivateKey = ephemeralKeyPair.private.encoded,
             sessionNonce = nonce,
-            sessionKey = sessionKey
+            sessionKey = ByteArray(0) // Placeholder — will be set by finalizeSessionKey
         )
     }
 
