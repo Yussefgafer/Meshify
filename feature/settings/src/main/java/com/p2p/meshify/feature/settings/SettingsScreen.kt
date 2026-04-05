@@ -432,6 +432,7 @@ fun SettingsScreen(
                     trailing = {
                         Switch(
                             checked = notificationSound,
+                            enabled = notificationsEnabled,
                             onCheckedChange = {
                                 haptics.perform(HapticPattern.Tick)
                                 viewModel.setNotificationSound(it)
@@ -439,9 +440,7 @@ fun SettingsScreen(
                         )
                     },
                     onClick = {
-                        if (notificationsEnabled) {
-                            viewModel.setNotificationSound(!notificationSound)
-                        }
+                        viewModel.setNotificationSound(!notificationSound)
                     }
                 )
 
@@ -458,6 +457,7 @@ fun SettingsScreen(
                     trailing = {
                         Switch(
                             checked = notificationVibrate,
+                            enabled = notificationsEnabled,
                             onCheckedChange = {
                                 haptics.perform(HapticPattern.Tick)
                                 viewModel.setNotificationVibrate(it)
@@ -465,9 +465,7 @@ fun SettingsScreen(
                         )
                     },
                     onClick = {
-                        if (notificationsEnabled) {
-                            viewModel.setNotificationVibrate(!notificationVibrate)
-                        }
+                        viewModel.setNotificationVibrate(!notificationVibrate)
                     }
                 )
 
