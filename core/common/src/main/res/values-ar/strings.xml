@@ -66,6 +66,14 @@
     <string name="dialog_discard_message_confirm">تجاهل</string>
     <string name="dialog_discard_message_cancel">إلغاء</string>
 
+    <!-- Delete Confirmation Dialog -->
+    <string name="dialog_delete_single_title">حذف الرسالة؟</string>
+    <string name="dialog_delete_single_text">لا يمكن التراجع عن هذا الإجراء.</string>
+    <string name="dialog_delete_everyone_warning">سيتم حذف الرسالة من جميع المشاركين.</string>
+    <string name="dialog_delete_multiple_title">حذف الرسائل؟</string>
+    <string name="dialog_delete_multiple_text">هل أنت متأكد من حذف %d رسالة؟</string>
+    <string name="dialog_delete_confirm">حذف</string>
+
     <!-- Chat Screen - Reply -->
     <string name="chat_reply_label">جارٍ الرد على</string>
     <string name="chat_reply_placeholder">جارٍ الرد على...</string>

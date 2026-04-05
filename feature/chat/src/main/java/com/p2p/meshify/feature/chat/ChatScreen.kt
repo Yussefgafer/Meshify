@@ -71,6 +71,31 @@ import kotlinx.coroutines.flow.first
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.FlowPreview
 
+/**
+ * Sealed interface representing pending delete actions awaiting confirmation.
+ */
+sealed interface DeleteAction {
+    /** Delete a single message with a specific delete type */
+    data class Single(val messageId: String, val deleteType: DeleteType) : DeleteAction
+    /** Delete multiple messages (always DELETE_FOR_ME from selection mode) */
+    data class Multiple(val messageIds: Set<String>) : DeleteAction
+}
+
+/** StatusIcon: icon size for standard status indicators */
+private val StatusIconSize = 14.dp
+
+/** StatusIcon: icon size for the sending spinner */
+private val StatusIconSizeSmall = 12.dp
+
+/** StatusIcon: stroke width for the sending spinner */
+private val StatusIconStrokeWidth = 1.5.dp
+
+/** StatusIcon: alpha for queued (dim, waiting) */
+private const val StatusAlphaQueued = 0.5f
+
+/** StatusIcon: alpha for sent/delivered/received (medium confidence) */
+private const val StatusAlphaDefault = 0.7f
+
 @OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
 @Composable
 fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBackClick: () -> Unit) {
@@ -87,6 +112,9 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
     var textState by rememberSaveable(stateSaver = TextFieldValue.Saver) {
         mutableStateOf(TextFieldValue())
     }
+
+    // Delete confirmation state — tracks pending delete action
+    var pendingDeleteAction by remember { mutableStateOf<DeleteAction?>(null) }
 
     // Track if user has scrolled away from bottom
     var hasScrolledToBottom by rememberSaveable { mutableStateOf(false) }
@@ -225,7 +253,12 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
                     selectedCount = selectedMessages.size,
                     onBackClick = { viewModel.clearSelection() },
                     onForwardClick = { viewModel.openForwardDialogForSelected() },
-                    onDeleteClick = { viewModel.deleteSelectedMessages(DeleteType.DELETE_FOR_ME) },
+                    onDeleteClick = {
+                        val selected = selectedMessages
+                        if (selected.isNotEmpty()) {
+                            pendingDeleteAction = DeleteAction.Multiple(selected)
+                        }
+                    },
                     onCopyClick = {
                         viewModel.copySelectedMessagesToClipboard(clipboard)
                         viewModel.clearSelection()
@@ -559,18 +592,18 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
                     headlineContent = { Text(stringResource(R.string.chat_action_delete_for_me)) },
                     leadingContent = { Icon(Icons.Default.Delete, null) },
                     modifier = Modifier.clickable {
-                        menuMessage?.let {
-                            viewModel.deleteMessage(it.id, DeleteType.DELETE_FOR_ME)
+                        menuMessage?.let { msg ->
+                            pendingDeleteAction = DeleteAction.Single(msg.id, DeleteType.DELETE_FOR_ME)
                         }
                         menuMessage = null
                     }
                 )
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.chat_action_delete_for_everyone)) },
-                    leadingContent = { Icon(Icons.Default.DeleteForever, null, tint = Color.Red) },
+                    leadingContent = { Icon(Icons.Default.DeleteForever, null, tint = MaterialTheme.colorScheme.error) },
                     modifier = Modifier.clickable {
-                        menuMessage?.let {
-                            viewModel.deleteMessage(it.id, DeleteType.DELETE_FOR_EVERYONE)
+                        menuMessage?.let { msg ->
+                            pendingDeleteAction = DeleteAction.Single(msg.id, DeleteType.DELETE_FOR_EVERYONE)
                         }
                         menuMessage = null
                     }
@@ -634,6 +667,74 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
             }
         )
     }
+
+    // Delete Confirmation Dialog
+    pendingDeleteAction?.let { action ->
+        AlertDialog(
+            onDismissRequest = { pendingDeleteAction = null },
+            icon = {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = {
+                Text(
+                    text = when (action) {
+                        is DeleteAction.Single -> stringResource(R.string.dialog_delete_single_title)
+                        is DeleteAction.Multiple -> stringResource(R.string.dialog_delete_multiple_title)
+                    }
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = when (action) {
+                            is DeleteAction.Single -> stringResource(R.string.dialog_delete_single_text)
+                            is DeleteAction.Multiple -> stringResource(
+                                R.string.dialog_delete_multiple_text,
+                                action.messageIds.size
+                            )
+                        }
+                    )
+                    // Warning for Delete for Everyone
+                    if (action is DeleteAction.Single && action.deleteType == DeleteType.DELETE_FOR_EVERYONE) {
+                        Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Xs))
+                        Text(
+                            text = stringResource(R.string.dialog_delete_everyone_warning),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        haptics.perform(HapticPattern.Tick)
+                        when (action) {
+                            is DeleteAction.Single ->
+                                viewModel.deleteMessage(action.messageId, action.deleteType)
+                            is DeleteAction.Multiple ->
+                                viewModel.deleteSelectedMessages(DeleteType.DELETE_FOR_ME)
+                        }
+                        pendingDeleteAction = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text(stringResource(R.string.dialog_delete_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeleteAction = null }) {
+                    Text(stringResource(R.string.dialog_btn_cancel))
+                }
+            }
+        )
+    }
 }
 
 /**
@@ -641,15 +742,28 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
  */
 @Composable
 fun StatusIcon(status: MessageStatus, tint: Color) {
-    val size = 14.dp
     when (status) {
-        MessageStatus.QUEUED -> Icon(Icons.Default.Schedule, null, Modifier.size(size), tint = tint.copy(0.5f))
-        MessageStatus.SENDING -> CircularProgressIndicator(Modifier.size(12.dp), strokeWidth = 1.5.dp, color = tint)
-        MessageStatus.SENT -> Icon(Icons.Default.Check, null, Modifier.size(size), tint = tint.copy(0.7f))
-        MessageStatus.DELIVERED -> Icon(Icons.Default.DoneAll, null, Modifier.size(size), tint = tint.copy(0.7f))
-        MessageStatus.RECEIVED -> Icon(Icons.Default.Done, null, Modifier.size(size), tint = tint.copy(0.7f))
-        MessageStatus.READ -> Icon(Icons.Default.DoneAll, null, Modifier.size(size), tint = MaterialTheme.colorScheme.tertiary)
-        MessageStatus.FAILED -> Icon(Icons.Default.Error, null, Modifier.size(size), tint = MaterialTheme.colorScheme.error)
+        MessageStatus.QUEUED -> Icon(
+            Icons.Default.Schedule, null, modifier = Modifier.size(StatusIconSize), tint = tint.copy(StatusAlphaQueued)
+        )
+        MessageStatus.SENDING -> CircularProgressIndicator(
+            modifier = Modifier.size(StatusIconSizeSmall), strokeWidth = StatusIconStrokeWidth, color = tint
+        )
+        MessageStatus.SENT -> Icon(
+            Icons.Default.Check, null, modifier = Modifier.size(StatusIconSize), tint = tint.copy(StatusAlphaDefault)
+        )
+        MessageStatus.DELIVERED -> Icon(
+            Icons.Default.DoneAll, null, modifier = Modifier.size(StatusIconSize), tint = tint.copy(StatusAlphaDefault)
+        )
+        MessageStatus.RECEIVED -> Icon(
+            Icons.Default.Done, null, modifier = Modifier.size(StatusIconSize), tint = tint.copy(StatusAlphaDefault)
+        )
+        MessageStatus.READ -> Icon(
+            Icons.Default.DoneAll, null, modifier = Modifier.size(StatusIconSize), tint = MaterialTheme.colorScheme.tertiary
+        )
+        MessageStatus.FAILED -> Icon(
+            Icons.Default.Error, null, modifier = Modifier.size(StatusIconSize), tint = MaterialTheme.colorScheme.error
+        )
     }
 }
 
