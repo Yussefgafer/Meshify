@@ -1,6 +1,7 @@
 package com.p2p.meshify.core.network.base
 
 import com.p2p.meshify.domain.model.Payload
+import com.p2p.meshify.domain.model.TransportType
 
 /**
  * Represents all possible events emitted by a transport layer.
@@ -11,7 +12,8 @@ sealed class TransportEvent {
         val deviceName: String,
         val address: String,
         val avatarHash: String? = null,
-        val rssi: Int? = null // RSSI signal strength in dBm (optional)
+        val rssi: Int? = null, // RSSI signal strength in dBm (optional)
+        val transportType: TransportType = TransportType.LAN // Which transport discovered this device
     ) : TransportEvent()
     data class DeviceLost(val deviceId: String) : TransportEvent()
     data class ConnectionEstablished(val deviceId: String) : TransportEvent()

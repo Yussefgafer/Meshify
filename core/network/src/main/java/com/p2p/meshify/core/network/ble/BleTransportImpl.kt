@@ -268,7 +268,8 @@ class BleTransportImpl(
                 deviceId = device.peerId,
                 deviceName = device.deviceName,
                 address = device.device.address,
-                rssi = device.rssi
+                rssi = device.rssi,
+                transportType = com.p2p.meshify.domain.model.TransportType.BLE
             )
         )
 

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.p2p.meshify.domain.model.PeerDevice
 import com.p2p.meshify.domain.model.SignalStrength
+import com.p2p.meshify.domain.model.TransportType
 import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.core.network.base.TransportEvent
 import com.p2p.meshify.core.domain.interfaces.WifiStateChecker
@@ -69,23 +70,48 @@ class DiscoveryViewModel(
     }
 
     private fun handleDeviceDiscovered(event: TransportEvent.DeviceDiscovered) {
-        // ✅ MINOR FIX m3: O(1) map update instead of O(n) list search
         val existingPeer = peerMap[event.deviceId]
+        val mergedTransportType = mergeTransportType(existingPeer?.transportType, event.transportType)
+        val bestRssi = mergeRssi(existingPeer?.rssi, event.rssi)
+        val bestName = mergeName(existingPeer?.name, event.deviceName)
+        val bestAddress = existingPeer?.address ?: event.address
+
         val updatedPeer = PeerDevice(
             id = event.deviceId,
-            name = event.deviceName,
-            address = event.address,
-            rssi = event.rssi,
-            isConnected = existingPeer?.isConnected ?: false
+            name = bestName,
+            address = bestAddress,
+            rssi = bestRssi,
+            isConnected = existingPeer?.isConnected ?: false,
+            transportType = mergedTransportType
         )
         peerMap[event.deviceId] = updatedPeer
-        
+
         _uiState.update {
             it.copy(
                 discoveredPeers = peerMap.values.toList(),
                 isSearching = peerMap.isNotEmpty()
             )
         }
+    }
+
+    /** Merge transport types: LAN + BLE → BOTH */
+    private fun mergeTransportType(existing: TransportType?, incoming: TransportType): TransportType = when {
+        existing == null -> incoming
+        existing == TransportType.BOTH -> TransportType.BOTH
+        existing != incoming -> TransportType.BOTH
+        else -> incoming
+    }
+
+    /** Keep strongest RSSI (less negative = stronger) */
+    private fun mergeRssi(existing: Int?, incoming: Int?): Int? =
+        if (existing != null && incoming != null) maxOf(existing, incoming)
+        else incoming ?: existing
+
+    /** Prefer real peer name over generic "Peer_XXXX" */
+    private fun mergeName(existing: String?, incoming: String): String = when {
+        existing?.startsWith("Peer_") == true && !incoming.startsWith("Peer_") -> incoming
+        !incoming.startsWith("Peer_") -> incoming
+        else -> existing ?: incoming
     }
 
     private fun handleDeviceLost(event: TransportEvent.DeviceLost) {
