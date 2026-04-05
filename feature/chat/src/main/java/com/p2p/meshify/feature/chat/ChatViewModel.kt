@@ -37,15 +37,16 @@ data class ChatUiState(
     val isOnline: Boolean = false,
     val isPeerTyping: Boolean = false,
     val inputText: String = "",
+    val draftText: String = "", // P2-11: Persisted draft text survives config changes
     val replyTo: MessageEntity? = null,
     val stagedAttachments: List<StagedAttachment> = emptyList(),
     val hasMoreMessages: Boolean = false,
     val isLoadingMore: Boolean = false,
     val isSending: Boolean = false,
-    val sendError: String? = null,  // P0-02: Error message or null
-    val uploadError: String? = null,  // Upload error message for file uploads
-    val securityWarning: String? = null,  // Security warning (decryption failures, etc.)
-    val transportUsed: Map<String, TransportType> = emptyMap() // ✅ T4: messageId → transport type
+    val sendError: String? = null,
+    val uploadError: String? = null,
+    val securityWarning: String? = null,
+    val transportUsed: Map<String, TransportType> = emptyMap()
 )
 
 @OptIn(FlowPreview::class)
@@ -231,7 +232,15 @@ class ChatViewModel(
     }
 
     fun onInputChanged(text: String) {
-        _uiState.update { it.copy(inputText = text) }
+        _uiState.update { it.copy(inputText = text, draftText = text) }
+    }
+
+    /**
+     * P2-11: Restore draft text from ViewModel state.
+     * Called when the Composable is first created to sync with saved state.
+     */
+    fun restoreDraftText(text: String) {
+        _uiState.update { it.copy(draftText = text) }
     }
 
     fun setReplyTo(message: MessageEntity?) {
@@ -263,11 +272,11 @@ class ChatViewModel(
                     // Send grouped message with attachments
                     val attachments = state.stagedAttachments.map { it.bytes to it.type }
                     repository.sendGroupedMessage(peerId, peerName, state.inputText, attachments, state.replyTo?.id)
-                    _uiState.update { it.copy(inputText = "", replyTo = null, stagedAttachments = emptyList()) }
+                    _uiState.update { it.copy(inputText = "", draftText = "", replyTo = null, stagedAttachments = emptyList()) }
                 } else {
                     // Send text message
                     repository.sendMessage(peerId, peerName, state.inputText, state.replyTo?.id)
-                    _uiState.update { it.copy(inputText = "", replyTo = null) }
+                    _uiState.update { it.copy(inputText = "", draftText = "", replyTo = null) }
                 }
 
                 // ✅ T4: Track transport used for the most recently sent message

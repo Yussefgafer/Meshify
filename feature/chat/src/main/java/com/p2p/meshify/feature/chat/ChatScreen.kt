@@ -109,8 +109,24 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
     val clipboard = LocalClipboardManager.current
     var menuMessage by remember { mutableStateOf<MessageEntity?>(null) }
     var selectedFullImage by remember { mutableStateOf<String?>(null) }
+
+    // P2-11: Initialize textState from ViewModel draftText, survive config changes via rememberSaveable
     var textState by rememberSaveable(stateSaver = TextFieldValue.Saver) {
-        mutableStateOf(TextFieldValue())
+        mutableStateOf(TextFieldValue(uiState.draftText))
+    }
+
+    // P2-11: Sync draftText from ViewModel → Composable only when draftText changes externally
+    // (e.g., after config change or when ViewModel clears it on successful send)
+    LaunchedEffect(uiState.draftText) {
+        val draft = uiState.draftText
+        // Only sync if textState is empty and draft is non-empty (config change restore)
+        // Or if draft was cleared (successful send)
+        if (textState.text.isEmpty() && draft.isNotEmpty()) {
+            textState = TextFieldValue(draft)
+        } else if (textState.text.isNotEmpty() && draft.isEmpty() && textState.text != draft) {
+            // Draft was cleared by ViewModel after successful send
+            textState = TextFieldValue("")
+        }
     }
 
     // Delete confirmation state — tracks pending delete action
