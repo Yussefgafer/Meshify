@@ -815,32 +815,20 @@ class ChatRepositoryImpl(
 
     /**
      * Initiate session with peer (called when sending first message).
-     * 
+     *
      * This is the INITIATOR flow:
      * 1. Generate ephemeral keypair and nonce
-     * 2. Compute ECDH with peer's identity key
-     * 3. Derive preliminary session key
-     * 4. Send handshake with identity key, ephemeral key, and nonce
-     * 5. Receive peer's handshake response
-     * 6. Finalize session key with concatenated salt
-     * 
+     * 2. Send handshake with identity key, ephemeral key, and nonce
+     * 3. Receive peer's handshake response
+     * 4. Finalize session key with concatenated salt (in finalizeSession)
+     *
      * @param peerId the peer's ID
-     * @param peerIdentityPubKeyHex peer's long-term identity public key (hex)
-     * @return LocalSession containing ephemeral keys and preliminary session key
+     * @return LocalSession containing ephemeral keys and nonce (sessionKey is placeholder)
      */
-    internal suspend fun initiateSession(
-        peerId: String,
-        peerIdentityPubKeyHex: String
-    ): EcdhSessionManager.LocalSession? {
+    internal suspend fun initiateSession(peerId: String): EcdhSessionManager.LocalSession? {
         try {
-            // Convert hex to bytes
-            val peerIdentityPubKeyBytes = peerIdentityPubKeyHex.hexToByteArray()
-
-            // Generate ephemeral session
-            val session = ecdhSessionManager.createEphemeralSession(peerIdentityPubKeyBytes)
-
-            // Store ephemeral keys temporarily for finalization after peer responds
-            // (In production, you'd persist this in a temporary cache)
+            // Generate ephemeral session (no ECDH performed yet)
+            val session = ecdhSessionManager.createEphemeralSession()
 
             return session
         } catch (e: Exception) {
