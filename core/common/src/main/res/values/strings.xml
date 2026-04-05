@@ -456,6 +456,24 @@
     <string name="setting_clear_cache">Clear Cache</string>
     <string name="setting_clear_cache_desc">Free up storage space</string>
 
+    <!-- Settings Screen - Network / BLE Section -->
+    <string name="settings_section_network">Network</string>
+    <string name="setting_bluetooth">Bluetooth</string>
+    <string name="setting_bluetooth_desc">Nearby device communication</string>
+    <string name="setting_bluetooth_status_title">BLE Status</string>
+    <string name="setting_bluetooth_status_active">Active, scanning</string>
+    <string name="setting_bluetooth_status_inactive">Inactive</string>
+
+    <!-- BLE Status Bottom Sheet -->
+    <string name="ble_sheet_title">Bluetooth Status</string>
+    <string name="ble_sheet_active">BLE Transport Active</string>
+    <string name="ble_sheet_inactive">Inactive</string>
+    <string name="ble_transport_mode_title">Transport Mode</string>
+    <string name="ble_transport_mode_multipath">Multi-Path</string>
+    <string name="ble_transport_mode_lan">LAN Only</string>
+    <string name="ble_transport_mode_ble">BLE Only</string>
+    <string name="ble_transport_mode_auto">Auto</string>
+
     <!-- Settings Screen - Dialogs -->
     <string name="settings_dialog_select_language">Select Language</string>
     <string name="settings_dialog_font_size">Font Size</string>

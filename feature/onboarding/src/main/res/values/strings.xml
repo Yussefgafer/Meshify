@@ -12,8 +12,14 @@
     <string name="onboarding_privacy_subtitle">Your data stays yours</string>
     <string name="onboarding_privacy_desc">End-to-end encrypted messages with no central servers. Your conversations never leave the mesh network</string>
     <string name="onboarding_privacy_policy_link">Privacy Policy</string>
-    
-    <!-- Page 3: P2P -->
+
+    <!-- Page 3: BLE Nearby (NEW) -->
+    <string name="onboarding_ble_title">Message Anyone Nearby</string>
+    <string name="onboarding_ble_subtitle">No Wi-Fi. No Internet.</string>
+    <string name="onboarding_ble_desc">Connect directly to devices within range using Bluetooth. Messages travel device-to-device, fully encrypted. Perfect for crowded places, offices, or anywhere the internet can\'t reach</string>
+    <string name="onboarding_ble_content_desc">Bluetooth nearby messaging illustration</string>
+
+    <!-- Page 4: P2P -->
     <string name="onboarding_p2p_title">Direct P2P Messaging</string>
     <string name="onboarding_p2p_subtitle">No internet required</string>
     <string name="onboarding_p2p_desc">Connect directly with nearby devices using WiFi, Bluetooth, or mesh networking. Send messages even without internet</string>
@@ -34,6 +40,7 @@
     <string name="onboarding_content_desc_shield">Security shield icon</string>
     <string name="onboarding_content_desc_devices">Connected devices icon</string>
     <string name="onboarding_content_desc_permissions">Permission icons</string>
+    <string name="onboarding_content_desc_ble">Bluetooth nearby illustration</string>
     
     <!-- Pre-Permission Dialog Strings -->
     <string name="permission_icon_desc">Permission icon</string>

@@ -158,4 +158,81 @@
     <string name="error_unknown">Unknown error</string>
     <string name="error_decryption_failed">[⚠️ Decryption Failed — Security Error]</string>
     <string name="error_message_processing_failed">[⚠️ Message Processing Failed]</string>
+
+    <!-- ============================================= -->
+    <!-- BLE Transport — Settings Section              -->
+    <!-- ============================================= -->
+    <string name="setting_bluetooth">Bluetooth</string>
+    <string name="setting_bluetooth_desc">Nearby device communication</string>
+    <string name="setting_bluetooth_status_active">Active, scanning</string>
+    <string name="setting_bluetooth_status_inactive">Inactive</string>
+    <string name="setting_bluetooth_status_peers_connected">%d peers connected</string>
+    <string name="setting_bluetooth_status_bt_off">Turn on Bluetooth in system settings</string>
+    <string name="setting_bluetooth_status_permission_denied">Permission denied</string>
+    <string name="setting_bluetooth_fix_bt">Fix it</string>
+    <string name="setting_bluetooth_grant_permission">Grant</string>
+    <string name="setting_bluetooth_not_supported">Bluetooth not supported on this device</string>
+
+    <!-- BLE Detail Bottom Sheet -->
+    <string name="ble_sheet_title">Bluetooth Status</string>
+    <string name="ble_sheet_active">BLE Transport Active</string>
+    <string name="ble_sheet_peers_connected">%d peers connected</string>
+    <string name="ble_sheet_advertising">Advertising: %s</string>
+    <string name="ble_sheet_scanning">Scanning: %s</string>
+    <string name="ble_sheet_mtu">MTU: %d bytes</string>
+    <string name="ble_sheet_no_peers">No nearby devices found via Bluetooth. Bring devices within 10 meters and try again.</string>
+    <string name="ble_sheet_connected_peers">Connected Peers</string>
+    <string name="ble_sheet_discovered_not_connected">Discovered (not connected)</string>
+    <string name="ble_sheet_yes">Yes</string>
+    <string name="ble_sheet_no">No</string>
+
+    <!-- Transport Mode Selector -->
+    <string name="ble_transport_mode_title">Transport Mode</string>
+    <string name="ble_transport_mode_multipath">Multi-Path</string>
+    <string name="ble_transport_mode_multipath_desc">LAN + Bluetooth simultaneously</string>
+    <string name="ble_transport_mode_lan">LAN Only</string>
+    <string name="ble_transport_mode_lan_desc">Wi-Fi / Ethernet only</string>
+    <string name="ble_transport_mode_ble">Bluetooth Only</string>
+    <string name="ble_transport_mode_ble_desc">Short-range Bluetooth only</string>
+    <string name="ble_transport_mode_auto">Auto</string>
+    <string name="ble_transport_mode_auto_desc">System picks best available</string>
+
+    <!-- Discovery — Transport Badges -->
+    <string name="discovery_transport_ble">BLE</string>
+    <string name="discovery_transport_lan">LAN</string>
+    <string name="discovery_transport_both">Both</string>
+    <string name="discovery_signal_strong">Excellent Signal</string>
+    <string name="discovery_signal_medium">Good Signal</string>
+    <string name="discovery_signal_weak">Weak Signal</string>
+    <string name="discovery_no_signal">No Signal</string>
+
+    <!-- Chat — Transport Indicators -->
+    <string name="chat_transport_ble_desc">Sent via Bluetooth</string>
+    <string name="chat_transport_multipath_desc">Sent via LAN + Bluetooth</string>
+    <string name="chat_transport_ble_failed">Bluetooth failed, sent via Wi-Fi</string>
+    <string name="chat_content_desc_transport_icon">Transport method icon</string>
+
+    <!-- Permission / Error Dialogs -->
+    <string name="ble_permission_rationale">Bluetooth lets you message nearby devices without Wi-Fi.</string>
+    <string name="ble_permission_title">Bluetooth Permissions</string>
+    <string name="ble_permission_scan">Nearby devices (scan)</string>
+    <string name="ble_permission_connect">Connect to paired devices</string>
+    <string name="ble_permission_advertise">Make your device discoverable</string>
+    <string name="ble_permission_grant_all">Allow Bluetooth</string>
+    <string name="ble_permission_denied_rationale">Bluetooth permission denied. Nearby device discovery will be limited.</string>
+    <string name="ble_error_advertising_blocked">Advertising blocked by another app</string>
+    <string name="ble_error_check_apps">Check apps</string>
+    <string name="ble_error_no_devices_nearby">No devices nearby</string>
+    <string name="ble_error_save_battery">Turn off Bluetooth to save battery</string>
+    <string name="ble_error_turn_off">Turn Off</string>
+
+    <!-- Dialogs -->
+    <string name="ble_forget_peer">Forget this device</string>
+    <string name="ble_forget_confirm">Stop auto-connecting to %s?</string>
+    <string name="ble_forget_confirm_yes">Forget</string>
+
+    <!-- Content Descriptions for BLE -->
+    <string name="content_desc_bluetooth_icon">Bluetooth icon</string>
+    <string name="content_desc_signal_strength">Signal strength indicator</string>
+    <string name="content_desc_transport_badge">Transport method badge</string>
 </resources>

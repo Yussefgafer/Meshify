@@ -456,6 +456,24 @@
     <string name="setting_clear_cache">مسح الذاكرة المؤقتة</string>
     <string name="setting_clear_cache_desc">تحرير مساحة التخزين</string>
 
+    <!-- Settings Screen - Network / BLE Section -->
+    <string name="settings_section_network">الشبكة</string>
+    <string name="setting_bluetooth">البلوتوث</string>
+    <string name="setting_bluetooth_desc">التواصل مع الأجهزة القريبة</string>
+    <string name="setting_bluetooth_status_title">حالة BLE</string>
+    <string name="setting_bluetooth_status_active">نشط، جارٍ البحث</string>
+    <string name="setting_bluetooth_status_inactive">غير نشط</string>
+
+    <!-- BLE Status Bottom Sheet -->
+    <string name="ble_sheet_title">حالة البلوتوث</string>
+    <string name="ble_sheet_active">نقل BLE نشط</string>
+    <string name="ble_sheet_inactive">غير نشط</string>
+    <string name="ble_transport_mode_title">وضع النقل</string>
+    <string name="ble_transport_mode_multipath">مسار متعدد</string>
+    <string name="ble_transport_mode_lan">الشبكة المحلية فقط</string>
+    <string name="ble_transport_mode_ble">BLE فقط</string>
+    <string name="ble_transport_mode_auto">تلقائي</string>
+
     <!-- Settings Screen - Dialogs -->
     <string name="settings_dialog_select_language">اختر اللغة</string>
     <string name="settings_dialog_font_size">حجم الخط</string>

@@ -9,7 +9,7 @@ import androidx.compose.ui.graphics.Color
  */
 data class WelcomeUiState(
     val currentPage: Int = 0,
-    val totalPages: Int = 4,
+    val totalPages: Int = 5,
     val isLastPage: Boolean = false,
     val isAnimating: Boolean = false
 )
@@ -34,6 +34,7 @@ data class OnboardingPageInfo(
 sealed class IllustrationType {
     object MeshNetwork : IllustrationType()
     object PrivacyShield : IllustrationType()
+    object BleNearby : IllustrationType()
     object P2PDevices : IllustrationType()
     object GetStarted : IllustrationType()
 }
@@ -57,6 +58,12 @@ object OnboardingPages {
             description = "onboarding_privacy_desc",
             illustrationType = IllustrationType.PrivacyShield,
             showLinks = true
+        ),
+        OnboardingPageInfo(
+            title = "onboarding_ble_title",
+            subtitle = "onboarding_ble_subtitle",
+            description = "onboarding_ble_desc",
+            illustrationType = IllustrationType.BleNearby
         ),
         OnboardingPageInfo(
             title = "onboarding_p2p_title",

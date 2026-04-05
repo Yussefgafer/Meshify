@@ -18,6 +18,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.BluetoothDisabled
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.automirrored.filled.BluetoothSearching
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,6 +40,7 @@ import coil3.request.crossfade
 import com.p2p.meshify.core.common.R
 import com.p2p.meshify.core.util.FileUtils
 import com.p2p.meshify.domain.model.MotionPreset
+import com.p2p.meshify.domain.model.TransportMode
 import com.p2p.meshify.domain.repository.ThemeMode
 import com.p2p.meshify.core.ui.components.*
 import com.p2p.meshify.core.ui.hooks.HapticPattern
@@ -77,6 +82,10 @@ fun SettingsScreen(
     val notificationSound by viewModel.notificationSound.collectAsState()
     val notificationVibrate by viewModel.notificationVibrate.collectAsState()
 
+    // BLE Transport State
+    val bleEnabled by viewModel.bleEnabled.collectAsState()
+    val transportMode by viewModel.transportMode.collectAsState()
+
     // UI State for dialogs and bottom sheets
     var showNameDialog by remember { mutableStateOf(false) }
     var showThemeSheet by remember { mutableStateOf(false) }
@@ -84,6 +93,7 @@ fun SettingsScreen(
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showFontSizeDialog by remember { mutableStateOf(false) }
     var showBackupDialog by remember { mutableStateOf(false) }
+    var showBleSheet by remember { mutableStateOf(false) }
     var nameInput by remember { mutableStateOf(displayName) }
     var backupStatus by remember { mutableStateOf<String?>(null) }
 
@@ -317,6 +327,51 @@ fun SettingsScreen(
                 )
             }
 
+            // === SECTION 4.5: BLUETOOTH TRANSPORT ===
+            MeshifySettingsGroup(title = stringResource(R.string.settings_section_network)) {
+                // Bluetooth Toggle
+                MeshifySettingsItem(
+                    title = stringResource(R.string.setting_bluetooth),
+                    subtitle = stringResource(R.string.setting_bluetooth_desc),
+                    icon = Icons.Default.Bluetooth,
+                    trailing = {
+                        Switch(
+                            checked = bleEnabled,
+                            onCheckedChange = {
+                                haptics.perform(HapticPattern.Tick)
+                                viewModel.setBleEnabled(it)
+                            }
+                        )
+                    },
+                    onClick = {
+                        viewModel.setBleEnabled(!bleEnabled)
+                    }
+                )
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Md),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+
+                // BLE Status row (opens bottom sheet)
+                MeshifySettingsItem(
+                    title = stringResource(R.string.setting_bluetooth_status_title),
+                    subtitle = if (bleEnabled) stringResource(R.string.setting_bluetooth_status_active) else stringResource(R.string.setting_bluetooth_status_inactive),
+                    icon = Icons.AutoMirrored.Filled.BluetoothSearching,
+                    trailing = {
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    onClick = {
+                        haptics.perform(HapticPattern.Pop)
+                        showBleSheet = true
+                    }
+                )
+            }
+
             // === SECTION 5: APP SETTINGS ✅ ===
             MeshifySettingsGroup(title = stringResource(R.string.settings_group_app)) {
                 // Language
@@ -443,7 +498,7 @@ fun SettingsScreen(
 
                 // Backup/Restore
                 MeshifySettingsItem(
-                    title = "Backup & Restore",
+                    title = stringResource(R.string.settings_backup_title),
                     subtitle = stringResource(R.string.settings_backup_desc),
                     icon = Icons.Default.CloudUpload,
                     onClick = { showBackupDialog = true }
@@ -662,6 +717,119 @@ fun SettingsScreen(
             }
         ) {
             Text(backupStatus ?: "")
+        }
+    }
+
+    // BLE Status Bottom Sheet
+    if (showBleSheet) {
+        BleStatusBottomSheet(
+            bleEnabled = bleEnabled,
+            transportMode = transportMode,
+            onModeSelected = { viewModel.setTransportMode(it) },
+            onDismiss = { showBleSheet = false }
+        )
+    }
+}
+
+/**
+ * BLE Status Bottom Sheet — shows BLE state, connected peers, and transport mode selector.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BleStatusBottomSheet(
+    bleEnabled: Boolean,
+    transportMode: TransportMode,
+    onModeSelected: (TransportMode) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val haptics = LocalPremiumHaptics.current
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(MeshifyDesignSystem.Spacing.Md)
+                .verticalScroll(rememberScrollState())
+        ) {
+            // Title
+            Text(
+                text = stringResource(R.string.ble_sheet_title),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.ExtraBold,
+                modifier = Modifier.padding(bottom = MeshifyDesignSystem.Spacing.Md)
+            )
+
+            // Status Header
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MeshifyDesignSystem.Shapes.CardSmall,
+                color = if (bleEnabled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+            ) {
+                Column(
+                    modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Md)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Sm)
+                    ) {
+                        Icon(
+                            imageVector = if (bleEnabled) Icons.AutoMirrored.Filled.BluetoothSearching else Icons.Default.BluetoothDisabled,
+                            contentDescription = null,
+                            tint = if (bleEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = if (bleEnabled) stringResource(R.string.ble_sheet_active) else stringResource(R.string.ble_sheet_inactive),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = if (bleEnabled) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Md))
+
+            // Transport Mode Selector
+            Text(
+                text = stringResource(R.string.ble_transport_mode_title),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = MeshifyDesignSystem.Spacing.Sm)
+            )
+
+            // Mode chips in a row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Sm),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TransportMode.entries.forEach { mode ->
+                    val isSelected = mode == transportMode
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = {
+                            haptics.perform(HapticPattern.Tick)
+                            onModeSelected(mode)
+                        },
+                        label = {
+                            Text(
+                                text = when (mode) {
+                                    TransportMode.MULTI_PATH -> stringResource(R.string.ble_transport_mode_multipath)
+                                    TransportMode.LAN_ONLY -> stringResource(R.string.ble_transport_mode_lan)
+                                    TransportMode.BLE_ONLY -> stringResource(R.string.ble_transport_mode_ble)
+                                    TransportMode.AUTO -> stringResource(R.string.ble_transport_mode_auto)
+                                },
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Lg))
         }
     }
 }
