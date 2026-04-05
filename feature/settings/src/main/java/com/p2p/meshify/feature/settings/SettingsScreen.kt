@@ -108,7 +108,7 @@ fun SettingsScreen(
             LargeTopAppBar(
                 title = {
                     Text(
-                        text = context.getString(R.string.screen_settings_title),
+                        text = stringResource(R.string.screen_settings_title),
                         fontWeight = FontWeight.Black
                     )
                 },
@@ -186,10 +186,10 @@ fun SettingsScreen(
             Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xl))
 
             // === SECTION 1: IDENTITY & PROFILE ===
-            MeshifySettingsGroup(title = context.getString(R.string.settings_section_identity)) {
+            MeshifySettingsGroup(title = stringResource(R.string.settings_section_identity)) {
                 // Display Name Item
                 MeshifySettingsItem(
-                    title = context.getString(R.string.setting_display_name),
+                    title = stringResource(R.string.setting_display_name),
                     subtitle = displayName,
                     icon = Icons.Default.Person,
                     onClick = {
@@ -205,13 +205,15 @@ fun SettingsScreen(
                 )
 
                 // Device ID Item (Copy full ID on click)
+                val deviceTitle = stringResource(R.string.setting_device_id)
+                val deviceSuffix = stringResource(R.string.settings_label_device_id_suffix)
                 MeshifySettingsItem(
-                    title = context.getString(R.string.setting_device_id),
-                    subtitle = deviceId.take(8).uppercase() + stringResource(R.string.settings_label_device_id_suffix),
+                    title = deviceTitle,
+                    subtitle = deviceId.take(8).uppercase() + deviceSuffix,
                     icon = Icons.Default.Fingerprint,
                     onClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        val clip = ClipData.newPlainText(context.getString(R.string.setting_device_id), deviceId)
+                        val clip = ClipData.newPlainText(deviceTitle, deviceId)
                         clipboard.setPrimaryClip(clip)
                         haptics.perform(HapticPattern.Success) // ✅ UX04: Haptic feedback on copy
                     }
@@ -219,10 +221,10 @@ fun SettingsScreen(
             }
 
             // === SECTION 2: LOOK & FEEL ===
-            MeshifySettingsGroup(title = context.getString(R.string.settings_section_appearance)) {
+            MeshifySettingsGroup(title = stringResource(R.string.settings_section_appearance)) {
                 // Theme Mode
                 MeshifySettingsItem(
-                    title = context.getString(R.string.settings_theme_mode),
+                    title = stringResource(R.string.settings_theme_mode),
                     subtitle = when (themeMode) {
                         ThemeMode.LIGHT -> stringResource(R.string.settings_theme_light)
                         ThemeMode.DARK -> stringResource(R.string.settings_theme_dark)
@@ -242,8 +244,8 @@ fun SettingsScreen(
 
                 // Dynamic Colors
                 MeshifySettingsItem(
-                    title = context.getString(R.string.settings_dynamic_colors),
-                    subtitle = context.getString(R.string.settings_dynamic_colors_desc),
+                    title = stringResource(R.string.settings_dynamic_colors),
+                    subtitle = stringResource(R.string.settings_dynamic_colors_desc),
                     icon = Icons.Default.ColorLens,
                     trailing = {
                         Switch(
@@ -287,7 +289,7 @@ fun SettingsScreen(
             MeshifySettingsGroup(title = stringResource(R.string.settings_label_md3_expressive)) {
                 // Motion Physics
                 MeshifySettingsItem(
-                    title = context.getString(R.string.settings_motion_system),
+                    title = stringResource(R.string.settings_motion_system),
                     subtitle = motionPreset.name,
                     icon = Icons.Default.Animation,
                     onClick = { showMotionDialog = true }
@@ -295,10 +297,10 @@ fun SettingsScreen(
             }
 
             // === SECTION 4: PRIVACY & VISIBILITY ===
-            MeshifySettingsGroup(title = context.getString(R.string.settings_section_privacy)) {
+            MeshifySettingsGroup(title = stringResource(R.string.settings_section_privacy)) {
                 MeshifySettingsItem(
-                    title = context.getString(R.string.settings_visibility),
-                    subtitle = context.getString(R.string.settings_visibility_desc),
+                    title = stringResource(R.string.settings_visibility),
+                    subtitle = stringResource(R.string.settings_visibility_desc),
                     icon = Icons.Default.Visibility,
                     trailing = {
                         Switch(
@@ -420,6 +422,8 @@ fun SettingsScreen(
                 )
 
                 // Clear Cache
+                val cacheSuccess = stringResource(R.string.settings_cache_cleared_success)
+                val cacheError = stringResource(R.string.settings_cache_cleared_error)
                 MeshifySettingsItem(
                     title = stringResource(R.string.setting_clear_cache),
                     subtitle = stringResource(R.string.setting_clear_cache_desc),
@@ -427,7 +431,7 @@ fun SettingsScreen(
                     onClick = {
                         haptics.perform(HapticPattern.Pop)
                         viewModel.clearCache { result ->
-                            backupStatus = if (result.isSuccess) context.getString(R.string.settings_cache_cleared_success) else context.getString(R.string.settings_cache_cleared_error)
+                            backupStatus = if (result.isSuccess) cacheSuccess else cacheError
                         }
                     }
                 )
@@ -447,13 +451,13 @@ fun SettingsScreen(
             }
 
             // === SECTION 6: ABOUT ===
-            MeshifySettingsGroup(title = context.getString(R.string.settings_section_info)) {
+            MeshifySettingsGroup(title = stringResource(R.string.settings_section_info)) {
                 // App Version with easter egg (tap 7 times to unlock developer mode)
                 val versionTapCount = remember { mutableIntStateOf(0) }
                 val lastTapTime = remember { mutableLongStateOf(0L) }
                 
                 MeshifySettingsItem(
-                    title = context.getString(R.string.setting_app_version),
+                    title = stringResource(R.string.setting_app_version),
                     subtitle = appVersion,
                     icon = Icons.Default.Info,
                     onClick = {
@@ -536,6 +540,10 @@ fun SettingsScreen(
 
     // Motion Preset Selection Dialog
     if (showMotionDialog) {
+        val gentleLabel = stringResource(R.string.settings_motion_gentle_label)
+        val standardLabel = stringResource(R.string.settings_motion_standard_label)
+        val snappyLabel = stringResource(R.string.settings_motion_snappy_label)
+        val bouncyLabel = stringResource(R.string.settings_motion_bouncy_label)
         MeshifySelectionDialog(
             title = stringResource(R.string.settings_dialog_motion_preset),
             options = MotionPreset.entries,
@@ -547,10 +555,10 @@ fun SettingsScreen(
             onDismiss = { showMotionDialog = false },
             optionLabel = {
                 when (it) {
-                    MotionPreset.GENTLE -> context.getString(R.string.settings_motion_gentle_label)
-                    MotionPreset.STANDARD -> context.getString(R.string.settings_motion_standard_label)
-                    MotionPreset.SNAPPY -> context.getString(R.string.settings_motion_snappy_label)
-                    MotionPreset.BOUNCY -> context.getString(R.string.settings_motion_bouncy_label)
+                    MotionPreset.GENTLE -> gentleLabel
+                    MotionPreset.STANDARD -> standardLabel
+                    MotionPreset.SNAPPY -> snappyLabel
+                    MotionPreset.BOUNCY -> bouncyLabel
                 }
             },
             optionIcon = {
@@ -566,6 +574,8 @@ fun SettingsScreen(
 
     // ✅ Language Selection Dialog
     if (showLanguageDialog) {
+        val arabicLabel = stringResource(R.string.settings_language_arabic)
+        val englishLabel = stringResource(R.string.settings_language_english)
         MeshifySelectionDialog(
             title = stringResource(R.string.settings_dialog_select_language),
             options = listOf("en", "ar"),
@@ -576,7 +586,7 @@ fun SettingsScreen(
                 showLanguageDialog = false
             },
             onDismiss = { showLanguageDialog = false },
-            optionLabel = { lang -> if (lang == "ar") context.getString(R.string.settings_language_arabic) else context.getString(R.string.settings_language_english) },
+            optionLabel = { lang -> if (lang == "ar") arabicLabel else englishLabel },
             optionIcon = { lang -> if (lang == "ar") Icons.Default.Language else Icons.Default.Translate }
         )
     }

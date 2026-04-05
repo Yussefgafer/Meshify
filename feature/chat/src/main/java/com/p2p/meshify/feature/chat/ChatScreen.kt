@@ -95,9 +95,8 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
     // BackHandler confirmation for unsaved drafts
     var showBackConfirmationDialog by remember { mutableStateOf(false) }
 
-    // Collect upload progress - throttled to 10 updates/second (100ms)
+    // Collect upload progress - throttled in ViewModel
     val uploadProgressMap by viewModel.uploadProgress
-        .sample(100.milliseconds)
         .collectAsStateWithLifecycle(emptyMap())
     
     // Use derivedStateOf for expensive calculations - avoids unnecessary recompositions

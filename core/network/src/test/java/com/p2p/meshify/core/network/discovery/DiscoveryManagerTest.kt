@@ -23,8 +23,19 @@ class DiscoveryManagerTest {
     @Before
     fun setup() {
         manager = DiscoveryManager()
-        mockService1 = mockk(relaxed = true)
-        mockService2 = mockk(relaxed = true)
+        mockService1 = mockk(relaxed = false)
+        mockService2 = mockk(relaxed = false)
+        // Default stubs for relaxed=false mocks
+        every { mockService1.isAvailable } returns true
+        every { mockService2.isAvailable } returns true
+        every { mockService1.discoveredDevices } returns MutableStateFlow(emptyList())
+        every { mockService2.discoveredDevices } returns MutableStateFlow(emptyList())
+        coEvery { mockService1.startDiscovery(any()) } just runs
+        coEvery { mockService2.startDiscovery(any()) } just runs
+        coEvery { mockService1.stopDiscovery() } just runs
+        coEvery { mockService2.stopDiscovery() } just runs
+        every { mockService1.clearDiscoveredDevices() } just runs
+        every { mockService2.clearDiscoveredDevices() } just runs
     }
 
     @After
@@ -610,9 +621,9 @@ class DiscoveryManagerTest {
         // When - should not throw
         manager.clearAllDiscoveredDevices()
 
-        // Then
-        verify { mockService1.clearDiscoveredDevices() }
-        verify { mockService2.clearDiscoveredDevices() }
+        // Then - mockService1 was called (threw), mockService2 was still called
+        verify(atLeast = 1) { mockService1.clearDiscoveredDevices() }
+        verify(atLeast = 1) { mockService2.clearDiscoveredDevices() }
     }
 
     @Test
@@ -708,10 +719,18 @@ class DiscoveryManagerTest {
     @Test
     fun `getAvailableServices filters by isAvailable property`() {
         // Given
-        val availableService = mockk<IDiscoveryService>(relaxed = true)
-        val unavailableService = mockk<IDiscoveryService>(relaxed = true)
+        val availableService = mockk<IDiscoveryService>(relaxed = false)
+        val unavailableService = mockk<IDiscoveryService>(relaxed = false)
         every { availableService.isAvailable } returns true
         every { unavailableService.isAvailable } returns false
+        every { availableService.discoveredDevices } returns MutableStateFlow(emptyList())
+        every { unavailableService.discoveredDevices } returns MutableStateFlow(emptyList())
+        coEvery { availableService.startDiscovery(any()) } just runs
+        coEvery { unavailableService.startDiscovery(any()) } just runs
+        coEvery { availableService.stopDiscovery() } just runs
+        coEvery { unavailableService.stopDiscovery() } just runs
+        every { availableService.clearDiscoveredDevices() } just runs
+        every { unavailableService.clearDiscoveredDevices() } just runs
 
         manager.registerService("available", availableService)
         manager.registerService("unavailable", unavailableService)
@@ -739,17 +758,19 @@ class DiscoveryManagerTest {
     fun `multiple register and clear cycles work correctly`() {
         // Given
         manager.registerService("service1", mockService1)
-        manager.clearAllDiscoveredDevices() // mockService1 called 1 time (call #1)
+        manager.clearAllDiscoveredDevices() // mockService1: call #1
 
         manager.registerService("service2", mockService2)
-        manager.clearAllDiscoveredDevices() // mockService1 + mockService2 called (calls #2, #3)
+        manager.clearAllDiscoveredDevices() // mockService1: #2, mockService2: #1
 
         // When - register service3 with same instance as service1
         // Now services map has: service1->mockService1, service2->mockService2, service3->mockService1
         manager.registerService("service3", mockService1)
-        manager.clearAllDiscoveredDevices() // mockService1 called twice (service1 + service3), mockService2 once (calls #4, #5, #6)
+        manager.clearAllDiscoveredDevices() // mockService1: #3 (service1) + #4 (service3), mockService2: #2
 
-        // Then - mockService1 called 4 times total (1+1+2), mockService2 called 2 times (1+1)
+        // Then - 4 calls: clear#1(m1×1) + clear#2(m1×1) + clear#3(m1×2 for service1+service3) = 4
+        // mockService2: clear#2(m2×1) + clear#3(m2×1) = 2
+        // @After does not add calls because @Before creates a fresh manager each test
         verify(exactly = 4) { mockService1.clearDiscoveredDevices() }
         verify(exactly = 2) { mockService2.clearDiscoveredDevices() }
     }
@@ -830,11 +851,22 @@ class DiscoveryManagerTest {
     @Test
     fun `exception in startDiscovery is logged but does not stop other services`() = runTest {
         // Given
-        val mockService3 = mockk<IDiscoveryService>(relaxed = true)
+        val mockService3 = mockk<IDiscoveryService>(relaxed = false)
         every { mockService1.isAvailable } returns true
         every { mockService2.isAvailable } returns true
         every { mockService3.isAvailable } returns true
         coEvery { mockService1.startDiscovery(null) } throws Exception("Failure")
+        coEvery { mockService2.startDiscovery(any()) } just runs
+        coEvery { mockService3.startDiscovery(any()) } just runs
+        coEvery { mockService1.stopDiscovery() } just runs
+        coEvery { mockService2.stopDiscovery() } just runs
+        coEvery { mockService3.stopDiscovery() } just runs
+        every { mockService1.clearDiscoveredDevices() } just runs
+        every { mockService2.clearDiscoveredDevices() } just runs
+        every { mockService3.clearDiscoveredDevices() } just runs
+        every { mockService1.discoveredDevices } returns MutableStateFlow(emptyList())
+        every { mockService2.discoveredDevices } returns MutableStateFlow(emptyList())
+        every { mockService3.discoveredDevices } returns MutableStateFlow(emptyList())
 
         manager.registerService("service1", mockService1)
         manager.registerService("service2", mockService2)
@@ -849,11 +881,26 @@ class DiscoveryManagerTest {
     @Test
     fun `exception in stopDiscovery is logged but does not stop other services`() = runTest {
         // Given
-        val mockService3 = mockk<IDiscoveryService>(relaxed = true)
+        val mockService3 = mockk<IDiscoveryService>(relaxed = false)
+        every { mockService1.isAvailable } returns true
+        every { mockService2.isAvailable } returns true
+        every { mockService3.isAvailable } returns true
+        coEvery { mockService1.stopDiscovery() } throws Exception("Failure")
+        coEvery { mockService2.stopDiscovery() } just runs
+        coEvery { mockService3.stopDiscovery() } just runs
+        coEvery { mockService1.startDiscovery(any()) } just runs
+        coEvery { mockService2.startDiscovery(any()) } just runs
+        coEvery { mockService3.startDiscovery(any()) } just runs
+        every { mockService1.clearDiscoveredDevices() } just runs
+        every { mockService2.clearDiscoveredDevices() } just runs
+        every { mockService3.clearDiscoveredDevices() } just runs
+        every { mockService1.discoveredDevices } returns MutableStateFlow(emptyList())
+        every { mockService2.discoveredDevices } returns MutableStateFlow(emptyList())
+        every { mockService3.discoveredDevices } returns MutableStateFlow(emptyList())
+
         manager.registerService("service1", mockService1)
         manager.registerService("service2", mockService2)
         manager.registerService("service3", mockService3)
-        coEvery { mockService1.stopDiscovery() } throws Exception("Failure")
 
         // When & Then
         manager.stopDiscoveryOnAll()
