@@ -21,6 +21,8 @@
 
     <!-- Discovery Screen -->
     <string name="screen_discovery_title">اكتشاف الأجهزة</string>
+    <string name="discovery_error_title">حدث خطأ</string>
+    <string name="discovery_error_retry">إعادة المحاولة</string>
     <string name="discovery_peers_found">تم العثور على أجهزة</string>
     <string name="peer_discovered_format">تم اكتشاف %s</string>
     <string name="searching_placeholder">جارٍ البحث عن أجهزة قريبة...</string>

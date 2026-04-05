@@ -1,5 +1,6 @@
 package com.p2p.meshify.core.network.ble
 
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
@@ -44,6 +45,7 @@ class BleGattServer(
     /**
      * Start the GATT Server.
      */
+    @SuppressLint("MissingPermission")
     fun startServer() {
         try {
             gattServer = (context.getSystemService(Context.BLUETOOTH_SERVICE) as android.bluetooth.BluetoothManager)
@@ -85,6 +87,7 @@ class BleGattServer(
     /**
      * Stop the GATT Server.
      */
+    @SuppressLint("MissingPermission")
     fun stopServer() {
         try {
             gattServer?.close()
@@ -101,6 +104,7 @@ class BleGattServer(
      * Send data to a connected client via notification.
      * Returns Result<Unit> indicating success or failure.
      */
+    @SuppressLint("MissingPermission")
     suspend fun sendData(peerId: String, data: ByteArray): Result<Unit> {
         val device = connectedDevices[peerId]
         val txChar = txCharacteristic
@@ -159,6 +163,7 @@ class BleGattServer(
     }
 
     private val serverCallback = object : BluetoothGattServerCallback() {
+        @SuppressLint("MissingPermission")
         override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
             val peerAddress = device.address
             
@@ -177,6 +182,7 @@ class BleGattServer(
             }
         }
 
+        @SuppressLint("MissingPermission")
         override fun onCharacteristicWriteRequest(
             device: BluetoothDevice,
             requestId: Int,
@@ -197,6 +203,7 @@ class BleGattServer(
             }
         }
 
+        @SuppressLint("MissingPermission")
         override fun onDescriptorWriteRequest(
             device: BluetoothDevice,
             requestId: Int,

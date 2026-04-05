@@ -1,5 +1,6 @@
 package com.p2p.meshify.core.network.ble
 
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.le.AdvertiseCallback
 import android.bluetooth.le.AdvertiseData
@@ -106,6 +107,7 @@ class BleAdvertiser(
     /**
      * Stop BLE advertising.
      */
+    @SuppressLint("MissingPermission")
     fun stopAdvertising() {
         if (!isAdvertising) {
             return

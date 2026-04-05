@@ -1,5 +1,6 @@
 package com.p2p.meshify.core.network.ble
 
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
@@ -100,6 +101,7 @@ class BleScanner(
     /**
      * Stop scanning.
      */
+    @SuppressLint("MissingPermission")
     fun stopScanning() {
         if (!isScanning) {
             return
