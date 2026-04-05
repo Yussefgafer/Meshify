@@ -16,11 +16,13 @@ import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.security.model.SecurityEvent
 import com.p2p.meshify.core.ui.model.StagedAttachment
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlin.time.Duration.Companion.milliseconds
 import java.io.File
 
 data class ChatUiState(
@@ -39,6 +41,7 @@ data class ChatUiState(
     val securityWarning: String? = null  // Security warning (decryption failures, etc.)
 )
 
+@OptIn(FlowPreview::class)
 class ChatViewModel(
     private val context: Context,
     private val peerId: String,
@@ -64,8 +67,11 @@ class ChatViewModel(
         get() = _selectedMessages.value.isNotEmpty()
 
     // Upload progress tracking - maps messageId to progress percentage (0-100)
+    // ✅ Throttled to 10 updates/second to avoid unnecessary recompositions
     private val _uploadProgress = MutableStateFlow<Map<String, Int>>(emptyMap())
-    val uploadProgress: StateFlow<Map<String, Int>> = _uploadProgress.asStateFlow()
+    val uploadProgress: StateFlow<Map<String, Int>> = _uploadProgress
+        .sample(100.milliseconds)
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
 
     // Pagination state - using ArrayDeque for O(1) prepend operations
     private var currentPage = 0

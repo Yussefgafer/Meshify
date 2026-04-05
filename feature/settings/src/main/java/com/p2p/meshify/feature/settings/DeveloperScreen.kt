@@ -107,7 +107,7 @@ class DeveloperViewModel(
         viewModelScope.launch {
             try {
                 val peerId = "peer_media_test"
-                val peerName = "Media Test" // TODO: Use string resource
+                val peerName = "Media Test" // Dev-only label
                 val baseTime = System.currentTimeMillis()
 
                 chatDao.insertChat(ChatEntity(peerId, peerName, "[Media Messages]", baseTime))
@@ -169,7 +169,7 @@ class DeveloperViewModel(
                 )
 
                 mediaMessages.forEach { messageDao.insertMessage(it) }
-                onComplete("Added media test conversation") // TODO: Use stringResource
+                onComplete("Added media test conversation")
             } catch (e: Exception) {
                 onComplete("Error: ${e.message}")
             }
@@ -180,7 +180,7 @@ class DeveloperViewModel(
         viewModelScope.launch {
             try {
                 val peerId = "peer_reactions"
-                val peerName = "Reactions Demo" // TODO: Use stringResource
+                val peerName = "Reactions Demo" // Dev-only label
                 val baseTime = System.currentTimeMillis()
 
                 chatDao.insertChat(ChatEntity(peerId, peerName, "👍", baseTime))
@@ -246,7 +246,7 @@ class DeveloperViewModel(
         viewModelScope.launch {
             try {
                 val peerId = "peer_replies"
-                val peerName = "Replies Demo" // TODO: Use stringResource
+                val peerName = "Replies Demo" // Dev-only label
                 val baseTime = System.currentTimeMillis()
 
                 chatDao.insertChat(ChatEntity(peerId, peerName, "Got it!", baseTime))
@@ -308,7 +308,7 @@ class DeveloperViewModel(
         viewModelScope.launch {
             try {
                 val peerId = "peer_long_chat"
-                val peerName = "Long Chat" // TODO: Use stringResource
+                val peerName = "Long Chat" // Dev-only label
                 val baseTime = System.currentTimeMillis()
 
                 val messages = mutableListOf<MessageEntity>()
@@ -358,7 +358,7 @@ class DeveloperViewModel(
                     chatDao.deleteChatById(peerId)
                 }
 
-                onComplete("Cleared all mock data") // TODO: Use stringResource
+                onComplete("Cleared all mock data") // Dev-only message
             } catch (e: Exception) {
                 onComplete("Error: ${e.message}")
             }
@@ -615,12 +615,11 @@ fun DeveloperScreen(
                 Text(stringResource(R.string.developer_clear_data_message))
             },
             confirmButton = {
+                val successMsg = stringResource(R.string.developer_clear_success)
                 TextButton(
                     onClick = {
                         showClearDataConfirmation = false
-                        viewModel.clearAllData {
-                            statusMessage = context.getString(R.string.developer_clear_success)
-                        }
+                        viewModel.clearAllData { statusMessage = successMsg }
                     },
                     colors = ButtonDefaults.textButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
