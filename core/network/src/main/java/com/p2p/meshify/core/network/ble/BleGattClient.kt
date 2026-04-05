@@ -1,5 +1,6 @@
 package com.p2p.meshify.core.network.ble
 
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
@@ -57,6 +58,7 @@ class BleGattClient(
     /**
      * Disconnect from a peer.
      */
+    @SuppressLint("MissingPermission")
     fun disconnect(peerId: String) {
         gattConnections.remove(peerId)?.let { connection ->
             connection.gatt?.close()
@@ -95,6 +97,7 @@ class BleGattClient(
     /**
      * Clean up all connections.
      */
+    @SuppressLint("MissingPermission")
     fun cleanup() {
         gattConnections.values.forEach { it.gatt?.close() }
         gattConnections.clear()
@@ -134,6 +137,7 @@ class BleGattConnection(
         characteristicsReady = CompletableDeferred()
         
         val callback = object : BluetoothGattCallback() {
+            @SuppressLint("MissingPermission")
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
                 when (newState) {
                     BluetoothProfile.STATE_CONNECTED -> {
@@ -150,6 +154,7 @@ class BleGattConnection(
                 }
             }
 
+            @SuppressLint("MissingPermission")
             override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     val service = gatt.getService(serviceUuid)
@@ -167,6 +172,7 @@ class BleGattConnection(
                 }
             }
 
+            @SuppressLint("MissingPermission")
             override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     currentMtu = mtu
@@ -187,6 +193,7 @@ class BleGattConnection(
                 }
             }
 
+            @SuppressLint("MissingPermission")
             override fun onCharacteristicChanged(
                 gatt: BluetoothGatt,
                 characteristic: BluetoothGattCharacteristic
@@ -200,6 +207,7 @@ class BleGattConnection(
         }
 
         // Connect to device
+        @SuppressLint("MissingPermission")
         gatt = device.connectGatt(context, false, callback)
     }
 
@@ -207,6 +215,7 @@ class BleGattConnection(
      * Send data to the remote peer.
      * Waits for characteristics to be ready before sending.
      */
+    @SuppressLint("MissingPermission")
     suspend fun sendData(data: ByteArray): Result<Unit> {
         // Wait for service discovery + MTU negotiation + notification setup to complete
         try {
