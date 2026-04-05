@@ -63,6 +63,14 @@
     <string name="dialog_discard_message_text">You have an unsaved message. It will be lost if you leave.</string>
     <string name="dialog_discard_message_confirm">Discard</string>
     <string name="dialog_discard_message_cancel">Cancel</string>
+
+    <!-- Delete Confirmation Dialog -->
+    <string name="dialog_delete_single_title">Delete Message?</string>
+    <string name="dialog_delete_single_text">This action cannot be undone.</string>
+    <string name="dialog_delete_everyone_warning">This will delete the message for all participants.</string>
+    <string name="dialog_delete_multiple_title">Delete Messages?</string>
+    <string name="dialog_delete_multiple_text">Are you sure you want to delete %d messages?</string>
+    <string name="dialog_delete_confirm">Delete</string>
     <string name="chat_message_media_not_found">Media file not found</string>
     <string name="chat_message_file_prefix">File: </string>
     
