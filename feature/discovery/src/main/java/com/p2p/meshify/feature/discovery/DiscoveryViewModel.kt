@@ -131,17 +131,28 @@ class DiscoveryViewModel(
 
     /**
      * ✅ UX-05: Trigger manual refresh for pull-to-refresh
+     * ✅ P0-3: Actually restart discovery instead of just delaying
+     * ✅ P0-4: Clear error message on refresh
      */
     fun refresh() {
         checkWifiState()
         viewModelScope.launch {
-            _uiState.update { it.copy(isRefreshing = true) }
+            _uiState.update { it.copy(isRefreshing = true, errorMessage = null) }
 
-            // Simulate refresh by re-discovering devices
-            // In real implementation, this would call transportManager.startDiscovery()
-            kotlinx.coroutines.delay(1000)
-
-            _uiState.update { it.copy(isRefreshing = false) }
+            try {
+                // Stop and restart discovery to find fresh devices
+                transportManager.stopDiscoveryOnAll()
+                kotlinx.coroutines.delay(200) // Brief pause for cleanup
+                transportManager.startDiscoveryOnAll()
+                // Give discovery some time to find devices
+                kotlinx.coroutines.delay(2000)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e // Don't catch cancellation
+            } catch (e: Exception) {
+                _uiState.update { it.copy(errorMessage = "Refresh failed: ${e.message}") }
+            } finally {
+                _uiState.update { it.copy(isRefreshing = false) }
+            }
         }
     }
 }

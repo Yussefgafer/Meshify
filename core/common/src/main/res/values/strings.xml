@@ -362,6 +362,10 @@
     <string name="discovery_transport_lan">LAN</string>
     <string name="discovery_transport_both">Both</string>
     <string name="content_desc_transport_badge">Transport method badge</string>
+
+    <!-- ✅ P0-4: Discovery Error State -->
+    <string name="discovery_error_title">An error occurred</string>
+    <string name="discovery_error_retry">Retry</string>
     <string name="chat_content_desc_transport_icon">Transport method icon</string>
 
     <!-- Chat Transport Labels -->

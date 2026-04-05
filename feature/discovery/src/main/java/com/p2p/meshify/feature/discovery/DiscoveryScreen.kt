@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.outlined.WifiOff
@@ -106,6 +107,14 @@ fun DiscoveryScreen(
                         val intent = Intent(android.provider.Settings.ACTION_WIFI_SETTINGS)
                         context.startActivity(intent)
                     }
+                )
+            }
+            // ✅ P0-4: Error state — display error message with retry
+            else if (uiState.errorMessage != null) {
+                ErrorState(
+                    message = uiState.errorMessage!!,
+                    padding = padding,
+                    onRetry = { viewModel.refresh() }
                 )
             }
             // ✅ UX-04: Modern Loading Bar at top (MD3E style)
@@ -405,6 +414,63 @@ private fun WifiDisabledState(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(stringResource(R.string.discovery_open_wifi_settings))
+        }
+    }
+}
+
+// ✅ P0-4: Error state composable for discovery errors
+@Composable
+private fun ErrorState(
+    message: String,
+    padding: PaddingValues,
+    onRetry: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(padding),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.Error,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.error,
+            modifier = Modifier.size(64.dp)
+        )
+
+        Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Md))
+
+        Text(
+            text = stringResource(R.string.discovery_error_title),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Xs))
+
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Xl)
+        )
+
+        Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Lg))
+
+        Button(
+            onClick = onRetry,
+            modifier = Modifier.height(48.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Refresh,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(MeshifyDesignSystem.Spacing.Sm))
+            Text(stringResource(R.string.discovery_error_retry))
         }
     }
 }
