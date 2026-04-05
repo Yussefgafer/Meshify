@@ -145,18 +145,6 @@ class TransportManager(
     }
 
     /**
-     * Legacy single-transport selection (for backward compatibility).
-     * @deprecated Use [selectBestTransport] which returns a list for multi-path support.
-     */
-    @Deprecated("Use selectBestTransport() which returns List<IMeshTransport>", ReplaceWith("selectBestTransport(peerId, requiredCapabilities).firstOrNull()"))
-    fun selectBestTransportSingle(
-        peerId: String,
-        requiredCapabilities: Set<TransportCapability> = emptySet()
-    ): IMeshTransport? {
-        return selectBestTransport(peerId, requiredCapabilities).firstOrNull()
-    }
-
-    /**
      * Get merged events flow from all registered transports.
      * @return Flow of transport events from all transports
      */
