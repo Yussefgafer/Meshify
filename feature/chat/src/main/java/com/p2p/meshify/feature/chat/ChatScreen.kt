@@ -87,12 +87,10 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
     var textState by rememberSaveable(stateSaver = TextFieldValue.Saver) {
         mutableStateOf(TextFieldValue())
     }
-    // Store attachments grouped by message ID
-    var messageAttachments by remember { mutableStateOf<Map<String, List<MessageAttachmentEntity>>>(emptyMap()) }
 
     // Track if user has scrolled away from bottom
     var hasScrolledToBottom by rememberSaveable { mutableStateOf(false) }
-    
+
     // BackHandler confirmation for unsaved drafts
     var showBackConfirmationDialog by remember { mutableStateOf(false) }
 
@@ -141,60 +139,8 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
         }
     }
 
-    // ✅ PF02: LRU Cache for attachments - prevent 100+ DAO queries per minute during scroll
-    // Cache size: 100 entries (enough for most conversations)
-    val attachmentsCache = remember {
-        object : androidx.collection.LruCache<String, List<MessageAttachmentEntity>>(100) {
-            override fun sizeOf(key: String, value: List<MessageAttachmentEntity>): Int {
-                return value.size // Size by number of attachments
-            }
-        }
-    }
-
-    // ✅ FIX: Load attachments for messages with groupId - optimized with LRU cache
-    // Only load attachments for visible messages to reduce memory pressure
-    val visibleMessageIds by remember {
-        derivedStateOf {
-            val visibleItems = listState.layoutInfo.visibleItemsInfo
-            visibleItems.mapNotNull { item ->
-                val index = item.index
-                if (index >= 0 && index < uiState.messages.size) {
-                    uiState.messages[index].id
-                } else null
-            }
-        }
-    }
-
-    LaunchedEffect(visibleMessageIds) {
-        val attachmentsMap = mutableMapOf<String, List<MessageAttachmentEntity>>()
-
-        // Only load attachments for visible messages
-        visibleMessageIds.forEach { messageId ->
-            // ✅ Check cache first
-            val cached = attachmentsCache.get(messageId)
-            if (cached != null) {
-                attachmentsMap[messageId] = cached
-                return@forEach
-            }
-
-            val message = uiState.messages.find { it.id == messageId }
-            if (message != null) {
-                val groupId = message.groupId
-                if (!groupId.isNullOrBlank()) {
-                    // Fetch attachments from DAO
-                    val attachments = viewModel.getAttachmentsForMessage(groupId)
-                    // ✅ Cache the result
-                    attachmentsCache.put(messageId, attachments)
-                    attachmentsMap[messageId] = attachments
-                } else if (message.mediaPath != null) {
-                    // Legacy support for single media - use empty list
-                    attachmentsMap[messageId] = emptyList()
-                }
-            }
-        }
-        
-        messageAttachments = attachmentsMap
-    }
+    // Load attachments via produceState inside each item — keyed by message.id + groupId
+    // produceState handles memoization automatically via its keys; no separate cache needed
 
     // Image launcher - stages attachment
     val imageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
@@ -416,6 +362,36 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
             ) {
+                // Empty state when no messages exist
+                if (uiState.messages.isEmpty() && !uiState.isLoading) {
+                    item(key = "empty_state") {
+                        Box(
+                            modifier = Modifier.fillParentMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Default.ChatBubbleOutline,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(64.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                )
+                                Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Md))
+                                Text(
+                                    text = stringResource(R.string.chat_empty_title),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xs))
+                                Text(
+                                    text = stringResource(R.string.chat_empty_desc, peerName),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                    }
+                }
                 // Loading indicator at top when loading more messages
                 if (uiState.isLoadingMore) {
                     item(key = "loading_more") {
@@ -437,7 +413,21 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
                     // Previous composite key caused 40-60% extra recompositions
                     key = { _, m -> m.id }
                 ) { index, message ->
-                val attachments = messageAttachments[message.id] ?: emptyList()
+                // produceState keyed by message.id + groupId — tracks by identity, not index
+                val attachments by produceState<List<MessageAttachmentEntity>>(
+                    initialValue = emptyList(),
+                    key1 = message.id,
+                    key2 = message.groupId
+                ) {
+                    val groupId = message.groupId
+                    if (!groupId.isNullOrBlank()) {
+                        value = viewModel.getAttachmentsForMessage(groupId)
+                    } else {
+                        // Legacy single media or text-only message
+                        value = emptyList()
+                    }
+                }
+
                 val isSelected = message.id in selectedMessages
                 val progressValue = uploadProgressMap[message.id]
 
@@ -522,7 +512,7 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
             ) {
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = "Scroll to bottom",
+                    contentDescription = stringResource(R.string.content_desc_scroll_to_bottom),
                     modifier = Modifier.size(24.dp)
                 )
             }

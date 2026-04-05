@@ -137,7 +137,7 @@ fun MediaStagingChatInput(
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Image,
-                    contentDescription = "Gallery",
+                    contentDescription = stringResource(R.string.chat_input_gallery),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(24.dp)
                 )
@@ -171,7 +171,7 @@ fun MediaStagingChatInput(
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Videocam,
-                    contentDescription = "Video",
+                    contentDescription = stringResource(R.string.chat_input_video),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(24.dp)
                 )
@@ -272,7 +272,7 @@ fun MediaStagingChatInput(
                     } else {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.Send,
-                            contentDescription = "Send",
+                            contentDescription = stringResource(R.string.chat_input_send),
                             tint = if (hasContent) MaterialTheme.colorScheme.onPrimary
                             else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                             modifier = Modifier.size(24.dp)
