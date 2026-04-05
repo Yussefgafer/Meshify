@@ -13,7 +13,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.outlined.WifiOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -43,6 +45,7 @@ import com.p2p.meshify.core.ui.components.*
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
 import com.p2p.meshify.domain.model.PeerDevice
 import com.p2p.meshify.domain.model.SignalStrength
+import com.p2p.meshify.domain.model.TransportType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -207,7 +210,77 @@ private fun PeerListItem(
                 )
             }
 
+            // ✅ T3: Transport type badge
+            TransportBadge(peer.transportType)
+
+            Spacer(modifier = Modifier.width(MeshifyDesignSystem.Spacing.Sm))
+
             SignalStrengthIndicator(peer.signalStrength)
+        }
+    }
+}
+
+@Composable
+private fun TransportBadge(transportType: TransportType) {
+    val icon: androidx.compose.ui.graphics.vector.ImageVector
+    val label: String
+    val badgeColor: androidx.compose.ui.graphics.Color
+    val contentDescRes: String
+
+    when (transportType) {
+        TransportType.BLE -> {
+            icon = Icons.Default.Bluetooth
+            label = stringResource(R.string.discovery_transport_ble)
+            badgeColor = MaterialTheme.colorScheme.primary
+            contentDescRes = stringResource(R.string.content_desc_transport_badge)
+        }
+        TransportType.LAN -> {
+            icon = Icons.Default.Wifi
+            label = stringResource(R.string.discovery_transport_lan)
+            badgeColor = MaterialTheme.colorScheme.secondary
+            contentDescRes = stringResource(R.string.content_desc_transport_badge)
+        }
+        TransportType.BOTH -> {
+            icon = Icons.Default.Wifi
+            label = stringResource(R.string.discovery_transport_both)
+            badgeColor = MaterialTheme.colorScheme.onSurfaceVariant
+            contentDescRes = stringResource(R.string.content_desc_transport_badge)
+        }
+    }
+
+    Surface(
+        shape = MeshifyDesignSystem.Shapes.Pill,
+        color = badgeColor.copy(alpha = 0.12f),
+        contentColor = badgeColor
+    ) {
+        Row(
+            modifier = Modifier.padding(
+                horizontal = MeshifyDesignSystem.Spacing.Xs,
+                vertical = MeshifyDesignSystem.Spacing.Xxs
+            ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Xxs)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescRes,
+                modifier = Modifier.size(14.dp),
+                tint = badgeColor
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = badgeColor,
+                fontWeight = FontWeight.Medium
+            )
+            if (transportType == TransportType.BOTH) {
+                Icon(
+                    imageVector = Icons.Default.Bluetooth,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = badgeColor
+                )
+            }
         }
     }
 }

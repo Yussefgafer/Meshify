@@ -357,6 +357,12 @@
     <string name="discovery_no_devices">لا توجد أجهزة قريبة</string>
     <string name="discovery_wifi_hint">تأكد من تفعيل الواي فاي على الأجهزة الأخرى</string>
 
+    <!-- Discovery Transport Badges -->
+    <string name="discovery_transport_ble">بلوتوث</string>
+    <string name="discovery_transport_lan">شبكة محلية</string>
+    <string name="discovery_transport_both">كلاهما</string>
+    <string name="content_desc_transport_badge">شارة طريقة النقل</string>
+
     <!-- Settings Screen -->
     <string name="settings_status_enabled">مفعّل</string>
     <string name="settings_status_disabled">معطّل</string>

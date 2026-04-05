@@ -357,7 +357,7 @@ class LanTransportImpl(
                 val rssi = getPeerRssi()
                 scope.launch {
                     // ✅ FIX: Use parsed name instead of generic "Peer_"
-                    _events.emit(TransportEvent.DeviceDiscovered(senderId, name, address, hash, rssi))
+                    _events.emit(TransportEvent.DeviceDiscovered(senderId, name, address, hash, rssi, com.p2p.meshify.domain.model.TransportType.LAN))
                 }
 
                 // ✅ PF10: FIX repeated firstOrNull() by using cached values
@@ -807,7 +807,7 @@ class LanTransportImpl(
                 ))
 
                 val rssi = getPeerRssi()
-                _events.emit(TransportEvent.DeviceDiscovered(peerId, "Peer_${peerId.take(4)}", address, null, rssi))
+                _events.emit(TransportEvent.DeviceDiscovered(peerId, "Peer_${peerId.take(4)}", address, null, rssi, com.p2p.meshify.domain.model.TransportType.LAN))
             }
         }
     }

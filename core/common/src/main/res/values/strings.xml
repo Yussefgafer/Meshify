@@ -357,6 +357,12 @@
     <string name="discovery_no_devices">No devices nearby</string>
     <string name="discovery_wifi_hint">Make sure Wi-Fi is enabled on other devices</string>
 
+    <!-- Discovery Transport Badges -->
+    <string name="discovery_transport_ble">BLE</string>
+    <string name="discovery_transport_lan">LAN</string>
+    <string name="discovery_transport_both">Both</string>
+    <string name="content_desc_transport_badge">Transport method badge</string>
+
     <!-- Settings Screen -->
     <string name="settings_status_enabled">Enabled</string>
     <string name="settings_status_disabled">Disabled</string>
