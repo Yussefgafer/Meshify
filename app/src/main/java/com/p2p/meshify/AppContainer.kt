@@ -190,22 +190,27 @@ class AppContainer(private val context: Context) {
      */
     fun cleanup() {
         Log.d("AppContainer", "Starting cleanup...")
-        containerScope.cancel() // Cancel all coroutines
 
-        // Stop all transports
-        containerScope.launch {
-            transportManager.stopAllTransports()
+        // Stop transports BEFORE cancelling scope to prevent launch-after-cancel
+        // Stop BLE transport first
+        bleTransport?.let { transport ->
+            kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
+                kotlin.runCatching { transport.stop() }
+                    .onFailure { Logger.e("AppContainer -> Failed to stop BLE transport", it) }
+            }
         }
 
-        // Stop and cleanup BLE transport
-        bleTransport?.let { transport ->
-            containerScope.launch {
-                transport.stop()
-            }
+        // Stop all transports using runBlocking (scope still active here)
+        kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
+            kotlin.runCatching { transportManager.stopAllTransports() }
+                .onFailure { Logger.e("AppContainer -> Failed to stop all transports", it) }
         }
 
         // Close chat repository to cancel its internal scope
         chatRepository.close()
+
+        // Cancel scope LAST — after all transports are stopped
+        containerScope.cancel()
 
         Log.d("AppContainer", "Cleanup completed")
     }

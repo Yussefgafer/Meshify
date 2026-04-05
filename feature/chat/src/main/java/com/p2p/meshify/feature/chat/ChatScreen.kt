@@ -217,13 +217,18 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
     }
 
     // Smart scroll: only auto-scroll if user is at bottom
+    // Wait for LazyColumn to actually reflect the new item count before scrolling
     LaunchedEffect(uiState.messages.size) {
         if (uiState.messages.isNotEmpty()) {
+            // Wait for LazyColumn to actually reflect the new item count
+            snapshotFlow { listState.layoutInfo.totalItemsCount }
+                .first { it >= uiState.messages.size }
+
             if (hasScrolledToBottom) {
                 // Only scroll if user is near the bottom
                 val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
                 val lastIndex = uiState.messages.size - 1
-                
+
                 if (lastVisibleIndex >= lastIndex - 3) {
                     listState.animateScrollToItem(lastIndex)
                 }
