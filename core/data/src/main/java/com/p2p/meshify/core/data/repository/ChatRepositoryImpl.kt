@@ -1194,8 +1194,6 @@ class ChatRepositoryImpl(
      * - SYSTEM_CONTROL, DELETE_REQUEST, REACTION: Basic command processing
      * - Unhandled types (TEXT, FILE, VIDEO, DELIVERY_ACK, AVATAR_REQUEST, AVATAR_RESPONSE): Rejected
      *
-     * TODO: Extract into separate handler functions for testability (currently ~205 lines)
-     *
      * SECURITY NOTE: Only ENCRYPTED_MESSAGE payload type is accepted for message content.
      * Plaintext messages (TEXT, FILE, VIDEO) are REJECTED to prevent downgrade attacks.
      * All communication MUST be encrypted via end-to-end encryption.
@@ -1207,258 +1205,274 @@ class ChatRepositoryImpl(
         Logger.d("ChatRepository -> Processing payload from $peerId, type=${payload.type}")
 
         when (payload.type) {
-            Payload.PayloadType.SYSTEM_CONTROL -> {
-                val command = String(payload.data)
-                if (command.startsWith("ACK_")) {
-                    val messageId = command.removePrefix("ACK_")
-                    Logger.d("ChatRepository -> Received ACK for message $messageId")
-                    messageDao.updateMessageStatus(messageId, MessageStatus.DELIVERED)
-                }
-            }
-            Payload.PayloadType.DELETE_REQUEST -> {
-                val req = Json.decodeFromString<DeleteRequest>(String(payload.data))
-                Logger.d("ChatRepository -> Received delete request for message ${req.messageId}")
-                messageDao.markAsDeletedForEveryone(req.messageId, req.deletedAt, req.deletedBy)
-            }
-            Payload.PayloadType.REACTION -> {
-                val update = Json.decodeFromString<ReactionUpdate>(String(payload.data))
-                Logger.d("ChatRepository -> Received reaction ${update.reaction} for message ${update.messageId}")
-                messageDao.updateReaction(update.messageId, update.reaction)
-            }
-            Payload.PayloadType.ENCRYPTED_MESSAGE -> {
-                // Decrypt incoming encrypted message
-                try {
-                    // Deserialize envelope
-                    val envelope = deserializeEnvelope(payload.data)
+            Payload.PayloadType.SYSTEM_CONTROL -> handleSystemCommand(peerId, payload)
+            Payload.PayloadType.DELETE_REQUEST -> handleDeleteRequest(peerId, payload)
+            Payload.PayloadType.REACTION -> handleReaction(peerId, payload)
+            Payload.PayloadType.ENCRYPTED_MESSAGE -> handleEncryptedMessage(peerId, payload)
+            Payload.PayloadType.HANDSHAKE -> handleHandshake(peerId, payload)
+            // SECURITY: Plaintext payload types are REJECTED to prevent downgrade attacks
+            Payload.PayloadType.TEXT -> rejectPayload("TEXT", peerId)
+            Payload.PayloadType.FILE -> rejectPayload("FILE", peerId)
+            Payload.PayloadType.VIDEO -> rejectPayload("VIDEO", peerId)
+            // Unimplemented payload types - logged for future implementation
+            Payload.PayloadType.DELIVERY_ACK -> Logger.w("ChatRepository -> Unimplemented payload type: DELIVERY_ACK from $peerId")
+            Payload.PayloadType.AVATAR_REQUEST -> Logger.w("ChatRepository -> Unimplemented payload type: AVATAR_REQUEST from $peerId")
+            Payload.PayloadType.AVATAR_RESPONSE -> Logger.w("ChatRepository -> Unimplemented payload type: AVATAR_RESPONSE from $peerId")
+            // NOTE: No else branch - compiler error if new PayloadType added without explicit handling
+        }
+    }
 
-                    // Get session key for this peer
-                    val sessionKeyInfo = sessionKeyStore.getSessionKey(peerId)
-                        ?: throw SecurityException("No session key for peer $peerId - cannot decrypt message")
+    /**
+     * Handle SYSTEM_CONTROL payload (ACK messages).
+     */
+    private suspend fun handleSystemCommand(peerId: String, payload: Payload) {
+        val command = String(payload.data)
+        if (command.startsWith("ACK_")) {
+            val messageId = command.removePrefix("ACK_")
+            Logger.d("ChatRepository -> Received ACK for message $messageId")
+            messageDao.updateMessageStatus(messageId, MessageStatus.DELIVERED)
+        }
+    }
 
-                    // Get sender's public key from session store
-                    val senderPublicKeyHex = getPeerPublicKey(peerId)
-                        ?: throw SecurityException("Unknown peer $peerId - public key not found")
+    /**
+     * Handle DELETE_REQUEST payload.
+     */
+    private suspend fun handleDeleteRequest(peerId: String, payload: Payload) {
+        val req = Json.decodeFromString<DeleteRequest>(String(payload.data))
+        Logger.d("ChatRepository -> Received delete request for message ${req.messageId}")
+        messageDao.markAsDeletedForEveryone(req.messageId, req.deletedAt, req.deletedBy)
+    }
 
-                    val senderPublicKeyBytes = senderPublicKeyHex.hexToByteArray()
+    /**
+     * Handle REACTION payload.
+     */
+    private suspend fun handleReaction(peerId: String, payload: Payload) {
+        val update = Json.decodeFromString<ReactionUpdate>(String(payload.data))
+        Logger.d("ChatRepository -> Received reaction ${update.reaction} for message ${update.messageId}")
+        messageDao.updateReaction(update.messageId, update.reaction)
+    }
 
-                    // Decrypt the message
-                    val plaintext = messageCrypto.decrypt(
-                        envelope = envelope,
-                        senderPublicKeyBytes = senderPublicKeyBytes,
-                        sessionKey = sessionKeyInfo.sessionKey
-                    )
+    /**
+     * Reject unsupported payload types with a warning log.
+     */
+    private fun rejectPayload(type: String, peerId: String) {
+        Logger.w("ChatRepository -> REJECTED: Plaintext $type from $peerId (downgrade attack prevented)")
+    }
 
-                    // Process decrypted message
-                    val text = String(plaintext, Charsets.UTF_8)
-                    // SECURITY: Never log decrypted message content - use non-sensitive logging only
-                    Logger.d("ChatRepository", "Message decrypted successfully from ${peerId.take(8)}...")
-                    
-                    // Check Result before sending ACK - only send ACK after confirmed save
-                    val saveResult = saveIncomingMessage(peerId, text, null, MessageType.TEXT, payload.timestamp, payload.id)
-                    
-                    if (saveResult.isSuccess) {
-                        // Only send ACK after confirmed save
-                        sendSystemCommand(payload.senderId, "ACK_${payload.id}")
-                    } else {
-                        // Log the failure and do NOT send ACK
+    /**
+     * Handle ENCRYPTED_MESSAGE payload — decrypt, validate, save, and send ACK.
+     */
+    private suspend fun handleEncryptedMessage(peerId: String, payload: Payload) {
+        try {
+            // Deserialize envelope
+            val envelope = deserializeEnvelope(payload.data)
+
+            // Get session key for this peer
+            val sessionKeyInfo = sessionKeyStore.getSessionKey(peerId)
+                ?: throw SecurityException("No session key for peer $peerId - cannot decrypt message")
+
+            // Get sender's public key from session store
+            val senderPublicKeyHex = getPeerPublicKey(peerId)
+                ?: throw SecurityException("Unknown peer $peerId - public key not found")
+
+            val senderPublicKeyBytes = senderPublicKeyHex.hexToByteArray()
+
+            // Decrypt the message
+            val plaintext = messageCrypto.decrypt(
+                envelope = envelope,
+                senderPublicKeyBytes = senderPublicKeyBytes,
+                sessionKey = sessionKeyInfo.sessionKey
+            )
+
+            // Process decrypted message
+            val text = String(plaintext, Charsets.UTF_8)
+            // SECURITY: Never log decrypted message content - use non-sensitive logging only
+            Logger.d("ChatRepository", "Message decrypted successfully from ${peerId.take(8)}...")
+
+            // Check Result before sending ACK - only send ACK after confirmed save
+            val saveResult = saveIncomingMessage(peerId, text, null, MessageType.TEXT, payload.timestamp, payload.id)
+
+            if (saveResult.isSuccess) {
+                // Only send ACK after confirmed save
+                sendSystemCommand(payload.senderId, "ACK_${payload.id}")
+            } else {
+                // Log the failure and do NOT send ACK
+                Logger.e(
+                    message = "Failed to save incoming message from ${peerId.take(8)}: ${saveResult.exceptionOrNull()?.message}",
+                    tag = "ChatRepository"
+                )
+
+                // Emit security event so UI knows save failed
+                scope.launch {
+                    try {
+                        _securityEvents.emit(
+                            SecurityEvent.DecryptionFailed(
+                                peerId = peerId,
+                                reason = "Database save failed: ${saveResult.exceptionOrNull()?.message}"
+                            )
+                        )
+                    } catch (emitError: Exception) {
                         Logger.e(
-                            message = "Failed to save incoming message from ${peerId.take(8)}: ${saveResult.exceptionOrNull()?.message}",
+                            message = "Failed to emit security event for DB save failure: ${emitError.message}",
+                            throwable = emitError,
                             tag = "ChatRepository"
                         )
-                        
-                        // Emit security event so UI knows save failed
-                        scope.launch {
-                            try {
-                                _securityEvents.emit(
-                                    SecurityEvent.DecryptionFailed(
-                                        peerId = peerId,
-                                        reason = "Database save failed: ${saveResult.exceptionOrNull()?.message}"
-                                    )
-                                )
-                            } catch (emitError: Exception) {
-                                Logger.e(
-                                    message = "Failed to emit security event for DB save failure: ${emitError.message}",
-                                    throwable = emitError,
-                                    tag = "ChatRepository"
-                                )
-                            }
-                        }
-                        
-                        // Do NOT send ACK - sender should retry
-                    }
-
-                } catch (e: SecurityException) {
-                    // SECURITY: Log decryption failures as potential attacks
-                    Logger.e(
-                        "SECURITY: Decryption failed for message from ${peerId.take(8)}...: ${e.message}",
-                        e,
-                        "ChatRepository"
-                    )
-
-                    // Save placeholder message so user sees decryption failure in chat
-                    val saveResult = saveIncomingMessage(
-                        peerId = peerId,
-                        text = context.getString(R.string.error_decryption_failed),
-                        mediaPath = null,
-                        type = MessageType.TEXT,
-                        timestamp = payload.timestamp,
-                        messageId = "decryption_failed_${UUID.randomUUID()}"
-                    )
-
-                    // Notify UI layer about the decryption failure
-                    scope.launch {
-                        try {
-                            if (saveResult.isFailure) {
-                                // Emit security event for save failure (this is a decryption/processing failure, not TOFU)
-                                _securityEvents.emit(
-                                    SecurityEvent.DecryptionFailed(
-                                        peerId = peerId,
-                                        reason = "Failed to save decryption error placeholder: ${saveResult.exceptionOrNull()?.message}"
-                                    )
-                                )
-                            } else {
-                                // Only emit decryption event if save succeeded
-                                _securityEvents.emit(
-                                    SecurityEvent.DecryptionFailed(
-                                        peerId = peerId,
-                                        reason = e.message ?: "Unknown decryption error"
-                                    )
-                                )
-                            }
-                        } catch (emitError: Exception) {
-                            Logger.e(
-                                message = "Failed to emit security event for decryption failure: ${emitError.message}",
-                                throwable = emitError,
-                                tag = "ChatRepository"
-                            )
-                        }
-                    }
-                } catch (e: Exception) {
-                    Logger.e("Failed to process encrypted message from ${peerId.take(8)}...", e, "ChatRepository")
-
-                    // Save placeholder message so user sees processing failure in chat
-                    val saveResult = saveIncomingMessage(
-                        peerId = peerId,
-                        text = context.getString(R.string.error_message_processing_failed),
-                        mediaPath = null,
-                        type = MessageType.TEXT,
-                        timestamp = payload.timestamp,
-                        messageId = "processing_failed_${UUID.randomUUID()}"
-                    )
-
-                    // Notify UI layer about the processing error
-                    scope.launch {
-                        try {
-                            if (saveResult.isFailure) {
-                                // Emit security event for save failure (this is a decryption/processing failure, not TOFU)
-                                _securityEvents.emit(
-                                    SecurityEvent.DecryptionFailed(
-                                        peerId = peerId,
-                                        reason = "Failed to save processing error placeholder: ${saveResult.exceptionOrNull()?.message}"
-                                    )
-                                )
-                            } else {
-                                // Only emit decryption event if save succeeded
-                                _securityEvents.emit(
-                                    SecurityEvent.DecryptionFailed(
-                                        peerId = peerId,
-                                        reason = "Message processing error: ${e.message ?: "Unknown error"}"
-                                    )
-                                )
-                            }
-                        } catch (emitError: Exception) {
-                            Logger.e(
-                                message = "Failed to emit security event for processing error: ${emitError.message}",
-                                throwable = emitError,
-                                tag = "ChatRepository"
-                            )
-                        }
                     }
                 }
+
+                // Do NOT send ACK - sender should retry
             }
-            // SECURITY: Plaintext payload types (TEXT, FILE, VIDEO) are REJECTED to prevent
-            // downgrade attacks. All communication MUST be encrypted via ENCRYPTED_MESSAGE.
-            Payload.PayloadType.HANDSHAKE -> {
-                // Parse handshake with V2 protocol fields
+
+        } catch (e: SecurityException) {
+            // SECURITY: Log decryption failures as potential attacks
+            Logger.e(
+                "SECURITY: Decryption failed for message from ${peerId.take(8)}...: ${e.message}",
+                e,
+                "ChatRepository"
+            )
+
+            // Save placeholder message so user sees decryption failure in chat
+            val saveResult = saveIncomingMessage(
+                peerId = peerId,
+                text = context.getString(R.string.error_decryption_failed),
+                mediaPath = null,
+                type = MessageType.TEXT,
+                timestamp = payload.timestamp,
+                messageId = "decryption_failed_${UUID.randomUUID()}"
+            )
+
+            // Notify UI layer about the decryption failure
+            scope.launch {
                 try {
-                    val handshake = Json.decodeFromString<Handshake>(String(payload.data))
-                    val cleanName = parseName(handshake.name)
-                    chatDao.insertChat(ChatEntity(payload.senderId, cleanName, "Connected", payload.timestamp))
-
-                    // Check for V2 protocol fields (ephemeral key exchange)
-                    val identityPubKeyHex = handshake.identityPubKeyHex
-                    val ephemeralPubKeyHex = handshake.ephemeralPubKeyHex
-                    val nonceHex = handshake.nonceHex
-
-                    if (!identityPubKeyHex.isNullOrBlank() &&
-                        !ephemeralPubKeyHex.isNullOrBlank() &&
-                        !nonceHex.isNullOrBlank()) {
-
-                        Logger.d("ChatRepository", "Handshake V2 from ${peerId.take(8)}... with ephemeral key exchange")
-
-                        // Establish encrypted session using V2 protocol (responder flow)
-                        val sessionEstablished = establishSessionFromHandshake(
-                            peerId = peerId,
-                            peerIdentityPubKeyHex = identityPubKeyHex,
-                            peerEphemeralPubKeyHex = ephemeralPubKeyHex,
-                            peerNonceHex = nonceHex
-                        )
-
-                        if (sessionEstablished) {
-                            Logger.d("ChatRepository", "Encrypted V2 session established with ${peerId.take(8)}...")
-                        } else {
-                            Logger.e("TOFU VIOLATION: Session establishment aborted for ${peerId.take(8)}...", tag = "ChatRepository")
-                            // Do NOT send response - TOFU violation requires user intervention
-                            return
-                        }
-                    } else if (!identityPubKeyHex.isNullOrBlank()) {
-                        // V1 protocol (identity key only, no forward secrecy)
-                        Logger.w("ChatRepository", "Handshake V1 from ${peerId.take(8)}... (no forward secrecy)")
-                        // For backward compatibility, could establish V1 session here
-                        // But we prefer V2 only
-                    } else {
-                        // SECURITY: ABORT handshake - missing public keys means no encryption possible
-                        Logger.e("Handshake from ${peerId.take(8)}... missing public keys - REJECTING", tag = "ChatRepository")
-                        return  // DO NOT establish session - encryption is mandatory
-                    }
-
-                    // Retry pending messages in background
-                    scope.launch {
-                        try {
-                            retryPendingMessages(payload.senderId)
-                        } catch (e: Exception) {
-                            Logger.e(
-                                message = "Failed to retry pending messages for ${payload.senderId.take(8)}: ${e.message}",
-                                throwable = e,
-                                tag = "ChatRepository"
+                    if (saveResult.isFailure) {
+                        // Emit security event for save failure (this is a decryption/processing failure, not TOFU)
+                        _securityEvents.emit(
+                            SecurityEvent.DecryptionFailed(
+                                peerId = peerId,
+                                reason = "Failed to save decryption error placeholder: ${saveResult.exceptionOrNull()?.message}"
                             )
-                        }
+                        )
+                    } else {
+                        // Only emit decryption event if save succeeded
+                        _securityEvents.emit(
+                            SecurityEvent.DecryptionFailed(
+                                peerId = peerId,
+                                reason = e.message ?: "Unknown decryption error"
+                            )
+                        )
                     }
-                } catch (e: Exception) {
-                    Logger.e("Failed to process handshake from ${peerId.take(8)}...", e, "ChatRepository")
+                } catch (emitError: Exception) {
+                    Logger.e(
+                        message = "Failed to emit security event for decryption failure: ${emitError.message}",
+                        throwable = emitError,
+                        tag = "ChatRepository"
+                    )
                 }
             }
-            // SECURITY: Plaintext payload types are REJECTED to prevent downgrade attacks
-            Payload.PayloadType.TEXT -> {
-                Logger.w("ChatRepository -> REJECTED: Plaintext TEXT from $peerId (downgrade attack prevented)")
+        } catch (e: Exception) {
+            Logger.e("Failed to process encrypted message from ${peerId.take(8)}...", e, "ChatRepository")
+
+            // Save placeholder message so user sees processing failure in chat
+            val saveResult = saveIncomingMessage(
+                peerId = peerId,
+                text = context.getString(R.string.error_message_processing_failed),
+                mediaPath = null,
+                type = MessageType.TEXT,
+                timestamp = payload.timestamp,
+                messageId = "processing_failed_${UUID.randomUUID()}"
+            )
+
+            // Notify UI layer about the processing error
+            scope.launch {
+                try {
+                    if (saveResult.isFailure) {
+                        // Emit security event for save failure (this is a decryption/processing failure, not TOFU)
+                        _securityEvents.emit(
+                            SecurityEvent.DecryptionFailed(
+                                peerId = peerId,
+                                reason = "Failed to save processing error placeholder: ${saveResult.exceptionOrNull()?.message}"
+                            )
+                        )
+                    } else {
+                        // Only emit decryption event if save succeeded
+                        _securityEvents.emit(
+                            SecurityEvent.DecryptionFailed(
+                                peerId = peerId,
+                                reason = "Message processing error: ${e.message ?: "Unknown error"}"
+                            )
+                        )
+                    }
+                } catch (emitError: Exception) {
+                    Logger.e(
+                        message = "Failed to emit security event for processing error: ${emitError.message}",
+                        throwable = emitError,
+                        tag = "ChatRepository"
+                    )
+                }
             }
-            Payload.PayloadType.FILE -> {
-                Logger.w("ChatRepository -> REJECTED: Plaintext FILE from $peerId (downgrade attack prevented)")
+        }
+    }
+
+    /**
+     * Handle HANDSHAKE payload — establish encrypted session via ECDH.
+     */
+    private suspend fun handleHandshake(peerId: String, payload: Payload) {
+        try {
+            val handshake = Json.decodeFromString<Handshake>(String(payload.data))
+            val cleanName = parseName(handshake.name)
+            chatDao.insertChat(ChatEntity(payload.senderId, cleanName, "Connected", payload.timestamp))
+
+            // Check for V2 protocol fields (ephemeral key exchange)
+            val identityPubKeyHex = handshake.identityPubKeyHex
+            val ephemeralPubKeyHex = handshake.ephemeralPubKeyHex
+            val nonceHex = handshake.nonceHex
+
+            if (!identityPubKeyHex.isNullOrBlank() &&
+                !ephemeralPubKeyHex.isNullOrBlank() &&
+                !nonceHex.isNullOrBlank()) {
+
+                Logger.d("ChatRepository", "Handshake V2 from ${peerId.take(8)}... with ephemeral key exchange")
+
+                // Establish encrypted session using V2 protocol (responder flow)
+                val sessionEstablished = establishSessionFromHandshake(
+                    peerId = peerId,
+                    peerIdentityPubKeyHex = identityPubKeyHex,
+                    peerEphemeralPubKeyHex = ephemeralPubKeyHex,
+                    peerNonceHex = nonceHex
+                )
+
+                if (sessionEstablished) {
+                    Logger.d("ChatRepository", "Encrypted V2 session established with ${peerId.take(8)}...")
+                } else {
+                    Logger.e("TOFU VIOLATION: Session establishment aborted for ${peerId.take(8)}...", tag = "ChatRepository")
+                    // Do NOT send response - TOFU violation requires user intervention
+                    return
+                }
+            } else if (!identityPubKeyHex.isNullOrBlank()) {
+                // V1 protocol (identity key only, no forward secrecy)
+                Logger.w("ChatRepository", "Handshake V1 from ${peerId.take(8)}... (no forward secrecy)")
+                // For backward compatibility, could establish V1 session here
+                // But we prefer V2 only
+            } else {
+                // SECURITY: ABORT handshake - missing public keys means no encryption possible
+                Logger.e("Handshake from ${peerId.take(8)}... missing public keys - REJECTING", tag = "ChatRepository")
+                return  // DO NOT establish session - encryption is mandatory
             }
-            Payload.PayloadType.VIDEO -> {
-                Logger.w("ChatRepository -> REJECTED: Plaintext VIDEO from $peerId (downgrade attack prevented)")
+
+            // Retry pending messages in background
+            scope.launch {
+                try {
+                    retryPendingMessages(payload.senderId)
+                } catch (e: Exception) {
+                    Logger.e(
+                        message = "Failed to retry pending messages for ${payload.senderId.take(8)}: ${e.message}",
+                        throwable = e,
+                        tag = "ChatRepository"
+                    )
+                }
             }
-            // Unimplemented payload types - logged for future implementation
-            Payload.PayloadType.DELIVERY_ACK -> {
-                Logger.w("ChatRepository -> Unimplemented payload type: DELIVERY_ACK from $peerId")
-            }
-            Payload.PayloadType.AVATAR_REQUEST -> {
-                Logger.w("ChatRepository -> Unimplemented payload type: AVATAR_REQUEST from $peerId")
-            }
-            Payload.PayloadType.AVATAR_RESPONSE -> {
-                Logger.w("ChatRepository -> Unimplemented payload type: AVATAR_RESPONSE from $peerId")
-            }
-            // NOTE: No else branch - compiler error if new PayloadType added without explicit handling
+        } catch (e: Exception) {
+            Logger.e("Failed to process handshake from ${peerId.take(8)}...", e, "ChatRepository")
         }
     }
 
