@@ -505,7 +505,7 @@
     <string name="settings_dialog_choose_theme">Choose Theme</string>
 
     <!-- Forward Message Dialog -->
-    <string name="forward_dialog_progress_format">%d/%d</string>
+    <string name="forward_dialog_progress_format">%1$d/%2$d</string>
     <string name="forward_dialog_more_messages">+%d more</string>
 
     <!-- Staged Media Row - Content Descriptions -->

@@ -503,7 +503,7 @@
     <string name="settings_dialog_choose_theme">اختر السمة</string>
 
     <!-- Forward Message Dialog -->
-    <string name="forward_dialog_progress_format">%d/%d</string>
+    <string name="forward_dialog_progress_format">%1$d/%2$d</string>
     <string name="forward_dialog_more_messages">+%d أخرى</string>
 
     <!-- Staged Media Row - Content Descriptions -->
