@@ -5,13 +5,13 @@ import com.p2p.meshify.core.network.base.IMeshTransport
 import com.p2p.meshify.core.network.base.TransportCapability
 import com.p2p.meshify.core.network.lan.LanTransportImpl
 import com.p2p.meshify.core.network.lan.SocketManager
-import com.p2p.meshify.core.network.ble.BleTransportImpl
+import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.domain.security.interfaces.PeerIdentityRepository
 import com.p2p.meshify.core.common.security.EncryptedSessionKeyStore
+import com.p2p.meshify.domain.model.TransportMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.merge
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.Dispatchers
 
 /**
@@ -40,6 +40,10 @@ class TransportManager(
     internal val socketManager = SocketManager() // ✅ Changed from private to internal
     private val transports = mutableMapOf<String, IMeshTransport>()
 
+    // Current transport mode (updated reactively by AppContainer)
+    @Volatile
+    private var transportMode: TransportMode = TransportMode.MULTI_PATH
+
     /**
      * Register a new transport protocol.
      * @param name Unique identifier (e.g., "lan", "bluetooth", "wifi_direct", "dht")
@@ -50,11 +54,27 @@ class TransportManager(
     }
 
     /**
+     * Update the transport mode reactively.
+     * Called by AppContainer when settings change.
+     */
+    fun setTransportMode(mode: TransportMode) {
+        transportMode = mode
+    }
+
+    /**
      * Get a specific transport by name.
      * @param name Transport name
      * @return Transport implementation or null if not found
      */
     fun getTransport(name: String): IMeshTransport? = transports[name]
+
+    /**
+     * Unregister a transport protocol by name.
+     * @param name Transport name to remove
+     */
+    fun unregisterTransport(name: String) {
+        transports.remove(name)
+    }
 
     /**
      * Get all registered transports.
@@ -82,33 +102,58 @@ class TransportManager(
     }
 
     /**
-     * Select the best transport for a given peer based on capabilities and availability.
+     * Select the best transport(s) for a given peer based on mode, capabilities, and availability.
+     *
      * @param peerId The peer ID to send data to
      * @param requiredCapabilities Optional capabilities required for the operation
-     * @return Best available transport or null if none found
+     * @return List of transports to use (single element for most modes, multiple for MULTI_PATH)
      */
     fun selectBestTransport(
         peerId: String,
         requiredCapabilities: Set<TransportCapability> = emptySet()
-    ): IMeshTransport? {
-        // First, try to find a transport that already has this peer online
-        val transportWithPeer = getTransportWithPeer(peerId)
-        if (transportWithPeer != null) {
-            return transportWithPeer
-        }
-
-        // If no transport has the peer, select based on capabilities
+    ): List<IMeshTransport> {
         val availableTransports = getAvailableTransports()
-
-        // Filter transports that have all required capabilities
         val capableTransports = availableTransports.filter { transport ->
-            requiredCapabilities.all { transport.capabilities.contains(it) }
+            requiredCapabilities.isEmpty() || transport.capabilities.intersect(requiredCapabilities).isNotEmpty()
         }
 
-        // Return the first capable transport, or fall back to LAN as default
-        return capableTransports.firstOrNull()
-            ?: availableTransports.firstOrNull { it.transportName == "lan" }
-            ?: availableTransports.firstOrNull()
+        return when (transportMode) {
+            TransportMode.MULTI_PATH -> {
+                // Return ALL available transports for multi-path sending
+                if (capableTransports.isNotEmpty()) capableTransports else availableTransports
+            }
+            TransportMode.LAN_ONLY -> {
+                listOfNotNull(getTransport("lan"))
+            }
+            TransportMode.BLE_ONLY -> {
+                listOfNotNull(getTransport("ble"))
+            }
+            TransportMode.AUTO -> {
+                // Original behavior — pick the best single transport
+                val transportWithPeer = getTransportWithPeer(peerId)
+                if (transportWithPeer != null) {
+                    listOf(transportWithPeer)
+                } else {
+                    listOfNotNull(
+                        capableTransports.firstOrNull()
+                            ?: availableTransports.firstOrNull { it.transportName == "lan" }
+                            ?: availableTransports.firstOrNull()
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Legacy single-transport selection (for backward compatibility).
+     * @deprecated Use [selectBestTransport] which returns a list for multi-path support.
+     */
+    @Deprecated("Use selectBestTransport() which returns List<IMeshTransport>", ReplaceWith("selectBestTransport(peerId, requiredCapabilities).firstOrNull()"))
+    fun selectBestTransportSingle(
+        peerId: String,
+        requiredCapabilities: Set<TransportCapability> = emptySet()
+    ): IMeshTransport? {
+        return selectBestTransport(peerId, requiredCapabilities).firstOrNull()
     }
 
     /**
@@ -129,7 +174,7 @@ class TransportManager(
             try {
                 transport.start()
             } catch (e: Exception) {
-                // Log error but continue with other transports
+                Logger.e("TransportManager -> Failed to start transport '$name': ${e.message}", e)
             }
         }
     }
@@ -143,7 +188,7 @@ class TransportManager(
             try {
                 transport.stop()
             } catch (e: Exception) {
-                // Log error but continue with other transports
+                Logger.e("TransportManager -> Failed to stop transport '$name': ${e.message}", e)
             }
         }
     }
@@ -156,7 +201,7 @@ class TransportManager(
             try {
                 transport.startDiscovery()
             } catch (e: Exception) {
-                // Log error but continue with other transports
+                Logger.e("TransportManager -> Failed to start discovery on transport '$name': ${e.message}", e)
             }
         }
     }
@@ -169,7 +214,7 @@ class TransportManager(
             try {
                 transport.stopDiscovery()
             } catch (e: Exception) {
-                // Log error but continue with other transports
+                Logger.e("TransportManager -> Failed to stop discovery on transport '$name': ${e.message}", e)
             }
         }
     }
@@ -197,26 +242,9 @@ class TransportManager(
                 LanTransportImpl(context, manager.socketManager, settingsRepository, peerIdentity, sessionKeyStore)
             )
 
-            // Register BLE transport
-            val peerId = runBlocking(Dispatchers.IO) {
-                try {
-                    peerIdentity.getPeerId()
-                } catch (e: Exception) {
-                    "unknown"
-                }
-            }
-            val deviceName = runBlocking(Dispatchers.IO) {
-                var name = "Unknown"
-                settingsRepository.displayName.collect {
-                    name = it ?: "Unknown"
-                    return@collect
-                }
-                name
-            }
-            manager.registerTransport(
-                "ble",
-                BleTransportImpl(context, settingsRepository, peerId, deviceName)
-            )
+            // NOTE: BLE transport is NOT registered here — it is managed by AppContainer
+            // based on user settings (bleEnabled). AppContainer creates, registers, and
+            // controls BLE lifecycle dynamically.
 
             // ============================================
             // Future Transports - Add with 1 line each:
