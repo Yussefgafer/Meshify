@@ -56,6 +56,7 @@ import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.data.local.entity.MessageStatus
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.model.DeleteType
+import com.p2p.meshify.domain.model.TransportType
 import com.p2p.meshify.core.ui.components.*
 import com.p2p.meshify.core.ui.theme.*
 import com.p2p.meshify.core.ui.hooks.LocalPremiumHaptics
@@ -465,6 +466,7 @@ fun ChatScreen(viewModel: ChatViewModel, peerId: String, peerName: String, onBac
                         bubbleStyle = themeConfig.bubbleStyle,
                         isSelected = isSelected,
                         uploadProgress = progressValue,
+                        transportType = uiState.transportUsed[message.id],
                         onLongClick = {
                             haptics.perform(HapticPattern.Pop) // ✅ UX04: Haptic feedback on long click
                             if (selectedMessages.isEmpty()) {
@@ -656,6 +658,34 @@ fun StatusIcon(status: MessageStatus, tint: Color) {
     }
 }
 
+/**
+ * ✅ T4: Transport type indicator icon — shown next to message status for non-LAN sends.
+ */
+@Composable
+private fun TransportTypeIcon(transportType: TransportType, tint: Color) {
+    when (transportType) {
+        TransportType.BLE -> {
+            Icon(
+                imageVector = Icons.Default.Bluetooth,
+                contentDescription = stringResource(R.string.chat_content_desc_transport_icon),
+                modifier = Modifier.size(MeshifyDesignSystem.Spacing.Xxs),
+                tint = tint.copy(alpha = 0.7f)
+            )
+        }
+        TransportType.BOTH -> {
+            Icon(
+                imageVector = Icons.Default.GridView,
+                contentDescription = stringResource(R.string.chat_content_desc_transport_icon),
+                modifier = Modifier.size(MeshifyDesignSystem.Spacing.Xxs),
+                tint = tint.copy(alpha = 0.7f)
+            )
+        }
+        TransportType.LAN -> {
+            // No icon for LAN — it's the default behavior
+        }
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MessageBubble(
@@ -665,6 +695,7 @@ fun MessageBubble(
     bubbleStyle: com.p2p.meshify.domain.model.BubbleStyle,
     isSelected: Boolean = false,
     uploadProgress: Int? = null,
+    transportType: TransportType? = null,
     onClick: () -> Unit = {},
     onLongClick: () -> Unit,
     onImageClick: (String) -> Unit,
@@ -845,6 +876,13 @@ fun MessageBubble(
                     if (message.isFromMe) {
                         Spacer(Modifier.width(4.dp))
                         StatusIcon(message.status, contentColor)
+                        // ✅ T4: Transport type indicator (only for non-LAN)
+                        transportType?.let { type ->
+                            if (type != TransportType.LAN) {
+                                Spacer(Modifier.width(MeshifyDesignSystem.Spacing.Xxs / 2))
+                                TransportTypeIcon(type, contentColor)
+                            }
+                        }
                     }
                 }
 

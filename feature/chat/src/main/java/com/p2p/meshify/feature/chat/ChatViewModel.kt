@@ -8,11 +8,13 @@ import androidx.lifecycle.viewModelScope
 import com.p2p.meshify.core.common.R
 import com.p2p.meshify.core.data.local.entity.ChatEntity
 import com.p2p.meshify.core.data.local.entity.MessageEntity
+import com.p2p.meshify.core.data.local.entity.MessageStatus
 import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
 import com.p2p.meshify.core.ui.components.ForwardDialogState
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.DeleteType
 import com.p2p.meshify.domain.model.MessageType
+import com.p2p.meshify.domain.model.TransportType
 import com.p2p.meshify.domain.security.model.SecurityEvent
 import com.p2p.meshify.core.ui.model.StagedAttachment
 import kotlinx.coroutines.Dispatchers
@@ -24,6 +26,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.milliseconds
 import java.io.File
+import java.util.UUID
 
 data class ChatUiState(
     val isLoading: Boolean = true,
@@ -38,7 +41,8 @@ data class ChatUiState(
     val isSending: Boolean = false,
     val sendError: String? = null,  // P0-02: Error message or null
     val uploadError: String? = null,  // Upload error message for file uploads
-    val securityWarning: String? = null  // Security warning (decryption failures, etc.)
+    val securityWarning: String? = null,  // Security warning (decryption failures, etc.)
+    val transportUsed: Map<String, TransportType> = emptyMap() // ✅ T4: messageId → transport type
 )
 
 @OptIn(FlowPreview::class)
@@ -46,8 +50,12 @@ class ChatViewModel(
     private val context: Context,
     private val peerId: String,
     private val peerName: String,
-    private val repository: ChatRepositoryImpl
+    private val repository: ChatRepositoryImpl,
+    transportTypeProvider: (() -> TransportType)? = null
 ) : ViewModel() {
+
+    // ✅ T4: Function that resolves the current transport type for outgoing messages
+    private val _transportTypeProvider: (() -> TransportType)? = transportTypeProvider
 
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
@@ -256,6 +264,21 @@ class ChatViewModel(
                     // Send text message
                     repository.sendMessage(peerId, peerName, state.inputText, state.replyTo?.id)
                     _uiState.update { it.copy(inputText = "", replyTo = null) }
+                }
+
+                // ✅ T4: Track transport used for the most recently sent message
+                // Small delay to ensure Room Flow has emitted the new message
+                kotlinx.coroutines.delay(50)
+                _uiState.update { currentState ->
+                    val lastSentMessage = currentState.messages.lastOrNull { it.isFromMe && it.status != MessageStatus.QUEUED }
+                    if (lastSentMessage != null) {
+                        val transportType = _transportTypeProvider?.invoke() ?: TransportType.LAN
+                        currentState.copy(
+                            transportUsed = currentState.transportUsed + (lastSentMessage.id to transportType)
+                        )
+                    } else {
+                        currentState
+                    }
                 }
             } catch (e: Exception) {
                 Logger.e("ChatViewModel -> Failed to send message", e)
@@ -649,5 +672,16 @@ class ChatViewModel(
      */
     fun clearSecurityWarning() {
         _uiState.update { it.copy(securityWarning = null) }
+    }
+
+    // ==================== T4: Transport Tracking ====================
+
+    /**
+     * Get the transport type label resource for a given transport type.
+     */
+    fun getTransportTypeLabel(transportType: TransportType): String = when (transportType) {
+        TransportType.BLE -> context.getString(R.string.chat_transport_ble_desc)
+        TransportType.BOTH -> context.getString(R.string.chat_transport_multipath_desc)
+        TransportType.LAN -> "" // LAN is default — no badge needed
     }
 }
