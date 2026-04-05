@@ -43,4 +43,7 @@
 
     <!-- Chat Input -->
     <string name="chat_input_caption_placeholder">Add a caption…</string>
+    <string name="chat_input_gallery">Gallery</string>
+    <string name="chat_input_video">Video</string>
+    <string name="chat_input_send">Send</string>
 </resources>

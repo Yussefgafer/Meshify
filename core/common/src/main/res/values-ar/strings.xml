@@ -414,6 +414,8 @@
     <string name="content_desc_refresh">تحديث</string>
     <string name="content_desc_close">إغلاق</string>
     <string name="content_desc_scroll_to_bottom">التمرير للأسفل</string>
+    <string name="chat_empty_title">لا توجد رسائل بعد</string>
+    <string name="chat_empty_desc">ابدأ محادثة مع %s</string>
     <string name="onboarding_page_indicator">صفحة %d</string>
     <string name="onboarding_go_to_page">الانتقال لصفحة %d</string>
     <string name="permission_deny_accessibility">رفض %s</string>

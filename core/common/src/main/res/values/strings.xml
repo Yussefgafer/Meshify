@@ -418,6 +418,8 @@
     <string name="content_desc_refresh">Refresh</string>
     <string name="content_desc_close">Close</string>
     <string name="content_desc_scroll_to_bottom">Scroll to bottom</string>
+    <string name="chat_empty_title">No messages yet</string>
+    <string name="chat_empty_desc">Start a conversation with %s</string>
     <string name="onboarding_page_indicator">Page %d</string>
     <string name="onboarding_go_to_page">Go to page %d</string>
     <string name="permission_deny_accessibility">Deny %s</string>

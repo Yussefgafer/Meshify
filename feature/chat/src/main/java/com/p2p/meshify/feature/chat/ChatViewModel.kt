@@ -130,6 +130,7 @@ class ChatViewModel(
         }
 
         // Collect security events from repository
+        // SharedFlow is hot — no while(isActive) wrapper needed; repository manages lifecycle
         viewModelScope.launch {
             repository.securityEvents.collect { event ->
                 when (event) {
