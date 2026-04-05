@@ -5,11 +5,14 @@ import com.p2p.meshify.core.network.base.IMeshTransport
 import com.p2p.meshify.core.network.base.TransportCapability
 import com.p2p.meshify.core.network.lan.LanTransportImpl
 import com.p2p.meshify.core.network.lan.SocketManager
+import com.p2p.meshify.core.network.ble.BleTransportImpl
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.domain.security.interfaces.PeerIdentityRepository
 import com.p2p.meshify.core.common.security.EncryptedSessionKeyStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.Dispatchers
 
 /**
  * Central manager for all transport protocols.
@@ -192,6 +195,27 @@ class TransportManager(
             manager.registerTransport(
                 "lan",
                 LanTransportImpl(context, manager.socketManager, settingsRepository, peerIdentity, sessionKeyStore)
+            )
+
+            // Register BLE transport
+            val peerId = runBlocking(Dispatchers.IO) {
+                try {
+                    peerIdentity.getPeerId()
+                } catch (e: Exception) {
+                    "unknown"
+                }
+            }
+            val deviceName = runBlocking(Dispatchers.IO) {
+                var name = "Unknown"
+                settingsRepository.displayName.collect {
+                    name = it ?: "Unknown"
+                    return@collect
+                }
+                name
+            }
+            manager.registerTransport(
+                "ble",
+                BleTransportImpl(context, settingsRepository, peerId, deviceName)
             )
 
             // ============================================
