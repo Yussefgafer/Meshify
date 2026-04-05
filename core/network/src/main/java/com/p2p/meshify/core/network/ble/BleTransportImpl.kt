@@ -273,10 +273,8 @@ class BleTransportImpl(
             )
         )
 
-        // Update online peers
-        val currentPeers = _onlinePeers.value.toMutableSet()
-        currentPeers.add(device.peerId)
-        _onlinePeers.value = currentPeers
+        // Update online peers atomically
+        _onlinePeers.update { it + device.peerId }
 
         // Auto-connect to discovered peer — check pool room BEFORE connecting
         if (connectionPool?.addConnection(device.peerId, BleConnectionType.CLIENT) == true) {
@@ -310,9 +308,7 @@ class BleTransportImpl(
 
         connectionPool?.addConnection(clientPeerId, BleConnectionType.SERVER)
 
-        val currentPeers = _onlinePeers.value.toMutableSet()
-        currentPeers.add(clientPeerId)
-        _onlinePeers.value = currentPeers
+        _onlinePeers.update { it + clientPeerId }
 
         _events.emit(TransportEvent.ConnectionEstablished(clientPeerId))
     }
@@ -326,9 +322,7 @@ class BleTransportImpl(
         connectionPool?.removeConnection(clientPeerId)
         peerAddressMap.remove(clientPeerId)
 
-        val currentPeers = _onlinePeers.value.toMutableSet()
-        currentPeers.remove(clientPeerId)
-        _onlinePeers.value = currentPeers
+        _onlinePeers.update { it - clientPeerId }
 
         _events.emit(TransportEvent.ConnectionLost(clientPeerId, "disconnected"))
     }
