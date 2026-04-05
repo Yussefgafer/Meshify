@@ -139,7 +139,7 @@ fun AboutScreen(
                 subtitle = stringResource(R.string.about_github_desc),
                 icon = Icons.Default.Link,
                 onClick = {
-                    uriHandler.openUri("https://github.com/yourusername/meshify")
+                    uriHandler.openUri("https://github.com/Yussefgafer/Meshify")
                 }
             )
             
