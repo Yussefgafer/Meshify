@@ -9,6 +9,7 @@ import com.p2p.meshify.core.util.FileUtils
 import com.p2p.meshify.domain.model.BubbleStyle
 import com.p2p.meshify.domain.model.FontFamilyPreset
 import com.p2p.meshify.domain.model.MotionPreset
+import com.p2p.meshify.domain.model.TransportMode
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.domain.repository.ThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -79,6 +80,13 @@ class SettingsViewModel(
 
     val notificationVibrate: StateFlow<Boolean> = settingsRepository.notificationVibrate
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    // BLE Transport Settings
+    val bleEnabled: StateFlow<Boolean> = settingsRepository.bleEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val transportMode: StateFlow<TransportMode> = settingsRepository.transportMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TransportMode.AUTO)
 
     private val _deviceId = MutableStateFlow("")
     val deviceId: StateFlow<String> = _deviceId
@@ -220,6 +228,19 @@ class SettingsViewModel(
     fun setNotificationVibrate(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setNotificationVibrate(enabled)
+        }
+    }
+
+    // BLE Transport Mutators
+    fun setBleEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setBleEnabled(enabled)
+        }
+    }
+
+    fun setTransportMode(mode: TransportMode) {
+        viewModelScope.launch {
+            settingsRepository.setTransportMode(mode)
         }
     }
 

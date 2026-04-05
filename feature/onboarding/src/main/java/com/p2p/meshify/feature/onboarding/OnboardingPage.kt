@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
 import com.p2p.meshify.core.ui.theme.MeshifyPrimary
 import com.p2p.meshify.core.ui.theme.StatusOnline
+import com.p2p.meshify.feature.onboarding.R
 import kotlinx.coroutines.delay
 
 /**
@@ -144,6 +145,12 @@ private fun OnboardingIllustration(
             PrivacyShieldIllustration(
                 modifier = modifier,
                 scaleSpec = scaleSpec,
+                infiniteTransition = infiniteTransition
+            )
+        }
+        is IllustrationType.BleNearby -> {
+            BleNearbyIllustration(
+                modifier = modifier,
                 infiniteTransition = infiniteTransition
             )
         }
@@ -278,6 +285,89 @@ private fun PrivacyShieldIllustration(
             radius = lockSize / 2,
             center = center
         )
+    }
+}
+
+/**
+ * BLE Nearby Illustration — Two phones with radiating signal arcs.
+ */
+@Composable
+private fun BleNearbyIllustration(
+    modifier: Modifier,
+    infiniteTransition: InfiniteTransition
+) {
+    val arcAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 0.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "arcAlpha"
+    )
+
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "bleScale"
+    )
+
+    Canvas(modifier = modifier) {
+        val center = Offset(size.width / 2, size.height / 2)
+        val phoneWidth = size.width * 0.18f
+        val phoneHeight = size.height * 0.3f
+        val phoneGap = size.width * 0.15f
+
+        // Left phone
+        val leftPhoneX = center.x - phoneGap / 2 - phoneWidth
+        drawRoundRect(
+            color = MeshifyPrimary,
+            topLeft = Offset(leftPhoneX, center.y - phoneHeight / 2),
+            size = Size(phoneWidth, phoneHeight),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(12.dp.toPx())
+        )
+
+        // Right phone
+        val rightPhoneX = center.x + phoneGap / 2
+        drawRoundRect(
+            color = Color.Gray.copy(alpha = 0.5f),
+            topLeft = Offset(rightPhoneX, center.y - phoneHeight / 2),
+            size = Size(phoneWidth, phoneHeight),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(12.dp.toPx())
+        )
+
+        // Signal arcs between phones
+        val arcCenterX = center.x
+        val arcCenterY = center.y
+        val maxRadius = phoneGap * 0.8f
+
+        // Draw 3 concentric arcs
+        for (i in 1..3) {
+            val radius = maxRadius * (i / 3f)
+            val alpha = arcAlpha * (1f - (i - 1) * 0.25f)
+            drawArc(
+                color = StatusOnline.copy(alpha = alpha),
+                startAngle = -30f,
+                sweepAngle = 60f,
+                useCenter = false,
+                topLeft = Offset(arcCenterX - radius, arcCenterY - radius),
+                size = Size(radius * 2, radius * 2),
+                style = Stroke(width = 3.dp.toPx())
+            )
+            drawArc(
+                color = StatusOnline.copy(alpha = alpha),
+                startAngle = 150f,
+                sweepAngle = 60f,
+                useCenter = false,
+                topLeft = Offset(arcCenterX - radius, arcCenterY - radius),
+                size = Size(radius * 2, radius * 2),
+                style = Stroke(width = 3.dp.toPx())
+            )
+        }
     }
 }
 
@@ -449,6 +539,7 @@ private fun getPageTitleRes(pageInfo: OnboardingPageInfo): Int {
     return when (pageInfo.title) {
         "onboarding_welcome_title" -> R.string.onboarding_welcome_title
         "onboarding_privacy_title" -> R.string.onboarding_privacy_title
+        "onboarding_ble_title" -> R.string.onboarding_ble_title
         "onboarding_p2p_title" -> R.string.onboarding_p2p_title
         "onboarding_get_started_title" -> R.string.onboarding_get_started_title
         else -> R.string.onboarding_welcome_title
@@ -459,6 +550,7 @@ private fun getPageSubtitleRes(pageInfo: OnboardingPageInfo): Int {
     return when (pageInfo.subtitle) {
         "onboarding_welcome_subtitle" -> R.string.onboarding_welcome_subtitle
         "onboarding_privacy_subtitle" -> R.string.onboarding_privacy_subtitle
+        "onboarding_ble_subtitle" -> R.string.onboarding_ble_subtitle
         "onboarding_p2p_subtitle" -> R.string.onboarding_p2p_subtitle
         "onboarding_get_started_subtitle" -> R.string.onboarding_get_started_subtitle
         else -> R.string.onboarding_welcome_subtitle
@@ -469,6 +561,7 @@ private fun getPageDescriptionRes(pageInfo: OnboardingPageInfo): Int {
     return when (pageInfo.description) {
         "onboarding_welcome_desc" -> R.string.onboarding_welcome_desc
         "onboarding_privacy_desc" -> R.string.onboarding_privacy_desc
+        "onboarding_ble_desc" -> R.string.onboarding_ble_desc
         "onboarding_p2p_desc" -> R.string.onboarding_p2p_desc
         "onboarding_get_started_desc" -> R.string.onboarding_get_started_desc
         else -> R.string.onboarding_welcome_desc

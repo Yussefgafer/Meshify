@@ -1,10 +1,10 @@
 package com.p2p.meshify.domain.repository
 
-import java.awt.Color
 import com.p2p.meshify.domain.model.BubbleStyle
 import com.p2p.meshify.domain.model.FontFamilyPreset
 import com.p2p.meshify.domain.model.MotionPreset
 import com.p2p.meshify.domain.model.ShapeStyle
+import com.p2p.meshify.domain.model.TransportMode
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -44,6 +44,10 @@ interface ISettingsRepository {
     // MD3E Settings - Seed Color (for static theming when dynamic color is off)
     val seedColor: Flow<Int>
 
+    // BLE Transport Settings
+    val bleEnabled: Flow<Boolean>
+    val transportMode: Flow<TransportMode>
+
     // New Settings - Language, Font Size, Notifications, Storage, Backup
     val appLanguage: Flow<String>
     val fontSizeScale: Flow<Float>
@@ -68,6 +72,10 @@ interface ISettingsRepository {
     suspend fun setBubbleStyle(style: BubbleStyle)
     suspend fun setVisualDensity(density: Float)
     suspend fun setSeedColor(color: Int)
+
+    // BLE Transport Settings Mutators
+    suspend fun setBleEnabled(enabled: Boolean)
+    suspend fun setTransportMode(mode: TransportMode)
 
     // New Settings Mutators
     suspend fun setAppLanguage(language: String)

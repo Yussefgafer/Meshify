@@ -12,6 +12,7 @@ import com.p2p.meshify.domain.model.BubbleStyle
 import com.p2p.meshify.domain.model.FontFamilyPreset
 import com.p2p.meshify.domain.model.MotionPreset
 import com.p2p.meshify.domain.model.ShapeStyle
+import com.p2p.meshify.domain.model.TransportMode
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.domain.repository.ThemeMode
 import kotlinx.coroutines.flow.Flow
@@ -48,6 +49,10 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
         val KEY_BUBBLE_STYLE = stringPreferencesKey("bubble_style")
         val KEY_VISUAL_DENSITY = floatPreferencesKey("visual_density")
         val KEY_SEED_COLOR = intPreferencesKey("seed_color")
+
+        // BLE Transport Settings Keys
+        val KEY_BLE_ENABLED = booleanPreferencesKey("ble_enabled")
+        val KEY_TRANSPORT_MODE = stringPreferencesKey("transport_mode")
 
         // New Settings Keys
         val KEY_APP_LANGUAGE = stringPreferencesKey("app_language")
@@ -132,6 +137,19 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
 
     override val seedColor: Flow<Int> = context.dataStore.data.map { preferences ->
         preferences[KEY_SEED_COLOR] ?: 0xFF006D68.toInt() // Default teal color
+    }
+
+    // BLE Transport Settings Flows
+    override val bleEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[KEY_BLE_ENABLED] ?: false // Opt-in by default (battery saving)
+    }
+
+    override val transportMode: Flow<TransportMode> = context.dataStore.data.map { preferences ->
+        try {
+            TransportMode.valueOf(preferences[KEY_TRANSPORT_MODE] ?: "MULTI_PATH")
+        } catch (e: Exception) {
+            TransportMode.MULTI_PATH
+        }
     }
 
     // ✅ New Settings Flows
@@ -263,6 +281,19 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
     override suspend fun setSeedColor(color: Int) {
         safeEdit { it[KEY_SEED_COLOR] = color }.onFailure { e ->
             Logger.e("SettingsRepository -> Failed to set seed color", e)
+        }
+    }
+
+    // BLE Transport Settings Mutators
+    override suspend fun setBleEnabled(enabled: Boolean) {
+        safeEdit { it[KEY_BLE_ENABLED] = enabled }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set BLE enabled", e)
+        }
+    }
+
+    override suspend fun setTransportMode(mode: TransportMode) {
+        safeEdit { it[KEY_TRANSPORT_MODE] = mode.name }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set transport mode", e)
         }
     }
 

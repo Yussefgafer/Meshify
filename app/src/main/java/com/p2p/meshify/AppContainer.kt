@@ -17,6 +17,7 @@ import com.p2p.meshify.core.common.util.AndroidStringResourceProvider
 import com.p2p.meshify.core.common.util.StringResourceProvider
 import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.core.network.WifiStateCheckerImpl
+import com.p2p.meshify.core.network.ble.BleTransportImpl
 import com.p2p.meshify.core.domain.interfaces.WifiStateChecker
 import com.p2p.meshify.core.network.base.TransportEvent
 import com.p2p.meshify.core.util.Logger
@@ -28,6 +29,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class AppContainer(private val context: Context) {
@@ -94,6 +96,9 @@ class AppContainer(private val context: Context) {
         TransportManager.createDefault(context, settingsRepository, peerIdentity, sessionKeyStore)
     }
 
+    // BLE Transport instance (created but not started until enabled in settings)
+    private var bleTransport: BleTransportImpl? = null
+
     val chatRepository: ChatRepositoryImpl by lazy {
         ChatRepositoryImpl(
             context = context,
@@ -144,6 +149,32 @@ class AppContainer(private val context: Context) {
                 }
             }
         }
+
+        // Monitor BLE enabled setting and start/stop BLE transport accordingly
+        containerScope.launch {
+            settingsRepository.bleEnabled.collect { enabled ->
+                if (enabled) {
+                    if (bleTransport == null) {
+                        val peerId = try { peerIdentity.getPeerId() } catch (e: Exception) { "unknown" }
+                        val deviceName = settingsRepository.displayName.first()
+                        bleTransport = BleTransportImpl(context, settingsRepository, peerId, deviceName)
+                        transportManager.registerTransport("ble", bleTransport!!)
+                        bleTransport?.start()
+                        bleTransport?.startDiscovery()
+                        Logger.i("AppContainer -> BLE transport enabled and started")
+                    }
+                } else {
+                    bleTransport?.let { transport ->
+                        containerScope.launch {
+                            transport.stopDiscovery()
+                            transport.stop()
+                            Logger.i("AppContainer -> BLE transport disabled and stopped")
+                        }
+                    }
+                    bleTransport = null
+                }
+            }
+        }
     }
 
     /**
@@ -157,6 +188,13 @@ class AppContainer(private val context: Context) {
         // Stop all transports
         containerScope.launch {
             transportManager.stopAllTransports()
+        }
+
+        // Stop and cleanup BLE transport
+        bleTransport?.let { transport ->
+            containerScope.launch {
+                transport.stop()
+            }
         }
 
         // Close chat repository to cancel its internal scope
