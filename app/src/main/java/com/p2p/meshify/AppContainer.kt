@@ -165,14 +165,21 @@ class AppContainer(private val context: Context) {
                     }
                 } else {
                     bleTransport?.let { transport ->
-                        containerScope.launch {
-                            transport.stopDiscovery()
-                            transport.stop()
-                            Logger.i("AppContainer -> BLE transport disabled and stopped")
-                        }
+                        transport.stopDiscovery()
+                        transport.stop()
+                        transportManager.unregisterTransport("ble")
+                        Logger.i("AppContainer -> BLE transport disabled, stopped, and unregistered")
                     }
                     bleTransport = null
                 }
+            }
+        }
+
+        // Monitor transport mode setting and update TransportManager
+        containerScope.launch {
+            settingsRepository.transportMode.collect { mode ->
+                transportManager.setTransportMode(mode)
+                Logger.i("AppContainer -> Transport mode set to $mode")
             }
         }
     }

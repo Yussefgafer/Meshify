@@ -50,7 +50,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.delay
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.Closeable
 import java.io.File
@@ -299,7 +298,7 @@ class ChatRepositoryImpl(
                     type = Payload.PayloadType.DELETE_REQUEST,
                     data = Json.encodeToString(request).toByteArray()
                 )
-                val transport = transportManager.selectBestTransport(message.chatId)
+                val transport = transportManager.selectBestTransport(message.chatId).firstOrNull()
                     ?: return Result.failure(Exception("No available transport"))
                 transport.sendPayload(message.chatId, payload)
             }
@@ -394,7 +393,7 @@ class ChatRepositoryImpl(
 
         messageDao.insertMessage(newMessage)
 
-        val transport = transportManager.selectBestTransport(peerId)
+        val transport = transportManager.selectBestTransport(peerId).firstOrNull()
         if (transport == null) {
             messageDao.updateMessageStatus(newMessage.id, MessageStatus.QUEUED)
             Logger.w("ChatRepository -> No transport available for forwarding to $peerId")
@@ -502,7 +501,7 @@ class ChatRepositoryImpl(
             messageDao.insertMessage(newMessage)
 
             // Step 6: Get transport
-            val transport = transportManager.selectBestTransport(peerId)
+            val transport = transportManager.selectBestTransport(peerId).firstOrNull()
             if (transport == null) {
                 messageDao.updateMessageStatus(newMessage.id, MessageStatus.QUEUED)
                 Logger.w("ChatRepository -> No transport available for forwarding to ${peerId.take(8)}")
@@ -691,7 +690,7 @@ class ChatRepositoryImpl(
             )
 
             // Send handshake via transport
-            val transport = transportManager.selectBestTransport(peerId)
+            val transport = transportManager.selectBestTransport(peerId).firstOrNull()
             if (transport == null) {
                 Logger.e("No transport available for handshake with ${peerId.take(8)}...", tag = "ChatRepository")
                 return@withLock false
@@ -971,47 +970,61 @@ class ChatRepositoryImpl(
             data = encryptedData
         )
 
-        // Send with timeout
+        // Send with timeout — supports multi-path (send on all transports, success if ANY succeeds)
         return try {
             messageDao.updateMessageStatus(messageId, MessageStatus.SENDING)
-            val transport = transportManager.selectBestTransport(peerId)
-                ?: return Result.failure(Exception("No available transport"))
-
-            withTimeout(30000L) {
-                transport.sendPayload(peerId, payload)
-            }.onSuccess {
-                messageDao.updateMessageStatus(messageId, MessageStatus.SENT)
-                Logger.d("ChatRepository -> Encrypted message sent to $peerId")
-            }.onFailure { error ->
-                messageDao.updateMessageStatus(messageId, MessageStatus.FAILED)
-                Logger.e("ChatRepository -> Failed to send encrypted message to $peerId: ${error.message}")
-                // Queue for retry
-                pendingMessageDao.insert(
-                    com.p2p.meshify.core.data.local.entity.PendingMessageEntity(
-                        id = messageId,
-                        recipientId = peerId,
-                        recipientName = cleanName,
-                        content = "[Encrypted]",
-                        type = MessageType.TEXT
-                    )
-                )
-                // Emit security event to notify UI
-                scope.launch {
-                    try {
-                        _securityEvents.emit(
-                            SecurityEvent.MessageSendFailed(
-                                messageId = messageId,
-                                peerId = peerId,
-                                reason = error.message ?: "Unknown send error"
-                            )
-                        )
-                    } catch (emitError: Exception) {
-                        Logger.e(
-                            message = "Failed to emit security event for message $messageId: ${emitError.message}",
-                            throwable = emitError,
-                            tag = "ChatRepository"
-                        )
+            val transports = transportManager.selectBestTransport(peerId)
+            if (transports.isEmpty()) {
+                Result.failure(Exception("No available transport"))
+            } else {
+                // Multi-path: send on all transports, succeed if ANY succeeds
+                val results = transports.map { transport ->
+                    runCatching {
+                        withTimeout(30000L) {
+                            transport.sendPayload(peerId, payload)
+                        }
                     }
+                }
+
+                val firstSuccess = results.find { it.isSuccess }
+                if (firstSuccess != null) {
+                    messageDao.updateMessageStatus(messageId, MessageStatus.SENT)
+                    val transportNames = transports.joinToString("+") { it.transportName }
+                    Logger.d("ChatRepository -> Encrypted message sent to $peerId via [$transportNames]")
+                    Result.success(Unit)
+                } else {
+                    messageDao.updateMessageStatus(messageId, MessageStatus.FAILED)
+                    val lastError = results.lastOrNull()?.exceptionOrNull()
+                    Logger.e("ChatRepository -> Failed to send encrypted message to $peerId on all transports: ${lastError?.message}")
+                    // Queue for retry
+                    pendingMessageDao.insert(
+                        com.p2p.meshify.core.data.local.entity.PendingMessageEntity(
+                            id = messageId,
+                            recipientId = peerId,
+                            recipientName = cleanName,
+                            content = "[Encrypted]",
+                            type = MessageType.TEXT
+                        )
+                    )
+                    // Emit security event to notify UI
+                    scope.launch {
+                        try {
+                            _securityEvents.emit(
+                                SecurityEvent.MessageSendFailed(
+                                    messageId = messageId,
+                                    peerId = peerId,
+                                    reason = lastError?.message ?: "Unknown send error"
+                                )
+                            )
+                        } catch (emitError: Exception) {
+                            Logger.e(
+                                message = "Failed to emit security event for message $messageId: ${emitError.message}",
+                                throwable = emitError,
+                                tag = "ChatRepository"
+                            )
+                        }
+                    }
+                    Result.failure(lastError ?: Exception("All transports failed"))
                 }
             }
         } catch (e: Exception) {
@@ -1151,7 +1164,7 @@ class ChatRepositoryImpl(
             type = Payload.PayloadType.SYSTEM_CONTROL,
             data = command.toByteArray()
         )
-        val transport = transportManager.selectBestTransport(peerId)
+        val transport = transportManager.selectBestTransport(peerId).firstOrNull()
             ?: throw IllegalStateException("No available transport for peer: $peerId")
         transport.sendPayload(peerId, payload)
     }

@@ -63,7 +63,7 @@ class MessageRepository(
      * 2. Fall back to LAN as default
      */
     private fun selectBestTransport(peerId: String): IMeshTransport {
-        return transportManager.selectBestTransport(peerId)
+        return transportManager.selectBestTransport(peerId).firstOrNull()
             ?: throw IllegalStateException("No available transport for peer: $peerId")
     }
 
@@ -331,7 +331,7 @@ class MessageRepository(
             )
 
             // Send payload with timeout
-            val transport = transportManager.selectBestTransport(peerId)
+            val transport = transportManager.selectBestTransport(peerId).firstOrNull()
                 ?: return@withContext Result.failure(Exception("No available transport"))
 
             val result = withTimeout(SEND_TIMEOUT_MS) {

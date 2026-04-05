@@ -48,7 +48,7 @@ class ReactionRepository(
                 data = Json.encodeToString(update).toByteArray()
             )
 
-            val transport = transportManager.selectBestTransport(message.chatId)
+            val transport = transportManager.selectBestTransport(message.chatId).firstOrNull()
                 ?: return@withContext Result.failure(Exception("No available transport"))
 
             transport.sendPayload(message.chatId, payload)

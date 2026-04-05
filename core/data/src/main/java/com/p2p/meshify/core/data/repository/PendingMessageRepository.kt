@@ -201,7 +201,7 @@ class PendingMessageRepository(
      * Select best transport for sending.
      */
     private fun selectBestTransport(peerId: String): IMeshTransport {
-        return transportManager.selectBestTransport(peerId)
+        return transportManager.selectBestTransport(peerId).firstOrNull()
             ?: throw IllegalStateException("No available transport for peer: $peerId")
     }
 

@@ -59,6 +59,10 @@ class MainActivity : ComponentActivity() {
         if (permissions.entries.all { it.value }) {
             Logger.i("MainActivity -> All permissions granted")
             startAppService()
+        } else {
+            Logger.w("MainActivity -> Some permissions denied")
+            // App still works with LAN-only mode; BLE features will be limited
+            startAppService()
         }
     }
 
@@ -149,7 +153,7 @@ class MainActivity : ComponentActivity() {
                                             factory = object : androidx.lifecycle.ViewModelProvider.Factory {
                                                 override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                                                     @Suppress("UNCHECKED_CAST")
-                                                    return RecentChatsViewModel(appContainer.chatRepository as com.p2p.meshify.core.data.repository.ChatRepositoryImpl) as T
+                                                    return RecentChatsViewModel(appContainer.chatRepository) as T
                                                 }
                                             }
                                         )
@@ -253,10 +257,23 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)
             permissions.add(Manifest.permission.NEARBY_WIFI_DEVICES)
-        } else {
+        }
+        // Android 12+ (API 31): Request BLE runtime permissions
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            permissions.add(Manifest.permission.BLUETOOTH_SCAN)
+            permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
+            permissions.add(Manifest.permission.BLUETOOTH_ADVERTISE)
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             permissions.add(Manifest.permission.ACCESS_FINE_LOCATION)
         }
-        val missing = permissions.filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
-        if (missing.isNotEmpty()) requestPermissionLauncher.launch(missing.toTypedArray()) else startAppService()
+        val missing = permissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+        if (missing.isNotEmpty()) {
+            requestPermissionLauncher.launch(missing.toTypedArray())
+        } else {
+            startAppService()
+        }
     }
 }
