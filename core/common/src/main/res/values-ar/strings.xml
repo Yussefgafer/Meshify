@@ -362,6 +362,11 @@
     <string name="discovery_transport_lan">شبكة محلية</string>
     <string name="discovery_transport_both">كلاهما</string>
     <string name="content_desc_transport_badge">شارة طريقة النقل</string>
+    <string name="chat_content_desc_transport_icon">أيقونة طريقة النقل</string>
+
+    <!-- Chat Transport Labels -->
+    <string name="chat_transport_ble_desc">مُرسل عبر البلوتوث</string>
+    <string name="chat_transport_multipath_desc">مُرسل عبر الشبكة المحلية والبلوتوث</string>
 
     <!-- Settings Screen -->
     <string name="settings_status_enabled">مفعّل</string>

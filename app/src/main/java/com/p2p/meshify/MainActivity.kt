@@ -189,7 +189,17 @@ class MainActivity : ComponentActivity() {
                                                         context = context,
                                                         peerId = peerId,
                                                         peerName = peerName ?: "Peer",
-                                                        repository = appContainer.chatRepository
+                                                        repository = appContainer.chatRepository,
+                                                        transportTypeProvider = {
+                                                            val transports = appContainer.transportManager.selectBestTransport(peerId)
+                                                            val hasLan = transports.any { it.transportName == "lan" }
+                                                            val hasBle = transports.any { it.transportName == "ble" }
+                                                            when {
+                                                                hasLan && hasBle -> com.p2p.meshify.domain.model.TransportType.BOTH
+                                                                hasBle -> com.p2p.meshify.domain.model.TransportType.BLE
+                                                                else -> com.p2p.meshify.domain.model.TransportType.LAN
+                                                            }
+                                                        }
                                                     ) as T
                                                 }
                                             }
