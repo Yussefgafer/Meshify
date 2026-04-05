@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.p2p.meshify.core.common.R
 import com.p2p.meshify.core.data.local.entity.ChatEntity
+import com.p2p.meshify.core.data.local.entity.MessageAttachmentEntity
 import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.data.local.entity.MessageStatus
 import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
@@ -27,6 +28,8 @@ import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.milliseconds
 import java.io.File
 import java.util.UUID
+
+private const val ATTACHMENT_CACHE_MAX_SIZE = 200
 
 data class ChatUiState(
     val isLoading: Boolean = true,
@@ -437,13 +440,33 @@ class ChatViewModel(
     }
 
     /**
-     * Get attachments for a specific message.
-     * This is a suspend function that should be called from a coroutine.
+     * LRU cache for message attachments to avoid repeated DB queries.
+     * Capacity of [ATTACHMENT_CACHE_MAX_SIZE] entries (~all attachments in a typical conversation).
+     * Access-ordered: least recently used entries are evicted first.
      */
-    suspend fun getAttachmentsForMessage(groupId: String): List<com.p2p.meshify.core.data.local.entity.MessageAttachmentEntity> {
-        return withContext(Dispatchers.IO) {
+    private val attachmentsCache = object : LinkedHashMap<String, List<MessageAttachmentEntity>>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<MessageAttachmentEntity>>) =
+            size > ATTACHMENT_CACHE_MAX_SIZE
+    }
+
+    /**
+     * Get attachments for a specific message.
+     * Uses LRU cache to avoid repeated DB queries for the same groupId.
+     */
+    suspend fun getAttachmentsForMessage(groupId: String): List<MessageAttachmentEntity> {
+        // Check cache first (thread-safe via synchronized)
+        synchronized(attachmentsCache) {
+            attachmentsCache[groupId]?.let { return it }
+        }
+        // Not cached — fetch from DB
+        val result = withContext(Dispatchers.IO) {
             repository.getMessageAttachments(groupId)
         }
+        // Store in cache
+        synchronized(attachmentsCache) {
+            attachmentsCache[groupId] = result
+        }
+        return result
     }
     
     // ==================== Forward Message Functions ====================

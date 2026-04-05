@@ -62,29 +62,12 @@ fun SettingsScreen(
     val context = LocalContext.current
     val haptics = LocalPremiumHaptics.current
 
-    // State flows from ViewModel
-    val displayName by viewModel.displayName.collectAsState()
-    val themeMode by viewModel.themeMode.collectAsState()
-    val dynamicColor by viewModel.dynamicColorEnabled.collectAsState()
-    val networkVisible by viewModel.isNetworkVisible.collectAsState()
-    val avatarHash by viewModel.avatarHash.collectAsState()
-    val deviceId by viewModel.deviceId.collectAsState()
+    // Unified SettingsUiState — single collectAsState replacing 16+ individual flows
+    val state by viewModel.settingsUiState.collectAsState()
     val appVersion = viewModel.appVersion
-    val motionPreset by viewModel.motionPreset.collectAsState()
-    val visualDensity by viewModel.visualDensity.collectAsState()
-    val seedColorInt by viewModel.seedColor.collectAsState()
-    val seedColor = remember(seedColorInt) { Color(seedColorInt) }
-    
-    // ✅ New Settings State flows
-    val appLanguage by viewModel.appLanguage.collectAsState()
-    val fontSizeScale by viewModel.fontSizeScale.collectAsState()
-    val notificationsEnabled by viewModel.notificationsEnabled.collectAsState()
-    val notificationSound by viewModel.notificationSound.collectAsState()
-    val notificationVibrate by viewModel.notificationVibrate.collectAsState()
 
-    // BLE Transport State
-    val bleEnabled by viewModel.bleEnabled.collectAsState()
-    val transportMode by viewModel.transportMode.collectAsState()
+    // Derived state from unified state
+    val seedColor = remember(state.seedColor) { Color(state.seedColor) }
 
     // UI State for dialogs and bottom sheets
     var showNameDialog by remember { mutableStateOf(false) }
@@ -94,14 +77,14 @@ fun SettingsScreen(
     var showFontSizeDialog by remember { mutableStateOf(false) }
     var showBackupDialog by remember { mutableStateOf(false) }
     var showBleSheet by remember { mutableStateOf(false) }
-    var nameInput by remember { mutableStateOf(displayName) }
+    var nameInput by remember { mutableStateOf(state.displayName) }
     var backupStatus by remember { mutableStateOf<String?>(null) }
 
     val scrollState = rememberScrollState()
 
     // Avatar file from hash
-    val avatarFile = remember(avatarHash) {
-        avatarHash?.let { hash ->
+    val avatarFile = remember(state.avatarHash) {
+        state.avatarHash?.let { hash ->
             FileUtils.getFilePath(context, hash, "avatars")?.let { File(it) }
         }
     }
@@ -181,14 +164,14 @@ fun SettingsScreen(
 
             // Display Name
             Text(
-                text = displayName,
+                text = state.displayName,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.ExtraBold
             )
 
             // Device ID (short)
             Text(
-                text = deviceId.take(8).uppercase(),
+                text = state.deviceId.take(8).uppercase(),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
             )
@@ -200,11 +183,11 @@ fun SettingsScreen(
                 // Display Name Item
                 MeshifySettingsItem(
                     title = stringResource(R.string.setting_display_name),
-                    subtitle = displayName,
+                    subtitle = state.displayName,
                     icon = Icons.Default.Person,
                     onClick = {
-                        haptics.perform(HapticPattern.Pop) // ✅ UX04: Haptic feedback
-                        nameInput = displayName
+                        haptics.perform(HapticPattern.Pop) // UX04: Haptic feedback
+                        nameInput = state.displayName
                         showNameDialog = true
                     }
                 )
@@ -219,13 +202,13 @@ fun SettingsScreen(
                 val deviceSuffix = stringResource(R.string.settings_label_device_id_suffix)
                 MeshifySettingsItem(
                     title = deviceTitle,
-                    subtitle = deviceId.take(8).uppercase() + deviceSuffix,
+                    subtitle = state.deviceId.take(8).uppercase() + deviceSuffix,
                     icon = Icons.Default.Fingerprint,
                     onClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        val clip = ClipData.newPlainText(deviceTitle, deviceId)
+                        val clip = ClipData.newPlainText(deviceTitle, state.deviceId)
                         clipboard.setPrimaryClip(clip)
-                        haptics.perform(HapticPattern.Success) // ✅ UX04: Haptic feedback on copy
+                        haptics.perform(HapticPattern.Success) // UX04: Haptic feedback on copy
                     }
                 )
             }
@@ -235,14 +218,14 @@ fun SettingsScreen(
                 // Theme Mode
                 MeshifySettingsItem(
                     title = stringResource(R.string.settings_theme_mode),
-                    subtitle = when (themeMode) {
+                    subtitle = when (state.themeMode) {
                         ThemeMode.LIGHT -> stringResource(R.string.settings_theme_light)
                         ThemeMode.DARK -> stringResource(R.string.settings_theme_dark)
                         ThemeMode.SYSTEM -> stringResource(R.string.settings_theme_system)
                     },
                     icon = Icons.Default.Palette,
                     onClick = {
-                        haptics.perform(HapticPattern.Pop) // ✅ UX04: Haptic feedback
+                        haptics.perform(HapticPattern.Pop) // UX04: Haptic feedback
                         showThemeSheet = true
                     }
                 )
@@ -259,7 +242,7 @@ fun SettingsScreen(
                     icon = Icons.Default.ColorLens,
                     trailing = {
                         Switch(
-                            checked = dynamicColor,
+                            checked = state.dynamicColorEnabled,
                             onCheckedChange = {
                                 haptics.perform(HapticPattern.Tick)
                                 viewModel.setDynamicColor(it)
@@ -267,12 +250,12 @@ fun SettingsScreen(
                         )
                     },
                     onClick = {
-                        viewModel.setDynamicColor(!dynamicColor)
+                        viewModel.setDynamicColor(!state.dynamicColorEnabled)
                     }
                 )
 
                 // Seed Color Picker (only when dynamic colors is OFF)
-                if (!dynamicColor) {
+                if (!state.dynamicColorEnabled) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -300,7 +283,7 @@ fun SettingsScreen(
                 // Motion Physics
                 MeshifySettingsItem(
                     title = stringResource(R.string.settings_motion_system),
-                    subtitle = motionPreset.name,
+                    subtitle = state.motionPreset.name,
                     icon = Icons.Default.Animation,
                     onClick = { showMotionDialog = true }
                 )
@@ -314,7 +297,7 @@ fun SettingsScreen(
                     icon = Icons.Default.Visibility,
                     trailing = {
                         Switch(
-                            checked = networkVisible,
+                            checked = state.isNetworkVisible,
                             onCheckedChange = {
                                 haptics.perform(HapticPattern.Tick)
                                 viewModel.setNetworkVisibility(it)
@@ -322,7 +305,7 @@ fun SettingsScreen(
                         )
                     },
                     onClick = {
-                        viewModel.setNetworkVisibility(!networkVisible)
+                        viewModel.setNetworkVisibility(!state.isNetworkVisible)
                     }
                 )
             }
@@ -336,7 +319,7 @@ fun SettingsScreen(
                     icon = Icons.Default.Bluetooth,
                     trailing = {
                         Switch(
-                            checked = bleEnabled,
+                            checked = state.bleEnabled,
                             onCheckedChange = {
                                 haptics.perform(HapticPattern.Tick)
                                 viewModel.setBleEnabled(it)
@@ -344,7 +327,7 @@ fun SettingsScreen(
                         )
                     },
                     onClick = {
-                        viewModel.setBleEnabled(!bleEnabled)
+                        viewModel.setBleEnabled(!state.bleEnabled)
                     }
                 )
 
@@ -356,7 +339,7 @@ fun SettingsScreen(
                 // BLE Status row (opens bottom sheet)
                 MeshifySettingsItem(
                     title = stringResource(R.string.setting_bluetooth_status_title),
-                    subtitle = if (bleEnabled) stringResource(R.string.setting_bluetooth_status_active) else stringResource(R.string.setting_bluetooth_status_inactive),
+                    subtitle = if (state.bleEnabled) stringResource(R.string.setting_bluetooth_status_active) else stringResource(R.string.setting_bluetooth_status_inactive),
                     icon = Icons.AutoMirrored.Filled.BluetoothSearching,
                     trailing = {
                         Icon(
@@ -372,12 +355,12 @@ fun SettingsScreen(
                 )
             }
 
-            // === SECTION 5: APP SETTINGS ✅ ===
+            // SECTION 5: APP SETTINGS
             MeshifySettingsGroup(title = stringResource(R.string.settings_group_app)) {
                 // Language
                 MeshifySettingsItem(
                     title = stringResource(R.string.setting_language),
-                    subtitle = if (appLanguage == "ar") stringResource(R.string.settings_language_arabic) else stringResource(R.string.settings_language_english),
+                    subtitle = if (state.appLanguage == "ar") stringResource(R.string.settings_language_arabic) else stringResource(R.string.settings_language_english),
                     icon = Icons.Default.Language,
                     onClick = { showLanguageDialog = true }
                 )
@@ -390,7 +373,7 @@ fun SettingsScreen(
                 // Font Size
                 MeshifySettingsItem(
                     title = stringResource(R.string.setting_font_size),
-                    subtitle = "${(fontSizeScale * 100).toInt()}%",
+                    subtitle = "${(state.fontSizeScale * 100).toInt()}%",
                     icon = Icons.Default.TextFields,
                     onClick = { showFontSizeDialog = true }
                 )
@@ -403,11 +386,11 @@ fun SettingsScreen(
                 // Notifications
                 MeshifySettingsItem(
                     title = stringResource(R.string.setting_notifications),
-                    subtitle = if (notificationsEnabled) stringResource(R.string.settings_status_enabled) else stringResource(R.string.settings_status_disabled),
+                    subtitle = if (state.notificationsEnabled) stringResource(R.string.settings_status_enabled) else stringResource(R.string.settings_status_disabled),
                     icon = Icons.Default.Notifications,
                     trailing = {
                         Switch(
-                            checked = notificationsEnabled,
+                            checked = state.notificationsEnabled,
                             onCheckedChange = {
                                 haptics.perform(HapticPattern.Tick)
                                 viewModel.setNotificationsEnabled(it)
@@ -415,7 +398,7 @@ fun SettingsScreen(
                         )
                     },
                     onClick = {
-                        viewModel.setNotificationsEnabled(!notificationsEnabled)
+                        viewModel.setNotificationsEnabled(!state.notificationsEnabled)
                     }
                 )
 
@@ -431,8 +414,8 @@ fun SettingsScreen(
                     icon = Icons.Filled.VolumeUp,
                     trailing = {
                         Switch(
-                            checked = notificationSound,
-                            enabled = notificationsEnabled,
+                            checked = state.notificationSound,
+                            enabled = state.notificationsEnabled,
                             onCheckedChange = {
                                 haptics.perform(HapticPattern.Tick)
                                 viewModel.setNotificationSound(it)
@@ -440,7 +423,7 @@ fun SettingsScreen(
                         )
                     },
                     onClick = {
-                        viewModel.setNotificationSound(!notificationSound)
+                        viewModel.setNotificationSound(!state.notificationSound)
                     }
                 )
 
@@ -456,8 +439,8 @@ fun SettingsScreen(
                     icon = Icons.Default.Vibration,
                     trailing = {
                         Switch(
-                            checked = notificationVibrate,
-                            enabled = notificationsEnabled,
+                            checked = state.notificationVibrate,
+                            enabled = state.notificationsEnabled,
                             onCheckedChange = {
                                 haptics.perform(HapticPattern.Tick)
                                 viewModel.setNotificationVibrate(it)
@@ -465,7 +448,7 @@ fun SettingsScreen(
                         )
                     },
                     onClick = {
-                        viewModel.setNotificationVibrate(!notificationVibrate)
+                        viewModel.setNotificationVibrate(!state.notificationVibrate)
                     }
                 )
 
@@ -582,7 +565,7 @@ fun SettingsScreen(
     // Theme Selection Bottom Sheet
     if (showThemeSheet) {
         ThemeSelectionBottomSheet(
-            currentTheme = themeMode,
+            currentTheme = state.themeMode,
             onThemeSelected = {
                 haptics.perform(HapticPattern.Selection)
                 viewModel.setThemeMode(it)
@@ -600,7 +583,7 @@ fun SettingsScreen(
         MeshifySelectionDialog(
             title = stringResource(R.string.settings_dialog_motion_preset),
             options = MotionPreset.entries,
-            selectedOption = motionPreset,
+            selectedOption = state.motionPreset,
             onOptionSelected = {
                 haptics.perform(HapticPattern.Pop)
                 viewModel.setMotionPreset(it)
@@ -625,14 +608,14 @@ fun SettingsScreen(
         )
     }
 
-    // ✅ Language Selection Dialog
+    // Language Selection Dialog
     if (showLanguageDialog) {
         val arabicLabel = stringResource(R.string.settings_language_arabic)
         val englishLabel = stringResource(R.string.settings_language_english)
         MeshifySelectionDialog(
             title = stringResource(R.string.settings_dialog_select_language),
             options = listOf("en", "ar"),
-            selectedOption = appLanguage,
+            selectedOption = state.appLanguage,
             onOptionSelected = { lang ->
                 haptics.perform(HapticPattern.Pop)
                 viewModel.setAppLanguage(lang)
@@ -644,12 +627,12 @@ fun SettingsScreen(
         )
     }
 
-    // ✅ Font Size Dialog
+    // Font Size Dialog
     if (showFontSizeDialog) {
         MeshifySelectionDialog(
             title = stringResource(R.string.settings_dialog_font_size),
             options = listOf(0.8f, 1.0f, 1.2f, 1.5f),
-            selectedOption = fontSizeScale,
+            selectedOption = state.fontSizeScale,
             onOptionSelected = { scale ->
                 haptics.perform(HapticPattern.Pop)
                 viewModel.setFontSizeScale(scale)
@@ -661,7 +644,7 @@ fun SettingsScreen(
         )
     }
 
-    // ✅ Backup & Restore Dialog
+    // Backup & Restore Dialog
     if (showBackupDialog) {
         val resources = LocalContext.current.resources
         AlertDialog(
@@ -699,7 +682,7 @@ fun SettingsScreen(
         )
     }
 
-    // ✅ Backup Status Message
+    // Backup Status Message
     if (backupStatus != null) {
         LaunchedEffect(backupStatus) {
             kotlinx.coroutines.delay(3000)
@@ -721,8 +704,8 @@ fun SettingsScreen(
     // BLE Status Bottom Sheet
     if (showBleSheet) {
         BleStatusBottomSheet(
-            bleEnabled = bleEnabled,
-            transportMode = transportMode,
+            bleEnabled = state.bleEnabled,
+            transportMode = state.transportMode,
             onModeSelected = { viewModel.setTransportMode(it) },
             onDismiss = { showBleSheet = false }
         )
