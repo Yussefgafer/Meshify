@@ -647,9 +647,9 @@ fun StatusIcon(status: MessageStatus, tint: Color) {
         MessageStatus.SENDING -> CircularProgressIndicator(Modifier.size(12.dp), strokeWidth = 1.5.dp, color = tint)
         MessageStatus.SENT -> Icon(Icons.Default.Check, null, Modifier.size(size), tint = tint.copy(0.7f))
         MessageStatus.DELIVERED -> Icon(Icons.Default.DoneAll, null, Modifier.size(size), tint = tint.copy(0.7f))
+        MessageStatus.RECEIVED -> Icon(Icons.Default.Done, null, Modifier.size(size), tint = tint.copy(0.7f))
         MessageStatus.READ -> Icon(Icons.Default.DoneAll, null, Modifier.size(size), tint = MaterialTheme.colorScheme.tertiary)
         MessageStatus.FAILED -> Icon(Icons.Default.Error, null, Modifier.size(size), tint = MaterialTheme.colorScheme.error)
-        else -> {}
     }
 }
 

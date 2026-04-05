@@ -489,15 +489,46 @@ class LanTransportImpl(
 
     /**
      * Get RSSI for a peer device.
-     * Uses actual WiFi RSSI when available, falls back to reasonable default.
+     * Uses actual WiFi RSSI when available, falls back to latency-based estimation.
      */
     private fun getPeerRssi(): Int {
         val actualRssi = getActualRssi()
         return if (actualRssi != Int.MIN_VALUE) {
             actualRssi
         } else {
-            // Fallback: return a reasonable default for LAN (-55 dBm = good signal)
-            -55
+            // Fallback: estimate RSSI based on network latency (RTT)
+            estimateRssiFromLatency()
+        }
+    }
+
+    /**
+     * Estimate RSSI based on network round-trip time (RTT).
+     * Lower latency = closer proximity = stronger signal.
+     * RTT thresholds: <10ms = -40dBm (excellent), >200ms = -85dBm (poor)
+     */
+    private fun estimateRssiFromLatency(): Int {
+        return try {
+            val socket = java.net.Socket()
+            socket.soTimeout = 1000
+            socket.connect(java.net.InetSocketAddress("127.0.0.1", 8888), 1000)
+            val startTime = System.currentTimeMillis()
+            // Send a ping byte and wait for response (if server responds)
+            socket.getOutputStream().write(byteArrayOf(0x00))
+            socket.getInputStream().read()
+            val rtt = System.currentTimeMillis() - startTime
+            socket.close()
+
+            // Convert RTT to estimated RSSI
+            when {
+                rtt < 10 -> -40  // Excellent: very close, low latency
+                rtt < 50 -> -55  // Good: same subnet, fast response
+                rtt < 100 -> -65 // Moderate: some network delay
+                rtt < 200 -> -75 // Poor: significant latency
+                else -> -85      // Very poor: high latency, edge of range
+            }
+        } catch (e: Exception) {
+            // Cannot estimate — return very poor signal
+            -90
         }
     }
 
