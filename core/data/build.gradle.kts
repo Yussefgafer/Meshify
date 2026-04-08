@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.androidx.room)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.hilt)
 }
 
 android {
@@ -61,6 +62,10 @@ dependencies {
 
     // AndroidX Core
     implementation(libs.androidx.core.ktx)
+
+    // Hilt
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
 
     // Security - EncryptedSharedPreferences
     implementation(libs.androidx.security.crypto)

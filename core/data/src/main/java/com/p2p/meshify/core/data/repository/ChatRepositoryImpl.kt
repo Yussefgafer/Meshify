@@ -58,12 +58,15 @@ import java.util.UUID
 /**
  * ChatRepositoryImpl - Facade pattern for chat operations.
  *
- * This class now delegates to specialized repositories following Single Responsibility Principle:
+ * This class delegates to specialized services following Single Responsibility Principle:
  * - [messageRepository]: Sending/receiving messages
  * - [chatManagementRepository]: Chat CRUD operations
  * - [pendingMessageRepository]: Pending message queue management
  * - [messageAttachmentRepository]: Message attachments (albums)
  * - [reactionRepository]: Message reactions
+ * - [sessionManagementService]: ECDH session key management
+ * - [messageSendingService]: Message sending (text, media, grouped, forward)
+ * - [payloadProcessingService]: Incoming payload processing (decrypt, commands, handshake)
  *
  * This facade maintains backward compatibility with existing code while improving maintainability.
  */
@@ -163,22 +166,16 @@ class ChatRepositoryImpl(
         text: String,
         replyToId: String?
     ): Result<Unit> {
-        // SECURITY: Encryption is mandatory - abort if session cannot be established
-        // No plaintext fallback is allowed
         val sessionKeyInfo = getOrEstablishSessionKey(peerId)
             ?: return Result.failure(SecurityException("Secure session required - cannot send plaintext to $peerId"))
 
-        // Encrypt the plaintext message
         val envelope = messageCrypto.encrypt(
             plaintext = text.toByteArray(Charsets.UTF_8),
             recipientId = peerId,
             sessionKey = sessionKeyInfo.sessionKey
         )
 
-        // Serialize the envelope to bytes
         val envelopeBytes = serializeEnvelope(envelope)
-
-        // Send as ENCRYPTED_MESSAGE payload type
         return sendEncryptedPayload(peerId, peerName, envelopeBytes, replyToId)
     }
 
@@ -237,7 +234,6 @@ class ChatRepositoryImpl(
         val myId = settingsRepository.getDeviceId()
         val timestamp = System.currentTimeMillis()
 
-        // Create parent message with caption
         val message = MessageEntity(
             id = messageId,
             chatId = peerId,
@@ -252,23 +248,18 @@ class ChatRepositoryImpl(
             groupId = messageId
         )
 
-        // Save chat
         val cleanName = parseName(peerName)
         chatDao.insertChat(ChatEntity(peerId, cleanName, caption.ifBlank { "[Album]" }, timestamp))
-
-        // Save message
         messageDao.insertMessage(message)
 
-        // Save attachments
         val saveResult = messageAttachmentRepository.saveAttachments(messageId, attachments)
         if (saveResult.isFailure) {
             return Result.failure(saveResult.exceptionOrNull() ?: Exception("Failed to save attachments"))
         }
 
-        // Send first attachment as representative
         val firstAttachmentBytes = attachments.firstOrNull()?.first
             ?: return Result.failure(Exception("No attachments to send"))
-        
+
         return messageRepository.sendFileMessage(
             peerId = peerId,
             peerName = peerName,

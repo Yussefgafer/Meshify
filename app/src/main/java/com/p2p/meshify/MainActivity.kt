@@ -45,13 +45,19 @@ import com.p2p.meshify.feature.settings.SettingsViewModel
 import com.p2p.meshify.feature.settings.DeveloperScreen
 import com.p2p.meshify.feature.settings.DeveloperViewModel
 import com.p2p.meshify.core.domain.interfaces.WifiStateChecker
+import com.p2p.meshify.core.data.local.MeshifyDatabase
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
 /**
  * Main entry point of the Meshify application.
  */
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject lateinit var database: MeshifyDatabase
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -77,18 +83,19 @@ class MainActivity : ComponentActivity() {
             WindowManager.LayoutParams.FLAG_SECURE
         )
 
-        val appContainer = (application as MeshifyApp).container
+        val app = application as MeshifyApp
 
         setContent {
-            val themeMode by appContainer.settingsRepository.themeMode.collectAsState(initial = com.p2p.meshify.domain.repository.ThemeMode.SYSTEM)
-            val dynamicColor by appContainer.settingsRepository.dynamicColorEnabled.collectAsState(initial = true)
-            val motionPreset by appContainer.settingsRepository.motionPreset.collectAsState(initial = MotionPreset.STANDARD)
-            val motionScale by appContainer.settingsRepository.motionScale.collectAsState(initial = 1.0f)
-            val fontFamilyPreset by appContainer.settingsRepository.fontFamilyPreset.collectAsState(initial = FontFamilyPreset.ROBOTO)
-            val shapeStyle by appContainer.settingsRepository.shapeStyle.collectAsState(initial = com.p2p.meshify.domain.model.ShapeStyle.CIRCLE)
-            val bubbleStyle by appContainer.settingsRepository.bubbleStyle.collectAsState(initial = com.p2p.meshify.domain.model.BubbleStyle.ROUNDED)
-            val visualDensity by appContainer.settingsRepository.visualDensity.collectAsState(initial = 1.0f)
-            val seedColorInt by appContainer.settingsRepository.seedColor.collectAsState(initial = 0xFF006D68.toInt())
+            val settingsRepo = app.settingsRepository
+            val themeMode by settingsRepo.themeMode.collectAsState(initial = com.p2p.meshify.domain.repository.ThemeMode.SYSTEM)
+            val dynamicColor by settingsRepo.dynamicColorEnabled.collectAsState(initial = true)
+            val motionPreset by settingsRepo.motionPreset.collectAsState(initial = MotionPreset.STANDARD)
+            val motionScale by settingsRepo.motionScale.collectAsState(initial = 1.0f)
+            val fontFamilyPreset by settingsRepo.fontFamilyPreset.collectAsState(initial = FontFamilyPreset.ROBOTO)
+            val shapeStyle by settingsRepo.shapeStyle.collectAsState(initial = com.p2p.meshify.domain.model.ShapeStyle.CIRCLE)
+            val bubbleStyle by settingsRepo.bubbleStyle.collectAsState(initial = com.p2p.meshify.domain.model.BubbleStyle.ROUNDED)
+            val visualDensity by settingsRepo.visualDensity.collectAsState(initial = 1.0f)
+            val seedColorInt by settingsRepo.seedColor.collectAsState(initial = 0xFF006D68.toInt())
 
             var isReady by remember { mutableStateOf(false) }
             val navController = rememberNavController()
@@ -96,8 +103,8 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(Unit) {
                 try {
                     withContext(Dispatchers.IO) {
-                        appContainer.chatRepository
-                        appContainer.transportManager
+                        app.chatRepository
+                        app.transportManager
                     }
                     isReady = true
                 } catch (e: Exception) {
@@ -106,7 +113,7 @@ class MainActivity : ComponentActivity() {
             }
 
             val seedColor = remember(seedColorInt) { Color(seedColorInt) }
-            val premiumHaptics = rememberPremiumHaptics(appContainer.settingsRepository)
+            val premiumHaptics = rememberPremiumHaptics(settingsRepo)
 
             MeshifyTheme(
                 themeMode = themeMode.name,
@@ -153,7 +160,7 @@ class MainActivity : ComponentActivity() {
                                             factory = object : androidx.lifecycle.ViewModelProvider.Factory {
                                                 override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                                                     @Suppress("UNCHECKED_CAST")
-                                                    return RecentChatsViewModel(appContainer.chatRepository) as T
+                                                    return RecentChatsViewModel(app.chatRepository) as T
                                                 }
                                             }
                                         )
@@ -169,7 +176,7 @@ class MainActivity : ComponentActivity() {
                                             factory = object : androidx.lifecycle.ViewModelProvider.Factory {
                                                 override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                                                     @Suppress("UNCHECKED_CAST")
-                                                    return DiscoveryViewModel(appContainer.transportManager, appContainer.wifiStateChecker) as T
+                                                    return DiscoveryViewModel(app.transportManager, app.wifiStateChecker) as T
                                                 }
                                             }
                                         )
@@ -189,17 +196,7 @@ class MainActivity : ComponentActivity() {
                                                         context = context,
                                                         peerId = peerId,
                                                         peerName = peerName ?: "Peer",
-                                                        repository = appContainer.chatRepository,
-                                                        transportTypeProvider = {
-                                                            val transports = appContainer.transportManager.selectBestTransport(peerId)
-                                                            val hasLan = transports.any { it.transportName == "lan" }
-                                                            val hasBle = transports.any { it.transportName == "ble" }
-                                                            when {
-                                                                hasLan && hasBle -> com.p2p.meshify.domain.model.TransportType.BOTH
-                                                                hasBle -> com.p2p.meshify.domain.model.TransportType.BLE
-                                                                else -> com.p2p.meshify.domain.model.TransportType.LAN
-                                                            }
-                                                        }
+                                                        repository = app.chatRepository
                                                     ) as T
                                                 }
                                             }
@@ -216,7 +213,7 @@ class MainActivity : ComponentActivity() {
                                             factory = object : androidx.lifecycle.ViewModelProvider.Factory {
                                                 override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                                                     @Suppress("UNCHECKED_CAST")
-                                                    return SettingsViewModel(appContainer.settingsRepository) as T
+                                                    return SettingsViewModel(app.settingsRepository) as T
                                                 }
                                             }
                                         )
@@ -227,14 +224,13 @@ class MainActivity : ComponentActivity() {
                                         )
                                     },
                                     onDeveloperRoute = {
-                                        val devDb = (application as MeshifyApp).container.database
                                         val developerViewModel: DeveloperViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                                             factory = object : androidx.lifecycle.ViewModelProvider.Factory {
                                                 override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                                                     @Suppress("UNCHECKED_CAST")
                                                     return DeveloperViewModel(
-                                                        chatDao = devDb.chatDao(),
-                                                        messageDao = devDb.messageDao()
+                                                        chatDao = database.chatDao(),
+                                                        messageDao = database.messageDao()
                                                     ) as T
                                                 }
                                             }

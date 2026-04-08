@@ -26,10 +26,13 @@ import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
 import com.p2p.meshify.core.common.R
 import com.p2p.meshify.domain.model.MessageType
 import kotlinx.coroutines.launch
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.firstOrNull
 import java.util.UUID
+import javax.inject.Inject
 
-class DeveloperViewModel(
+@HiltViewModel
+class DeveloperViewModel @Inject constructor(
     private val chatDao: ChatDao,
     private val messageDao: MessageDao
 ) : ViewModel() {

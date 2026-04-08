@@ -8,11 +8,13 @@ import com.p2p.meshify.domain.model.TransportType
 import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.core.network.base.TransportEvent
 import com.p2p.meshify.core.domain.interfaces.WifiStateChecker
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * UI State for the Discovery Screen.
@@ -30,7 +32,8 @@ data class DiscoveryUiState(
  * ViewModel for the Peer Discovery Screen.
  * Observes [TransportManager] events and maps them to [DiscoveryUiState].
  */
-class DiscoveryViewModel(
+@HiltViewModel
+class DiscoveryViewModel @Inject constructor(
     private val transportManager: TransportManager,
     private val wifiStateChecker: WifiStateChecker
 ) : ViewModel() {

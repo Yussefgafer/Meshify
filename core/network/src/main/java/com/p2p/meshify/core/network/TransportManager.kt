@@ -40,7 +40,7 @@ class TransportManager(
     internal val socketManager = SocketManager() // ✅ Changed from private to internal
     private val transports = mutableMapOf<String, IMeshTransport>()
 
-    // Current transport mode (updated reactively by AppContainer)
+    // Current transport mode (updated reactively by MeshifyApp)
     @Volatile
     private var transportMode: TransportMode = TransportMode.MULTI_PATH
 
@@ -55,7 +55,7 @@ class TransportManager(
 
     /**
      * Update the transport mode reactively.
-     * Called by AppContainer when settings change.
+     * Called by MeshifyApp when settings change.
      */
     fun setTransportMode(mode: TransportMode) {
         transportMode = mode
@@ -230,8 +230,8 @@ class TransportManager(
                 LanTransportImpl(context, manager.socketManager, settingsRepository, peerIdentity, sessionKeyStore)
             )
 
-            // NOTE: BLE transport is NOT registered here — it is managed by AppContainer
-            // based on user settings (bleEnabled). AppContainer creates, registers, and
+            // NOTE: BLE transport is NOT registered here — it is managed by MeshifyApp
+            // based on user settings (bleEnabled). MeshifyApp creates, registers, and
             // controls BLE lifecycle dynamically.
 
             // ============================================
