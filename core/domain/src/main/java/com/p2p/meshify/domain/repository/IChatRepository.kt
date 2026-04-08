@@ -55,6 +55,7 @@ interface IChatRepository {
     // Chat management
     suspend fun deleteMessage(messageId: String, deleteType: DeleteType): Result<Unit>
     suspend fun deleteChat(peerId: String)
+    suspend fun markChatAsRead(peerId: String)
     suspend fun forwardMessage(messageId: String, targetPeerIds: List<String>): Result<Unit>
 
     // Reactions

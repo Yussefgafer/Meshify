@@ -116,4 +116,14 @@ class RecentChatsViewModel @Inject constructor(
     fun retryLoad() {
         _uiState.update { it.copy(error = null, isLoading = false) }
     }
+
+    /**
+     * Mark a chat as read, resetting its unread count to 0.
+     * Called when the user opens a chat.
+     */
+    fun markChatAsRead(peerId: String) {
+        viewModelScope.launch {
+            chatRepository.markChatAsRead(peerId)
+        }
+    }
 }

@@ -16,6 +16,7 @@ import com.p2p.meshify.core.data.local.entity.TrustedPeerEntity
  * - v3: Added groupId index for grouped message queries
  * - v4: Added groupId index (C4 fix - 80-90% query speed improvement)
  * - v5: Added trusted_peers table for TOFU security
+ * - v6: Added unreadCount column to chats table for unread badges
  */
 @Database(
     entities = [
@@ -25,7 +26,7 @@ import com.p2p.meshify.core.data.local.entity.TrustedPeerEntity
         PendingMessageEntity::class,
         TrustedPeerEntity::class
     ],
-    version = 5,  // ✅ Incremented for trusted_peers table
+    version = 6,
     exportSchema = true
 )
 abstract class MeshifyDatabase : RoomDatabase() {

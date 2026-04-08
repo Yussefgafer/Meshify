@@ -72,6 +72,18 @@ class ChatManagementRepository(
     }
 
     /**
+     * Mark all messages in a chat as read by resetting the unread count.
+     */
+    suspend fun markChatAsRead(peerId: String) {
+        try {
+            chatDao.resetUnreadCount(peerId)
+        } catch (e: Exception) {
+            Logger.e("ChatManagementRepository -> Failed to mark chat as read: $peerId", e)
+            throw e
+        }
+    }
+
+    /**
      * Delete a message (for me or for everyone).
      */
     suspend fun deleteMessage(messageId: String, deleteType: DeleteType): Result<Unit> {
