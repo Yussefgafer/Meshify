@@ -307,6 +307,10 @@ class ChatRepositoryImpl(
         chatManagementRepository.deleteChat(peerId)
     }
 
+    override suspend fun markChatAsRead(peerId: String) {
+        chatManagementRepository.markChatAsRead(peerId)
+    }
+
     override suspend fun forwardMessage(messageId: String, targetPeerIds: List<String>): Result<Unit> {
         val message = messageDao.getMessageById(messageId)
             ?: return Result.failure(Exception("Message not found"))
@@ -1469,7 +1473,8 @@ class ChatRepositoryImpl(
         return try {
             val existingChat = chatDao.getChatById(peerId)
             val finalName = if (existingChat != null) parseName(existingChat.peerName) else "${AppConstants.DEFAULT_PEER_NAME_PREFIX}${peerId.take(4)}"
-            chatDao.insertChat(ChatEntity(peerId, finalName, text ?: "[Media]", timestamp))
+            val currentUnread = existingChat?.unreadCount ?: 0
+            chatDao.insertChat(ChatEntity(peerId, finalName, text ?: "[Media]", timestamp, unreadCount = currentUnread + 1))
             val message = MessageEntity(
                 id = messageId,
                 chatId = peerId,

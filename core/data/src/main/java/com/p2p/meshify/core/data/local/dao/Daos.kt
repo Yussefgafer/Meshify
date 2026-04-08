@@ -20,11 +20,17 @@ interface ChatDao {
     suspend fun deleteChatById(peerId: String)
 
     @Query("""
-        SELECT * FROM chats 
+        SELECT * FROM chats
         WHERE peerName LIKE '%' || :query || '%' OR lastMessage LIKE '%' || :query || '%'
         ORDER BY lastTimestamp DESC
     """)
     fun searchChats(query: String): Flow<List<ChatEntity>>
+
+    @Query("UPDATE chats SET unreadCount = :count WHERE peerId = :peerId")
+    suspend fun updateUnreadCount(peerId: String, count: Int)
+
+    @Query("UPDATE chats SET unreadCount = 0 WHERE peerId = :peerId")
+    suspend fun resetUnreadCount(peerId: String)
 }
 
 @Dao

@@ -2,6 +2,8 @@ package com.p2p.meshify.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
 import com.p2p.meshify.core.data.local.MeshifyDatabase
 import com.p2p.meshify.core.data.repository.PeerTrustStore
@@ -37,7 +39,14 @@ object AppModule {
         val keyManager = DatabaseKeyManager(context)
         val supportFactory: SupportSQLiteOpenHelper.Factory = keyManager.getSupportFactory()
 
+        val migration5to6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE chats ADD COLUMN unreadCount INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         return Room.databaseBuilder(context, MeshifyDatabase::class.java, "meshify.db")
+            .addMigrations(migration5to6)
             .fallbackToDestructiveMigration(dropAllTables = true)
             .openHelperFactory(supportFactory)
             .build()

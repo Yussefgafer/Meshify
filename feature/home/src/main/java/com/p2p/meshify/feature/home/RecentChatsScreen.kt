@@ -40,6 +40,10 @@ import java.util.*
 private const val SEARCH_BAR_BORDER_ALPHA = 0.5f
 /** Empty state text alpha */
 private const val EMPTY_STATE_TEXT_ALPHA = 0.7f
+/** Maximum unread count to display before switching to 99+ format */
+private const val MAX_UNREAD_DISPLAY = 99
+/** Display string for high unread counts */
+private const val MAX_UNREAD_DISPLAY_STR = "99+"
 
 /**
  * Enhanced Home Screen with LastChat-style Swipe-to-Delete and Grouping.
@@ -179,13 +183,21 @@ fun RecentChatsScreen(
                                                             style = MaterialTheme.typography.labelSmall,
                                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                                         )
+                                                        if (chat.unreadCount > 0) {
+                                                            Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xxs))
+                                                            val displayCount = if (chat.unreadCount >= MAX_UNREAD_DISPLAY) "$MAX_UNREAD_DISPLAY_STR" else chat.unreadCount.toString()
+                                                            UnreadBadge(displayCount)
+                                                        }
                                                         if (isOnline) {
                                                             Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xxs))
                                                             MeshifyPill(stringResource(R.string.chat_status_online), MaterialTheme.colorScheme.primaryContainer)
                                                         }
                                                     }
                                                 },
-                                                onClick = { onChatClick(chat) }
+                                                onClick = {
+                                                    viewModel.markChatAsRead(chat.peerId)
+                                                    onChatClick(chat)
+                                                }
                                             )
                                         }
                                     }
@@ -367,6 +379,27 @@ private fun SearchBarSection(
             unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = SEARCH_BAR_BORDER_ALPHA)
         )
     )
+}
+
+/**
+ * Unread badge composable showing the count of unread messages.
+ * Uses a pill-shaped Surface with high-contrast text.
+ */
+@Composable
+private fun UnreadBadge(displayCount: String) {
+    Surface(
+        shape = RoundedCornerShape(percent = 50),
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.height(20.dp)
+    ) {
+        Text(
+            text = displayCount,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onPrimary,
+            fontWeight = FontWeight.Bold
+        )
+    }
 }
 
 fun formatRecentTime(timestamp: Long): String {

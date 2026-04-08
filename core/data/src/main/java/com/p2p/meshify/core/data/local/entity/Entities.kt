@@ -15,7 +15,8 @@ data class ChatEntity(
     @PrimaryKey val peerId: String,
     val peerName: String,
     val lastMessage: String?,
-    val lastTimestamp: Long
+    val lastTimestamp: Long,
+    val unreadCount: Int = 0
 )
 
 @Entity(
