@@ -516,4 +516,10 @@ class MessageRepository(
         offset: Int
     ): Flow<List<MessageEntity>> =
         messageDao.getMessagesPaged(chatId, limit, offset)
+
+    /**
+     * Search messages within a specific chat by text content.
+     */
+    fun searchMessagesInChat(chatId: String, query: String): Flow<List<MessageEntity>> =
+        messageDao.searchMessagesInChat(chatId, query)
 }

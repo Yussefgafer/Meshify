@@ -37,6 +37,11 @@ class ChatManagementRepository(
     fun getAllChats(): Flow<List<ChatEntity>> = chatDao.getAllChats()
 
     /**
+     * Search chats by peer name or last message content.
+     */
+    fun searchChats(query: String): Flow<List<ChatEntity>> = chatDao.searchChats(query)
+
+    /**
      * Get messages for a specific chat.
      */
     fun getMessages(chatId: String): Flow<List<MessageEntity>> =

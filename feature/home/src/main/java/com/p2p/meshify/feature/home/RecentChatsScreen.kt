@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -35,6 +36,11 @@ import com.p2p.meshify.core.ui.theme.MeshifyThemeProperties
 import java.text.SimpleDateFormat
 import java.util.*
 
+/** Search bar border alpha — consistent with ChatScreen search styling */
+private const val SEARCH_BAR_BORDER_ALPHA = 0.5f
+/** Empty state text alpha */
+private const val EMPTY_STATE_TEXT_ALPHA = 0.7f
+
 /**
  * Enhanced Home Screen with LastChat-style Swipe-to-Delete and Grouping.
  */
@@ -47,6 +53,7 @@ fun RecentChatsScreen(
     onSettingsClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
     val context = LocalContext.current
 
     var chatToDelete by remember { mutableStateOf<ChatEntity?>(null) }
@@ -96,68 +103,93 @@ fun RecentChatsScreen(
                 )
             }
             // Empty state
-            uiState.chats.isEmpty() -> {
+            uiState.chats.isEmpty() && searchQuery.isBlank() -> {
                 EmptyChatsState(padding)
             }
-            // Content state - show chat list
+            // Content state - show search bar + chat list
             else -> {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                    contentPadding = PaddingValues(bottom = MeshifyDesignSystem.Spacing.Xxl)
-                ) {
-                    item {
-                        MeshifySectionHeader(stringResource(R.string.chats_recent_header))
-                    }
+                Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+                    SearchBarSection(
+                        query = searchQuery,
+                        onQueryChange = { viewModel.updateSearchQuery(it) }
+                    )
 
-                    itemsIndexed(uiState.chats, key = { _, chat -> chat.peerId }) { index, chat ->
-                        val position = when {
-                            uiState.chats.size == 1 -> ItemPosition.ONLY
-                            index == 0 -> ItemPosition.FIRST
-                            index == uiState.chats.size - 1 -> ItemPosition.LAST
-                            else -> ItemPosition.MIDDLE
-                        }
-
-                        MagneticChatItem(
-                            index = index,
-                            swipingIndex = swipingIndex,
-                            swipeProgress = swipeProgress
-                        ) {
-                            PhysicsSwipeToDelete(
-                                onDelete = { chatToDelete = chat },
-                                position = position,
-                                groupCornerRadius = 24.dp,
-                                itemIndex = index,
-                                onSwipeProgress = { idx, progress ->
-                                    swipingIndex = idx
-                                    swipeProgress = progress
-                                }
+                    when {
+                        uiState.chats.isEmpty() && searchQuery.isNotBlank() -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                contentAlignment = Alignment.Center
                             ) {
-                                val isOnline = uiState.onlinePeers.contains(chat.peerId)
-                                MeshifyListItem(
-                                    headline = chat.peerName,
-                                    supporting = chat.lastMessage ?: stringResource(R.string.last_msg_none),
-                                    leadingContent = {
-                                        MorphingAvatar(
-                                            initials = chat.peerName.take(1),
-                                            isOnline = isOnline,
-                                            size = 56.dp
-                                        )
-                                    },
-                                    trailingContent = {
-                                        Column(horizontalAlignment = Alignment.End) {
-                                            Text(
-                                                text = formatRecentTime(chat.lastTimestamp),
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            if (isOnline) {
-                                                Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xxs))
-                                                MeshifyPill(stringResource(R.string.chat_status_online), MaterialTheme.colorScheme.primaryContainer)
-                                            }
-                                        }
-                                    },
-                                    onClick = { onChatClick(chat) }
+                                Text(
+                                    text = stringResource(R.string.search_no_results),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+                            }
+                        }
+                        else -> {
+                            LazyColumn(
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(bottom = MeshifyDesignSystem.Spacing.Xxl)
+                            ) {
+                                item {
+                                    MeshifySectionHeader(stringResource(R.string.chats_recent_header))
+                                }
+
+                                itemsIndexed(uiState.chats, key = { _, chat -> chat.peerId }) { index, chat ->
+                                    val position = when {
+                                        uiState.chats.size == 1 -> ItemPosition.ONLY
+                                        index == 0 -> ItemPosition.FIRST
+                                        index == uiState.chats.size - 1 -> ItemPosition.LAST
+                                        else -> ItemPosition.MIDDLE
+                                    }
+
+                                    MagneticChatItem(
+                                        index = index,
+                                        swipingIndex = swipingIndex,
+                                        swipeProgress = swipeProgress
+                                    ) {
+                                        PhysicsSwipeToDelete(
+                                            onDelete = { chatToDelete = chat },
+                                            position = position,
+                                            groupCornerRadius = 24.dp,
+                                            itemIndex = index,
+                                            onSwipeProgress = { idx, progress ->
+                                                swipingIndex = idx
+                                                swipeProgress = progress
+                                            }
+                                        ) {
+                                            val isOnline = uiState.onlinePeers.contains(chat.peerId)
+                                            MeshifyListItem(
+                                                headline = chat.peerName,
+                                                supporting = chat.lastMessage ?: stringResource(R.string.last_msg_none),
+                                                leadingContent = {
+                                                    MorphingAvatar(
+                                                        initials = (chat.peerName.takeIf { it.isNotEmpty() } ?: "?").take(1),
+                                                        isOnline = isOnline,
+                                                        size = 56.dp
+                                                    )
+                                                },
+                                                trailingContent = {
+                                                    Column(horizontalAlignment = Alignment.End) {
+                                                        Text(
+                                                            text = formatRecentTime(chat.lastTimestamp),
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                        )
+                                                        if (isOnline) {
+                                                            Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xxs))
+                                                            MeshifyPill(stringResource(R.string.chat_status_online), MaterialTheme.colorScheme.primaryContainer)
+                                                        }
+                                                    }
+                                                },
+                                                onClick = { onChatClick(chat) }
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -189,7 +221,7 @@ fun ChatListItem(chat: ChatEntity, isOnline: Boolean, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         MorphingAvatar(
-            initials = chat.peerName.take(1),
+            initials = (chat.peerName.takeIf { it.isNotEmpty() } ?: "?").take(1),
             isOnline = isOnline,
             size = 52.dp
         )
@@ -223,7 +255,7 @@ fun EmptyChatsState(padding: PaddingValues) {
     ) {
         Text(stringResource(R.string.no_recent_chats), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(modifier = Modifier.height(8.dp))
-        Text(stringResource(R.string.home_empty_state_desc), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+        Text(stringResource(R.string.home_empty_state_desc), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = EMPTY_STATE_TEXT_ALPHA))
     }
 }
 
@@ -303,6 +335,38 @@ private fun ErrorState(
             }
         }
     }
+}
+
+/**
+ * Search bar composable for the home screen.
+ * Uses Material3 TextField for a simple, standard search input.
+ */
+@Composable
+private fun SearchBarSection(
+    query: String,
+    onQueryChange: (String) -> Unit
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = MeshifyDesignSystem.Spacing.Md, vertical = MeshifyDesignSystem.Spacing.Sm),
+        placeholder = { Text(stringResource(R.string.search_chats_hint)) },
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        singleLine = true,
+        shape = MaterialTheme.shapes.large,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = SEARCH_BAR_BORDER_ALPHA)
+        )
+    )
 }
 
 fun formatRecentTime(timestamp: Long): String {

@@ -10,9 +10,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.FlowPreview
+
+/** Debounce interval for search input to avoid excessive DB queries */
+private const val SEARCH_DEBOUNCE_MS = 300L
 
 /**
  * ViewModel for the Recent Chats (Home) Screen with Online Status.
@@ -22,6 +29,7 @@ import javax.inject.Inject
  * Any database change (new chat, deleted chat, updated message)
  * will immediately update the UI.
  */
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class, FlowPreview::class)
 @HiltViewModel
 class RecentChatsViewModel @Inject constructor(
     private val chatRepository: ChatRepositoryImpl
@@ -30,30 +38,11 @@ class RecentChatsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(RecentChatsUiState())
     val uiState: StateFlow<RecentChatsUiState> = _uiState.asStateFlow()
 
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
     init {
-        // ✅ P0-2: Collect chats continuously — no take(1)
-        viewModelScope.launch {
-            chatRepository.getAllChats()
-                .catch { e ->
-                    Logger.e("RecentChatsViewModel -> Failed to load chats", e)
-                    _uiState.update { 
-                        it.copy(
-                            isLoading = false,
-                            error = e.message ?: "Unknown error occurred"
-                        ) 
-                    }
-                }
-                .collect { chats ->
-                    _uiState.update { 
-                        it.copy(
-                            chats = chats,
-                            isLoading = false,
-                            error = null
-                        ) 
-                    }
-                    Logger.d("RecentChatsViewModel -> Loaded ${chats.size} chats")
-                }
-        }
+        loadChatsWithSearch()
 
         // ✅ P0-2: Collect online peers independently — updates in real-time
         viewModelScope.launch {
@@ -62,6 +51,52 @@ class RecentChatsViewModel @Inject constructor(
                 Logger.d("RecentChatsViewModel -> ${onlinePeers.size} online peers")
             }
         }
+    }
+
+    /**
+     * Loads chats with search support.
+     * When search query is blank, returns all chats.
+     * When search query has text, returns filtered results.
+     * Debounced at 300ms to avoid excessive DB queries.
+     */
+    private fun loadChatsWithSearch() {
+        viewModelScope.launch {
+            _searchQuery
+                .debounce(SEARCH_DEBOUNCE_MS.milliseconds)
+                .flatMapLatest { query ->
+                    if (query.isBlank()) {
+                        chatRepository.getAllChats()
+                    } else {
+                        chatRepository.searchChats(query.trim())
+                    }
+                }
+                .catch { e ->
+                    Logger.e("RecentChatsViewModel -> Failed to load chats", e)
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = e.message ?: "Unknown error occurred"
+                        )
+                    }
+                }
+                .collect { chats ->
+                    _uiState.update {
+                        it.copy(
+                            chats = chats,
+                            isLoading = false,
+                            error = null
+                        )
+                    }
+                    Logger.d("RecentChatsViewModel -> Loaded ${chats.size} chats")
+                }
+        }
+    }
+
+    /**
+     * Update the search query. Triggers debounced search.
+     */
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
     }
 
     /**
