@@ -3,6 +3,7 @@ package com.p2p.meshify.feature.chat
 import android.content.Context
 import android.net.Uri
 import androidx.compose.ui.platform.ClipboardManager
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.p2p.meshify.core.common.R
@@ -18,6 +19,8 @@ import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.model.TransportType
 import com.p2p.meshify.domain.security.model.SecurityEvent
 import com.p2p.meshify.core.ui.model.StagedAttachment
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
@@ -28,6 +31,7 @@ import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.milliseconds
 import java.io.File
 import java.util.UUID
+import javax.inject.Inject
 
 private const val ATTACHMENT_CACHE_MAX_SIZE = 200
 
@@ -50,16 +54,41 @@ data class ChatUiState(
 )
 
 @OptIn(FlowPreview::class)
-class ChatViewModel(
-    private val context: Context,
-    private val peerId: String,
-    private val peerName: String,
-    private val repository: ChatRepositoryImpl,
-    transportTypeProvider: (() -> TransportType)? = null
+@HiltViewModel
+class ChatViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val savedStateHandle: SavedStateHandle,
+    private val repository: ChatRepositoryImpl
 ) : ViewModel() {
 
-    // ✅ T4: Function that resolves the current transport type for outgoing messages
-    private val _transportTypeProvider: (() -> TransportType)? = transportTypeProvider
+    // Peer ID and name from navigation arguments via SavedStateHandle
+    val peerId: String = savedStateHandle.get<String>("peerId") ?: ""
+    val peerName: String = savedStateHandle.get<String>("peerName") ?: "Peer"
+
+    // Resolves current transport type from app-level state for outgoing messages
+    private var _transportTypeProvider: (() -> TransportType)? = null
+
+    fun setTransportTypeProvider(provider: () -> TransportType) {
+        _transportTypeProvider = provider
+    }
+
+    /**
+     * Secondary constructor for manual factory usage (non-Hilt).
+     * Allows backward compatibility with existing MainActivity ViewModel factory.
+     */
+    constructor(
+        context: Context,
+        peerId: String,
+        peerName: String,
+        repository: ChatRepositoryImpl
+    ) : this(
+        context = context,
+        savedStateHandle = SavedStateHandle().also {
+            it["peerId"] = peerId
+            it["peerName"] = peerName
+        },
+        repository = repository
+    )
 
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
@@ -279,7 +308,7 @@ class ChatViewModel(
                     _uiState.update { it.copy(inputText = "", draftText = "", replyTo = null) }
                 }
 
-                // ✅ T4: Track transport used for the most recently sent message
+                // Record which transport was used for the most recently sent message
                 // Small delay to ensure Room Flow has emitted the new message
                 kotlinx.coroutines.delay(50)
                 _uiState.update { currentState ->
@@ -707,7 +736,7 @@ class ChatViewModel(
         _uiState.update { it.copy(securityWarning = null) }
     }
 
-    // ==================== T4: Transport Tracking ====================
+    // ==================== Transport Type Utilities ====================
 
     /**
      * Get the transport type label resource for a given transport type.

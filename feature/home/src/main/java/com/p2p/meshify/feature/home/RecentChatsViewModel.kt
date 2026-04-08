@@ -5,22 +5,25 @@ import androidx.lifecycle.viewModelScope
 import com.p2p.meshify.core.data.local.entity.ChatEntity
 import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
 import com.p2p.meshify.core.util.Logger
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * ViewModel for the Recent Chats (Home) Screen with Online Status.
  * Depends on ChatRepositoryImpl for direct method access.
- * 
+ *
  * ✅ P0-2: Collects Room Flow continuously instead of take(1).
- * Any database change (new chat, deleted chat, updated message) 
+ * Any database change (new chat, deleted chat, updated message)
  * will immediately update the UI.
  */
-class RecentChatsViewModel(
+@HiltViewModel
+class RecentChatsViewModel @Inject constructor(
     private val chatRepository: ChatRepositoryImpl
 ) : ViewModel() {
 

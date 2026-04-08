@@ -508,6 +508,22 @@
     <string name="forward_dialog_progress_format">%1$d/%2$d</string>
     <string name="forward_dialog_more_messages">+%d more</string>
 
+    <!-- Forward Message Types (for buildForwardContext in MessageSendingServiceImpl) -->
+    <string name="forward_image_label">📷 Image</string>
+    <string name="forward_video_label">🎥 Video</string>
+    <string name="forward_audio_label">🎵 Audio</string>
+    <string name="forward_file_label">📄 File</string>
+    <string name="forward_document_label">📄 Document</string>
+    <string name="forward_archive_label">📦 Archive</string>
+    <string name="forward_apk_label">📱 APK</string>
+    <string name="label_forwarded">Forwarded:</string>
+    <string name="label_timestamp_format">" (%s)"</string>
+
+    <!-- Message Labels -->
+    <string name="label_album">[Album]</string>
+    <string name="label_encrypted">[Encrypted]</string>
+    <string name="label_unknown">Unknown</string>
+
     <!-- Staged Media Row - Content Descriptions -->
     <string name="staged_media_desc">Staged media</string>
     <string name="video_desc">Video</string>

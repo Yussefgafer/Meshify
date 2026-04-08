@@ -12,11 +12,13 @@ import com.p2p.meshify.domain.model.MotionPreset
 import com.p2p.meshify.domain.model.TransportMode
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.domain.repository.ThemeMode
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * Unified UI state for the Settings screen.
@@ -55,7 +57,7 @@ data class SettingsUiState(
  * Uses a single [SettingsUiState] StateFlow instead of 20+ individual flows.
  * This reduces recompositions from 16+ to exactly 1 when any setting changes.
  */
-class SettingsViewModel(
+class SettingsViewModel @Inject constructor(
     val settingsRepository: ISettingsRepository
 ) : ViewModel() {
 
