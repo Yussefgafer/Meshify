@@ -2,8 +2,10 @@ package com.p2p.meshify.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.sqlite.db.SupportSQLiteOpenHelper
 import com.p2p.meshify.core.data.local.MeshifyDatabase
 import com.p2p.meshify.core.data.repository.PeerTrustStore
+import com.p2p.meshify.core.data.security.DatabaseKeyManager
 import com.p2p.meshify.core.data.security.impl.EcdhSessionManager
 import com.p2p.meshify.core.data.security.impl.InMemoryNonceCache
 import com.p2p.meshify.core.data.security.impl.MessageEnvelopeCrypto
@@ -32,8 +34,12 @@ object AppModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): MeshifyDatabase {
+        val keyManager = DatabaseKeyManager(context)
+        val supportFactory: SupportSQLiteOpenHelper.Factory = keyManager.getSupportFactory()
+
         return Room.databaseBuilder(context, MeshifyDatabase::class.java, "meshify.db")
             .fallbackToDestructiveMigration(dropAllTables = true)
+            .openHelperFactory(supportFactory)
             .build()
     }
 

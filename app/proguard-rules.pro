@@ -19,3 +19,20 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# =============================================================================
+# SQLCipher — Required for encrypted Room database
+# =============================================================================
+# Keep all SQLCipher classes (native library bridge)
+-keep class net.zetetic.** { *; }
+-keep class net.sqlcipher.** { *; }
+-dontwarn net.zetetic.**
+-dontwarn net.sqlcipher.**
+
+# Keep native methods for JNI
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+# Preserve serialization annotations for Room schema
+-keepattributes *Annotation*, Signature, EnclosingMethod
