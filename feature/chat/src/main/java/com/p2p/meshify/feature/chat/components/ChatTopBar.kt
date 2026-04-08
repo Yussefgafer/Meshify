@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,7 +42,8 @@ fun ChatTopBar(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
     trustLevel: TrustLevel = TrustLevel.UNKNOWN,
-    onVerifyClick: (() -> Unit)? = null
+    onVerifyClick: (() -> Unit)? = null,
+    onSearchClick: (() -> Unit)? = null
 ) {
     TopAppBar(
         modifier = modifier,
@@ -86,6 +88,16 @@ fun ChatTopBar(
         navigationIcon = {
             IconButton(onClick = onBackClick) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
+            }
+        },
+        actions = {
+            if (onSearchClick != null) {
+                IconButton(onClick = onSearchClick) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = stringResource(R.string.content_desc_search)
+                    )
+                }
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(

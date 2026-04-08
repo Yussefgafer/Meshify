@@ -144,7 +144,10 @@ class ChatRepositoryImpl(
 
     // Public DAO access methods for ViewModels (backward compatibility)
     fun getAllChats(): Flow<List<ChatEntity>> = chatManagementRepository.getAllChats()
+    fun searchChats(query: String): Flow<List<ChatEntity>> = chatManagementRepository.searchChats(query)
     fun getMessages(chatId: String): Flow<List<MessageEntity>> = messageRepository.getMessages(chatId)
+    fun searchMessagesInChat(chatId: String, query: String): Flow<List<MessageEntity>> =
+        messageRepository.searchMessagesInChat(chatId, query)
     fun getMessagesPaged(chatId: String, limit: Int, offset: Int): Flow<List<MessageEntity>> =
         messageRepository.getMessagesPaged(chatId, limit, offset)
 

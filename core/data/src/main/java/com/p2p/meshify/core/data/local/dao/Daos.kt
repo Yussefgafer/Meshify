@@ -18,6 +18,13 @@ interface ChatDao {
 
     @Query("DELETE FROM chats WHERE peerId = :peerId")
     suspend fun deleteChatById(peerId: String)
+
+    @Query("""
+        SELECT * FROM chats 
+        WHERE peerName LIKE '%' || :query || '%' OR lastMessage LIKE '%' || :query || '%'
+        ORDER BY lastTimestamp DESC
+    """)
+    fun searchChats(query: String): Flow<List<ChatEntity>>
 }
 
 @Dao
@@ -79,6 +86,16 @@ interface MessageDao {
     // ✅ FIX: Get all attachments in database (for debugging/utility)
     @Query("SELECT * FROM message_attachments ORDER BY id")
     suspend fun getAllAttachments(): List<MessageAttachmentEntity>
+
+    @Query("""
+        SELECT * FROM messages 
+        WHERE chatId = :chatId 
+          AND text LIKE '%' || :query || '%' 
+          AND isDeletedForMe = 0
+        ORDER BY timestamp DESC
+    """)
+    fun searchMessagesInChat(chatId: String, query: String): Flow<List<MessageEntity>>
+
 }
 
 @Dao

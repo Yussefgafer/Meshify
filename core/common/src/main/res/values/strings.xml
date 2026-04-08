@@ -18,6 +18,10 @@
     <string name="typing_indicator">typing...</string>
     <string name="status_online">Online</string>
     <string name="status_offline">Offline</string>
+    <string name="search_chats_hint">Search chats…</string>
+    <string name="search_no_results">No results found</string>
+    <string name="search_in_chat_hint">Search messages…</string>
+    <string name="search_results_count">%d result(s)</string>
 
     <!-- Discovery Screen -->
     <string name="screen_discovery_title">Discovery</string>
@@ -278,6 +282,8 @@
     <string name="content_desc_attach">Attach file</string>
     <string name="content_desc_settings">Settings</string>
     <string name="content_desc_discovery">Discovery</string>
+    <string name="content_desc_search">Search</string>
+    <string name="content_desc_close_search">Close search</string>
 
     <!-- Accessibility Content Descriptions - Added for TalkBack support -->
     <string name="forward_dialog_search_desc">Search</string>

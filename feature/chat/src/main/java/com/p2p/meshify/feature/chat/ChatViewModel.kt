@@ -33,6 +33,9 @@ import java.io.File
 import java.util.UUID
 import javax.inject.Inject
 
+/** Debounce interval for search input to avoid excessive DB queries */
+private const val SEARCH_DEBOUNCE_MS = 300L
+
 private const val ATTACHMENT_CACHE_MAX_SIZE = 200
 
 data class ChatUiState(
@@ -113,6 +116,18 @@ class ChatViewModel @Inject constructor(
     val uploadProgress: StateFlow<Map<String, Int>> = _uploadProgress
         .sample(100.milliseconds)
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
+
+    // ==================== Search State ====================
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _searchResults = MutableStateFlow<List<MessageEntity>>(emptyList())
+    val searchResults: StateFlow<List<MessageEntity>> = _searchResults.asStateFlow()
+
+    private val _isSearching = MutableStateFlow(false)
+    val isSearching: StateFlow<Boolean> = _isSearching.asStateFlow()
+
+    private var searchCollectionJob: kotlinx.coroutines.Job? = null
 
     // Pagination state - using ArrayDeque for O(1) prepend operations
     private var currentPage = 0
@@ -734,6 +749,57 @@ class ChatViewModel @Inject constructor(
      */
     fun clearSecurityWarning() {
         _uiState.update { it.copy(securityWarning = null) }
+    }
+
+    // ==================== Search Functions ====================
+
+    /**
+     * Start search mode in the chat. Collects search results from the database.
+     */
+    fun startSearch() {
+        _isSearching.value = true
+        _searchQuery.value = ""
+        _searchResults.value = emptyList()
+
+        // Cancel any previous search job
+        searchCollectionJob?.cancel()
+
+        searchCollectionJob = viewModelScope.launch {
+            _searchQuery
+                .debounce(SEARCH_DEBOUNCE_MS.milliseconds)
+                .collect { query ->
+                    if (query.isBlank()) {
+                        _searchResults.value = emptyList()
+                    } else {
+                        repository.searchMessagesInChat(peerId, query.trim())
+                            .catch { e ->
+                                Logger.e("ChatViewModel -> Search failed", e)
+                                _searchResults.value = emptyList()
+                            }
+                            .collect { results ->
+                                _searchResults.value = results
+                            }
+                    }
+                }
+        }
+    }
+
+    /**
+     * Stop search mode and clear all search state.
+     */
+    fun stopSearch() {
+        searchCollectionJob?.cancel()
+        searchCollectionJob = null
+        _searchQuery.value = ""
+        _searchResults.value = emptyList()
+        _isSearching.value = false
+    }
+
+    /**
+     * Update the search query. Triggers debounced search.
+     */
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
     }
 
     // ==================== Transport Type Utilities ====================

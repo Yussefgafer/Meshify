@@ -4,24 +4,37 @@ import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -40,7 +53,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.p2p.meshify.core.common.R
@@ -65,6 +82,16 @@ import com.p2p.meshify.feature.chat.components.ScrollToFAB
 import com.p2p.meshify.feature.chat.components.SelectionModeTopBar
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+// ── Search UI constants ──────────────────────────────────────────────
+private const val SEARCH_RESULT_BG_ALPHA_FROM_ME = 0.3f
+private const val SEARCH_RESULT_BG_ALPHA_OTHER = 0.5f
+private const val SEARCH_RESULT_TEXT_ALPHA = 0.6f
+private const val SEARCH_HIGHLIGHT_ALPHA = 0.2f
+private const val SEARCH_BAR_BORDER_ALPHA = 0.5f
 
 /**
  * Main chat screen composable — orchestrates all chat sub-components.
@@ -100,11 +127,17 @@ fun ChatScreen(
     val uiState by viewModel.uiState.collectAsState()
     val selectedMessages by viewModel.selectedMessages.collectAsState()
     val forwardDialogState by viewModel.forwardDialogState.collectAsState()
+    val isSearching by viewModel.isSearching.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val searchResults by viewModel.searchResults.collectAsState()
     val listState = rememberLazyListState()
     val themeConfig = LocalMeshifyThemeConfig.current
     val clipboard = LocalClipboardManager.current
     var menuMessage by remember { mutableStateOf<MessageEntity?>(null) }
     var selectedFullImage by remember { mutableStateOf<String?>(null) }
+    var searchTextField by rememberSaveable(stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue(""))
+    }
 
     // P2-11: Initialize textState from ViewModel draftText, survive config changes via rememberSaveable
     var textState by rememberSaveable(stateSaver = TextFieldValue.Saver) {
@@ -228,6 +261,12 @@ fun ChatScreen(
             }
     }
 
+    // BackHandler: exit search mode first
+    BackHandler(enabled = isSearching) {
+        viewModel.stopSearch()
+        searchTextField = TextFieldValue("")
+    }
+
     // BackHandler for unsaved message drafts
     BackHandler(enabled = uiState.inputText.isNotBlank()) {
         if (uiState.inputText.length > 50) {
@@ -258,11 +297,58 @@ fun ChatScreen(
                         viewModel.clearSelection()
                     }
                 )
+            } else if (isSearching) {
+                // Search mode top bar
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = searchTextField,
+                            onValueChange = {
+                                searchTextField = it
+                                viewModel.updateSearchQuery(it.text)
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = MeshifyDesignSystem.Spacing.Sm, vertical = MeshifyDesignSystem.Spacing.Xs),
+                            placeholder = { Text(stringResource(R.string.search_in_chat_hint)) },
+                            singleLine = true,
+                            shape = MaterialTheme.shapes.large,
+                            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = SEARCH_BAR_BORDER_ALPHA)
+                            )
+                        )
+                        IconButton(onClick = {
+                            viewModel.stopSearch()
+                            searchTextField = TextFieldValue("")
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = stringResource(R.string.content_desc_close_search)
+                            )
+                        }
+                    }
+                    // Results count indicator
+                    if (searchQuery.isNotBlank() && searchResults.isNotEmpty()) {
+                        Text(
+                            text = stringResource(R.string.search_results_count, searchResults.size),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Md)
+                        )
+                    }
+                }
             } else {
                 ChatTopBar(
                     peerName = peerName,
                     isOnline = uiState.isOnline,
-                    onBackClick = onBackClick
+                    onBackClick = onBackClick,
+                    onSearchClick = {
+                        viewModel.startSearch()
+                    }
                 )
             }
         },
@@ -290,7 +376,7 @@ fun ChatScreen(
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             // Initial loading state
-            if (uiState.messages.isEmpty() && uiState.isLoading) {
+            if (uiState.messages.isEmpty() && uiState.isLoading && !isSearching) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -312,8 +398,16 @@ fun ChatScreen(
                 }
             }
 
-            // Message list
-            MessageList(
+            if (isSearching) {
+                // Show search results instead of message list
+                SearchResultsList(
+                    results = searchResults,
+                    query = searchQuery,
+                    listState = listState
+                )
+            } else {
+                // Message list
+                MessageList(
                 messages = uiState.messages,
                 isLoading = uiState.isLoading,
                 isLoadingMore = uiState.isLoadingMore,
@@ -347,19 +441,22 @@ fun ChatScreen(
                 },
                 modifier = Modifier.fillMaxSize()
             )
+            }
 
-            // Scroll to bottom FAB
-            ScrollToFAB(
-                isVisible = !hasScrolledToBottom,
-                onScrollToBottom = {
-                    haptics.perform(HapticPattern.Tick)
-                    scope.launch {
-                        listState.animateScrollToItem(uiState.messages.size - 1)
-                        hasScrolledToBottom = true
-                    }
-                },
-                modifier = Modifier.align(Alignment.BottomEnd)
-            )
+            // Scroll to bottom FAB (hidden during search)
+            if (!isSearching) {
+                ScrollToFAB(
+                    isVisible = !hasScrolledToBottom,
+                    onScrollToBottom = {
+                        haptics.perform(HapticPattern.Tick)
+                        scope.launch {
+                            listState.animateScrollToItem(uiState.messages.size - 1)
+                            hasScrolledToBottom = true
+                        }
+                    },
+                    modifier = Modifier.align(Alignment.BottomEnd)
+                )
+            }
         }
     }
 
@@ -430,4 +527,136 @@ fun ChatScreen(
             hapticTick = { haptics.perform(HapticPattern.Tick) }
         )
     }
+}
+
+/**
+ * Search results list shown when the user is searching within a chat.
+ * Displays messages with highlighted matching text.
+ */
+@Composable
+private fun SearchResultsList(
+    results: List<MessageEntity>,
+    query: String,
+    listState: androidx.compose.foundation.lazy.LazyListState
+) {
+    if (results.isEmpty() && query.isNotBlank()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = stringResource(R.string.search_no_results),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            state = listState,
+            contentPadding = PaddingValues(vertical = MeshifyDesignSystem.Spacing.Sm)
+        ) {
+            items(results, key = { it.id }) { message ->
+                SearchResultItem(
+                    message = message,
+                    query = query
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Individual search result with highlighted matching text.
+ */
+@Composable
+private fun SearchResultItem(
+    message: MessageEntity,
+    query: String
+) {
+    val highlightColor = MaterialTheme.colorScheme.primaryContainer
+    val isFromMe = message.isFromMe
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = MeshifyDesignSystem.Spacing.Md, vertical = MeshifyDesignSystem.Spacing.Xs)
+    ) {
+        // Sender and timestamp
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = if (isFromMe) Arrangement.End else Arrangement.Start
+        ) {
+            Text(
+                text = if (isFromMe) stringResource(R.string.chat_message_you, "") else "",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        // Message text with highlighted match
+        val displayText = message.text ?: ""
+        if (displayText.isNotBlank()) {
+            val annotatedText = buildAnnotatedString {
+                val lowerText = displayText.lowercase()
+                val lowerQuery = query.lowercase()
+                var startIndex = 0
+
+                while (startIndex < displayText.length) {
+                    val matchIndex = lowerText.indexOf(lowerQuery, startIndex)
+                    if (matchIndex == -1) {
+                        // No more matches — append the rest
+                        append(displayText.substring(startIndex))
+                        break
+                    } else {
+                        // Append text before match
+                        if (matchIndex > startIndex) {
+                            append(displayText.substring(startIndex, matchIndex))
+                        }
+                        // Append highlighted match
+                        withStyle(SpanStyle(background = highlightColor)) {
+                            append(displayText.substring(matchIndex, matchIndex + query.length))
+                        }
+                        startIndex = matchIndex + query.length
+                    }
+                }
+            }
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.medium,
+                color = if (isFromMe) {
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = SEARCH_RESULT_BG_ALPHA_FROM_ME)
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = SEARCH_RESULT_BG_ALPHA_OTHER)
+                }
+            ) {
+                Text(
+                    text = annotatedText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Sm)
+                )
+            }
+        }
+
+        // Timestamp
+        Text(
+            text = formatChatTime(message.timestamp),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = SEARCH_RESULT_TEXT_ALPHA),
+            modifier = Modifier.padding(top = MeshifyDesignSystem.Spacing.Xxs)
+        )
+
+        HorizontalDivider(
+            modifier = Modifier.padding(top = MeshifyDesignSystem.Spacing.Xs),
+            color = MaterialTheme.colorScheme.outline.copy(alpha = SEARCH_HIGHLIGHT_ALPHA)
+        )
+    }
+}
+
+private fun formatChatTime(timestamp: Long): String {
+    val sdf = SimpleDateFormat("hh:mm a", Locale.US)
+    return sdf.format(Date(timestamp))
 }
