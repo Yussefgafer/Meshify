@@ -426,6 +426,11 @@
     <string name="content_desc_refresh">Refresh</string>
     <string name="content_desc_close">Close</string>
     <string name="content_desc_scroll_to_bottom">Scroll to bottom</string>
+
+    <!-- OOB Verification - Trust Indicator Content Descriptions -->
+    <string name="content_desc_verified">Verified</string>
+    <string name="content_desc_unverified">Unverified</string>
+    <string name="content_desc_unverified_tap_verify">Unverified — tap to verify</string>
     <string name="chat_empty_title">No messages yet</string>
     <string name="chat_empty_desc">Start a conversation with %s</string>
     <string name="onboarding_page_indicator">Page %d</string>
@@ -552,4 +557,26 @@
     <string name="developer_group_cleanup">Cleanup</string>
     <string name="developer_clear_mock_data">Clear Mock Data</string>
     <string name="developer_clear_all_data">Clear ALL Data</string>
+
+    <!-- OOB Verification Dialog -->
+    <string name="oob_verify_title">Verify Identity</string>
+    <string name="oob_method_qr">QR Code</string>
+    <string name="oob_method_sas">Compare Codes</string>
+    <string name="oob_method_nfc">NFC</string>
+    <string name="oob_qr_title">Scan My QR Code</string>
+    <string name="oob_qr_subtitle">Your peer should scan this code to verify my identity</string>
+    <string name="oob_sas_instruction">Compare the codes below. If they match, tap "They Match". If different, tap "They Differ".</string>
+    <string name="oob_sas_your_code">Your code:</string>
+    <string name="oob_sas_peer_code">Peer\'s code:</string>
+    <string name="oob_sas_codes_match">Codes match!</string>
+    <string name="oob_sas_codes_differ">Codes differ!</string>
+    <string name="oob_sas_waiting_peer">Waiting for peer\'s code…</string>
+    <string name="oob_sas_btn_match">They Match</string>
+    <string name="oob_sas_btn_differ">They Differ</string>
+    <string name="oob_nfc_title">NFC Verification</string>
+    <string name="oob_nfc_subtitle">Tap devices together to verify. Coming soon.</string>
+    <string name="oob_btn_done">Done</string>
+
+    <!-- Generic Dialog Buttons -->
+    <string name="dialog_btn_close">Close</string>
 </resources>
