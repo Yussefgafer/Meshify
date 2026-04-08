@@ -2,6 +2,7 @@
 <h3 align="center">Secure Offline P2P Messaging - No Internet Required</h3>
 
 <p align="center">
+  <img src="https://img.shields.io/github/repo-size/Yussefgafer/Meshify" alt="Repo size">
   <img src="https://img.shields.io/badge/Kotlin-2.3.10-blue.svg" alt="Kotlin Version">
   <img src="https://img.shields.io/badge/Android_API-26%2B-brightgreen.svg" alt="Min API Level">
   <img src="https://img.shields.io/badge/Target_API-35-blue.svg" alt="Target API">
