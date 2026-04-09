@@ -14,8 +14,14 @@ import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -318,27 +324,38 @@ class ChatAttachmentsViewModelTest {
 
     // ==================== cancelUpload Tests ====================
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun `cancelUpload should remove progress entry`() = runTest {
-        // Start a file upload that will stay in progress
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(testDispatcher)
+
+        val uploadStarted = CompletableDeferred<Unit>()
+        val uploadContinue = CompletableDeferred<Unit>()
+
         coEvery { mockRepository.sendFileWithProgress(any(), any(), any(), any(), any(), any(), any(), any()) } answers {
-            // Simulate a long-running upload by never completing
-            Thread.sleep(Long.MAX_VALUE)
+            uploadStarted.complete(Unit)
+            kotlinx.coroutines.runBlocking { uploadContinue.await() }
             Result.success(Unit)
         }
+
         val testFile = mockk<File>(relaxed = true)
         every { testFile.length() } returns 1024L
 
         viewModel.sendFileWithProgress("msg-upload", testFile, MessageType.FILE)
-        // Don't advance - let the upload stay in progress
-        // The progress entry should exist (set to 0)
-        val progressBefore = viewModel.uploadProgress.value
-        assertTrue(progressBefore.containsKey("msg-upload"))
+        uploadStarted.await()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uploadProgress.value.containsKey("msg-upload"))
 
         viewModel.cancelUpload("msg-upload")
 
         val progressAfter = viewModel.uploadProgress.value
         assertFalse(progressAfter.containsKey("msg-upload"))
+
+        uploadContinue.complete(Unit)
+        advanceUntilIdle()
+        Dispatchers.resetMain()
     }
 
     // ==================== getAttachmentsForMessage Tests ====================
