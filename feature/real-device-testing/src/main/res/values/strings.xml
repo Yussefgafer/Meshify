@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Screen Title -->
+    <string name="real_device_testing_title">Real-Device Testing</string>
+    <string name="real_device_testing_subtitle">Test connectivity, encryption, and messaging on real devices</string>
+
+    <!-- Pre-Flight Section -->
+    <string name="preflight_title">Pre-Flight Checks</string>
+    <string name="preflight_permissions">Permissions</string>
+    <string name="preflight_connectivity">Connectivity</string>
+    <string name="preflight_security">Security (ECDH)</string>
+    <string name="preflight_checking">Checking…</string>
+    <string name="preflight_pass">Passed</string>
+    <string name="preflight_fail">Failed</string>
+    <string name="preflight_requesting">Requesting…</string>
+
+    <!-- Test Selection Section -->
+    <string name="test_selection_title">Select Tests</string>
+    <string name="test_selection_start">Start Testing</string>
+
+    <!-- Test Scenarios -->
+    <string name="test_discovery_title">Discovery Test</string>
+    <string name="test_discovery_subtitle">Scan for nearby devices via mDNS and BLE</string>
+
+    <string name="test_ping_title">Ping Test</string>
+    <string name="test_ping_subtitle">Measure round-trip time via SYSTEM_CONTROL PING/PONG</string>
+
+    <string name="test_message_title">Message Test</string>
+    <string name="test_message_subtitle">Send a real encrypted message through the full pipeline</string>
+
+    <string name="test_file_title">File Transfer Test</string>
+    <string name="test_file_subtitle">Send a test file and verify reception</string>
+
+    <string name="test_latency_title">Latency Test</string>
+    <string name="test_latency_subtitle">Send 10 messages and measure avg/min/max/p95 latency</string>
+
+    <string name="test_roundtrip_title">Round-Trip Test</string>
+    <string name="test_roundtrip_subtitle">Send an echo request and verify the response matches</string>
+
+    <!-- Peer Selection Section -->
+    <string name="peer_selection_title">Discovered Devices</string>
+    <string name="peer_selection_scanning">Scanning for devices…</string>
+    <string name="peer_selection_none">No devices found. Make sure another device is running the app on the same network.</string>
+    <string name="peer_selection_select">Select a target device</string>
+
+    <!-- Test Progress Section -->
+    <string name="test_progress_title">Running Tests</string>
+    <string name="test_progress_running">Running…</string>
+    <string name="test_progress_pending">Pending</string>
+
+    <!-- Test Results Section -->
+    <string name="test_results_title">Results</string>
+    <string name="test_results_summary">%1$d/%2$d Passed</string>
+    <string name="test_results_export">Export Log</string>
+    <string name="test_results_rerun">Re-run</string>
+    <string name="test_results_cleanup">Clean Test Data</string>
+
+    <!-- Status Labels -->
+    <string name="status_passed">PASSED</string>
+    <string name="status_failed">FAILED</string>
+    <string name="status_timeout">TIMEOUT</string>
+    <string name="status_pending">PENDING</string>
+    <string name="status_running">RUNNING</string>
+
+    <!-- Cleanup & Warnings -->
+    <string name="cleanup_success">Test data cleaned from database</string>
+    <string name="cleanup_failure">Failed to clean test data: %1$s</string>
+    <string name="warning_old_version">If the target device has an older app version, Ping/Echo/Latency tests may fail. Update the app on both devices.</string>
+
+    <!-- Error Messages -->
+    <string name="error_no_transport">No available transport. Check your network connection.</string>
+    <string name="error_no_peer_selected">Please select a target device first.</string>
+    <string name="error_session_failed">ECDH session could not be established with the target device.</string>
+    <string name="error_permission_denied">Required permissions not granted.</string>
+</resources>

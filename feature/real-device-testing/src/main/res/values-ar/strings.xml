@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Screen Title -->
+    <string name="real_device_testing_title">اختبارات الجهاز الحقيقي</string>
+    <string name="real_device_testing_subtitle">اختبار الاتصال والتشفير والرسائل على أجهزة حقيقية</string>
+
+    <!-- Pre-Flight Section -->
+    <string name="preflight_title">فحوصات تمهيدية</string>
+    <string name="preflight_permissions">الصلاحيات</string>
+    <string name="preflight_connectivity">الاتصال</string>
+    <string name="preflight_security">الأمان (ECDH)</string>
+    <string name="preflight_checking">جارٍ الفحص…</string>
+    <string name="preflight_pass">نجح</string>
+    <string name="preflight_fail">فشل</string>
+    <string name="preflight_requesting">جارٍ الطلب…</string>
+
+    <!-- Test Selection Section -->
+    <string name="test_selection_title">اختر الاختبارات</string>
+    <string name="test_selection_start">ابدأ الاختبار</string>
+
+    <!-- Test Scenarios -->
+    <string name="test_discovery_title">اختبار الاكتشاف</string>
+    <string name="test_discovery_subtitle">البحث عن الأجهزة القريبة عبر mDNS و BLE</string>
+
+    <string name="test_ping_title">اختبار Ping</string>
+    <string name="test_ping_subtitle">قياس وقت الذهاب والعودة عبر SYSTEM_CONTROL PING/PONG</string>
+
+    <string name="test_message_title">اختبار الرسائل</string>
+    <string name="test_message_subtitle">إرسال رسالة مشفرة حقيقية عبر الـ Pipeline كاملة</string>
+
+    <string name="test_file_title">اختبار نقل الملفات</string>
+    <string name="test_file_subtitle">إرسال ملف تجريبي والتحقق من استلامه</string>
+
+    <string name="test_latency_title">اختبار زمن الاستجابة</string>
+    <string name="test_latency_subtitle">إرسال 10 رسائل وقياس avg/min/max/p95</string>
+
+    <string name="test_roundtrip_title">اختبار الذهاب والعودة</string>
+    <string name="test_roundtrip_subtitle">إرسال طلب echo والتحقق من تطابق الرد</string>
+
+    <!-- Peer Selection Section -->
+    <string name="peer_selection_title">الأجهزة المكتشفة</string>
+    <string name="peer_selection_scanning">جارٍ البحث عن أجهزة…</string>
+    <string name="peer_selection_none">لم يتم العثور على أجهزة. تأكد من وجود جهاز آخر يشغّل التطبيق على نفس الشبكة.</string>
+    <string name="peer_selection_select">اختر جهاز الهدف</string>
+
+    <!-- Test Progress Section -->
+    <string name="test_progress_title">جارٍ تشغيل الاختبارات</string>
+    <string name="test_progress_running">جارٍ التشغيل…</string>
+    <string name="test_progress_pending">قيد الانتظار</string>
+
+    <!-- Test Results Section -->
+    <string name="test_results_title">النتائج</string>
+    <string name="test_results_summary">%1$d/%2$d نجح</string>
+    <string name="test_results_export">تصدير السجل</string>
+    <string name="test_results_rerun">إعادة التشغيل</string>
+    <string name="test_results_cleanup">تنظيف بيانات الاختبار</string>
+
+    <!-- Status Labels -->
+    <string name="status_passed">نجح</string>
+    <string name="status_failed">فشل</string>
+    <string name="status_timeout">انتهت المهلة</string>
+    <string name="status_pending">قيد الانتظار</string>
+    <string name="status_running">جارٍ التشغيل</string>
+
+    <!-- Cleanup & Warnings -->
+    <string name="cleanup_success">تم تنظيف بيانات الاختبار من قاعدة البيانات</string>
+    <string name="cleanup_failure">فشل تنظيف بيانات الاختبار: %1$s</string>
+    <string name="warning_old_version">إذا كان الجهاز المقابل يحتوي على إصدار قديم من التطبيق، فقد تفشل اختبارات Ping/Echo/Latency. حدّث التطبيق على الجهازين.</string>
+
+    <!-- Error Messages -->
+    <string name="error_no_transport">لا يوجد اتصال متاح. تحقق من اتصال الشبكة.</string>
+    <string name="error_no_peer_selected">يرجى اختيار جهاز هدف أولاً.</string>
+    <string name="error_session_failed">تعذر إنشاء جلسة ECDH مع الجهاز الهدف.</string>
+    <string name="error_permission_denied">لم يتم منح الصلاحيات المطلوبة.</string>
+</resources>

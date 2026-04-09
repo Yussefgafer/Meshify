@@ -116,6 +116,7 @@ dependencies {
     implementation(project(":feature:chat"))
     implementation(project(":feature:discovery"))
     implementation(project(":feature:settings"))
+    implementation(project(":feature:real-device-testing"))
 
     // Hilt Dependency Injection
     implementation(libs.hilt.android)
