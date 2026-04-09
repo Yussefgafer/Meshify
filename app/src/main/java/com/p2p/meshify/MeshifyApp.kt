@@ -11,7 +11,6 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import com.p2p.meshify.core.data.local.MeshifyDatabase
 import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
-import com.p2p.meshify.core.data.security.impl.PeerIdentityManagerImpl
 import com.p2p.meshify.core.domain.interfaces.WifiStateChecker
 import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.core.network.base.TransportEvent
@@ -19,6 +18,7 @@ import com.p2p.meshify.core.network.ble.BleTransportImpl
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.receivers.ReplyReceiver
 import com.p2p.meshify.domain.repository.ISettingsRepository
+import com.p2p.meshify.domain.security.interfaces.PeerIdentityRepository
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,7 +38,7 @@ class MeshifyApp : Application(), SingletonImageLoader.Factory {
     @Inject lateinit var chatRepository: ChatRepositoryImpl
     @Inject lateinit var transportManager: TransportManager
     @Inject lateinit var settingsRepository: ISettingsRepository
-    @Inject lateinit var peerIdentity: PeerIdentityManagerImpl
+    @Inject lateinit var peerIdentity: PeerIdentityRepository
     @Inject lateinit var wifiStateChecker: WifiStateChecker
     @Inject lateinit var database: MeshifyDatabase
 

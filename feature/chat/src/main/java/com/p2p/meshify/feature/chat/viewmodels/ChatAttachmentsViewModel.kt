@@ -11,8 +11,6 @@ import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.core.ui.model.StagedAttachment
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.feature.chat.state.ChatAttachmentsUiState
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,7 +25,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
-import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val ATTACHMENT_CACHE_MAX_SIZE = 200
@@ -47,9 +44,8 @@ private const val ATTACHMENT_CACHE_MAX_SIZE = 200
  * - LRU cache for message attachments
  * - Getting attachments for a message (group)
  */
-@HiltViewModel
-class ChatAttachmentsViewModel @Inject constructor(
-    @param:ApplicationContext private val context: Context,
+class ChatAttachmentsViewModel(
+    private val context: Context,
     private val chatRepository: ChatRepositoryImpl,
     private val peerId: String,
     private val peerName: String
