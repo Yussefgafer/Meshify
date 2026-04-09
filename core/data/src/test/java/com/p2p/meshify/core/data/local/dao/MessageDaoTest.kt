@@ -67,6 +67,9 @@ class MessageDaoTest {
         timestamp: Long = System.currentTimeMillis(),
         isFromMe: Boolean = true,
         status: MessageStatus = MessageStatus.SENT,
+        isDeletedForMe: Boolean = false,
+        isDeletedForEveryone: Boolean = false,
+        reaction: String? = null,
         replyToId: String? = null,
         groupId: String? = null
     ): MessageEntity {
@@ -79,6 +82,9 @@ class MessageDaoTest {
             timestamp = timestamp,
             isFromMe = isFromMe,
             status = status,
+            isDeletedForMe = isDeletedForMe,
+            isDeletedForEveryone = isDeletedForEveryone,
+            reaction = reaction,
             replyToId = replyToId,
             groupId = groupId
         )
@@ -561,8 +567,8 @@ class MessageDaoTest {
         val msg2 = createTestMessage(id = "del-attach-2")
         messageDao.insertMessages(listOf(msg1, msg2))
 
-        val att1 = MessageAttachmentEntity(id = "att-msg1", messageId = "del-attach-1", filePath = "/path1")
-        val att2 = MessageAttachmentEntity(id = "att-msg2", messageId = "del-attach-2", filePath = "/path2")
+        val att1 = MessageAttachmentEntity(id = "att-msg1", type = MessageType.IMAGE, messageId = "del-attach-1", filePath = "/path1")
+        val att2 = MessageAttachmentEntity(id = "att-msg2", type = MessageType.IMAGE, messageId = "del-attach-2", filePath = "/path2")
         messageDao.insertMessageAttachments(listOf(att1, att2))
 
         // When
