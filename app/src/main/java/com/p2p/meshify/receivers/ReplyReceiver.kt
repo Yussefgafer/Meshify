@@ -103,8 +103,8 @@ class ReplyReceiver : BroadcastReceiver() {
                             Logger.e("ReplyReceiver -> Application context lost during retry, cannot proceed")
                             return@launch
                         }
-                    val repository = app.container.chatRepository
-                    val chatDao = app.container.database.chatDao()
+                    val repository = app.chatRepository
+                    val chatDao = app.database.chatDao()
                     val chat = chatDao.getChatById(chatId)
 
                     if (chat != null) {
@@ -238,8 +238,8 @@ class ReplyReceiver : BroadcastReceiver() {
                         return@launch
                     }
 
-                val repository = localApp.container.chatRepository
-                val chatDao = localApp.container.database.chatDao()
+                val repository = localApp.chatRepository
+                val chatDao = localApp.database.chatDao()
                 
                 // Validate chat exists INSIDE coroutine (no main thread blocking)
                 val chat = withTimeoutOrNull(2000) {

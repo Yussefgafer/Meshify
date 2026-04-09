@@ -33,7 +33,7 @@ class MeshForegroundService : Service() {
         Logger.i("Service -> onCreate")
 
         val app = application as MeshifyApp
-        chatRepository = app.container.chatRepository
+        chatRepository = app.chatRepository
 
         acquireMulticastLock()
         startMeshNetwork()
@@ -42,7 +42,7 @@ class MeshForegroundService : Service() {
     private fun startMeshNetwork() {
         serviceScope.launch {
             val app = application as MeshifyApp
-            val transportManager = app.container.transportManager
+            val transportManager = app.transportManager
 
             // Listen for incoming payloads globally
             launch {
@@ -73,7 +73,7 @@ class MeshForegroundService : Service() {
             try {
                 withTimeout(3000L) { // 3 second timeout
                     val app = application as MeshifyApp
-                    app.container.transportManager.stopAllTransports()
+                    app.transportManager.stopAllTransports()
                 }
                 transportStarted = false
                 Logger.i("Service -> Transport stopped successfully")
