@@ -15,7 +15,14 @@ import org.junit.runner.Description
 
 /**
  * JUnit rule that replaces the Main dispatcher with a test dispatcher.
- * Ensures all coroutine code using Dispatchers.Main runs synchronously in tests.
+ *
+ * Uses UnconfinedTestDispatcher for immediate execution of coroutines.
+ * This ensures tests complete quickly without requiring advanceUntilIdle().
+ *
+ * NOTE: If tests hang, check for:
+ * - Infinite flow collections without cancellation
+ * - CompletableDeferred.await() that never completes
+ * - StateFlow loops that emit continuously
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainDispatcherRule(
