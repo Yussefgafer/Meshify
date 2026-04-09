@@ -27,6 +27,7 @@ dependencies {
     implementation(project(":core:domain"))
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.androidx.core.ktx)
     implementation("androidx.exifinterface:exifinterface:1.3.7")
 
     // Security - EncryptedSharedPreferences (for EncryptedSessionKeyStore)
