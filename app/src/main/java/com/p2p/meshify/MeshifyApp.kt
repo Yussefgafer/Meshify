@@ -9,8 +9,10 @@ import coil3.disk.directory
 import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
+import com.p2p.meshify.core.data.local.MeshifyDatabase
 import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
 import com.p2p.meshify.core.data.security.impl.PeerIdentityManagerImpl
+import com.p2p.meshify.core.domain.interfaces.WifiStateChecker
 import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.core.network.base.TransportEvent
 import com.p2p.meshify.core.network.ble.BleTransportImpl
@@ -37,6 +39,8 @@ class MeshifyApp : Application(), SingletonImageLoader.Factory {
     @Inject lateinit var transportManager: TransportManager
     @Inject lateinit var settingsRepository: ISettingsRepository
     @Inject lateinit var peerIdentity: PeerIdentityManagerImpl
+    @Inject lateinit var wifiStateChecker: WifiStateChecker
+    @Inject lateinit var database: MeshifyDatabase
 
     private val applicationScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 

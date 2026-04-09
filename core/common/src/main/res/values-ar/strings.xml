@@ -3,7 +3,7 @@
     <!-- Service Strings -->
     <string name="service_channel_name">خدمة الشبكة</string>
     <string name="service_mesh_active">مشيفاي P2P نشط</string>
-    <string name="service_searching_peers">الشبكة نشطة وجارٍ البحث عن أجهزة...</string>
+    <string name="service_searching_peers">الشبكة نشطة وجارٍ البحث عن أجهزة…</string>
 
     <!-- App Name -->
     <string name="app_name">مشيفاي</string>
@@ -15,7 +15,7 @@
     <string name="no_recent_chats_desc">المس النبض لاكتشاف الأجهزة القريبة</string>
     <string name="last_msg_image">[صورة]</string>
     <string name="last_msg_none">لا توجد رسائل بعد</string>
-    <string name="typing_indicator">يكتب الآن...</string>
+    <string name="typing_indicator">يكتب الآن…</string>
     <string name="status_online">متصل</string>
     <string name="status_offline">غير متصل</string>
 
@@ -25,7 +25,7 @@
     <string name="discovery_error_retry">إعادة المحاولة</string>
     <string name="discovery_peers_found">تم العثور على أجهزة</string>
     <string name="peer_discovered_format">تم اكتشاف %s</string>
-    <string name="searching_placeholder">جارٍ البحث عن أجهزة قريبة...</string>
+    <string name="searching_placeholder">جارٍ البحث عن أجهزة قريبة…</string>
     <string name="no_peers_found">لم يتم العثور على أجهزة بعد. تأكد من تفعيل الواي فاي.</string>
     <string name="discovery_wifi_off_desc">أيقونة الواي فاي متوقف</string>
     <string name="discovery_wifi_disabled_title">الواي فاي معطل</string>
@@ -34,7 +34,7 @@
 
     <!-- Chat Screen -->
     <string name="screen_chat_title">المحادثة</string>
-    <string name="input_placeholder">اكتب رسالة...</string>
+    <string name="input_placeholder">اكتب رسالة…</string>
     <string name="btn_send">إرسال</string>
     <string name="attach_image">صورة</string>
     <string name="attach_file">ملف</string>
@@ -78,7 +78,7 @@
 
     <!-- Chat Screen - Reply -->
     <string name="chat_reply_label">جارٍ الرد على</string>
-    <string name="chat_reply_placeholder">جارٍ الرد على...</string>
+    <string name="chat_reply_placeholder">جارٍ الرد على…</string>
 
     <!-- Chat Screen - Actions -->
     <string name="chat_action_reply">رد</string>
@@ -174,10 +174,10 @@
     <!-- Forward Message Dialog -->
     <string name="forward_dialog_title">إعادة توجيه</string>
     <string name="forward_dialog_close_desc">إغلاق</string>
-    <string name="forward_dialog_search_placeholder">البحث في المحادثات...</string>
+    <string name="forward_dialog_search_placeholder">البحث في المحادثات…</string>
     <string name="forward_dialog_clear_desc">مسح</string>
     <string name="forward_dialog_preview">معاينة</string>
-    <string name="forward_dialog_forwarding">جارٍ توجيه %1$d/%2$d...</string>
+    <string name="forward_dialog_forwarding">جارٍ توجيه %1$d/%2$d…</string>
     <string name="forward_dialog_section_quick">الوصول السريع (%d)</string>
     <string name="forward_dialog_section_discovered">الأجهزة المكتشفة (%d)</string>
     <string name="forward_dialog_section_all">جميع المحادثات (%d)</string>
@@ -534,4 +534,55 @@
     <string name="developer_group_cleanup">تنظيف</string>
     <string name="developer_clear_mock_data">مسح البيانات التجريبية</string>
     <string name="developer_clear_all_data">مسح جميع البيانات</string>
+
+    <!-- Search Strings (Missing translations) -->
+    <string name="search_chats_hint">البحث في المحادثات…</string>
+    <string name="search_no_results">لم يتم العثور على نتائج</string>
+    <string name="search_in_chat_hint">البحث في الرسائل…</string>
+    <string name="search_results_count">%d نتيجة</string>
+
+    <!-- Accessibility Content Descriptions (Missing translations) -->
+    <string name="content_desc_search">بحث</string>
+    <string name="content_desc_close_search">إغلاق البحث</string>
+    <string name="content_desc_verified">تم التحقق</string>
+    <string name="content_desc_unverified">لم يتم التحقق</string>
+    <string name="content_desc_unverified_tap_verify">لم يتم التحقق — اضغط للتحقق</string>
+
+    <!-- Forward Message Labels (Missing translations) -->
+    <string name="forward_image_label">📷 صورة</string>
+    <string name="forward_video_label">🎥 فيديو</string>
+    <string name="forward_audio_label">🎵 صوت</string>
+    <string name="forward_file_label">📄 ملف</string>
+    <string name="forward_document_label">📄 مستند</string>
+    <string name="forward_archive_label">📦 أرشيف</string>
+    <string name="forward_apk_label">📱 تطبيق APK</string>
+    <string name="label_forwarded">مُعاد الإرسال:</string>
+    <string name="label_timestamp_format">" (%s)"</string>
+
+    <!-- Message Labels (Missing translations) -->
+    <string name="label_album">[ألبوم]</string>
+    <string name="label_encrypted">[مشفّر]</string>
+    <string name="label_unknown">غير معروف</string>
+
+    <!-- OOB Verification Dialog (Missing translations) -->
+    <string name="oob_verify_title">التحقق من الهوية</string>
+    <string name="oob_method_qr">رمز QR</string>
+    <string name="oob_method_sas">مقارنة الرموز</string>
+    <string name="oob_method_nfc">NFC</string>
+    <string name="oob_qr_title">مسح رمز QR الخاص بي</string>
+    <string name="oob_qr_subtitle">يجب على الطرف الآخر مسح هذا الرمز للتحقق من هويتي</string>
+    <string name="oob_sas_instruction">قارن الرموز أدناه. إذا تطابقت، اضغط "متطابقة". إذا اختلفت، اضغط "مختلفة".</string>
+    <string name="oob_sas_your_code">رمزك:</string>
+    <string name="oob_sas_peer_code">رمز الطرف الآخر:</string>
+    <string name="oob_sas_codes_match">الرموز متطابقة!</string>
+    <string name="oob_sas_codes_differ">الرموز مختلفة!</string>
+    <string name="oob_sas_waiting_peer">جارٍ انتظار رمز الطرف الآخر…</string>
+    <string name="oob_sas_btn_match">متطابقة</string>
+    <string name="oob_sas_btn_differ">مختلفة</string>
+    <string name="oob_nfc_title">التحقق عبر NFC</string>
+    <string name="oob_nfc_subtitle">اجهز الجهازين معًا للتحقق. قريباً.</string>
+    <string name="oob_btn_done">تم</string>
+
+    <!-- Generic Dialog Buttons (Missing translation) -->
+    <string name="dialog_btn_close">إغلاق</string>
 </resources>

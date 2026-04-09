@@ -3,7 +3,7 @@
     <!-- Service Strings -->
     <string name="service_channel_name">Mesh Service</string>
     <string name="service_mesh_active">Meshify P2P</string>
-    <string name="service_searching_peers">Mesh network is active and searching for peers...</string>
+    <string name="service_searching_peers">Mesh network is active and searching for peers…</string>
 
     <!-- App Name -->
     <string name="app_name">Meshify</string>
@@ -15,7 +15,7 @@
     <string name="no_recent_chats_desc">Tap the + button to discover nearby devices</string>
     <string name="last_msg_image">[Image]</string>
     <string name="last_msg_none">No messages yet</string>
-    <string name="typing_indicator">typing...</string>
+    <string name="typing_indicator">typing…</string>
     <string name="status_online">Online</string>
     <string name="status_offline">Offline</string>
     <string name="search_chats_hint">Search chats…</string>
@@ -27,7 +27,7 @@
     <string name="screen_discovery_title">Discovery</string>
     <string name="discovery_peers_found">Found Peers</string>
     <string name="peer_discovered_format">%s Discovered</string>
-    <string name="searching_placeholder">Searching for nearby devices...</string>
+    <string name="searching_placeholder">Searching for nearby devices…</string>
     <string name="no_peers_found">No peers found yet. Ensure Wi-Fi is enabled.</string>
     <string name="discovery_wifi_off_desc">Wi-Fi off icon</string>
     <string name="discovery_wifi_disabled_title">Wi-Fi is disabled</string>
@@ -36,7 +36,7 @@
 
     <!-- Chat Screen -->
     <string name="screen_chat_title">Chat</string>
-    <string name="input_placeholder">Type a message...</string>
+    <string name="input_placeholder">Type a message…</string>
     <string name="btn_send">Send</string>
     <string name="attach_image">Image</string>
     <string name="attach_file">File</string>
@@ -80,7 +80,7 @@
     
     <!-- Chat Screen - Reply -->
     <string name="chat_reply_label">Replying to</string>
-    <string name="chat_reply_placeholder">Replying to...</string>
+    <string name="chat_reply_placeholder">Replying to…</string>
     
     <!-- Chat Screen - Actions -->
     <string name="chat_action_reply">Reply</string>
@@ -176,10 +176,10 @@
     <!-- Forward Message Dialog -->
     <string name="forward_dialog_title">Forward</string>
     <string name="forward_dialog_close_desc">Close</string>
-    <string name="forward_dialog_search_placeholder">Search conversations...</string>
+    <string name="forward_dialog_search_placeholder">Search conversations…</string>
     <string name="forward_dialog_clear_desc">Clear</string>
     <string name="forward_dialog_preview">Preview</string>
-    <string name="forward_dialog_forwarding">Forwarding %1$d/%2$d...</string>
+    <string name="forward_dialog_forwarding">Forwarding %1$d/%2$d…</string>
     <string name="forward_dialog_section_quick">Quick Access (%d)</string>
     <string name="forward_dialog_section_discovered">Discovered Devices (%d)</string>
     <string name="forward_dialog_section_all">All Conversations (%d)</string>
