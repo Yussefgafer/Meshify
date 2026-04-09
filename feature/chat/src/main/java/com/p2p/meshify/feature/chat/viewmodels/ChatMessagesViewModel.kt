@@ -11,8 +11,6 @@ import com.p2p.meshify.domain.model.DeleteType
 import com.p2p.meshify.domain.model.TransportType
 import com.p2p.meshify.domain.security.model.SecurityEvent
 import com.p2p.meshify.feature.chat.state.ChatMessagesUiState
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,7 +23,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
 
 /**
  * ViewModel responsible for message display, pagination, connection status,
@@ -41,9 +38,8 @@ import javax.inject.Inject
  * - Message deletion (delegates to repository)
  * - Reaction adding (delegates to repository)
  */
-@HiltViewModel
-class ChatMessagesViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
+class ChatMessagesViewModel(
+    private val context: Context,
     private val chatRepository: ChatRepositoryImpl,
     private val peerId: String
 ) : ViewModel() {

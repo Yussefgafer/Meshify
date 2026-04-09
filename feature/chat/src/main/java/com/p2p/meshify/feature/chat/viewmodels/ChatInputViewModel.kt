@@ -12,8 +12,6 @@ import com.p2p.meshify.domain.model.DeleteType
 import com.p2p.meshify.domain.repository.IChatRepository
 import com.p2p.meshify.feature.chat.state.ChatInputUiState
 import com.p2p.meshify.core.common.R
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +19,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
 
 /**
  * ViewModel responsible for text input, draft management, message sending,
@@ -36,12 +33,11 @@ import javax.inject.Inject
  * - Multi-select mode (toggle, clear, delete selected, copy to clipboard)
  * - Back confirmation logic (reserved)
  */
-@HiltViewModel
-class ChatInputViewModel @Inject constructor(
+class ChatInputViewModel(
     private val chatRepository: IChatRepository,
     private val peerId: String,
     private val peerName: String,
-    @ApplicationContext private val context: Context
+    private val context: Context
 ) : ViewModel() {
 
     // ==================== UI State ====================
