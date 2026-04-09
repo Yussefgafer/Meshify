@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -336,17 +337,21 @@ class ChatAttachmentsViewModelTest {
         every { testFile.length() } returns 1024L
 
         viewModel.sendFileWithProgress("msg-upload", testFile, MessageType.FILE)
+        // Wait for the upload to start (mock entered, progress initialized to 0)
         uploadStarted.await()
-        advanceUntilIdle()
+        // runCurrent only — do NOT use advanceUntilIdle which waits for suspended coroutines
+        runCurrent()
 
+        // Progress entry should exist (set to 0 before the mock was called)
         assertTrue(viewModel.uploadProgress.value.containsKey("msg-upload"))
 
         viewModel.cancelUpload("msg-upload")
-        advanceUntilIdle()
+        runCurrent()
 
         val progressAfter = viewModel.uploadProgress.value
         assertFalse(progressAfter.containsKey("msg-upload"))
 
+        // Now unblock the mock so the test dispatcher can clean up
         uploadContinue.complete(Unit)
         advanceUntilIdle()
     }
