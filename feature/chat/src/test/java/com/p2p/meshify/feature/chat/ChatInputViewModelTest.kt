@@ -1,7 +1,7 @@
 package com.p2p.meshify.feature.chat
 
 import android.content.Context
-import androidx.compose.ui.platform.ClipboardManager
+import android.content.ClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import com.p2p.meshify.core.common.R
 import com.p2p.meshify.core.data.local.entity.MessageEntity
@@ -16,6 +16,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -30,6 +31,8 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
+@Suppress("DEPRECATION")
 class ChatInputViewModelTest {
 
     @get:Rule
