@@ -1,7 +1,7 @@
 package com.p2p.meshify.feature.chat
 
 import android.content.Context
-import android.content.ClipboardManager
+import androidx.compose.ui.platform.ClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import com.p2p.meshify.core.common.R
 import com.p2p.meshify.core.data.local.entity.MessageEntity
