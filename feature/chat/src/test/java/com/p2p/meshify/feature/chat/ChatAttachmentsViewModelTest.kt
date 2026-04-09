@@ -323,7 +323,7 @@ class ChatAttachmentsViewModelTest {
         // Start a file upload that will stay in progress
         coEvery { mockRepository.sendFileWithProgress(any(), any(), any(), any(), any(), any(), any(), any()) } answers {
             // Simulate a long-running upload by never completing
-            kotlinx.coroutines.delay(Long.MAX_VALUE)
+            Thread.sleep(Long.MAX_VALUE)
             Result.success(Unit)
         }
         val testFile = mockk<File>(relaxed = true)

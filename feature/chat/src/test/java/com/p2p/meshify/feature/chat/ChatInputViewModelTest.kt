@@ -12,7 +12,6 @@ import com.p2p.meshify.domain.security.model.SecurityEvent
 import com.p2p.meshify.feature.chat.viewmodels.ChatInputViewModel
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.eq
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -244,7 +243,7 @@ class ChatInputViewModelTest {
         advanceUntilIdle()
 
         // Only the first send should have gone through
-        coVerify(exactly = 1) { mockRepository.sendMessage(any(), any(), eq("First message"), any()) }
+        coVerify(exactly = 1) { mockRepository.sendMessage(any(), any(), "First message", any()) }
     }
 
     @Test

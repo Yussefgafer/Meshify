@@ -70,7 +70,7 @@ class ChatRepositoryImplTest {
     @Before
     fun setup() {
         // Default stubs for settings
-        every { mockSettingsRepository.getDeviceId() } returns "my-device-id"
+        coEvery { mockSettingsRepository.getDeviceId() } returns "my-device-id"
         every { mockSettingsRepository.displayName } returns flowOf("TestUser")
         every { mockSettingsRepository.avatarHash } returns flowOf(null)
 
@@ -300,7 +300,7 @@ class ChatRepositoryImplTest {
         val attachment2 = ByteArray(200) { 0x02 } to MessageType.IMAGE
         val attachments = listOf(attachment1, attachment2)
 
-        every { mockFileManager.saveMedia(any(), any()) } returns "/fake/path/to/attachments"
+        coEvery { mockFileManager.saveMedia(any(), any()) } returns "/fake/path/to/attachments"
 
         // When
         val result = repository.sendGroupedMessage(
@@ -334,7 +334,7 @@ class ChatRepositoryImplTest {
     fun `sendGroupedMessage with replyToId links reply correctly`() = runTest {
         // Given
         val attachments = listOf(ByteArray(100) { 0x01 } to MessageType.IMAGE)
-        every { mockFileManager.saveMedia(any(), any()) } returns "/fake/path"
+        coEvery { mockFileManager.saveMedia(any(), any()) } returns "/fake/path"
 
         // When
         val result = repository.sendGroupedMessage(
@@ -356,7 +356,7 @@ class ChatRepositoryImplTest {
     fun `sendGroupedMessage fails when saveMedia returns null`() = runTest {
         // Given
         val attachments = listOf(ByteArray(100) { 0x01 } to MessageType.IMAGE)
-        every { mockFileManager.saveMedia(any(), any()) } returns null
+        coEvery { mockFileManager.saveMedia(any(), any()) } returns null
 
         // When
         val result = repository.sendGroupedMessage(
@@ -531,7 +531,7 @@ class ChatRepositoryImplTest {
         )
         coEvery { mockMessageDao.getMessageById("msg-reaction") } returns message
         coEvery { mockMessageDao.updateReaction(any(), any()) } returns Unit
-        every { mockSettingsRepository.getDeviceId() } returns "my-device-id"
+        coEvery { mockSettingsRepository.getDeviceId() } returns "my-device-id"
 
         // When
         val result = repository.addReaction("msg-reaction", "👍")
@@ -564,7 +564,7 @@ class ChatRepositoryImplTest {
     fun `sendImage delegates to message repository`() = runTest {
         // Given - MessageRepository.sendImageMessage compresses, saves, and sends
         // In the mock setup, saveMedia returns null by default
-        every { mockFileManager.saveMedia(any(), any()) } returns null
+        coEvery { mockFileManager.saveMedia(any(), any()) } returns null
 
         // When
         val result = repository.sendImage("peer1", "Alice", ByteArray(1000), "jpg", null)
@@ -582,7 +582,7 @@ class ChatRepositoryImplTest {
     @Test
     fun `sendVideo delegates to message repository`() = runTest {
         // Given - saveMedia returns null
-        every { mockFileManager.saveMedia(any(), any()) } returns null
+        coEvery { mockFileManager.saveMedia(any(), any()) } returns null
 
         // When
         val result = repository.sendVideo("peer1", "Alice", ByteArray(5000), "mp4", null)
@@ -646,7 +646,7 @@ class ChatRepositoryImplTest {
     fun `sendGroupedMessage handles transport failure gracefully`() = runTest {
         // Given
         val attachments = listOf(ByteArray(100) { 0x01 } to MessageType.IMAGE)
-        every { mockFileManager.saveMedia(any(), any()) } returns "/fake/path"
+        coEvery { mockFileManager.saveMedia(any(), any()) } returns "/fake/path"
 
         // When
         val result = repository.sendGroupedMessage(
