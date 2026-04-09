@@ -72,4 +72,19 @@
     <string name="error_no_peer_selected">Please select a target device first.</string>
     <string name="error_session_failed">ECDH session could not be established with the target device.</string>
     <string name="error_permission_denied">Required permissions not granted.</string>
+
+    <!-- Pre-Flight Detail Strings -->
+    <string name="preflight_permission_granted">Granted</string>
+    <string name="preflight_permission_denied">Denied</string>
+    <string name="preflight_wifi_connected">WiFi connected</string>
+    <string name="preflight_wifi_disconnected">Not connected to WiFi</string>
+    <string name="preflight_ip_assigned">IP: %1$s</string>
+    <string name="preflight_no_ip">No IP assigned</string>
+    <string name="preflight_port_reachable">Port %1$d reachable</string>
+    <string name="preflight_port_unreachable">Port %1$d unreachable</string>
+    <string name="preflight_ecdh_pass">Session keys match</string>
+    <string name="preflight_ecdh_fail">ECDH key derivation failed</string>
+    <string name="preflight_ecdh_duration">%1$dms</string>
+    <string name="preflight_all_pass">All checks passed — ready to test</string>
+    <string name="preflight_some_fail">%1$d check(s) failed</string>
 </resources>

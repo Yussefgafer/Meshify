@@ -72,4 +72,19 @@
     <string name="error_no_peer_selected">يرجى اختيار جهاز هدف أولاً.</string>
     <string name="error_session_failed">تعذر إنشاء جلسة ECDH مع الجهاز الهدف.</string>
     <string name="error_permission_denied">لم يتم منح الصلاحيات المطلوبة.</string>
+
+    <!-- Pre-Flight Detail Strings -->
+    <string name="preflight_permission_granted">ممنوح</string>
+    <string name="preflight_permission_denied">مرفوض</string>
+    <string name="preflight_wifi_connected">متصل بـ WiFi</string>
+    <string name="preflight_wifi_disconnected">غير متصل بـ WiFi</string>
+    <string name="preflight_ip_assigned">العنوان: %1$s</string>
+    <string name="preflight_no_ip">لم يتم تعيين عنوان IP</string>
+    <string name="preflight_port_reachable">المنفذ %1$d قابل للوصول</string>
+    <string name="preflight_port_unreachable">المنفذ %1$d غير قابل للوصول</string>
+    <string name="preflight_ecdh_pass">مفاتيح الجلسة متطابقة</string>
+    <string name="preflight_ecdh_fail">فشل اشتقاق مفتاح ECDH</string>
+    <string name="preflight_ecdh_duration">%1$d مللي ثانية</string>
+    <string name="preflight_all_pass">جميع الفحوصات نجحت — جاهز للاختبار</string>
+    <string name="preflight_some_fail">فشل %1$d فحص(ات)</string>
 </resources>
