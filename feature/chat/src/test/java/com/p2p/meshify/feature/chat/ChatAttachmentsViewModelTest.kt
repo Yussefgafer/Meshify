@@ -15,13 +15,9 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -327,15 +323,12 @@ class ChatAttachmentsViewModelTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun `cancelUpload should remove progress entry`() = runTest {
-        val testDispatcher = StandardTestDispatcher(testScheduler)
-        Dispatchers.setMain(testDispatcher)
-
         val uploadStarted = CompletableDeferred<Unit>()
         val uploadContinue = CompletableDeferred<Unit>()
 
-        coEvery { mockRepository.sendFileWithProgress(any(), any(), any(), any(), any(), any(), any(), any()) } answers {
+        coEvery { mockRepository.sendFileWithProgress(any(), any(), any(), any(), any(), any(), any(), any()) } coAnswers {
             uploadStarted.complete(Unit)
-            kotlinx.coroutines.runBlocking { uploadContinue.await() }
+            uploadContinue.await()
             Result.success(Unit)
         }
 
@@ -349,13 +342,13 @@ class ChatAttachmentsViewModelTest {
         assertTrue(viewModel.uploadProgress.value.containsKey("msg-upload"))
 
         viewModel.cancelUpload("msg-upload")
+        advanceUntilIdle()
 
         val progressAfter = viewModel.uploadProgress.value
         assertFalse(progressAfter.containsKey("msg-upload"))
 
         uploadContinue.complete(Unit)
         advanceUntilIdle()
-        Dispatchers.resetMain()
     }
 
     // ==================== getAttachmentsForMessage Tests ====================
