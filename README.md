@@ -1,442 +1,233 @@
-<h1 align="center">🔐 Meshify</h1>
-<h3 align="center">Secure Offline P2P Messaging - No Internet Required</h3>
+# Meshify
+
+**Decentralized P2P messaging for Android — works without internet.**
+
+Meshify is a peer-to-peer messaging application that enables secure, encrypted communication between Android devices on the same local network. No central server. No phone number. No internet connection required.
 
 <p align="center">
-  <img src="https://img.shields.io/github/repo-size/Yussefgafer/Meshify" alt="Repo size">
-  <img src="https://img.shields.io/badge/Kotlin-2.3.10-blue.svg" alt="Kotlin Version">
-  <img src="https://img.shields.io/badge/Android_API-26%2B-brightgreen.svg" alt="Min API Level">
+  <img src="https://img.shields.io/badge/Kotlin-2.3.10-blue.svg" alt="Kotlin">
+  <img src="https://img.shields.io/badge/Min_API-26-brightgreen.svg" alt="Min API">
   <img src="https://img.shields.io/badge/Target_API-35-blue.svg" alt="Target API">
-  <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License">
-  <img src="https://img.shields.io/badge/Status-Pre--Alpha-orange.svg" alt="Development Status">
-</p>
-
-<p align="center">
-  <strong>A decentralized, offline-first P2P messaging app with end-to-end encryption.</strong><br>
-  <strong>Works without internet. Built on Clean Architecture. Secured with ECDH + AES-256-GCM.</strong>
-</p>
-
-<p align="center">
-  <a href="#-features">Features</a> •
-  <a href="#-security">Security</a> •
-  <a href="#-architecture">Architecture</a> •
-  <a href="#-getting-started">Getting Started</a> •
-  <a href="#-tech-stack">Tech Stack</a> •
-  <a href="#-roadmap">Roadmap</a>
+  <img src="https://img.shields.io/badge/Status-Pre--Alpha-orange.svg" alt="Status">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License"></a>
 </p>
 
 ---
 
-## 📖 Overview
+## Key Features
 
-**Meshify** is a peer-to-peer mesh networking application that enables secure offline communication between Android devices on the same local network. Unlike traditional messaging apps, Meshify requires **no internet connection**, **no central server**, and **no phone number** — just pure P2P connectivity with military-grade encryption.
+### 🔐 Encrypted Messaging
+- **AES-256-GCM** encryption for all messages
+- **ECDH + HKDF** key exchange with 256-bit session keys
+- **ECDSA** signatures + Trust-On-First-Use (TOFU) authentication
+- **Replay protection** via nonce cache + timestamp validation
 
-### 💡 Why Meshify?
+### 📡 Peer Discovery
+- **mDNS/NSD** automatic peer discovery on local network
+- **Real-time presence** — online/offline status indicators
+- **TCP-based transport** with connection pooling and keep-alive
 
-- **🔒 Privacy-First**: End-to-end encrypted messages with no central authority
-- **📡 Offline-Ready**: Works on local networks without internet access
-- **🏗️ Clean Architecture**: Modular, testable, and maintainable codebase
-- **⚡ High Performance**: Optimized for speed with 60 FPS UI and fast file transfers
-- **🌍 Localization**: Full English and Arabic support with RTL layouts
+### 💬 Rich Messaging
+- Text messages with threaded replies
+- Emoji reactions on messages
+- Image, video, and file attachments
+- Delete for me / Delete for everyone
+- Forward to multiple peers
 
----
-
-## ✨ Features
-
-### 🔐 Security Features
-
-| Feature | Implementation | Status |
-|---------|---------------|--------|
-| **Message Encryption** | AES-256-GCM with 12-byte IV | ✅ Active |
-| **Key Exchange** | ECDH + HKDF (256-bit session keys) | ✅ Active |
-| **Peer Authentication** | ECDSA signatures + TOFU model | ✅ Active |
-| **Replay Protection** | Nonce cache + timestamp validation | ✅ Active |
-| **Message Integrity** | GCM authentication tag (128-bit) | ✅ Active |
-| **Fail-Fast Verification** | Signature verified BEFORE decryption | ✅ Active |
-
-### 💬 Messaging
-
-- ✅ **Text Messages** — Encrypted text communication
-- ✅ **Image Attachments** — JPG, PNG, WebP, GIF, BMP (with smart compression)
-- ✅ **Video Attachments** — MP4, MKV, AVI, WebM
-- ✅ **File Attachments** — PDF, DOCX, XLSX, PPTX, ZIP, RAR, APK
-- ✅ **Message Replies** — Thread conversations
-- ✅ **Message Reactions** — Emoji reactions
-- ✅ **Delete Messages** — Delete for me / Delete for everyone
-- ✅ **Forward Messages** — Forward to multiple peers
-- ✅ **Multi-Select** — Select and manage multiple messages
-
-### 📡 Discovery & Connectivity
-
-- ✅ **mDNS/NSD Discovery** — Automatic peer discovery on local network
-- ✅ **Real-time Status** — Online/offline presence indicators
-- ✅ **LAN Transport** — TCP-based reliable messaging
-- ✅ **Connection Pooling** — Pre-warmed connections for low latency
-- ✅ **Keep-Alive** — Automatic connection health monitoring
-
-### 🎨 User Experience
-
-- ✅ **Material 3 Expressive** — Modern, beautiful UI with motion presets
-- ✅ **Theme Customization** — Light/Dark/System themes, dynamic colors
-- ✅ **RTL Support** — Full Arabic language support
-- ✅ **Accessibility** — TalkBack compatible, large touch targets
-- ✅ **Onboarding** — 4-screen welcome flow with permission dialogs
-- ✅ **Help & FAQ** — Built-in help system
-
-### 🗄️ Data Management
-
-- ✅ **Offline Storage** — Room database for all messages
-- ✅ **Pagination** — Load 50 messages at a time for smooth scrolling
-- ✅ **Fast Queries** — 5 database indexes for optimized performance
-- ✅ **LRU Cache** — 80% reduction in database queries
+### 🎨 Modern UI
+- Material 3 Expressive design system
+- Light/Dark/System theme with dynamic colors
+- Full Arabic and English localization with RTL support
+- TalkBack accessibility support
 
 ---
 
-## 🏗️ Architecture
-
-### Clean Architecture + MVVM
+## Architecture
 
 ```
-┌─────────────────────────────────────────┐
-│           UI Layer (Compose)            │
-│  ┌─────────┐  ┌─────────┐  ┌─────────┐ │
-│  │  Home   │  │  Chat   │  │Settings │ │
-│  └─────────┘  └─────────┘  └─────────┘ │
-└─────────────────┬───────────────────────┘
-                  │
-┌─────────────────▼───────────────────────┐
-│              ViewModel                  │
-│         (State Management)              │
-└─────────────────┬───────────────────────┘
-                  │
-┌─────────────────▼───────────────────────┐
-│          Domain Layer (Pure)            │
-│  ┌──────────────┐  ┌─────────────────┐ │
-│  │  Interfaces  │  │     Models      │ │
-│  └──────────────┘  └─────────────────┘ │
-└─────────────────┬───────────────────────┘
-                  │
-┌─────────────────▼───────────────────────┐
-│             Data Layer                  │
-│  ┌──────────┐  ┌──────────┐  ┌───────┐ │
-│  │  Room    │  │ DataStore│  │Network│ │
-│  └──────────┘  └──────────┘  └───────┘ │
-└─────────────────────────────────────────┘
+┌─────────────────────────┐
+│   UI (Jetpack Compose)  │   ← feature: modules
+├─────────────────────────┤
+│      ViewModel          │   ← State management
+├─────────────────────────┤
+│   Domain (Pure Kotlin)  │   ← Interfaces + Models
+├─────────────────────────┤
+│      Data Layer         │   ← Room + DataStore + Repos
+├─────────────────────────┤
+│    Network Layer        │   ← mDNS + Sockets + Crypto
+└─────────────────────────┘
 ```
 
-### Module Structure
+Built on **Clean Architecture** with strict module boundaries:
 
-```
-Meshify/
-├── :app                          # Main application, AppContainer
-├── :core:
-│   ├── :common                   # Utilities: Logger, FileUtils, ImageCompressor
-│   ├── :data                     # Room, DataStore, Repositories
-│   ├── :domain                   # Pure Kotlin: Interfaces & Models
-│   ├── :network                  # mDNS, Sockets, Transport Layer
-│   └── :ui                       # Material 3 Components, Theme
-└── :feature:
-    ├── :home                     # Recent chats screen
-    ├── :chat                     # Chat screen & ViewModel
-    ├── :discovery                # Device discovery
-    ├── :settings                 # Settings & customization
-    ├── :onboarding               # Welcome flow
-    └── :help                     # FAQ & About screens
-```
+| Module | Responsibility |
+|--------|---------------|
+| `:core:domain` | Pure Kotlin — interfaces and models only |
+| `:core:data` | Room database, DataStore, repositories |
+| `:core:network` | mDNS discovery, TCP transport, encryption |
+| `:core:ui` | Material 3 components, theming, haptics |
+| `:feature:*` | Screen-level UI and ViewModels |
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
-### Core Technologies
-
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| **Kotlin** | 2.3.10 | Primary language |
-| **Android Gradle Plugin** | 9.1.0 | Build system |
-| **Jetpack Compose** | 2026.02.00 (BOM) | Modern UI toolkit |
-| **Material 3** | 1.4.0-alpha10 | Design system |
-
-### Architecture & Data
-
-| Library | Version | Purpose |
-|---------|---------|---------|
-| **Room** | 2.8.4 | Local database |
-| **DataStore** | 1.1.1 | Preferences storage |
-| **Paging 3** | 3.3.5 | Data pagination |
-| **Navigation** | 2.9.7 | In-app navigation |
-
-### Networking & Media
-
-| Library | Version | Purpose |
-|---------|---------|---------|
-| **Media3** | 1.8.0 | Media playback |
-| **Coil 3** | 3.4.0 | Image loading |
-| **Tink** | 1.16.0 | Cryptographic primitives |
-| **Bouncy Castle** | 1.82 | Cryptographic provider |
+- **Kotlin 2.3.10** — primary language
+- **Jetpack Compose** — modern declarative UI
+- **Room 2.8.4** — offline database with paging
+- **Material 3 Expressive** — design system
+- **Tink 1.16.0** — cryptographic primitives
+- **Bouncy Castle 1.82** — crypto provider
+- **Media3 1.8.0** — media playback
+- **Coil 3** — image loading
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
-- **Android Studio**: Ladybug (2024.2) or later
-- **JDK**: 17 or higher
-- **Android SDK**: API 26+ (Android 8.0)
-- **Target SDK**: API 35 (Android 15)
+| Requirement | Version |
+|-------------|---------|
+| JDK | 21 |
+| Android SDK | API 26+ |
+| Target SDK | API 35 |
 
-### Installation
-
-#### 1. Clone the Repository
+### Build
 
 ```bash
 git clone https://github.com/Yussefgafer/Meshify.git
 cd Meshify
-```
 
-#### 2. Build the Project
-
-```bash
-# Build debug APK
+# Debug APK
 ./gradlew assembleDebug
 
-# Build release APK (requires signing)
+# Release APK (requires signing config)
 ./gradlew assembleRelease
-
-# Run tests (when available)
-./gradlew test
 ```
 
-#### 3. Install on Device
+The built APK will be at:
+- Debug: `app/build/outputs/apk/debug/app-debug.apk`
+- Release: `app/build/outputs/apk/release/app-release.apk`
+
+### Install
 
 ```bash
-# Install debug APK
 adb install -r app/build/outputs/apk/debug/app-debug.apk
-
-# Install release APK
-adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 
 ### Usage
 
-1. **Connect Devices**: Ensure all devices are on the **same local network** (WiFi)
-2. **Launch App**: Open Meshify on two or more devices
-3. **Discover Peers**: Devices appear automatically via mDNS
-4. **Start Chatting**: Tap a peer to begin encrypted messaging
-5. **Send Files**: Attach images, videos, or documents
+1. Connect two or more Android devices to the **same WiFi network**
+2. Launch Meshify on each device
+3. Peers appear automatically via mDNS
+4. Tap a peer to start encrypted messaging
 
-> **⚠️ Note**: Meshify works on **local networks only**. Internet connection is not required.
-
----
-
-## 🔐 Security Architecture
-
-### Encryption Protocol V2
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                 MessageEnvelope V2                      │
-├─────────────────────────────────────────────────────────┤
-│  ┌───────────────────────────────────────────────────┐  │
-│  │              AES-256-GCM Encryption               │  │
-│  │  • 12-byte random IV (nonce)                      │  │
-│  │  • 128-bit authentication tag                     │  │
-│  │  • Length-prefixed AAD (Associated Data)          │  │
-│  └───────────────────────────────────────────────────┘  │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │              ECDSA Digital Signature              │  │
-│  │  • Signs AAD + ciphertext                         │  │
-│  │  • Verifies sender authenticity                   │  │
-│  │  • Ensures message integrity                      │  │
-│  └───────────────────────────────────────────────────┘  │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │              Replay Protection                    │  │
-│  │  • Nonce cache (prevents duplicates)              │  │
-│  │  • Timestamp validation (±5 minute window)        │  │
-│  └───────────────────────────────────────────────────┘  │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │              TOFU Authentication                  │  │
-│  │  • Trust-On-First-Use for peer keys               │  │
-│  │  • Detects identity changes                       │  │
-│  └───────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Key Exchange Flow
-
-```
-Device A                          Device B
-    │                                │
-    │──── HANDSHAKE (ephemeral) ────▶│
-    │     • identityPubKey           │
-    │     • ephemeralPubKey          │
-    │     • nonce                    │
-    │                                │
-    │◀──── HANDSHAKE (response) ─────│
-    │     • ephemeralPubKey          │
-    │     • nonce                    │
-    │                                │
-    │  ECDH(ephemeralPriv,           │
-    │        peerEphemeralPub)       │
-    │  HKDF-SHA256(sharedSecret)     │
-    │  → 256-bit session key         │
-    │                                │
-    │◀──── AES-256-GCM Encrypted ───▶│
-    │     • ECDSA signed             │
-    │     • Nonce cached             │
-    │     • Timestamp validated      │
-    └────────────────────────────────┘
-```
+> **Note:** Meshify operates on local networks only. Internet connectivity is not required.
 
 ---
 
-## 📊 Performance Metrics
+## Security
 
-### Real-World Performance
+### Encryption Protocol
 
-| Operation | Time | Status |
-|-----------|------|--------|
-| Send text message | ~50ms | ✅ Excellent |
-| Send 5MB image | ~1.5s | ✅ Excellent |
-| Send 50MB video | ~12s | ✅ Excellent |
-| Transfer 10MB file | ~25s | ✅ Good |
-| Memory usage | ~85MB | ✅ Excellent |
-| Scroll smoothness | 60 FPS | ✅ Excellent |
-| Chat load time | ~0.4s | ✅ Excellent |
+```
+Device A                              Device B
+    │                                    │
+    │── HANDSHAKE (identity + ephemeral) ──▶│
+    │◀── HANDSHAKE ACK (ephemeral + nonce) ─│
+    │                                    │
+    │  ECDH → HKDF → 256-bit session key │
+    │                                    │
+    │◀── AES-256-GCM (ECDSA signed) ──────▶│
+    │   • Nonce cached (replay guard)     │
+    │   • Timestamp validated (±5 min)    │
+    └────────────────────────────────────┘
+```
 
-### Applied Optimizations
+### Security Properties
 
-| Optimization | Improvement | Impact |
-|--------------|-------------|--------|
-| **BufferedOutputStream** | 300% faster file transfer | ✅ |
-| **WebP Image Compression** | 70-90% size reduction | ✅ |
-| **Parallel File Transfer** | 4-8 chunks simultaneously | ✅ |
-| **Connection Pooling** | 200ms → 20ms latency | ✅ |
-| **ArrayDeque for Messages** | O(1) prepend operations | ✅ |
-| **LRU Cache for Attachments** | 80% ↓ database queries | ✅ |
-| **deriveStateOf in Compose** | 40% ↓ recompositions | ✅ |
-| **Stable LazyColumn Keys** | 40-60% ↓ recompositions | ✅ |
-| **Flow .distinctUntilChanged** | 50-70% ↓ recompositions | ✅ |
+- **Confidentiality** — AES-256-GCM with 12-byte random IV
+- **Authentication** — ECDSA signatures on every message
+- **Integrity** — GCM authentication tag (128-bit)
+- **Replay Protection** — nonce cache + ±5 minute timestamp window
+- **TOFU** — Trust-On-First-Use for peer identity keys
+- **Fail-Fast** — signature verified BEFORE decryption attempt
 
 ---
 
-## 🗺️ Roadmap
+## Performance
 
-### Current Status: **Pre-Alpha**
+| Metric | Result |
+|--------|--------|
+| Text message send | ~50ms |
+| 5MB image transfer | ~1.5s |
+| 50MB video transfer | ~12s |
+| Memory usage | ~85MB |
+| Chat scroll | 60 FPS |
+| Initial chat load | ~0.4s |
 
-#### ✅ Completed (v1.0)
+Key optimizations: buffered I/O, WebP compression, connection pooling, LRU cache for attachments, stable `LazyColumn` keys, `derivedStateOf` for recomposition reduction.
 
-- [x] Core encryption (ECDH + AES-256-GCM + ECDSA)
+---
+
+## Roadmap
+
+### Completed
+- [x] ECDH + AES-256-GCM encryption
 - [x] TOFU peer authentication
-- [x] Replay protection with nonce cache
+- [x] Replay protection
 - [x] 1-on-1 encrypted messaging
-- [x] File attachments (images, videos, documents)
-- [x] Message replies and reactions
-- [x] Delete for me / Delete for everyone
-- [x] Forward messages
+- [x] File attachments (images, video, documents)
+- [x] Message replies, reactions, forward, delete
 - [x] Material 3 Expressive UI
-- [x] Offline database (Room)
+- [x] Room offline database with pagination
 - [x] mDNS/NSD peer discovery
-- [x] LAN transport (TCP)
-- [x] Connection pooling
-- [x] English and Arabic localization
+- [x] TCP transport with connection pooling
+- [x] English + Arabic localization
 
-#### 🔜 In Progress (v1.1)
-
+### In Progress
 - [ ] Unit tests for crypto modules
 - [ ] UI tests for chat flows
-- [ ] Bluetooth transport layer
+- [ ] Bluetooth transport
 - [ ] Wi-Fi Direct support
-- [ ] Typing indicators
-- [ ] Pull-to-refresh
-- [ ] Search in chats
-- [ ] Voice messages
+- [ ] Typing indicators, pull-to-refresh, search
 
-#### 🎯 Future (v2.0+)
-
+### Future
 - [ ] Group chats (2+ peers)
-- [ ] Mesh routing (multi-hop messages)
-- [ ] DHT-based discovery (internet-wide)
-- [ ] Post-quantum cryptography (ML-KEM/ML-DSA)
-- [ ] Desktop clients (Windows, macOS, Linux)
-- [ ] Web client (WebAssembly)
+- [ ] Mesh routing (multi-hop)
+- [ ] Post-quantum cryptography (ML-KEM / ML-DSA)
+- [ ] Desktop clients
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
-We welcome contributions! Here's how you can help:
-
-### Areas We Need Help
-
-1. **Testing**: Write unit tests and UI tests
-2. **Documentation**: Improve docs, add tutorials
-3. **Performance**: Optimize memory usage, battery consumption
-4. **Security**: Security audits, penetration testing
-5. **Features**: Implement roadmap items
-
-### How to Contribute
+Contributions are welcome. Please follow these guidelines:
 
 1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
-4. **Push** to the branch (`git push origin feature/amazing-feature`)
-5. **Open** a Pull Request
+2. **Branch** off `main` (`git checkout -b feature/your-feature`)
+3. **Commit** with clear, descriptive messages
+4. **Push** and open a Pull Request
 
-### Code Style
+### Code Standards
 
 - Follow [Kotlin coding conventions](https://kotlinlang.org/docs/coding-conventions.html)
-- Use meaningful variable and function names
-- Add KDoc comments for public APIs
-- Write tests for new features
+- Public APIs must have KDoc comments
+- New features should include tests
+- No hardcoded strings — use `strings.xml`
+- No `runBlocking` on main thread
+- No `!!` operators — use safe calls or error handling
 
 ---
 
-## 📝 License
+## License
 
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
-
-```
-MIT License
-
-Copyright (c) 2026 Youssef
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
+MIT License. See [LICENSE](LICENSE) for details.
 
 ---
 
-## 📧 Contact
+## Links
 
-- **Project Link**: [https://github.com/Yussefgafer/Meshify](https://github.com/Yussefgafer/Meshify)
-- **Author**: Youssef
-- **Issues**: [GitHub Issues](https://github.com/Yussefgafer/Meshify/issues)
-
----
-
-<p align="center">
-  <strong>🔐 Built with ❤️ for Privacy and Offline Communication</strong><br>
-  <strong>Powered by Kotlin & Jetpack Compose</strong>
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Made_with-Kotlin-blue.svg" alt="Made with Kotlin">
-  <img src="https://img.shields.io/badge/UI-Jetpack_Compose-blue.svg" alt="Jetpack Compose">
-  <img src="https://img.shields.io/badge/Architecture-Clean_Architecture-blue.svg" alt="Clean Architecture">
-</p>
+- [GitHub Repository](https://github.com/Yussefgafer/Meshify)
+- [Issues](https://github.com/Yussefgafer/Meshify/issues)
