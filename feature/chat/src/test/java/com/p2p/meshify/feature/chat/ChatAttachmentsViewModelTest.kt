@@ -29,6 +29,7 @@ import org.junit.Rule
 import org.junit.Test
 import java.io.File
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ChatAttachmentsViewModelTest {
 
     @get:Rule
