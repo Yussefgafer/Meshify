@@ -534,6 +534,9 @@
     <string name="developer_group_cleanup">تنظيف</string>
     <string name="developer_clear_mock_data">مسح البيانات التجريبية</string>
     <string name="developer_clear_all_data">مسح جميع البيانات</string>
+    <string name="developer_testing_section">الاختبار</string>
+    <string name="developer_real_device_testing_title">اختبار الأجهزة الحقيقية</string>
+    <string name="developer_real_device_testing_subtitle">اختبار الاتصال والتشفير والرسائل على أجهزة حقيقية</string>
 
     <!-- Search Strings (Missing translations) -->
     <string name="search_chats_hint">البحث في المحادثات…</string>

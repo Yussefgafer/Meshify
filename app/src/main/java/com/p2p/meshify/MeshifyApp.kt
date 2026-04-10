@@ -53,6 +53,15 @@ class MeshifyApp : Application(), SingletonImageLoader.Factory {
         Logger.i("MeshifyApp -> Application onCreate START")
         Logger.d("MeshifyApp -> Process Name: ${packageName}")
 
+        // Global crash handler: log crash state for test recovery
+        val existingCrashHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            Logger.e("MeshifyApp -> UNCAUGHT CRASH on thread '${thread.name}'", throwable)
+            Logger.e("MeshifyApp -> Crash details: ${throwable.message}")
+            // Delegate to prior handler for proper crash reporting and process termination
+            existingCrashHandler?.uncaughtException(thread, throwable)
+        }
+
         // Start all transports
         applicationScope.launch {
             transportManager.startAllTransports()

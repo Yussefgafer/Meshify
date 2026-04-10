@@ -563,6 +563,9 @@
     <string name="developer_group_cleanup">Cleanup</string>
     <string name="developer_clear_mock_data">Clear Mock Data</string>
     <string name="developer_clear_all_data">Clear ALL Data</string>
+    <string name="developer_testing_section">Testing</string>
+    <string name="developer_real_device_testing_title">Real-Device Testing</string>
+    <string name="developer_real_device_testing_subtitle">Run connectivity, encryption, and messaging tests on real devices</string>
 
     <!-- OOB Verification Dialog -->
     <string name="oob_verify_title">Verify Identity</string>
