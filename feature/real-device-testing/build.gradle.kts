@@ -30,9 +30,11 @@ android {
 
 dependencies {
     implementation(project(":core:domain"))
+    implementation(project(":core:data"))
     implementation(project(":core:common"))
     implementation(project(":core:network"))
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.androidx.room.ktx)
 
     // Testing
     testImplementation(libs.junit)
