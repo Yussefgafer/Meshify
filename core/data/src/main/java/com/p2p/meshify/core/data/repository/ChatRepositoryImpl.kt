@@ -1217,6 +1217,23 @@ class ChatRepositoryImpl(
             val messageId = command.removePrefix("ACK_")
             Logger.d("ChatRepository -> Received ACK for message $messageId")
             messageDao.updateMessageStatus(messageId, MessageStatus.DELIVERED)
+        } else if (command.startsWith("TEST_PING")) {
+            // Test engine: respond to ping test
+            Logger.d("ChatRepository -> Received TEST_PING from $peerId, sending TEST_PONG")
+            sendSystemCommand(peerId, "TEST_PONG")
+        } else if (command.startsWith("TEST_ECHO")) {
+            // Test engine: echo back the payload data
+            Logger.d("ChatRepository -> Received TEST_ECHO from $peerId, echoing back")
+            val echoPayload = command.removePrefix("TEST_ECHO:")
+            sendSystemCommand(peerId, "TEST_ECHO_REPLY:$echoPayload")
+        } else if (command.startsWith("TEST_LAT")) {
+            // Test engine: respond to latency test
+            Logger.d("ChatRepository -> Received TEST_LAT from $peerId, sending TEST_LAT_OK")
+            sendSystemCommand(peerId, "TEST_LAT_OK:${System.currentTimeMillis()}")
+        } else if (command.startsWith("TEST_CLEANUP")) {
+            // Test engine: acknowledge cleanup request
+            Logger.d("ChatRepository -> Received TEST_CLEANUP from $peerId")
+            sendSystemCommand(peerId, "TEST_CLEANUP_ACK")
         }
     }
 

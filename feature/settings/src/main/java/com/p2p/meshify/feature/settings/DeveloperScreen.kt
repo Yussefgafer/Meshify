@@ -461,7 +461,8 @@ class DeveloperViewModel @Inject constructor(
 @Composable
 fun DeveloperScreen(
     viewModel: DeveloperViewModel,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onRealDeviceTestingClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var statusMessage by remember { mutableStateOf<String?>(null) }
@@ -565,6 +566,18 @@ fun DeveloperScreen(
                     onClick = {
                         viewModel.insertMockLongConversation { statusMessage = it }
                     }
+                )
+            }
+
+            Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Md))
+
+            // Testing Section
+            MeshifySettingsGroup(title = stringResource(R.string.developer_testing_section)) {
+                MeshifySettingsItem(
+                    title = stringResource(R.string.developer_real_device_testing_title),
+                    subtitle = stringResource(R.string.developer_real_device_testing_subtitle),
+                    icon = Icons.Default.Build,
+                    onClick = onRealDeviceTestingClick
                 )
             }
 

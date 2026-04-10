@@ -44,6 +44,8 @@ import com.p2p.meshify.feature.settings.SettingsScreen
 import com.p2p.meshify.feature.settings.SettingsViewModel
 import com.p2p.meshify.feature.settings.DeveloperScreen
 import com.p2p.meshify.feature.settings.DeveloperViewModel
+import com.p2p.meshify.feature.realdevicetesting.ui.RealDeviceTestingViewModel
+import com.p2p.meshify.feature.realdevicetesting.ui.RealDeviceTestScreen
 import com.p2p.meshify.core.domain.interfaces.WifiStateChecker
 import com.p2p.meshify.core.data.local.MeshifyDatabase
 import dagger.hilt.android.AndroidEntryPoint
@@ -237,7 +239,21 @@ class MainActivity : ComponentActivity() {
                                         )
                                         DeveloperScreen(
                                             viewModel = developerViewModel,
-                                            onBackClick = { navController.popBackStack() }
+                                            onBackClick = { navController.popBackStack() },
+                                            onRealDeviceTestingClick = { navController.navigate(Screen.RealDeviceTesting) }
+                                        )
+                                    },
+                                    onRealDeviceTestingRoute = {
+                                        val realDeviceTestViewModel: RealDeviceTestingViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                                            factory = RealDeviceTestingViewModel.factory(
+                                                context = context,
+                                                chatRepository = app.chatRepository,
+                                                database = database
+                                            )
+                                        )
+                                        RealDeviceTestScreen(
+                                            viewModel = realDeviceTestViewModel,
+                                            onNavigateBack = { navController.popBackStack() }
                                         )
                                     }
                                 )

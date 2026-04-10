@@ -22,4 +22,7 @@ sealed class Screen {
 
     @Serializable
     data object Developer : Screen()
+
+    @Serializable
+    data object RealDeviceTesting : Screen()
 }
