@@ -11,12 +11,10 @@ import kotlinx.coroutines.withContext
 /**
  * Orchestrates all pre-flight checks before real-device testing.
  *
- * Runs checks in sequence (fail-fast):
+ * Runs ALL checks regardless of individual outcomes, so the user sees a complete report:
  * 1. PermissionChecker — verifies required permissions are granted
  * 2. ConnectivityChecker — verifies WiFi connected with valid IP
  * 3. SecurityWarmer — verifies ECDH crypto subsystem works
- *
- * All checks run even if earlier ones fail, so the user sees a complete report.
  */
 class PreFlightChecker(
     context: Context,

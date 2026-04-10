@@ -38,7 +38,7 @@
     <string name="test_roundtrip_subtitle">Send an echo request and verify the response matches</string>
 
     <!-- Peer Selection Section -->
-    <string name="peer_selection_title">Discovered Devices</string>
+    <string name="peer_selection_title">Discovered Devices (%1$d)</string>
     <string name="peer_selection_scanning">Scanning for devices…</string>
     <string name="peer_selection_none">No devices found. Make sure another device is running the app on the same network.</string>
     <string name="peer_selection_select">Select a target device</string>
@@ -109,4 +109,30 @@
     <string name="transport_registry_initialized">Registry ready</string>
     <string name="transport_registry_not_initialized">Registry not ready</string>
     <string name="transport_count">%1$d transport(s) available</string>
+
+    <!-- UI Strings (Screen) -->
+    <string name="screen_start_testing">Start Testing</string>
+    <string name="screen_running_preflight">Running pre-flight checks…</string>
+    <string name="screen_rerun_preflight">Re-run Pre-Flight</string>
+    <string name="screen_rescan">Rescan</string>
+    <string name="screen_run_all_tests">Run All Tests</string>
+    <string name="screen_run_selected_tests">Run Selected (%1$d)</string>
+    <string name="screen_run_all_tests_again">Run All Tests Again</string>
+    <string name="screen_rerun_failed">Re-run Failed (%1$d)</string>
+    <string name="screen_cancel_tests">Cancel Tests</string>
+    <string name="screen_cancelling">Cancelling…</string>
+    <string name="screen_select_peer_warning">Select a peer device to continue</string>
+    <string name="screen_preflight_blocked">Tests cannot run until critical checks pass.</string>
+    <string name="screen_connecting_to">Connecting to %1$s…</string>
+    <string name="screen_test_x_of_y">Test %1$d of %2$d</string>
+    <string name="screen_log_exported">Log exported successfully</string>
+    <string name="screen_export_failed">Export failed</string>
+    <string name="screen_select_all">Select All</string>
+    <string name="screen_deselect_all">Deselect All</string>
+    <string name="screen_collapse">Collapse</string>
+    <string name="screen_expand">Expand</string>
+    <string name="screen_back">Back</string>
+    <string name="screen_elapsed_time">%1$ds elapsed</string>
+    <string name="error_transport_unavailable">No transport available for %1$s</string>
+    <string name="test_cancelled_by_user">Cancelled by user</string>
 </resources>
