@@ -87,4 +87,26 @@
     <string name="preflight_ecdh_duration">%1$d مللي ثانية</string>
     <string name="preflight_all_pass">جميع الفحوصات نجحت — جاهز للاختبار</string>
     <string name="preflight_some_fail">فشل %1$d فحص(ات)</string>
+
+    <!-- Transport Adapter Section -->
+    <string name="transport_title">محولات النقل</string>
+    <string name="transport_lan_display">الشبكة المحلية (واي فاي)</string>
+    <string name="transport_ble_display">بلوتوث منخفض الطاقة</string>
+    <string name="transport_available">متاح</string>
+    <string name="transport_unavailable">غير متاح</string>
+    <string name="transport_initializing">جارٍ التهيئة…</string>
+    <string name="transport_initialized">تمت التهيئة</string>
+    <string name="transport_shutdown">جارٍ الإيقاف…</string>
+    <string name="transport_shut_down">تم الإيقاف بنجاح</string>
+    <string name="transport_discovery_start">جارٍ المسح…</string>
+    <string name="transport_discovery_found">تم العثور على %1$d جهاز(ة)</string>
+    <string name="transport_discovery_none">لم يتم العثور على أجهزة</string>
+    <string name="transport_send_success">تم إرسال %1$d بايت في %2$d مللي ثانية</string>
+    <string name="transport_send_fail">فشل الإرسال: %1$s</string>
+    <string name="transport_peer_offline">الجهاز غير متصل أو لا يمكن الوصول إليه</string>
+    <string name="transport_not_initialized">غير مهيأ</string>
+    <string name="transport_bluetooth_off">البلوتوث متوقف</string>
+    <string name="transport_registry_initialized">السجل جاهز</string>
+    <string name="transport_registry_not_initialized">السجل غير جاهز</string>
+    <string name="transport_count">%1$d محول(ات) متاح(ة)</string>
 </resources>

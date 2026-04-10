@@ -87,4 +87,26 @@
     <string name="preflight_ecdh_duration">%1$dms</string>
     <string name="preflight_all_pass">All checks passed — ready to test</string>
     <string name="preflight_some_fail">%1$d check(s) failed</string>
+
+    <!-- Transport Adapter Section -->
+    <string name="transport_title">Transport Adapters</string>
+    <string name="transport_lan_display">LAN (Wi-Fi)</string>
+    <string name="transport_ble_display">Bluetooth LE</string>
+    <string name="transport_available">Available</string>
+    <string name="transport_unavailable">Unavailable</string>
+    <string name="transport_initializing">Initializing…</string>
+    <string name="transport_initialized">Initialized</string>
+    <string name="transport_shutdown">Shutting down…</string>
+    <string name="transport_shut_down">Shut down complete</string>
+    <string name="transport_discovery_start">Scanning…</string>
+    <string name="transport_discovery_found">%1$d device(s) found</string>
+    <string name="transport_discovery_none">No devices found</string>
+    <string name="transport_send_success">Sent %1$d bytes in %2$dms</string>
+    <string name="transport_send_fail">Send failed: %1$s</string>
+    <string name="transport_peer_offline">Peer is offline or unreachable</string>
+    <string name="transport_not_initialized">Not initialized</string>
+    <string name="transport_bluetooth_off">Bluetooth is turned off</string>
+    <string name="transport_registry_initialized">Registry ready</string>
+    <string name="transport_registry_not_initialized">Registry not ready</string>
+    <string name="transport_count">%1$d transport(s) available</string>
 </resources>
