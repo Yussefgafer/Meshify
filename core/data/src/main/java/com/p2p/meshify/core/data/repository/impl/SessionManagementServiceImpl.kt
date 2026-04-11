@@ -1,16 +1,13 @@
 package com.p2p.meshify.core.data.repository.impl
 
 import com.p2p.meshify.core.common.security.EncryptedSessionKeyStore
-import com.p2p.meshify.core.common.util.HexUtil
 import com.p2p.meshify.core.common.util.HexUtil.hexToByteArray
 import com.p2p.meshify.core.data.security.impl.EcdhSessionManager
-import com.p2p.meshify.core.data.security.impl.MessageEnvelopeCrypto
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.domain.model.Handshake
 import com.p2p.meshify.domain.model.Payload
 import com.p2p.meshify.domain.repository.ISettingsRepository
-import com.p2p.meshify.domain.security.interfaces.PeerIdentityRepository
 import com.p2p.meshify.core.data.repository.interfaces.ISessionManagementService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -24,12 +21,14 @@ import kotlinx.serialization.json.Json
 
 /**
  * Implementation of session key management via ECDH handshake.
- * Handles both initiator and responder flows with TOFU validation.
+ * Handles both initiator and responder flows.
+ *
+ * Simplified: removed PeerIdentityRepository — identity public key is
+ * no longer included in handshakes or session key derivation.
  */
 class SessionManagementServiceImpl(
     private val settingsRepository: ISettingsRepository,
-    private val peerIdentity: PeerIdentityRepository,
-    private val messageCrypto: MessageEnvelopeCrypto,
+    private val messageCrypto: com.p2p.meshify.core.data.security.impl.MessageEnvelopeCrypto,
     private val ecdhSessionManager: EcdhSessionManager,
     private val sessionKeyStore: EncryptedSessionKeyStore,
     private val transportManager: TransportManager
@@ -45,7 +44,6 @@ class SessionManagementServiceImpl(
             Logger.d("SessionManagementService", "No session for ${peerId.take(8)}... - triggering handshake")
 
             val myId = settingsRepository.getDeviceId()
-            val identityPubKeyHex = peerIdentity.getPublicKeyHex()
             val displayName = withContext(Dispatchers.IO) {
                 settingsRepository.displayName.firstOrNull() ?: "Unknown"
             }
@@ -54,15 +52,15 @@ class SessionManagementServiceImpl(
             }
 
             val ephemeralKeypair = ecdhSessionManager.generateEphemeralKeypair()
-            val ephemeralPubKeyHex = HexUtil.toHex(ephemeralKeypair.public.encoded)
+            val ephemeralPubKeyHex = com.p2p.meshify.core.common.util.HexUtil.toHex(ephemeralKeypair.public.encoded)
             val nonce = ecdhSessionManager.generateNonce()
-            val nonceHex = HexUtil.toHex(nonce)
+            val nonceHex = com.p2p.meshify.core.common.util.HexUtil.toHex(nonce)
 
             val handshake = Handshake(
                 version = 2,
                 name = displayName,
                 avatarHash = avatarHash,
-                identityPubKeyHex = identityPubKeyHex,
+                identityPubKeyHex = null, // No identity key in simplified protocol
                 ephemeralPubKeyHex = ephemeralPubKeyHex,
                 nonceHex = nonceHex,
                 timestamp = System.currentTimeMillis()
@@ -123,18 +121,10 @@ class SessionManagementServiceImpl(
 
     override suspend fun establishSessionFromHandshake(
         peerId: String,
-        peerIdentityPubKeyHex: String,
         peerEphemeralPubKeyHex: String,
         peerNonceHex: String
     ): Boolean {
         try {
-            val tofuResult = sessionKeyStore.validatePeerPublicKey(peerId, peerIdentityPubKeyHex)
-            if (tofuResult == false) {
-                Logger.e("TOFU VIOLATION: Peer identity key changed! Aborting session establishment.", tag = "SessionManagementService")
-                return false
-            }
-
-            val peerIdentityPubKeyBytes = peerIdentityPubKeyHex.hexToByteArray()
             val peerEphemeralPubKeyBytes = peerEphemeralPubKeyHex.hexToByteArray()
             val peerNonce = peerNonceHex.hexToByteArray()
 
@@ -148,7 +138,7 @@ class SessionManagementServiceImpl(
                 myNonce = myNonce
             )
 
-            sessionKeyStore.putSessionKey(peerId, sessionKey, peerIdentityPubKeyHex)
+            sessionKeyStore.putSessionKey(peerId, sessionKey, "")
             ecdhSessionManager.zeroPrivateKey(myEphemeralKeyPair.private.encoded)
 
             Logger.d("SessionManagementService", "Session established with peer ${peerId.take(8)}... (responder)")
@@ -174,16 +164,9 @@ class SessionManagementServiceImpl(
         peerEphemeralPubKeyHex: String,
         peerNonceHex: String,
         myEphemeralPrivateKey: ByteArray,
-        myNonce: ByteArray,
-        peerIdentityPubKeyHex: String
+        myNonce: ByteArray
     ): Boolean {
         try {
-            val tofuResult = sessionKeyStore.validatePeerPublicKey(peerId, peerIdentityPubKeyHex)
-            if (tofuResult == false) {
-                Logger.e("TOFU VIOLATION: Peer identity key changed! Aborting.", tag = "SessionManagementService")
-                return false
-            }
-
             val peerEphemeralPubKeyBytes = peerEphemeralPubKeyHex.hexToByteArray()
             val peerNonce = peerNonceHex.hexToByteArray()
 
@@ -194,7 +177,7 @@ class SessionManagementServiceImpl(
                 myNonce = myNonce
             )
 
-            sessionKeyStore.putSessionKey(peerId, sessionKey, peerIdentityPubKeyHex)
+            sessionKeyStore.putSessionKey(peerId, sessionKey, "")
             ecdhSessionManager.zeroPrivateKey(myEphemeralPrivateKey)
 
             Logger.d("SessionManagementService", "Session finalized with peer ${peerId.take(8)}... (initiator)")

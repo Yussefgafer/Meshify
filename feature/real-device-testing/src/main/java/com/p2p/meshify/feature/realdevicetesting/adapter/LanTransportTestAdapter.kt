@@ -2,6 +2,7 @@ package com.p2p.meshify.feature.realdevicetesting.adapter
 
 import android.content.Context
 import com.p2p.meshify.core.common.security.EncryptedSessionKeyStore
+import com.p2p.meshify.core.common.security.SimplePeerIdProvider
 import com.p2p.meshify.core.network.base.TransportEvent
 import com.p2p.meshify.core.network.lan.LanTransportImpl
 import com.p2p.meshify.core.network.lan.SocketManager
@@ -9,7 +10,6 @@ import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.Payload
 import com.p2p.meshify.domain.model.TransportType
 import com.p2p.meshify.domain.repository.ISettingsRepository
-import com.p2p.meshify.domain.security.interfaces.PeerIdentityRepository
 import com.p2p.meshify.feature.realdevicetesting.model.DiscoveredPeer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -44,13 +44,13 @@ private const val TAG = "LanTransportTestAdapter"
  *
  * @param context Android application context.
  * @param settingsRepository Settings provider (for device ID, display name, etc.).
- * @param peerIdentity Identity provider (for ECDH keypair, signing, etc.).
+ * @param peerIdProvider Simple peer ID provider.
  * @param sessionKeyStore Encrypted session key store (for ECDH session keys).
  */
 class LanTransportTestAdapter(
     private val context: Context,
     private val settingsRepository: ISettingsRepository,
-    private val peerIdentity: PeerIdentityRepository,
+    private val peerIdProvider: SimplePeerIdProvider,
     private val sessionKeyStore: EncryptedSessionKeyStore
 ) : TransportTestAdapter {
 
@@ -90,7 +90,7 @@ class LanTransportTestAdapter(
             context = context,
             socketManager = socketManager,
             settingsRepository = settingsRepository,
-            peerIdentity = peerIdentity,
+            peerIdProvider = peerIdProvider,
             sessionKeyStore = sessionKeyStore
         )
 

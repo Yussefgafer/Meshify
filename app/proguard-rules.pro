@@ -21,15 +21,8 @@
 #-renamesourcefileattribute SourceFile
 
 # =============================================================================
-# SQLCipher — Required for encrypted Room database
-# =============================================================================
-# Keep all SQLCipher classes (native library bridge)
--keep class net.zetetic.** { *; }
--keep class net.sqlcipher.** { *; }
--dontwarn net.zetetic.**
--dontwarn net.sqlcipher.**
-
 # Keep native methods for JNI
+# =============================================================================
 -keepclasseswithmembernames class * {
     native <methods>;
 }

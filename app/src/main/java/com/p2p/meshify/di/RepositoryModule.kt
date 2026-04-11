@@ -15,7 +15,6 @@ import com.p2p.meshify.core.util.NotificationHelper
 import com.p2p.meshify.domain.repository.IChatRepository
 import com.p2p.meshify.domain.repository.IFileManager
 import com.p2p.meshify.domain.repository.ISettingsRepository
-import com.p2p.meshify.domain.security.interfaces.PeerIdentityRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -52,7 +51,6 @@ object RepositoryModule {
         fileManager: IFileManager,
         notificationHelper: NotificationHelper,
         settingsRepository: ISettingsRepository,
-        peerIdentity: PeerIdentityRepository,
         messageCrypto: MessageEnvelopeCrypto,
         ecdhSessionManager: EcdhSessionManager,
         sessionKeyStore: EncryptedSessionKeyStore
@@ -68,7 +66,6 @@ object RepositoryModule {
             fileManager = fileManager,
             notificationHelper = notificationHelper,
             settingsRepository = settingsRepository,
-            peerIdentity = peerIdentity,
             messageCrypto = messageCrypto,
             ecdhSessionManager = ecdhSessionManager,
             sessionKeyStore = sessionKeyStore

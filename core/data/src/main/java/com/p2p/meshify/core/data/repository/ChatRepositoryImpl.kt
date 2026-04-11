@@ -26,7 +26,6 @@ import com.p2p.meshify.core.common.util.HexUtil
 import com.p2p.meshify.core.common.util.StringResourceProvider
 import com.p2p.meshify.core.data.security.impl.EcdhSessionManager
 import com.p2p.meshify.core.data.security.impl.MessageEnvelopeCrypto
-import com.p2p.meshify.domain.security.interfaces.PeerIdentityRepository
 import com.p2p.meshify.domain.security.model.MessageEnvelope
 import com.p2p.meshify.domain.security.model.SecurityEvent
 import kotlinx.serialization.encodeToString
@@ -81,7 +80,6 @@ class ChatRepositoryImpl(
     private val fileManager: IFileManager,
     private val notificationHelper: NotificationHelper,
     private val settingsRepository: ISettingsRepository,
-    private val peerIdentity: PeerIdentityRepository,
     private val messageCrypto: MessageEnvelopeCrypto,
     private val ecdhSessionManager: EcdhSessionManager,
     private val sessionKeyStore: EncryptedSessionKeyStore
@@ -172,8 +170,10 @@ class ChatRepositoryImpl(
         val sessionKeyInfo = getOrEstablishSessionKey(peerId)
             ?: return Result.failure(SecurityException("Secure session required - cannot send plaintext to $peerId"))
 
+        val myId = settingsRepository.getDeviceId()
         val envelope = messageCrypto.encrypt(
             plaintext = text.toByteArray(Charsets.UTF_8),
+            senderId = myId,
             recipientId = peerId,
             sessionKey = sessionKeyInfo.sessionKey
         )
@@ -375,6 +375,7 @@ class ChatRepositoryImpl(
                 return false
             }
 
+        val myId = settingsRepository.getDeviceId()
         val newMessage = MessageEntity(
             id = UUID.randomUUID().toString(),
             chatId = peerId,
@@ -402,6 +403,7 @@ class ChatRepositoryImpl(
         val envelope = try {
             messageCrypto.encrypt(
                 plaintext = forwardContext.toByteArray(Charsets.UTF_8),
+                senderId = myId,
                 recipientId = peerId,
                 sessionKey = sessionKeyInfo.sessionKey
             )
@@ -480,6 +482,8 @@ class ChatRepositoryImpl(
                     return false
                 }
 
+            val myId = settingsRepository.getDeviceId()
+
             // Step 4: Create new message entity
             val newMessage = MessageEntity(
                 id = UUID.randomUUID().toString(),
@@ -510,6 +514,7 @@ class ChatRepositoryImpl(
             val envelope = try {
                 messageCrypto.encrypt(
                     plaintext = mediaBytes,
+                    senderId = myId,
                     recipientId = peerId,
                     sessionKey = sessionKeyInfo.sessionKey
                 )
@@ -654,9 +659,8 @@ class ChatRepositoryImpl(
             // No session - trigger handshake via transport layer
             Logger.d("ChatRepository", "No session for ${peerId.take(8)}... - triggering handshake")
 
-            // Get our identity info for handshake
+            // Get our info for handshake
             val myId = settingsRepository.getDeviceId()
-            val identityPubKeyHex = peerIdentity.getPublicKeyHex()
             val displayName = withContext(Dispatchers.IO) {
                 settingsRepository.displayName.firstOrNull() ?: "Unknown"
             }
@@ -675,7 +679,7 @@ class ChatRepositoryImpl(
                 version = 2,
                 name = displayName,
                 avatarHash = avatarHash,
-                identityPubKeyHex = identityPubKeyHex,
+                identityPubKeyHex = null, // No identity key in simplified protocol
                 ephemeralPubKeyHex = ephemeralPubKeyHex,
                 nonceHex = nonceHex,
                 timestamp = System.currentTimeMillis()
@@ -1274,16 +1278,8 @@ class ChatRepositoryImpl(
             val sessionKeyInfo = sessionKeyStore.getSessionKey(peerId)
                 ?: throw SecurityException("No session key for peer $peerId - cannot decrypt message")
 
-            // Get sender's public key from session store
-            val senderPublicKeyHex = getPeerPublicKey(peerId)
-                ?: throw SecurityException("Unknown peer $peerId - public key not found")
-
-            val senderPublicKeyBytes = senderPublicKeyHex.hexToByteArray()
-
-            // Decrypt the message
             val plaintext = messageCrypto.decrypt(
                 envelope = envelope,
-                senderPublicKeyBytes = senderPublicKeyBytes,
                 sessionKey = sessionKeyInfo.sessionKey
             )
 

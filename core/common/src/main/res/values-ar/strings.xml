@@ -300,10 +300,6 @@
     <string name="dialog_option_desc">خيار</string>
     <string name="dialog_selected">محدد</string>
 
-    <string name="permission_icon_desc">أيقونة الإذن</string>
-    <string name="permission_check">تحقق</string>
-    <string name="permission_all_set">كل شيء جاهز</string>
-
     <string name="message_image">صورة الرسالة</string>
     <string name="message_status">حالة الرسالة</string>
     <string name="message_reaction">تفاعل الرسالة</string>
@@ -402,14 +398,12 @@
     <string name="developer_mock_clear_subtitle">إزالة جميع المحادثات التجريبية</string>
     <string name="developer_clear_all_warning">حذف كل شيء - لا يمكن التراجع!</string>
 
+    <!-- Reset Onboarding -->
+    <string name="developer_reset_onboarding_title">إعادة شاشة الترحيب</string>
+    <string name="developer_reset_onboarding_subtitle">إظهار شاشة الترحيب عند التشغيل التالي</string>
+
     <!-- Chat Screen -->
     <string name="chat_upload_progress_percent">%d%%</string>
-
-    <!-- Permission Dialog -->
-    <string name="permission_dialog_what_happens_title">ماذا يحدث:</string>
-    <string name="permission_dialog_if_deny_title">إذا رفضت:</string>
-    <string name="permission_dialog_allow">سماح</string>
-    <string name="permission_dialog_start_messaging">بدء المراسلة</string>
 
     <!-- Notifications -->
     <string name="notification_new_message">رسالة جديدة</string>
@@ -426,10 +420,6 @@
     <string name="content_desc_scroll_to_bottom">التمرير للأسفل</string>
     <string name="chat_empty_title">لا توجد رسائل بعد</string>
     <string name="chat_empty_desc">ابدأ محادثة مع %s</string>
-    <string name="onboarding_page_indicator">صفحة %d</string>
-    <string name="onboarding_go_to_page">الانتقال لصفحة %d</string>
-    <string name="permission_deny_accessibility">رفض %s</string>
-    <string name="permission_allow_accessibility">سماح %s</string>
 
     <!-- Reply Receiver Error Messages -->
     <string name="error_reply_invalid_chat">محادثة غير صالحة</string>
@@ -439,33 +429,6 @@
     <string name="error_reply_empty">لا يمكن أن يكون الرد فارغًا</string>
     <string name="error_reply_invalid_content">محتوى الرسالة غير صالح</string>
     <string name="error_reply_chat_not_found">المحادثة غير موجودة</string>
-
-    <!-- Permission Dialog - Buttons -->
-    <string name="permission_dialog_deny">رفض</string>
-
-    <!-- Permission Dialog - Summary Screen -->
-    <string name="permission_summary_title">أنت جاهز!</string>
-    <string name="permission_summary_desc">ميشفاي جاهز للاستخدام. ابدأ اكتشاف الأجهزة القريبة وإرسال الرسائل!</string>
-    <string name="permission_partial_warning">بعض الميزات قد تكون محدودة.</string>
-
-    <!-- Permission Dialog - Individual Permissions -->
-    <string name="permission_bluetooth_title">إذن البلوتوث</string>
-    <string name="permission_bluetooth_desc">نستخدم البلوتوث لاكتشاف الأجهزة القريبة وإنشاء الاتصالات.</string>
-    <string name="permission_bluetooth_what_happens_1">مسح مستخدمي ميشفاي القريبين</string>
-    <string name="permission_bluetooth_what_happens_2">إنشاء اتصالات آمنة</string>
-    <string name="permission_bluetooth_if_deny_1">لا يمكن اكتشاف أجهزة جديدة</string>
-    <string name="permission_bluetooth_if_deny_2">لا يمكن الاتصال عبر البلوتوث</string>
-
-    <string name="permission_location_title">إذن الموقع</string>
-    <string name="permission_location_desc">الوصول للموقع مطلوب لاكتشاف WiFi Direct في إصدارات أندرويد القديمة.</string>
-
-    <string name="permission_nearby_wifi_title">أجهزة WiFi القريبة</string>
-
-    <string name="permission_notifications_title">الإشعارات</string>
-    <string name="permission_notifications_desc">احصل على إشعارات عند استلام رسائل جديدة من الأجهزة القريبة.</string>
-
-    <string name="permission_storage_title">الصور والملفات</string>
-    <string name="permission_storage_desc">الوصول للصور والملفات لإرسالها للأجهزة القريبة.</string>
 
     <!-- Settings Screen - App Settings Section -->
     <string name="settings_group_app">إعدادات التطبيق</string>

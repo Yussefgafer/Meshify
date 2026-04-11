@@ -462,7 +462,8 @@ class DeveloperViewModel @Inject constructor(
 fun DeveloperScreen(
     viewModel: DeveloperViewModel,
     onBackClick: () -> Unit,
-    onRealDeviceTestingClick: () -> Unit = {}
+    onRealDeviceTestingClick: () -> Unit = {},
+    onResetOnboardingClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var statusMessage by remember { mutableStateOf<String?>(null) }
@@ -606,6 +607,18 @@ fun DeveloperScreen(
                     onClick = {
                         showClearDataConfirmation = true
                     }
+                )
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Md),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+
+                MeshifySettingsItem(
+                    title = stringResource(R.string.developer_reset_onboarding_title),
+                    subtitle = stringResource(R.string.developer_reset_onboarding_subtitle),
+                    icon = Icons.Default.Info,
+                    onClick = onResetOnboardingClick
                 )
             }
 

@@ -72,8 +72,10 @@ class MessageSendingServiceImpl(
         val sessionKeyInfo = sessionManagementService.getOrEstablishSessionKey(peerId)
             ?: return Result.failure(SecurityException("Secure session required - cannot send plaintext to $peerId"))
 
+        val myId = settingsRepository.getDeviceId()
         val envelope = messageCrypto.encrypt(
             plaintext = text.toByteArray(Charsets.UTF_8),
+            senderId = myId,
             recipientId = peerId,
             sessionKey = sessionKeyInfo.sessionKey
         )

@@ -5,6 +5,9 @@ import com.p2p.meshify.core.common.security.EncryptedSessionKeyStore
 /**
  * Service interface for ECDH session key management.
  * Handles session establishment, validation, and key lifecycle.
+ *
+ * Simplified: removed identity public key parameters — sessions are
+ * established using only ephemeral ECDH keypairs (no TOFU validation).
  */
 interface ISessionManagementService {
 
@@ -20,14 +23,12 @@ interface ISessionManagementService {
      * Establish session key from peer's handshake (responder flow).
      *
      * @param peerId the peer's ID
-     * @param peerIdentityPubKeyHex peer's long-term identity public key (hex)
      * @param peerEphemeralPubKeyHex peer's ephemeral session public key (hex)
      * @param peerNonceHex peer's nonce (hex)
-     * @return true if session was established successfully, false on TOFU violation
+     * @return true if session was established successfully, false on failure
      */
     suspend fun establishSessionFromHandshake(
         peerId: String,
-        peerIdentityPubKeyHex: String,
         peerEphemeralPubKeyHex: String,
         peerNonceHex: String
     ): Boolean
@@ -48,7 +49,6 @@ interface ISessionManagementService {
      * @param peerNonceHex peer's nonce (hex)
      * @param myEphemeralPrivateKey our ephemeral private key
      * @param myNonce our nonce
-     * @param peerIdentityPubKeyHex peer's identity public key (for TOFU)
      * @return true if session finalized successfully
      */
     suspend fun finalizeSession(
@@ -56,7 +56,6 @@ interface ISessionManagementService {
         peerEphemeralPubKeyHex: String,
         peerNonceHex: String,
         myEphemeralPrivateKey: ByteArray,
-        myNonce: ByteArray,
-        peerIdentityPubKeyHex: String
+        myNonce: ByteArray
     ): Boolean
 }

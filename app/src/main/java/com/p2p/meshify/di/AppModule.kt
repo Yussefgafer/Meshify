@@ -4,15 +4,13 @@ import android.content.Context
 import androidx.room.Room
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import androidx.sqlite.db.SupportSQLiteOpenHelper
 import com.p2p.meshify.core.data.local.MeshifyDatabase
 import com.p2p.meshify.core.data.repository.PeerTrustStore
-import com.p2p.meshify.core.data.security.DatabaseKeyManager
 import com.p2p.meshify.core.data.security.impl.EcdhSessionManager
 import com.p2p.meshify.core.data.security.impl.InMemoryNonceCache
 import com.p2p.meshify.core.data.security.impl.MessageEnvelopeCrypto
-import com.p2p.meshify.core.data.security.impl.PeerIdentityManagerImpl
 import com.p2p.meshify.core.common.security.EncryptedSessionKeyStore
+import com.p2p.meshify.core.common.security.SimplePeerIdProvider
 import com.p2p.meshify.core.common.util.AndroidStringResourceProvider
 import com.p2p.meshify.core.common.util.StringResourceProvider
 import com.p2p.meshify.core.network.TransportManager
@@ -21,7 +19,6 @@ import com.p2p.meshify.core.domain.interfaces.WifiStateChecker
 import com.p2p.meshify.core.util.NotificationHelper
 import com.p2p.meshify.domain.repository.IFileManager
 import com.p2p.meshify.domain.repository.ISettingsRepository
-import com.p2p.meshify.domain.security.interfaces.PeerIdentityRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -36,9 +33,6 @@ object AppModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): MeshifyDatabase {
-        val keyManager = DatabaseKeyManager(context)
-        val supportFactory: SupportSQLiteOpenHelper.Factory = keyManager.getSupportFactory()
-
         val migration5to6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE chats ADD COLUMN unreadCount INTEGER NOT NULL DEFAULT 0")
@@ -48,7 +42,6 @@ object AppModule {
         return Room.databaseBuilder(context, MeshifyDatabase::class.java, "meshify.db")
             .addMigrations(migration5to6)
             .fallbackToDestructiveMigration(dropAllTables = true)
-            .openHelperFactory(supportFactory)
             .build()
     }
 
@@ -72,8 +65,8 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun providePeerIdentity(): PeerIdentityRepository {
-        return PeerIdentityManagerImpl()
+    fun providePeerIdProvider(@ApplicationContext context: Context): SimplePeerIdProvider {
+        return SimplePeerIdProvider(context)
     }
 
     @Provides
@@ -97,10 +90,9 @@ object AppModule {
     @Provides
     @Singleton
     fun provideMessageCrypto(
-        peerIdentity: PeerIdentityRepository,
         nonceCache: InMemoryNonceCache
     ): MessageEnvelopeCrypto {
-        return MessageEnvelopeCrypto(peerIdentity as PeerIdentityManagerImpl, nonceCache)
+        return MessageEnvelopeCrypto(nonceCache)
     }
 
     @Provides
@@ -126,13 +118,13 @@ object AppModule {
     fun provideTransportManager(
         @ApplicationContext context: Context,
         settingsRepository: ISettingsRepository,
-        peerIdentity: PeerIdentityRepository,
+        peerIdProvider: SimplePeerIdProvider,
         sessionKeyStore: EncryptedSessionKeyStore
     ): TransportManager {
         return TransportManager.createDefault(
             context,
             settingsRepository,
-            peerIdentity,
+            peerIdProvider,
             sessionKeyStore
         )
     }

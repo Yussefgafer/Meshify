@@ -54,6 +54,9 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
         val KEY_BLE_ENABLED = booleanPreferencesKey("ble_enabled")
         val KEY_TRANSPORT_MODE = stringPreferencesKey("transport_mode")
 
+        // Onboarding Settings Keys
+        val KEY_ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
+
         // New Settings Keys
         val KEY_APP_LANGUAGE = stringPreferencesKey("app_language")
         val KEY_FONT_SIZE_SCALE = floatPreferencesKey("font_size_scale")
@@ -150,6 +153,11 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
         } catch (e: Exception) {
             TransportMode.MULTI_PATH
         }
+    }
+
+    // Onboarding Flow
+    override val hasCompletedOnboarding: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[KEY_ONBOARDING_COMPLETED] ?: false
     }
 
     // ✅ New Settings Flows
@@ -294,6 +302,19 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
     override suspend fun setTransportMode(mode: TransportMode) {
         safeEdit { it[KEY_TRANSPORT_MODE] = mode.name }.onFailure { e ->
             Logger.e("SettingsRepository -> Failed to set transport mode", e)
+        }
+    }
+
+    // Onboarding Mutators
+    override suspend fun setOnboardingCompleted() {
+        safeEdit { it[KEY_ONBOARDING_COMPLETED] = true }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set onboarding completed", e)
+        }
+    }
+
+    override suspend fun resetOnboardingCompleted() {
+        safeEdit { it.remove(KEY_ONBOARDING_COMPLETED) }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to reset onboarding completed", e)
         }
     }
 

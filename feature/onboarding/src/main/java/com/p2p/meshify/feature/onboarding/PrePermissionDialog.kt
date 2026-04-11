@@ -1,6 +1,7 @@
 package com.p2p.meshify.feature.onboarding
 
 import android.os.Build
+import androidx.annotation.StringRes
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,8 +19,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.ui.res.stringResource
-import com.p2p.meshify.core.common.R
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.CheckCircle
@@ -139,7 +138,7 @@ fun PrePermissionDialog(
 
                 // Title
                 Text(
-                    text = currentPermission.title,
+                    text = stringResource(currentPermission.titleRes),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -150,7 +149,7 @@ fun PrePermissionDialog(
 
                 // Description
                 Text(
-                    text = currentPermission.description,
+                    text = stringResource(currentPermission.descriptionRes),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -162,7 +161,7 @@ fun PrePermissionDialog(
                 // What happens section
                 PermissionInfoSection(
                     title = stringResource(R.string.permission_dialog_what_happens_title),
-                    points = currentPermission.whatHappens,
+                    points = currentPermission.whatHappensRes.map { stringResource(it) },
                     iconTint = MaterialTheme.colorScheme.primary
                 )
 
@@ -171,11 +170,14 @@ fun PrePermissionDialog(
                 // If you deny section
                 PermissionInfoSection(
                     title = stringResource(R.string.permission_dialog_if_deny_title),
-                    points = currentPermission.ifDeny,
+                    points = currentPermission.ifDenyRes.map { stringResource(it) },
                     iconTint = MaterialTheme.colorScheme.error
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
+
+                // Resolve string resources for accessibility (outside non-Composable semantics lambdas)
+                val permissionTitle = stringResource(currentPermission.titleRes)
 
                 // Buttons
                 Row(
@@ -200,7 +202,7 @@ fun PrePermissionDialog(
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp)
-                            .semantics { contentDescription = "Deny " + currentPermission.title }
+                            .semantics { contentDescription = "Deny $permissionTitle" }
                     ) {
                         Text(
                             text = stringResource(R.string.permission_dialog_deny),
@@ -227,7 +229,7 @@ fun PrePermissionDialog(
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp)
-                            .semantics { contentDescription = "Allow ${currentPermission.title}" },
+                            .semantics { contentDescription = "Allow $permissionTitle" },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary
@@ -447,10 +449,10 @@ fun PermissionSummaryDialog(
 data class PermissionInfo(
     val id: String,
     val icon: ImageVector,
-    val title: String,
-    val description: String,
-    val whatHappens: List<String>,
-    val ifDeny: List<String>
+    @StringRes val titleRes: Int,
+    @StringRes val descriptionRes: Int,
+    @StringRes val whatHappensRes: List<Int>,
+    @StringRes val ifDenyRes: List<Int>
 )
 
 /**
@@ -466,15 +468,15 @@ object PermissionDefinitions {
             PermissionInfo(
                 id = "bluetooth",
                 icon = Icons.Default.BluetoothSearching,
-                title = "Bluetooth Permission",
-                description = "We use Bluetooth to discover nearby devices and establish connections.",
-                whatHappens = listOf(
-                    "Scan for nearby Meshify users",
-                    "Create secure connections"
+                titleRes = R.string.perm_bluetooth_title,
+                descriptionRes = R.string.perm_bluetooth_desc,
+                whatHappensRes = listOf(
+                    R.string.perm_bluetooth_what_happens_1,
+                    R.string.perm_bluetooth_what_happens_2
                 ),
-                ifDeny = listOf(
-                    "Cannot discover new devices",
-                    "Cannot connect via Bluetooth"
+                ifDenyRes = listOf(
+                    R.string.perm_bluetooth_if_deny_1,
+                    R.string.perm_bluetooth_if_deny_2
                 )
             )
         )
@@ -485,15 +487,15 @@ object PermissionDefinitions {
                 PermissionInfo(
                     id = "location",
                     icon = Icons.Default.LocationOn,
-                    title = "Location Permission",
-                    description = "Location access is required for WiFi Direct discovery on older Android versions.",
-                    whatHappens = listOf(
-                        "Enable mDNS peer discovery",
-                        "Find devices on same network"
+                    titleRes = R.string.perm_location_title,
+                    descriptionRes = R.string.perm_location_desc,
+                    whatHappensRes = listOf(
+                        R.string.perm_location_what_happens_1,
+                        R.string.perm_location_what_happens_2
                     ),
-                    ifDeny = listOf(
-                        "Cannot discover peers via LAN",
-                        "App works in offline mode only"
+                    ifDenyRes = listOf(
+                        R.string.perm_location_if_deny_1,
+                        R.string.perm_location_if_deny_2
                     )
                 )
             )
@@ -502,15 +504,15 @@ object PermissionDefinitions {
                 PermissionInfo(
                     id = "nearby_wifi",
                     icon = Icons.Default.Wifi,
-                    title = "Nearby WiFi Devices",
-                    description = "This permission allows direct device-to-device connections without internet.",
-                    whatHappens = listOf(
-                        "Connect to nearby Meshify users",
-                        "Transfer messages via WiFi"
+                    titleRes = R.string.perm_nearby_wifi_title,
+                    descriptionRes = R.string.perm_nearby_wifi_desc,
+                    whatHappensRes = listOf(
+                        R.string.perm_nearby_wifi_what_happens_1,
+                        R.string.perm_nearby_wifi_what_happens_2
                     ),
-                    ifDeny = listOf(
-                        "Cannot use WiFi Direct",
-                        "Limited to Bluetooth only"
+                    ifDenyRes = listOf(
+                        R.string.perm_nearby_wifi_if_deny_1,
+                        R.string.perm_nearby_wifi_if_deny_2
                     )
                 )
             )
@@ -521,15 +523,15 @@ object PermissionDefinitions {
             PermissionInfo(
                 id = "notifications",
                 icon = Icons.Default.Notifications,
-                title = "Notifications",
-                description = "Get notified when you receive new messages from nearby devices.",
-                whatHappens = listOf(
-                    "Show message alerts",
-                    "Notify about new connections"
+                titleRes = R.string.perm_notifications_title,
+                descriptionRes = R.string.perm_notifications_desc,
+                whatHappensRes = listOf(
+                    R.string.perm_notifications_what_happens_1,
+                    R.string.perm_notifications_what_happens_2
                 ),
-                ifDeny = listOf(
-                    "No message notifications",
-                    "Must open app to see messages"
+                ifDenyRes = listOf(
+                    R.string.perm_notifications_if_deny_1,
+                    R.string.perm_notifications_if_deny_2
                 )
             )
         )
@@ -539,16 +541,16 @@ object PermissionDefinitions {
             PermissionInfo(
                 id = "storage",
                 icon = Icons.Default.Folder,
-                title = "Photos & Files",
-                description = "Access photos and files to send them to nearby devices.",
-                whatHappens = listOf(
-                    "Select images to send",
-                    "Share files with peers"
+                titleRes = R.string.perm_storage_title,
+                descriptionRes = R.string.perm_storage_desc,
+                whatHappensRes = listOf(
+                    R.string.perm_storage_what_happens_1,
+                    R.string.perm_storage_what_happens_2
                 ),
-                ifDeny = listOf(
-                    "Cannot send images",
-                    "Cannot share files",
-                    "Text messages still work"
+                ifDenyRes = listOf(
+                    R.string.perm_storage_if_deny_1,
+                    R.string.perm_storage_if_deny_2,
+                    R.string.perm_storage_if_deny_3
                 )
             )
         )

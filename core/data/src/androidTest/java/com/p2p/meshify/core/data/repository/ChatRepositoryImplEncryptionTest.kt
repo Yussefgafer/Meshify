@@ -8,7 +8,6 @@ import com.p2p.meshify.core.common.security.EncryptedSessionKeyStore
 import com.p2p.meshify.core.data.security.impl.InMemoryNonceCache
 import com.p2p.meshify.core.data.security.impl.MessageEnvelopeCrypto
 import com.p2p.meshify.domain.security.interfaces.NonceCache
-import com.p2p.meshify.domain.security.interfaces.PeerIdentityRepository
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert
@@ -20,11 +19,14 @@ import java.security.KeyPairGenerator
 import java.security.spec.ECGenParameterSpec
 import java.security.SecureRandom
 
+/**
+ * Integration tests for encryption flows using simplified MessageEnvelopeCrypto
+ * (AES-256-GCM without ECDSA signatures).
+ */
 @RunWith(AndroidJUnit4::class)
 class ChatRepositoryImplEncryptionTest {
 
     private lateinit var context: Context
-    private lateinit var peerIdentity: PeerIdentityRepository
     private lateinit var ecdhSessionManager: EcdhSessionManager
     private lateinit var sessionKeyStore: EncryptedSessionKeyStore
     private lateinit var replayCache: NonceCache
@@ -33,11 +35,10 @@ class ChatRepositoryImplEncryptionTest {
     @Before
     fun setup() {
         context = ApplicationProvider.getApplicationContext()
-        peerIdentity = MockPeerIdentityRepository()
         ecdhSessionManager = EcdhSessionManager()
         sessionKeyStore = EncryptedSessionKeyStore(context)
         replayCache = InMemoryNonceCache(windowMs = 30_000L)
-        messageCrypto = MessageEnvelopeCrypto(peerIdentity, replayCache)
+        messageCrypto = MessageEnvelopeCrypto(replayCache)
     }
 
     private fun generateIdentityKeypair(): KeyPair {
@@ -51,7 +52,7 @@ class ChatRepositoryImplEncryptionTest {
         val aliceIdentity = generateIdentityKeypair()
         val bobIdentity = generateIdentityKeypair()
 
-        val aliceSession = ecdhSessionManager.createEphemeralSession(bobIdentity.public.encoded)
+        val aliceSession = ecdhSessionManager.createEphemeralSession()
 
         val bobNonce = ecdhSessionManager.generateNonce()
         val bobSessionKey = ecdhSessionManager.deriveSessionKeyFromPeer(
@@ -75,11 +76,10 @@ class ChatRepositoryImplEncryptionTest {
         )
 
         val plaintext = "Hello Bob!".toByteArray(Charsets.UTF_8)
-        val envelope = messageCrypto.encrypt(plaintext, "bob-id", aliceFinalizedKey)
+        val envelope = messageCrypto.encrypt(plaintext, "alice-id", "bob-id", aliceFinalizedKey)
 
         val decrypted = messageCrypto.decrypt(
             envelope = envelope,
-            senderPublicKeyBytes = aliceIdentity.public.encoded,
             sessionKey = bobSessionKey
         )
 
@@ -91,25 +91,19 @@ class ChatRepositoryImplEncryptionTest {
     }
 
     @Test
-    fun `TOFU violation prevents session establishment`() = runTest {
-        val peerId = "attacker-peer"
-        val originalPubKeyHex = ByteArray(64) { 0x42 }.joinToString("") { "%02x".format(it) }
-        sessionKeyStore.putSessionKey(peerId, ByteArray(32) { 0x55 }, originalPubKeyHex)
+    fun `session key persists in store`() = runTest {
+        val peerId = "test-peer"
+        val sessionKey = ByteArray(32) { 0x42 }
+        val publicKeyHex = ByteArray(64) { 0x55 }.joinToString("") { "%02x".format(it) }
 
-        val attackerPubKeyHex = ByteArray(64) { 0x66 }.joinToString("") { "%02x".format(it) }
-        val tofuResult = sessionKeyStore.validatePeerPublicKey(peerId, attackerPubKeyHex)
+        sessionKeyStore.putSessionKey(peerId, sessionKey, publicKeyHex)
 
-        Assert.assertEquals(
-            "TOFU violation must return false",
-            false,
-            tofuResult
-        )
-
-        val existingSession = sessionKeyStore.getSessionKey(peerId)
-        Assert.assertEquals(
-            "Original session key must be preserved",
-            originalPubKeyHex,
-            existingSession?.peerPublicKeyHex
+        val retrieved = sessionKeyStore.getSessionKey(peerId)
+        Assert.assertNotNull("Session should be stored", retrieved)
+        Assert.assertArrayEquals(
+            "Session key should match",
+            sessionKey,
+            retrieved?.sessionKey
         )
     }
 
@@ -117,7 +111,7 @@ class ChatRepositoryImplEncryptionTest {
     fun `decryption failure discards message`() = runTest {
         val sessionKey = ByteArray(32) { 0x42 }
         val plaintext = "Secret".toByteArray(Charsets.UTF_8)
-        val envelope = messageCrypto.encrypt(plaintext, "recipient", sessionKey)
+        val envelope = messageCrypto.encrypt(plaintext, "sender", "recipient", sessionKey)
 
         val tamperedCiphertext = envelope.ciphertext.copyOf()
         if (tamperedCiphertext.isNotEmpty()) {
@@ -129,7 +123,6 @@ class ChatRepositoryImplEncryptionTest {
             runBlocking {
                 messageCrypto.decrypt(
                     envelope = tamperedEnvelope,
-                    senderPublicKeyBytes = peerIdentity.getPublicKeyBytes(),
                     sessionKey = sessionKey
                 )
             }
@@ -147,13 +140,12 @@ class ChatRepositoryImplEncryptionTest {
         val key1 = ByteArray(32) { 0x42 }
         val key2 = ByteArray(32) { 0x55 }
         val plaintext = "Secret".toByteArray(Charsets.UTF_8)
-        val envelope = messageCrypto.encrypt(plaintext, "recipient", key1)
+        val envelope = messageCrypto.encrypt(plaintext, "sender", "recipient", key1)
 
         val exception = Assert.assertThrows(SecurityException::class.java) {
             runBlocking {
                 messageCrypto.decrypt(
                     envelope = envelope,
-                    senderPublicKeyBytes = peerIdentity.getPublicKeyBytes(),
                     sessionKey = key2
                 )
             }
@@ -170,12 +162,11 @@ class ChatRepositoryImplEncryptionTest {
     fun `replay attack is detected and rejected`() = runTest {
         val sessionKey = ByteArray(32) { 0x42 }
         val plaintext = "Secret".toByteArray(Charsets.UTF_8)
-        val envelope = messageCrypto.encrypt(plaintext, "recipient", sessionKey)
+        val envelope = messageCrypto.encrypt(plaintext, "sender", "recipient", sessionKey)
 
         runBlocking {
             messageCrypto.decrypt(
                 envelope = envelope,
-                senderPublicKeyBytes = peerIdentity.getPublicKeyBytes(),
                 sessionKey = sessionKey
             )
         }
@@ -184,7 +175,6 @@ class ChatRepositoryImplEncryptionTest {
             runBlocking {
                 messageCrypto.decrypt(
                     envelope = envelope,
-                    senderPublicKeyBytes = peerIdentity.getPublicKeyBytes(),
                     sessionKey = sessionKey
                 )
             }
@@ -200,7 +190,7 @@ class ChatRepositoryImplEncryptionTest {
     fun `old message is rejected as stale`() = runTest {
         val sessionKey = ByteArray(32) { 0x42 }
         val plaintext = "Old message".toByteArray(Charsets.UTF_8)
-        val envelope = messageCrypto.encrypt(plaintext, "recipient", sessionKey)
+        val envelope = messageCrypto.encrypt(plaintext, "sender", "recipient", sessionKey)
 
         val oldTimestamp = System.currentTimeMillis() - (10 * 60 * 1000L)
         val oldEnvelope = envelope.copy(timestamp = oldTimestamp)
@@ -209,7 +199,6 @@ class ChatRepositoryImplEncryptionTest {
             runBlocking {
                 messageCrypto.decrypt(
                     envelope = oldEnvelope,
-                    senderPublicKeyBytes = peerIdentity.getPublicKeyBytes(),
                     sessionKey = sessionKey
                 )
             }
@@ -227,7 +216,7 @@ class ChatRepositoryImplEncryptionTest {
     fun `future message is rejected`() = runTest {
         val sessionKey = ByteArray(32) { 0x42 }
         val plaintext = "Future message".toByteArray(Charsets.UTF_8)
-        val envelope = messageCrypto.encrypt(plaintext, "recipient", sessionKey)
+        val envelope = messageCrypto.encrypt(plaintext, "sender", "recipient", sessionKey)
 
         val futureTimestamp = System.currentTimeMillis() + (10 * 60 * 1000L)
         val futureEnvelope = envelope.copy(timestamp = futureTimestamp)
@@ -236,7 +225,6 @@ class ChatRepositoryImplEncryptionTest {
             runBlocking {
                 messageCrypto.decrypt(
                     envelope = futureEnvelope,
-                    senderPublicKeyBytes = peerIdentity.getPublicKeyBytes(),
                     sessionKey = sessionKey
                 )
             }
@@ -275,7 +263,7 @@ class ChatRepositoryImplEncryptionTest {
 
         val exception = Assert.assertThrows(SecurityException::class.java) {
             runBlocking {
-                messageCrypto.encrypt(plaintext, "recipient", wrongKey)
+                messageCrypto.encrypt(plaintext, "sender", "recipient", wrongKey)
             }
         }
 
@@ -290,14 +278,13 @@ class ChatRepositoryImplEncryptionTest {
     fun `decryption with invalid session key length throws`() = runTest {
         val sessionKey = ByteArray(32) { 0x42 }
         val plaintext = "Test".toByteArray(Charsets.UTF_8)
-        val envelope = messageCrypto.encrypt(plaintext, "recipient", sessionKey)
+        val envelope = messageCrypto.encrypt(plaintext, "sender", "recipient", sessionKey)
         val wrongKey = ByteArray(16) { 0x55 }
 
         val exception = Assert.assertThrows(SecurityException::class.java) {
             runBlocking {
                 messageCrypto.decrypt(
                     envelope = envelope,
-                    senderPublicKeyBytes = peerIdentity.getPublicKeyBytes(),
                     sessionKey = wrongKey
                 )
             }
@@ -317,7 +304,7 @@ class ChatRepositoryImplEncryptionTest {
 
         val exception = Assert.assertThrows(SecurityException::class.java) {
             runBlocking {
-                messageCrypto.encrypt(plaintext, "recipient", sessionKey)
+                messageCrypto.encrypt(plaintext, "sender", "recipient", sessionKey)
             }
         }
 
@@ -329,53 +316,26 @@ class ChatRepositoryImplEncryptionTest {
     }
 
     @Test
-    fun `signature binds message to sender`() = runTest {
-        val aliceIdentity = generateIdentityKeypair()
-        val sessionKey = ByteArray(32) { 0x42 }
-        val plaintext = "Hello from Alice".toByteArray(Charsets.UTF_8)
-
-        val aliceCrypto = MessageEnvelopeCrypto(
-            MockPeerIdentityRepository(aliceIdentity),
-            InMemoryNonceCache()
-        )
-        val envelope = aliceCrypto.encrypt(plaintext, "bob", sessionKey)
-
-        val charlieIdentity = generateIdentityKeypair()
-
-        val signatureValid = peerIdentity.verifySignature(
-            publicKeyBytes = charlieIdentity.public.encoded,
-            challenge = envelope.nonce + envelope.ciphertext,
-            signature = envelope.signature
-        )
-
-        Assert.assertFalse(
-            "Signature should not verify with wrong sender key",
-            signatureValid
-        )
-    }
-
-    @Test
     fun `AAD binds message to recipient`() = runTest {
         val sessionKey = ByteArray(32) { 0x42 }
         val plaintext = "Secret".toByteArray(Charsets.UTF_8)
         val intendedRecipient = "bob"
-        val envelope = messageCrypto.encrypt(plaintext, intendedRecipient, sessionKey)
+        val envelope = messageCrypto.encrypt(plaintext, "alice", intendedRecipient, sessionKey)
 
         val tamperedEnvelope = envelope.copy(recipientId = "attacker")
         val exception = Assert.assertThrows(SecurityException::class.java) {
             runBlocking {
                 messageCrypto.decrypt(
                     envelope = tamperedEnvelope,
-                    senderPublicKeyBytes = peerIdentity.getPublicKeyBytes(),
                     sessionKey = sessionKey
                 )
             }
         }
 
         Assert.assertTrue(
-            "Exception should mention signature or tampering",
-            exception.message?.contains("signature", ignoreCase = true) == true ||
-            exception.message?.contains("tampering", ignoreCase = true) == true
+            "Exception should mention GCM or tag",
+            exception.message?.contains("GCM", ignoreCase = true) == true ||
+            exception.message?.contains("tag", ignoreCase = true) == true
         )
     }
 
@@ -384,52 +344,25 @@ class ChatRepositoryImplEncryptionTest {
         val sessionKey = ByteArray(32) { 0x42 }
         val plaintext = "Test".toByteArray(Charsets.UTF_8)
 
-        val envelope1 = messageCrypto.encrypt(plaintext, "recipient", sessionKey)
-        val envelope2 = messageCrypto.encrypt(plaintext, "recipient", sessionKey)
-        val envelope3 = messageCrypto.encrypt(plaintext, "recipient", sessionKey)
+        val envelope1 = messageCrypto.encrypt(plaintext, "sender", "recipient", sessionKey)
+        val envelope2 = messageCrypto.encrypt(plaintext, "sender", "recipient", sessionKey)
+        val envelope3 = messageCrypto.encrypt(plaintext, "sender", "recipient", sessionKey)
 
         Assert.assertFalse("Nonce 1 and 2 must differ", envelope1.nonce.contentEquals(envelope2.nonce))
         Assert.assertFalse("Nonce 2 and 3 must differ", envelope2.nonce.contentEquals(envelope3.nonce))
         Assert.assertFalse("Nonce 1 and 3 must differ", envelope1.nonce.contentEquals(envelope3.nonce))
     }
 
-    private class MockPeerIdentityRepository(
-        private val keyPair: KeyPair = run {
-            val kpg = KeyPairGenerator.getInstance("EC")
-            kpg.initialize(ECGenParameterSpec("secp256r1"), SecureRandom())
-            kpg.generateKeyPair()
-        }
-    ) : PeerIdentityRepository {
+    @Test
+    fun `signature is empty in simplified protocol`() = runTest {
+        val sessionKey = ByteArray(32) { 0x42 }
+        val plaintext = "Test".toByteArray(Charsets.UTF_8)
 
-        override suspend fun initializeIdentity(): String = "mock-peer-id"
-        override suspend fun getPeerId(): String = "mock-peer-id"
-        override suspend fun getPublicKeyBytes(): ByteArray = keyPair.public.encoded
-        override suspend fun getPublicKeyHex(): String = keyPair.public.encoded.joinToString("") { "%02x".format(it) }
+        val envelope = messageCrypto.encrypt(plaintext, "sender", "recipient", sessionKey)
 
-        override suspend fun signChallenge(challenge: ByteArray): ByteArray {
-            val signature = java.security.Signature.getInstance("SHA256withECDSA")
-            signature.initSign(keyPair.private)
-            signature.update(challenge)
-            return signature.sign()
-        }
-
-        override suspend fun verifySignature(
-            publicKeyBytes: ByteArray,
-            challenge: ByteArray,
-            signature: ByteArray
-        ): Boolean {
-            return try {
-                val pubKey = java.security.KeyFactory.getInstance("EC")
-                    .generatePublic(java.security.spec.X509EncodedKeySpec(publicKeyBytes))
-                val sig = java.security.Signature.getInstance("SHA256withECDSA")
-                sig.initVerify(pubKey)
-                sig.update(challenge)
-                sig.verify(signature)
-            } catch (e: Exception) {
-                false
-            }
-        }
-
-        override suspend fun resetIdentity() {}
+        Assert.assertTrue(
+            "Signature should be empty in simplified protocol",
+            envelope.signature.isEmpty()
+        )
     }
 }

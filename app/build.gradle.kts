@@ -112,6 +112,7 @@ dependencies {
     implementation(project(":core:ui"))
 
     // Feature Modules
+    implementation(project(":feature:onboarding"))
     implementation(project(":feature:home"))
     implementation(project(":feature:chat"))
     implementation(project(":feature:discovery"))
@@ -167,8 +168,6 @@ dependencies {
     implementation(libs.bouncycastle.bcpkix)
     implementation(libs.androidx.security.crypto)
     implementation(libs.androidx.security.crypto.ktx)
-    implementation(libs.sqlcipher.android)
-    implementation(libs.androidx.sqlite)
     implementation(libs.androidx.biometric)
     implementation(libs.androidx.biometric.ktx)
 

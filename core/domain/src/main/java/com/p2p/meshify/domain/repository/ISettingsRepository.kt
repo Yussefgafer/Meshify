@@ -48,6 +48,9 @@ interface ISettingsRepository {
     val bleEnabled: Flow<Boolean>
     val transportMode: Flow<TransportMode>
 
+    // Onboarding
+    val hasCompletedOnboarding: Flow<Boolean>
+
     // New Settings - Language, Font Size, Notifications, Storage, Backup
     val appLanguage: Flow<String>
     val fontSizeScale: Flow<Float>
@@ -76,6 +79,10 @@ interface ISettingsRepository {
     // BLE Transport Settings Mutators
     suspend fun setBleEnabled(enabled: Boolean)
     suspend fun setTransportMode(mode: TransportMode)
+
+    // Onboarding Mutators
+    suspend fun setOnboardingCompleted()
+    suspend fun resetOnboardingCompleted()
 
     // New Settings Mutators
     suspend fun setAppLanguage(language: String)

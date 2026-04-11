@@ -9,6 +9,7 @@ import coil3.disk.directory
 import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
+import com.p2p.meshify.core.common.security.SimplePeerIdProvider
 import com.p2p.meshify.core.data.local.MeshifyDatabase
 import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
 import com.p2p.meshify.core.domain.interfaces.WifiStateChecker
@@ -18,7 +19,6 @@ import com.p2p.meshify.core.network.ble.BleTransportImpl
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.receivers.ReplyReceiver
 import com.p2p.meshify.domain.repository.ISettingsRepository
-import com.p2p.meshify.domain.security.interfaces.PeerIdentityRepository
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,7 +38,7 @@ class MeshifyApp : Application(), SingletonImageLoader.Factory {
     @Inject lateinit var chatRepository: ChatRepositoryImpl
     @Inject lateinit var transportManager: TransportManager
     @Inject lateinit var settingsRepository: ISettingsRepository
-    @Inject lateinit var peerIdentity: PeerIdentityRepository
+    @Inject lateinit var peerIdProvider: SimplePeerIdProvider
     @Inject lateinit var wifiStateChecker: WifiStateChecker
     @Inject lateinit var database: MeshifyDatabase
 
@@ -98,7 +98,7 @@ class MeshifyApp : Application(), SingletonImageLoader.Factory {
             settingsRepository.bleEnabled.collect { enabled ->
                 if (enabled) {
                     if (bleTransport == null) {
-                        val peerId = try { peerIdentity.getPeerId() } catch (e: Exception) { "unknown" }
+                        val peerId = peerIdProvider.getPeerId()
                         val deviceName = settingsRepository.displayName.first()
                         bleTransport = BleTransportImpl(this@MeshifyApp, settingsRepository, peerId, deviceName)
                         transportManager.registerTransport("ble", bleTransport!!)

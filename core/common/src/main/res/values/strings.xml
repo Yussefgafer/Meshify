@@ -303,11 +303,7 @@
     
     <string name="dialog_option_desc">Option</string>
     <string name="dialog_selected">Selected</string>
-    
-    <string name="permission_icon_desc">Permission Icon</string>
-    <string name="permission_check">Check</string>
-    <string name="permission_all_set">All Set</string>
-    
+
     <string name="message_image">Message Image</string>
     <string name="message_status">Message Status</string>
     <string name="message_reaction">Message Reaction</string>
@@ -410,14 +406,12 @@
     <string name="developer_mock_clear_subtitle">Remove all mock conversations</string>
     <string name="developer_clear_all_warning">Delete everything - cannot be undone!</string>
 
+    <!-- Reset Onboarding -->
+    <string name="developer_reset_onboarding_title">Reset Onboarding</string>
+    <string name="developer_reset_onboarding_subtitle">Show welcome screen on next app launch</string>
+
     <!-- Chat Screen -->
     <string name="chat_upload_progress_percent">%d%%</string>
-
-    <!-- Permission Dialog -->
-    <string name="permission_dialog_what_happens_title">What happens:</string>
-    <string name="permission_dialog_if_deny_title">If you deny:</string>
-    <string name="permission_dialog_allow">Allow</string>
-    <string name="permission_dialog_start_messaging">Start Messaging</string>
 
     <!-- Notifications -->
     <string name="notification_new_message">New message</string>
@@ -452,33 +446,6 @@
     <string name="error_reply_empty">Reply cannot be empty</string>
     <string name="error_reply_invalid_content">Invalid message content</string>
     <string name="error_reply_chat_not_found">Chat not found</string>
-
-    <!-- Permission Dialog - Buttons -->
-    <string name="permission_dialog_deny">Deny</string>
-
-    <!-- Permission Dialog - Summary Screen -->
-    <string name="permission_summary_title">You\'re All Set!</string>
-    <string name="permission_summary_desc">Meshify is ready to use. Start discovering nearby devices and send messages!</string>
-    <string name="permission_partial_warning">Some features may be limited.</string>
-
-    <!-- Permission Dialog - Individual Permissions -->
-    <string name="permission_bluetooth_title">Bluetooth Permission</string>
-    <string name="permission_bluetooth_desc">We use Bluetooth to discover nearby devices and establish connections.</string>
-    <string name="permission_bluetooth_what_happens_1">Scan for nearby Meshify users</string>
-    <string name="permission_bluetooth_what_happens_2">Create secure connections</string>
-    <string name="permission_bluetooth_if_deny_1">Cannot discover new devices</string>
-    <string name="permission_bluetooth_if_deny_2">Cannot connect via Bluetooth</string>
-
-    <string name="permission_location_title">Location Permission</string>
-    <string name="permission_location_desc">Location access is required for WiFi Direct discovery on older Android versions.</string>
-
-    <string name="permission_nearby_wifi_title">Nearby WiFi Devices</string>
-
-    <string name="permission_notifications_title">Notifications</string>
-    <string name="permission_notifications_desc">Get notified when you receive new messages from nearby devices.</string>
-
-    <string name="permission_storage_title">Photos &amp; Files</string>
-    <string name="permission_storage_desc">Access photos and files to send them to nearby devices.</string>
 
     <!-- Settings Screen - App Settings Section -->
     <string name="settings_group_app">App Settings</string>
