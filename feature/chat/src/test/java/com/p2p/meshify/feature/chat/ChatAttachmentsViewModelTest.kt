@@ -5,13 +5,11 @@ import android.net.Uri
 import com.p2p.meshify.core.common.R
 import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
 import com.p2p.meshify.domain.model.MessageType
-import com.p2p.meshify.domain.security.model.SecurityEvent
 import com.p2p.meshify.feature.chat.viewmodels.ChatAttachmentsViewModel
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.CompletableDeferred
@@ -46,7 +44,6 @@ class ChatAttachmentsViewModelTest {
     @Before
     fun setup() {
         every { mockRepository.onlinePeers } returns kotlinx.coroutines.flow.flowOf(emptySet())
-        every { mockRepository.securityEvents } returns MutableSharedFlow<SecurityEvent>(replay = 0, extraBufferCapacity = 10)
 
         every { mockContext.getString(R.string.error_file_send_failed, any<String>()) } returns "File send failed"
         every { mockContext.getString(R.string.error_message_send_failed, any<String>()) } returns "Message send failed"

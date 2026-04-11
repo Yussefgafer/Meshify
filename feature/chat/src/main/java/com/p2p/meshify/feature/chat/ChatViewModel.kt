@@ -181,40 +181,13 @@ class ChatViewModel @Inject constructor(
         // SharedFlow is hot and never terminates — errors are handled in repository before emit
         viewModelScope.launch {
             repository.securityEvents.collect { event ->
-                when (event) {
-                    is SecurityEvent.DecryptionFailed -> {
-                        // Show decryption failure warning to user
-                        val warningText = context.getString(R.string.security_warning_decryption_failed, event.peerId.take(8), event.reason)
-                        _uiState.update {
-                            it.copy(securityWarning = warningText)
-                        }
-                        Logger.w("ChatViewModel -> Decryption failed from ${event.peerId.take(8)}: ${event.reason}")
+                if (event.type == SecurityEvent.EventType.MESSAGE_SEND_FAILED) {
+                    _uiState.update {
+                        it.copy(
+                            sendError = context.getString(R.string.error_message_send_failed, event.reason)
+                        )
                     }
-                    is SecurityEvent.TofuViolation -> {
-                        // Show TOFU violation warning
-                        val warningText = context.getString(R.string.security_warning_tofu_violation, event.peerId.take(8))
-                        _uiState.update {
-                            it.copy(securityWarning = warningText)
-                        }
-                        Logger.e("ChatViewModel -> TOFU violation for ${event.peerId.take(8)}")
-                    }
-                    is SecurityEvent.SessionExpired -> {
-                        // Show session expired warning
-                        val warningText = context.getString(R.string.security_warning_session_expired, event.peerId.take(8))
-                        _uiState.update {
-                            it.copy(securityWarning = warningText)
-                        }
-                        Logger.w("ChatViewModel -> Session expired for ${event.peerId.take(8)}")
-                    }
-                    is SecurityEvent.MessageSendFailed -> {
-                        // Show send error message to user
-                        _uiState.update {
-                            it.copy(
-                                sendError = context.getString(R.string.error_message_send_failed, event.reason)
-                            )
-                        }
-                        Logger.e("ChatViewModel -> Message send failed: ${event.messageId}")
-                    }
+                    Logger.e("ChatViewModel -> Message send failed: ${event.messageId}")
                 }
             }
         }

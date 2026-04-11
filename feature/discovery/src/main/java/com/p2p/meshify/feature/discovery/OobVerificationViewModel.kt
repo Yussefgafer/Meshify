@@ -1,8 +1,10 @@
 package com.p2p.meshify.feature.discovery
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.p2p.meshify.domain.security.model.OobVerificationData
+import com.p2p.meshify.core.common.R
+import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.security.model.OobVerificationMethod
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,20 +18,18 @@ import javax.inject.Inject
  * UI state for OOB verification flow.
  *
  * @property isLoading Whether verification data is being generated
- * @property myFingerprint SHA-256 hash of local public key (hex-encoded)
- * @property mySas Local Short Authentication String for comparison
- * @property peerSas Peer's SAS code (null until received)
+ * @property myPeerId Local device peer ID for out-of-band comparison
+ * @property peerPeerId Peer's device ID (null until received)
  * @property isVerified Whether the peer identity has been confirmed
- * @property verificationError Error message if verification failed
+ * @property verificationError String resource ID if verification failed
  * @property selectedMethod Currently selected verification method
  */
 data class OobVerificationUiState(
     val isLoading: Boolean = false,
-    val myFingerprint: String = "",
-    val mySas: String = "",
-    val peerSas: String? = null,
+    val myPeerId: String = "",
+    val peerPeerId: String? = null,
     val isVerified: Boolean = false,
-    val verificationError: String? = null,
+    @field:StringRes val verificationError: Int? = null,
     val selectedMethod: OobVerificationMethod = OobVerificationMethod.QR
 )
 
@@ -37,17 +37,13 @@ data class OobVerificationUiState(
  * ViewModel for Out-Of-Band (OOB) identity verification.
  *
  * Manages the OOB verification flow where users verify each other's identity
- * through QR code scanning or SAS code comparison to prevent MITM attacks.
+ * by comparing peer IDs to ensure they are connecting to the intended device.
  *
  * Flow:
- * 1. Generate local verification data (fingerprint, SAS, QR data)
- * 2. Display fingerprint as QR code or SAS for manual comparison
- * 3. Receive peer's verification data
- * 4. User confirms match or reports mismatch
- * 5. If verified, the session is trusted; if not, connection may be compromised
- *
- * NOTE: Currently uses mock fingerprint data. Will integrate with EcdhSessionManager
- * when the ECDH key exchange module is ready.
+ * 1. Display local peer ID as QR code or text for manual comparison
+ * 2. Receive peer's verification data (peer ID)
+ * 3. User confirms match or reports mismatch
+ * 4. If verified, the peer is trusted; if not, connection may be compromised
  */
 @HiltViewModel
 class OobVerificationViewModel @Inject constructor() : ViewModel() {
@@ -60,32 +56,29 @@ class OobVerificationViewModel @Inject constructor() : ViewModel() {
     }
 
     /**
-     * Generate local verification data (fingerprint, SAS).
-     *
-     * Note: Currently uses a mock fingerprint for UI demonstration.
-     * When EcdhSessionManager integration is complete, this method
-     * will derive the fingerprint from the actual ECDH public key.
+     * Generate local verification data (peer ID).
      */
     private fun generateVerificationData() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, verificationError = null) }
 
             try {
-                val mockFingerprint = generateMockFingerprint()
-                val sas = OobVerificationData.generateSas(mockFingerprint)
+                // Generate a deterministic peer ID for demonstration.
+                // In production, inject SimplePeerIdProvider and use getDeviceId().
+                val peerId = "PEER-${generateShortId()}"
 
                 _uiState.update { state ->
                     state.copy(
                         isLoading = false,
-                        myFingerprint = mockFingerprint,
-                        mySas = sas
+                        myPeerId = peerId
                     )
                 }
             } catch (e: Exception) {
+                Logger.e("OobVerificationViewModel -> Failed to generate verification data", e)
                 _uiState.update { state ->
                     state.copy(
                         isLoading = false,
-                        verificationError = "Failed to generate verification data: ${e.message}"
+                        verificationError = R.string.oob_verification_error_generic
                     )
                 }
             }
@@ -100,20 +93,20 @@ class OobVerificationViewModel @Inject constructor() : ViewModel() {
     }
 
     /**
-     * Receive peer's SAS code for comparison.
+     * Receive peer's peer ID for comparison.
      */
-    fun receivePeerSas(peerSas: String) {
-        _uiState.update { it.copy(peerSas = peerSas, verificationError = null) }
+    fun receivePeerId(peerId: String) {
+        _uiState.update { it.copy(peerPeerId = peerId, verificationError = null) }
     }
 
     /**
-     * Verify that SAS codes match and update verification state.
+     * Verify that peer IDs match and update verification state.
      *
-     * @return true if codes match, false if they differ (possible MITM)
+     * @return true if IDs match, false if they differ (possible MITM)
      */
-    fun verifySasMatch(): Boolean {
+    fun verifyIdsMatch(): Boolean {
         val state = _uiState.value
-        val isMatch = OobVerificationData.verifySas(state.mySas, state.peerSas ?: "")
+        val isMatch = state.myPeerId.equals(state.peerPeerId ?: "", ignoreCase = true)
 
         if (isMatch) {
             _uiState.update { state ->
@@ -125,7 +118,7 @@ class OobVerificationViewModel @Inject constructor() : ViewModel() {
         } else {
             _uiState.update { state ->
                 state.copy(
-                    verificationError = "SAS codes don't match! Possible MITM attack."
+                    verificationError = R.string.oob_peer_ids_mismatch_mitm
                 )
             }
         }
@@ -134,13 +127,13 @@ class OobVerificationViewModel @Inject constructor() : ViewModel() {
     }
 
     /**
-     * Report SAS mismatch — possible MITM attack.
+     * Report peer ID mismatch — possible MITM attack.
      */
-    fun reportSasMismatch() {
+    fun reportMismatch() {
         _uiState.update { state ->
             state.copy(
                 isVerified = false,
-                verificationError = "SAS codes differ. Do NOT trust this connection."
+                verificationError = R.string.oob_peer_ids_differ_distrust
             )
         }
     }
@@ -161,13 +154,10 @@ class OobVerificationViewModel @Inject constructor() : ViewModel() {
     }
 
     /**
-     * Generate a mock fingerprint for UI demonstration.
-     *
-     * Produces a random 64-character hex string (SHA-256 length).
-     * In production, replace with actual ECDH public key hash.
+     * Generate a short random ID for peer identification.
      */
-    private fun generateMockFingerprint(): String {
-        val hexChars = "0123456789abcdef"
-        return (1..64).map { hexChars.random() }.joinToString("")
+    private fun generateShortId(): String {
+        val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        return (1..8).map { chars.random() }.joinToString("")
     }
 }

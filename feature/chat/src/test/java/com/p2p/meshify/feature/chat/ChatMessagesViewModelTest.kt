@@ -49,9 +49,6 @@ class ChatMessagesViewModelTest {
 
     @Before
     fun setup() {
-        every { mockContext.getString(R.string.security_warning_decryption_failed, any<String>(), any<String>()) } returns "Decryption failed"
-        every { mockContext.getString(R.string.security_warning_tofu_violation, any<String>()) } returns "TOFU violation"
-        every { mockContext.getString(R.string.security_warning_session_expired, any<String>()) } returns "Session expired"
         every { mockContext.getString(R.string.error_message_send_failed, any<String>()) } returns "Send failed"
         every { mockContext.getString(R.string.chat_transport_ble_desc) } returns "BLE"
         every { mockContext.getString(R.string.chat_transport_multipath_desc) } returns "Multipath"
@@ -246,45 +243,9 @@ class ChatMessagesViewModelTest {
     // ==================== Security Events Tests ====================
 
     @Test
-    fun `DecryptionFailed security event should set securityWarning in state`() = runTest {
-        securityEventsFlow.emit(
-            SecurityEvent.DecryptionFailed(
-                peerId = testPeerId,
-                reason = "Invalid MAC"
-            )
-        )
-        advanceUntilIdle()
-
-        val state = viewModel.uiState.value
-        assertNotNull(state.securityWarning)
-    }
-
-    @Test
-    fun `TofuViolation security event should set securityWarning in state`() = runTest {
-        securityEventsFlow.emit(
-            SecurityEvent.TofuViolation(peerId = testPeerId, oldKey = "old", newKey = "new")
-        )
-        advanceUntilIdle()
-
-        val state = viewModel.uiState.value
-        assertNotNull(state.securityWarning)
-    }
-
-    @Test
-    fun `SessionExpired security event should set securityWarning in state`() = runTest {
-        securityEventsFlow.emit(
-            SecurityEvent.SessionExpired(peerId = testPeerId)
-        )
-        advanceUntilIdle()
-
-        val state = viewModel.uiState.value
-        assertNotNull(state.securityWarning)
-    }
-
-    @Test
     fun `MessageSendFailed security event should set sendError in state`() = runTest {
         securityEventsFlow.emit(
-            SecurityEvent.MessageSendFailed(messageId = "msg-1", peerId = testPeerId, reason = "Timeout")
+            SecurityEvent.messageSendFailed(messageId = "msg-1", peerId = testPeerId, reason = "Timeout")
         )
         advanceUntilIdle()
 
@@ -297,7 +258,7 @@ class ChatMessagesViewModelTest {
     @Test
     fun `clearError should set sendError to null`() = runTest {
         securityEventsFlow.emit(
-            SecurityEvent.MessageSendFailed(messageId = "msg-1", peerId = testPeerId, reason = "Timeout")
+            SecurityEvent.messageSendFailed(messageId = "msg-1", peerId = testPeerId, reason = "Timeout")
         )
         advanceUntilIdle()
         assertTrue(viewModel.uiState.value.sendError != null)
@@ -320,11 +281,8 @@ class ChatMessagesViewModelTest {
 
     @Test
     fun `clearSecurityWarning should set securityWarning to null`() = runTest {
-        securityEventsFlow.emit(
-            SecurityEvent.TofuViolation(peerId = testPeerId, oldKey = "old", newKey = "new")
-        )
-        advanceUntilIdle()
-        assertTrue(viewModel.uiState.value.securityWarning != null)
+        // Initial state has no warning
+        assertNull(viewModel.uiState.value.securityWarning)
 
         viewModel.clearSecurityWarning()
 

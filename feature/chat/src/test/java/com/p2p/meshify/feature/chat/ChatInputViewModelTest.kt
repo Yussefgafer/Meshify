@@ -52,11 +52,6 @@ class ChatInputViewModelTest {
         every { mockRepository.typingPeers } returns kotlinx.coroutines.flow.flowOf(emptySet())
         every { mockRepository.securityEvents } returns MutableSharedFlow<SecurityEvent>(replay = 0, extraBufferCapacity = 10)
 
-        // Setup SecurityEvent mock strings
-        every { mockContext.getString(R.string.security_warning_decryption_failed, any<String>(), any<String>()) } returns "Decryption failed"
-        every { mockContext.getString(R.string.security_warning_tofu_violation, any<String>()) } returns "TOFU violation"
-        every { mockContext.getString(R.string.security_warning_session_expired, any<String>()) } returns "Session expired"
-
         every { mockContext.getString(R.string.error_peer_offline_message_saved) } returns "Peer offline"
         every { mockContext.getString(R.string.error_network_retry) } returns "Network error"
         every { mockContext.getString(R.string.error_message_send_failed, any<String>()) } returns "Send failed"

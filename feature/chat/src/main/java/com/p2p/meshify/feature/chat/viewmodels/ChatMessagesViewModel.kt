@@ -107,43 +107,16 @@ class ChatMessagesViewModel(
         // SharedFlow is hot and never terminated — errors are handled in repository before emit.
         viewModelScope.launch {
             chatRepository.securityEvents.collect { event ->
-                when (event) {
-                    is SecurityEvent.DecryptionFailed -> {
-                        val warningText = context.getString(
-                            R.string.security_warning_decryption_failed,
-                            event.peerId.take(8),
-                            event.reason
-                        )
-                        _uiState.update { it.copy(securityWarning = warningText) }
-                        Logger.w("ChatMessagesViewModel -> Decryption failed from ${event.peerId.take(8)}: ${event.reason}")
-                    }
-                    is SecurityEvent.TofuViolation -> {
-                        val warningText = context.getString(
-                            R.string.security_warning_tofu_violation,
-                            event.peerId.take(8)
-                        )
-                        _uiState.update { it.copy(securityWarning = warningText) }
-                        Logger.e("ChatMessagesViewModel -> TOFU violation for ${event.peerId.take(8)}")
-                    }
-                    is SecurityEvent.SessionExpired -> {
-                        val warningText = context.getString(
-                            R.string.security_warning_session_expired,
-                            event.peerId.take(8)
-                        )
-                        _uiState.update { it.copy(securityWarning = warningText) }
-                        Logger.w("ChatMessagesViewModel -> Session expired for ${event.peerId.take(8)}")
-                    }
-                    is SecurityEvent.MessageSendFailed -> {
-                        _uiState.update {
-                            it.copy(
-                                sendError = context.getString(
-                                    R.string.error_message_send_failed,
-                                    event.reason
-                                )
+                if (event.type == SecurityEvent.EventType.MESSAGE_SEND_FAILED) {
+                    _uiState.update {
+                        it.copy(
+                            sendError = context.getString(
+                                R.string.error_message_send_failed,
+                                event.reason
                             )
-                        }
-                        Logger.e("ChatMessagesViewModel -> Message send failed: ${event.messageId}")
+                        )
                     }
+                    Logger.e("ChatMessagesViewModel -> Message send failed: ${event.messageId}")
                 }
             }
         }
