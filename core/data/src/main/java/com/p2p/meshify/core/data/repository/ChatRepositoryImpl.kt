@@ -543,7 +543,7 @@ class ChatRepositoryImpl(
             Payload.PayloadType.SYSTEM_CONTROL -> handleSystemCommand(peerId, payload)
             Payload.PayloadType.DELETE_REQUEST -> handleDeleteRequest(peerId, payload)
             Payload.PayloadType.REACTION -> handleReaction(peerId, payload)
-            Payload.PayloadType.TEXT, Payload.PayloadType.ENCRYPTED_MESSAGE -> handlePlaintextMessage(peerId, payload)
+            Payload.PayloadType.TEXT -> handlePlaintextMessage(peerId, payload)
             Payload.PayloadType.HANDSHAKE -> handleHandshake(peerId, payload)
             Payload.PayloadType.AVATAR_REQUEST -> handleAvatarRequest(peerId, payload)
             Payload.PayloadType.AVATAR_RESPONSE -> handleAvatarResponse(peerId, payload)

@@ -198,13 +198,6 @@ fun ChatScreen(
         }
     }
 
-    LaunchedEffect(uiState.securityWarning) {
-        uiState.securityWarning?.let { warning ->
-            snackbarHostState.showSnackbar(warning)
-            viewModel.clearSecurityWarning()
-        }
-    }
-
     // Media pickers
     val imageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let {

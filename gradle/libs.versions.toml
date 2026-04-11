@@ -21,12 +21,6 @@ datastore = "1.1.1"
 media3 = "1.8.0"
 accompanist = "0.36.0"
 paging = "3.3.5"
-# Security
-tink = "1.16.0"
-bouncyCastle = "1.82"
-securityCrypto = "1.1.0"
-biometric = "1.1.0"
-biometricKtx = "1.4.0-alpha02"
 # Testing
 mockk = "1.14.0"
 turbine = "1.1.0"
@@ -73,14 +67,6 @@ kotlinx_serialization_json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx_coroutines_core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version = "1.9.0" }
 kotlinx_coroutines_test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version = "1.9.0" }
 accompanist_permissions = { group = "com.google.accompanist", name = "accompanist-permissions", version.ref = "accompanist" }
-# Security Libraries
-tink = { group = "com.google.crypto.tink", name = "tink-android", version.ref = "tink" }
-bouncycastle_bcprov = { group = "org.bouncycastle", name = "bcprov-jdk18on", version.ref = "bouncyCastle" }
-bouncycastle_bcpkix = { group = "org.bouncycastle", name = "bcpkix-jdk18on", version.ref = "bouncyCastle" }
-androidx_security_crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
-androidx_security_crypto_ktx = { group = "androidx.security", name = "security-crypto-ktx", version.ref = "securityCrypto" }
-androidx_biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
-androidx_biometric_ktx = { group = "androidx.biometric", name = "biometric-ktx", version.ref = "biometricKtx" }
 # Testing Libraries
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 mockkAndroid = { group = "io.mockk", name = "mockk-android", version.ref = "mockk" }

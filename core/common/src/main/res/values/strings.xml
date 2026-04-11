@@ -344,7 +344,6 @@
 
     <!-- Security Warning Messages (for ChatViewModel) -->
     <string name="security_warning_decryption_failed">Decryption failed for message from %1$s: %2$s</string>
-    <string name="security_warning_tofu_violation">Security Warning: Encryption key changed for %1$s</string>
     <string name="security_warning_session_expired">Session expired with %1$s - please reconnect</string>
 
     <!-- ChatApp-Compose Chat Input Strings -->

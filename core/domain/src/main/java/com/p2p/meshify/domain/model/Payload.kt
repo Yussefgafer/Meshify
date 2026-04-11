@@ -23,8 +23,7 @@ data class Payload(
         DELIVERY_ACK,
         AVATAR_REQUEST,
         AVATAR_RESPONSE,
-        VIDEO,
-        ENCRYPTED_MESSAGE
+        VIDEO
     }
 
     override fun equals(other: Any?): Boolean {
@@ -44,9 +43,6 @@ data class Handshake(
     val version: Int = 2,
     val name: String,
     val avatarHash: String? = null,
-    val identityPubKeyHex: String? = null,      // Long-term identity public key
-    val ephemeralPubKeyHex: String? = null,     // Ephemeral session public key (forward secrecy)
-    val nonceHex: String? = null,               // 16-byte random nonce for HKDF salt
     val timestamp: Long = System.currentTimeMillis()
 )
 

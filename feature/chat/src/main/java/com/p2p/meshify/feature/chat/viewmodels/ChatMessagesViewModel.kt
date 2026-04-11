@@ -220,13 +220,6 @@ class ChatMessagesViewModel(
         _uiState.update { it.copy(uploadError = null) }
     }
 
-    /**
-     * Clears the security warning from the UI state after it has been shown.
-     */
-    fun clearSecurityWarning() {
-        _uiState.update { it.copy(securityWarning = null) }
-    }
-
     // ==================== Transport Type Utilities ====================
 
     /**
