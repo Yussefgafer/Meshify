@@ -5,7 +5,6 @@ import androidx.room.Room
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.p2p.meshify.core.data.local.MeshifyDatabase
-import com.p2p.meshify.core.data.repository.PeerTrustStore
 import com.p2p.meshify.core.common.security.SimplePeerIdProvider
 import com.p2p.meshify.core.common.util.AndroidStringResourceProvider
 import com.p2p.meshify.core.common.util.StringResourceProvider
@@ -36,7 +35,7 @@ object AppModule {
         }
 
         return Room.databaseBuilder(context, MeshifyDatabase::class.java, "meshify.db")
-            .addMigrations(migration5to6)
+            .addMigrations(migration5to6, MeshifyDatabase.MIGRATION_6_7)
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }
@@ -63,12 +62,6 @@ object AppModule {
     @Singleton
     fun providePeerIdProvider(@ApplicationContext context: Context): SimplePeerIdProvider {
         return SimplePeerIdProvider(context)
-    }
-
-    @Provides
-    @Singleton
-    fun providePeerTrustStore(database: MeshifyDatabase): PeerTrustStore {
-        return PeerTrustStore(database.trustedPeerDao())
     }
 
     @Provides

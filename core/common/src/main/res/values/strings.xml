@@ -551,6 +551,17 @@
     <string name="oob_sas_btn_differ">They Differ</string>
     <string name="oob_nfc_title">NFC Verification</string>
     <string name="oob_nfc_subtitle">Tap devices together to verify. Coming soon.</string>
+    <string name="oob_peer_id_instruction">Compare the Peer ID shown below with your contact\'s device.</string>
+    <string name="oob_peer_id_your">Your Peer ID</string>
+    <string name="oob_peer_id_contact">Contact\'s Peer ID</string>
+    <string name="oob_peer_ids_match">Peer IDs match</string>
+    <string name="oob_peer_ids_differ">Peer IDs differ!</string>
+    <string name="oob_peer_id_confirm_match">Confirm Match</string>
+    <string name="oob_peer_id_report_mismatch">Report Mismatch</string>
+    <string name="oob_peer_id_waiting">Waiting for contact\'s Peer ID…</string>
+    <string name="oob_peer_ids_mismatch_mitm">Peer IDs don\'t match! Possible MITM attack.</string>
+    <string name="oob_peer_ids_differ_distrust">Peer IDs differ. Do NOT trust this connection.</string>
+    <string name="oob_verification_error_generic">Failed to generate verification data.</string>
     <string name="oob_btn_done">Done</string>
 
     <!-- Generic Dialog Buttons -->

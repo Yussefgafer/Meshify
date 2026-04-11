@@ -546,7 +546,18 @@
     <string name="oob_sas_btn_match">متطابقة</string>
     <string name="oob_sas_btn_differ">مختلفة</string>
     <string name="oob_nfc_title">التحقق عبر NFC</string>
-    <string name="oob_nfc_subtitle">اجهز الجهازين معًا للتحقق. قريباً.</string>
+    <string name="oob_nfc_subtitle">قرب الجهازين معاً للتحقق. قريباً.</string>
+    <string name="oob_peer_id_instruction">قارن معرف النظير أدناه مع جهاز جهة الاتصال.</string>
+    <string name="oob_peer_id_your">معرف النظير الخاص بك</string>
+    <string name="oob_peer_id_contact">معرف النظير لجهة الاتصال</string>
+    <string name="oob_peer_ids_match">معرفا النظير متطابقان</string>
+    <string name="oob_peer_ids_differ">معرفا النظير مختلفان!</string>
+    <string name="oob_peer_id_confirm_match">تأكيد التطابق</string>
+    <string name="oob_peer_id_report_mismatch">الإبلاغ عن عدم تطابق</string>
+    <string name="oob_peer_id_waiting">في انتظار معرف النظير لجهة الاتصال…</string>
+    <string name="oob_peer_ids_mismatch_mitm">معرفا النظير غير متطابقين! هجوم اعتراض محتمل.</string>
+    <string name="oob_peer_ids_differ_distrust">معرفا النظير مختلفان. لا تثق بهذا الاتصال.</string>
+    <string name="oob_verification_error_generic">فشل في إنشاء بيانات التحقق.</string>
     <string name="oob_btn_done">تم</string>
 
     <!-- Generic Dialog Buttons (Missing translation) -->

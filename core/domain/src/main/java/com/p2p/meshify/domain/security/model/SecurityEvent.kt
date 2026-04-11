@@ -2,42 +2,29 @@ package com.p2p.meshify.domain.security.model
 
 /**
  * Security events that should be surfaced to the user.
- * These events indicate potential security issues that require user awareness.
+ *
+ * After Phase 4 simplification, only message send failures remain.
+ * Encryption-related events (DecryptionFailed, TofuViolation, SessionExpired)
+ * have been removed since all messages are now sent as plaintext.
  */
-sealed class SecurityEvent {
-    /**
-     * Decryption failed for a message from a peer.
-     * This could indicate tampering, key mismatch, or corrupted data.
-     *
-     * @param peerId The ID of the peer who sent the message
-     * @param reason Human-readable explanation of the failure
-     */
-    data class DecryptionFailed(val peerId: String, val reason: String) : SecurityEvent()
+data class SecurityEvent(
+    val type: EventType,
+    val messageId: String = "",
+    val peerId: String = "",
+    val reason: String = ""
+) {
+    enum class EventType {
+        MESSAGE_SEND_FAILED
+    }
 
-    /**
-     * TOFU (Trust On First Use) violation detected.
-     * The peer's public key has changed, which could indicate a MITM attack.
-     *
-     * @param peerId The ID of the peer
-     * @param oldKey The previously trusted public key (hex)
-     * @param newKey The new public key presented by the peer (hex)
-     */
-    data class TofuViolation(val peerId: String, val oldKey: String, val newKey: String) : SecurityEvent()
-
-    /**
-     * Session with a peer has expired and needs to be re-established.
-     *
-     * @param peerId The ID of the peer
-     */
-    data class SessionExpired(val peerId: String) : SecurityEvent()
-
-    /**
-     * Failed to send an encrypted message to a peer.
-     * This indicates a transmission failure after encryption succeeded.
-     *
-     * @param messageId The ID of the message that failed to send
-     * @param peerId The ID of the intended recipient
-     * @param reason Human-readable explanation of the failure
-     */
-    data class MessageSendFailed(val messageId: String, val peerId: String, val reason: String) : SecurityEvent()
+    companion object {
+        fun messageSendFailed(messageId: String, peerId: String, reason: String): SecurityEvent {
+            return SecurityEvent(
+                type = EventType.MESSAGE_SEND_FAILED,
+                messageId = messageId,
+                peerId = peerId,
+                reason = reason
+            )
+        }
+    }
 }

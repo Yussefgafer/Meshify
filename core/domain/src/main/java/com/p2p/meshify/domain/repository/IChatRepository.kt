@@ -24,7 +24,7 @@ interface IChatRepository {
 
     /**
      * Flow of security events that should be shown to the user.
-     * Collect this flow to display security warnings (decryption failures, TOFU violations, etc.)
+     * Currently only emits MessageSendFailed events.
      */
     val securityEvents: SharedFlow<SecurityEvent>
 

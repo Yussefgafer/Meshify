@@ -123,7 +123,7 @@ fun OobVerificationDialog(
                             )
                         } else {
                             QrCodeDisplay(
-                                qrData = uiState.myFingerprint,
+                                qrData = uiState.myPeerId,
                                 title = stringResource(R.string.oob_qr_title),
                                 subtitle = stringResource(R.string.oob_qr_subtitle)
                             )
@@ -131,12 +131,12 @@ fun OobVerificationDialog(
                     }
 
                     OobVerificationMethod.SAS -> {
-                        SasVerificationContent(
-                            mySas = uiState.mySas,
-                            peerSas = uiState.peerSas,
+                        PeerIdComparisonContent(
+                            myPeerId = uiState.myPeerId,
+                            peerPeerId = uiState.peerPeerId,
                             isLoading = uiState.isLoading,
-                            onMatch = { viewModel.verifySasMatch() },
-                            onMismatch = { viewModel.reportSasMismatch() }
+                            onMatch = { viewModel.verifyIdsMatch() },
+                            onMismatch = { viewModel.reportMismatch() }
                         )
                     }
 
@@ -146,7 +146,7 @@ fun OobVerificationDialog(
                 }
 
                 // Error message
-                uiState.verificationError?.let { error ->
+                uiState.verificationError?.let { errorRes ->
                     Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Sm))
 
                     Surface(
@@ -155,7 +155,7 @@ fun OobVerificationDialog(
                         shape = MeshifyDesignSystem.Shapes.CardSmall
                     ) {
                         Text(
-                            text = error,
+                            text = stringResource(errorRes),
                             modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Md),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onErrorContainer,
@@ -194,15 +194,14 @@ fun OobVerificationDialog(
 }
 
 /**
- * SAS comparison content — inline rendering to avoid nested AlertDialogs.
+ * Peer ID comparison content — inline rendering to avoid nested AlertDialogs.
  *
- * The [com.p2p.meshify.core.ui.components.SasComparisonDialog] component already
- * wraps its own AlertDialog, so we render the SAS comparison inline here instead.
+ * Displays the local peer ID and allows the user to compare with the peer's ID.
  */
 @Composable
-private fun SasVerificationContent(
-    mySas: String,
-    peerSas: String?,
+private fun PeerIdComparisonContent(
+    myPeerId: String,
+    peerPeerId: String?,
     isLoading: Boolean,
     onMatch: () -> Unit,
     onMismatch: () -> Unit
@@ -212,25 +211,25 @@ private fun SasVerificationContent(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = stringResource(R.string.oob_sas_instruction),
+            text = stringResource(R.string.oob_peer_id_instruction),
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center
         )
 
         Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Md))
 
-        // Your SAS
+        // Your Peer ID
         Text(
-            text = stringResource(R.string.oob_sas_your_code),
+            text = stringResource(R.string.oob_peer_id_your),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Text(
-            text = mySas,
+            text = myPeerId,
             style = MaterialTheme.typography.headlineSmall.copy(
                 fontFamily = FontFamily.Monospace,
-                letterSpacing = 4.sp,
+                letterSpacing = 2.sp,
                 fontWeight = FontWeight.Bold
             ),
             color = MaterialTheme.colorScheme.onSurface
@@ -238,21 +237,21 @@ private fun SasVerificationContent(
 
         Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Sm))
 
-        // Peer SAS
-        if (peerSas != null) {
+        // Peer Peer ID
+        if (peerPeerId != null) {
             Text(
-                text = stringResource(R.string.oob_sas_peer_code),
+                text = stringResource(R.string.oob_peer_id_contact),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            val isMatch = mySas.equals(peerSas, ignoreCase = true)
+            val isMatch = myPeerId.equals(peerPeerId, ignoreCase = true)
 
             Text(
-                text = peerSas,
+                text = peerPeerId,
                 style = MaterialTheme.typography.headlineSmall.copy(
                     fontFamily = FontFamily.Monospace,
-                    letterSpacing = 4.sp,
+                    letterSpacing = 2.sp,
                     fontWeight = FontWeight.Bold
                 ),
                 color = if (isMatch) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
@@ -265,9 +264,9 @@ private fun SasVerificationContent(
             ) {
                 Text(
                     text = if (isMatch)
-                        stringResource(R.string.oob_sas_codes_match)
+                        stringResource(R.string.oob_peer_ids_match)
                     else
-                        stringResource(R.string.oob_sas_codes_differ),
+                        stringResource(R.string.oob_peer_ids_differ),
                     style = MaterialTheme.typography.labelMedium,
                     color = if (isMatch) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                     fontWeight = FontWeight.Medium
@@ -289,7 +288,7 @@ private fun SasVerificationContent(
                     shape = MeshifyDesignSystem.Shapes.Button,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text(stringResource(R.string.oob_sas_btn_match))
+                    Text(stringResource(R.string.oob_peer_id_confirm_match))
                 }
 
                 OutlinedButton(
@@ -298,7 +297,7 @@ private fun SasVerificationContent(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = stringResource(R.string.oob_sas_btn_differ),
+                        text = stringResource(R.string.oob_peer_id_report_mismatch),
                         color = MaterialTheme.colorScheme.error
                     )
                 }
@@ -309,7 +308,7 @@ private fun SasVerificationContent(
             )
         } else {
             Text(
-                text = stringResource(R.string.oob_sas_waiting_peer),
+                text = stringResource(R.string.oob_peer_id_waiting),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = MeshifyDesignSystem.Spacing.Xs)
