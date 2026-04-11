@@ -13,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.p2p.meshify.core.common.R
@@ -68,8 +69,9 @@ fun DeleteConfirmationDialog(
                 Text(
                     text = when (action) {
                         is DeleteAction.Single -> stringResource(R.string.dialog_delete_single_text)
-                        is DeleteAction.Multiple -> stringResource(
-                            R.string.dialog_delete_multiple_text,
+                        is DeleteAction.Multiple -> pluralStringResource(
+                            R.plurals.dialog_delete_multiple_text,
+                            action.messageIds.size,
                             action.messageIds.size
                         )
                     }

@@ -614,11 +614,11 @@ class ChatRepositoryImpl(
     }
 
     private suspend fun handleAvatarRequest(peerId: String, payload: Payload) {
-        // Handled by LanTransportImpl
+        Logger.d("ChatRepository -> Avatar request received from $peerId (handled by LanTransport)")
     }
 
     private suspend fun handleAvatarResponse(peerId: String, payload: Payload) {
-        // Handled by LanTransportImpl
+        Logger.d("ChatRepository -> Avatar response received from $peerId (handled by LanTransport)")
     }
 
     private suspend fun handleFilePayload(peerId: String, payload: Payload) {

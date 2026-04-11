@@ -40,9 +40,23 @@
     <string name="attach_file">ملف</string>
     <string name="attach_video">فيديو</string>
     <string name="msg_failed">فشل الإرسال</string>
-    <string name="msg_selected_count">تم تحديد %d</string>
+    <plurals name="msg_selected_count">
+        <item quantity="zero">لم يتم تحديد أي شيء</item>
+        <item quantity="one">تم تحديد واحد</item>
+        <item quantity="two">تم تحديد اثنين</item>
+        <item quantity="few">تم تحديد %d</item>
+        <item quantity="many">تم تحديد %d</item>
+        <item quantity="other">تم تحديد %d</item>
+    </plurals>
     <string name="delete_confirmation_title">حذف الرسائل</string>
-    <string name="delete_confirmation_text">هل أنت متأكد من حذف %d رسالة مختارة؟</string>
+    <plurals name="delete_confirmation_text">
+        <item quantity="zero">هل أنت متأكد من حذف رسالة مختارة؟</item>
+        <item quantity="one">هل أنت متأكد من حذف رسالة مختارة واحدة؟</item>
+        <item quantity="two">هل أنت متأكد من حذف رسالتين مختارتين؟</item>
+        <item quantity="few">هل أنت متأكد من حذف %d رسائل مختارة؟</item>
+        <item quantity="many">هل أنت متأكد من حذف %d رسالة مختارة؟</item>
+        <item quantity="other">هل أنت متأكد من حذف %d رسالة مختارة؟</item>
+    </plurals>
     <string name="btn_delete">حذف</string>
     <string name="btn_cancel">إلغاء</string>
 
@@ -73,7 +87,14 @@
     <string name="dialog_delete_single_text">لا يمكن التراجع عن هذا الإجراء.</string>
     <string name="dialog_delete_everyone_warning">سيتم حذف الرسالة من جميع المشاركين.</string>
     <string name="dialog_delete_multiple_title">حذف الرسائل؟</string>
-    <string name="dialog_delete_multiple_text">هل أنت متأكد من حذف %d رسالة؟</string>
+    <plurals name="dialog_delete_multiple_text">
+        <item quantity="zero">هل أنت متأكد من حذف رسالة؟</item>
+        <item quantity="one">هل أنت متأكد من حذف رسالة واحدة؟</item>
+        <item quantity="two">هل أنت متأكد من حذف رسالتين؟</item>
+        <item quantity="few">هل أنت متأكد من حذف %d رسائل؟</item>
+        <item quantity="many">هل أنت متأكد من حذف %d رسالة؟</item>
+        <item quantity="other">هل أنت متأكد من حذف %d رسالة؟</item>
+    </plurals>
     <string name="dialog_delete_confirm">حذف</string>
 
     <!-- Chat Screen - Reply -->
@@ -89,7 +110,14 @@
     <string name="chat_action_delete_for_everyone">حذف للجميع</string>
 
     <!-- Chat Screen - Selection Mode -->
-    <string name="chat_selection_selected">تم تحديد %d</string>
+    <plurals name="chat_selection_selected">
+        <item quantity="zero">لم يتم تحديد أي شيء</item>
+        <item quantity="one">تم تحديد واحد</item>
+        <item quantity="two">تم تحديد اثنين</item>
+        <item quantity="few">تم تحديد %d</item>
+        <item quantity="many">تم تحديد %d</item>
+        <item quantity="other">تم تحديد %d</item>
+    </plurals>
     <string name="chat_selection_subtitle">حدد المزيد أو اتخذ إجراءً</string>
     <string name="chat_selection_exit_desc">الخروج من وضع التحديد</string>
     <string name="chat_selection_copy_desc">نسخ</string>
@@ -184,6 +212,7 @@
     <string name="forward_dialog_btn_cancel">إلغاء</string>
     <string name="forward_dialog_btn_forward">إعادة توجيه (%d)</string>
     <string name="forward_dialog_btn_forward_retry">إعادة محاولة</string>
+    <string name="error_forward_partial">تعذر استقبال الرسالة من %1$d من %2$d أجهزة</string>
 
     <!-- Forward Message Context -->
     <string name="forward_context_text">مُعاد الإرسال من %1$s:\n%2$s</string>
@@ -319,7 +348,7 @@
     <string name="settings_backup_import_soon">ميزة الاستيراد قادمة قريباً</string>
 
     <!-- Chat Input -->
-    <string name="chat_input_caption_placeholder">أضف تعليقاً...</string>
+    <string name="chat_input_caption_placeholder">أضف تعليقاً…</string>
 
     <!-- Chat Loading State -->
     <string name="chat_loading_desc">جارٍ تحميل الرسائل</string>
@@ -419,6 +448,8 @@
     <string name="content_desc_scroll_to_bottom">التمرير للأسفل</string>
     <string name="chat_empty_title">لا توجد رسائل بعد</string>
     <string name="chat_empty_desc">ابدأ محادثة مع %s</string>
+    <string name="permission_allow_accessibility">السماح لـ %s</string>
+    <string name="permission_deny_accessibility">رفض %s</string>
 
     <!-- Reply Receiver Error Messages -->
     <string name="error_reply_invalid_chat">محادثة غير صالحة</string>
@@ -466,7 +497,14 @@
 
     <!-- Forward Message Dialog -->
     <string name="forward_dialog_progress_format">%1$d/%2$d</string>
-    <string name="forward_dialog_more_messages">+%d أخرى</string>
+    <plurals name="forward_dialog_more_messages">
+        <item quantity="zero">لا شيء إضافي</item>
+        <item quantity="one">+%d أخرى</item>
+        <item quantity="two">+%d أخريان</item>
+        <item quantity="few">+%d أخرى</item>
+        <item quantity="many">+%d أخرى</item>
+        <item quantity="other">+%d أخرى</item>
+    </plurals>
 
     <!-- Staged Media Row - Content Descriptions -->
     <string name="staged_media_desc">الوسائط المجهزة</string>
@@ -504,7 +542,14 @@
     <string name="search_chats_hint">البحث في المحادثات…</string>
     <string name="search_no_results">لم يتم العثور على نتائج</string>
     <string name="search_in_chat_hint">البحث في الرسائل…</string>
-    <string name="search_results_count">%d نتيجة</string>
+    <plurals name="search_results_count">
+        <item quantity="zero">لا توجد نتائج</item>
+        <item quantity="one">نتيجة واحدة</item>
+        <item quantity="two">نتيجتان</item>
+        <item quantity="few">%d نتائج</item>
+        <item quantity="many">%d نتيجة</item>
+        <item quantity="other">%d نتيجة</item>
+    </plurals>
 
     <!-- Accessibility Content Descriptions (Missing translations) -->
     <string name="content_desc_search">بحث</string>

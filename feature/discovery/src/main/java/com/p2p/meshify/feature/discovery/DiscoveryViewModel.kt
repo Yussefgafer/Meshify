@@ -8,6 +8,7 @@ import com.p2p.meshify.domain.model.TransportType
 import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.core.network.base.TransportEvent
 import com.p2p.meshify.core.domain.interfaces.WifiStateChecker
+import com.p2p.meshify.core.util.Logger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -66,7 +67,16 @@ class DiscoveryViewModel @Inject constructor(
                     is TransportEvent.DeviceDiscovered -> handleDeviceDiscovered(event)
                     is TransportEvent.DeviceLost -> handleDeviceLost(event)
                     is TransportEvent.Error -> handleError(event)
-                    else -> {} // Handle connection events later
+                    is TransportEvent.ConnectionEstablished -> {
+                        Logger.i("DiscoveryViewModel -> Connection established: ${event.deviceId}")
+                    }
+                    is TransportEvent.ConnectionLost -> {
+                        Logger.w("DiscoveryViewModel -> Connection lost: ${event.deviceId}, reason: ${event.reason ?: "unknown"}")
+                    }
+                    is TransportEvent.PayloadReceived -> {
+                        // Payloads are handled by ChatRepository, just log here
+                        Logger.d("DiscoveryViewModel -> Payload received from ${event.deviceId}")
+                    }
                 }
             }
         }

@@ -383,9 +383,7 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
                 "notifications_enabled" to prefs[KEY_NOTIFICATIONS_ENABLED],
                 "export_timestamp" to System.currentTimeMillis().toString()
             )
-            // ✅ SAFE: filterValues removes all nulls, so mapValues with !! is safe
-            // This is verified by the type system: after filterValues { it != null },
-            // the type is Map<String, String> (no longer nullable values)
+            // filterValues removes all nulls, so mapValues safely receives non-null values
             .filterValues { it != null }.mapValues { it.value }
             val json = Json.encodeToString(backupData)
             Logger.d("SettingsRepository -> Backup exported successfully")

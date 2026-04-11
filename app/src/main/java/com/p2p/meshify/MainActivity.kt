@@ -219,6 +219,11 @@ class MainActivity : ComponentActivity() {
                                         )
                                     },
                                     onChatRoute = { peerId, peerName ->
+                                        // Use Hilt to create the ViewModel with SavedStateHandle.
+                                        // peerId and peerName are read from SavedStateHandle by the ViewModel.
+                                        val savedStateHandle = androidx.lifecycle.SavedStateHandle()
+                                        savedStateHandle.set("peerId", peerId)
+                                        savedStateHandle.set("peerName", peerName ?: "Peer")
                                         val chatViewModel: ChatViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                                             key = peerId,
                                             factory = object : androidx.lifecycle.ViewModelProvider.Factory {
@@ -226,8 +231,7 @@ class MainActivity : ComponentActivity() {
                                                     @Suppress("UNCHECKED_CAST")
                                                     return ChatViewModel(
                                                         context = context,
-                                                        peerId = peerId,
-                                                        peerName = peerName ?: "Peer",
+                                                        savedStateHandle = savedStateHandle,
                                                         repository = app.chatRepository
                                                     ) as T
                                                 }
