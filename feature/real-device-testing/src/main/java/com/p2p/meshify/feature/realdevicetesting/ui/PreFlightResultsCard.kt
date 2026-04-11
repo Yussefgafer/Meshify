@@ -131,8 +131,10 @@ fun PreFlightResultsCard(
                 // Connectivity check
                 CheckResultRow(preFlightResult.connectivityResult)
 
-                // Security check
-                CheckResultRow(preFlightResult.securityResult)
+                // Security check (removed after Phase 3 - encryption simplified)
+                preFlightResult.securityResult?.let { securityResult ->
+                    CheckResultRow(securityResult)
+                }
             }
         }
     }

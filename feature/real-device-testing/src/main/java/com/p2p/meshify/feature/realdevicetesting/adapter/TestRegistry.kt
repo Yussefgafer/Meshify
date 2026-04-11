@@ -1,7 +1,6 @@
 package com.p2p.meshify.feature.realdevicetesting.adapter
 
 import android.content.Context
-import com.p2p.meshify.core.common.security.EncryptedSessionKeyStore
 import com.p2p.meshify.core.common.security.SimplePeerIdProvider
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.TransportType
@@ -45,7 +44,6 @@ class TestRegistry private constructor() {
      * @param context Android application context.
      * @param settingsRepository Settings provider.
      * @param peerIdProvider Simple peer ID provider.
-     * @param sessionKeyStore Encrypted session key store.
      * @param peerId This device's peer identity (for BLE advertising).
      * @param deviceName This device's display name (for BLE advertising).
      */
@@ -53,7 +51,6 @@ class TestRegistry private constructor() {
         context: Context,
         settingsRepository: ISettingsRepository,
         peerIdProvider: SimplePeerIdProvider,
-        sessionKeyStore: EncryptedSessionKeyStore,
         peerId: String,
         deviceName: String
     ) = mutex.withLock {
@@ -68,8 +65,7 @@ class TestRegistry private constructor() {
         val lanAdapter = LanTransportTestAdapter(
             context = context,
             settingsRepository = settingsRepository,
-            peerIdProvider = peerIdProvider,
-            sessionKeyStore = sessionKeyStore
+            peerIdProvider = peerIdProvider
         )
         adapters[lanAdapter.transportType.name.lowercase()] = lanAdapter
         Logger.i(TAG, "Registered LAN transport: ${lanAdapter.displayName}")

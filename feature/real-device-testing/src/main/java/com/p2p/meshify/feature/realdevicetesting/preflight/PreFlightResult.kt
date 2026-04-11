@@ -28,14 +28,14 @@ data class CheckResult(
  * Aggregated result of all pre-flight checks.
  * @property permissionResults Results of permission checks
  * @property connectivityResult Result of connectivity checks
- * @property securityResult Result of ECDH security warmup
+ * @property securityResult Result of security checks (null after Phase 3 - encryption removed)
  * @property allPassed Whether ALL checks passed (testing can proceed)
  * @property failedChecks List of checks that failed
  */
 data class PreFlightResult(
     val permissionResults: List<CheckResult>,
     val connectivityResult: CheckResult,
-    val securityResult: CheckResult,
+    val securityResult: CheckResult?,
     val totalDurationMs: Long
 ) {
     /**
@@ -44,12 +44,12 @@ data class PreFlightResult(
     val allPassed: Boolean
         get() = permissionResults.all { it.status == CheckStatus.PASS } &&
             connectivityResult.status == CheckStatus.PASS &&
-            securityResult.status == CheckStatus.PASS
+            (securityResult == null || securityResult.status == CheckStatus.PASS)
 
     /**
      * List of all failed checks with their reasons.
      */
     val failedChecks: List<CheckResult>
-        get() = (permissionResults + listOf(connectivityResult, securityResult))
+        get() = (permissionResults + listOfNotNull(connectivityResult, securityResult))
             .filter { it.status == CheckStatus.FAIL }
 }

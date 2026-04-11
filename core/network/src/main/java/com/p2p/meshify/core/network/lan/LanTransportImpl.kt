@@ -14,11 +14,7 @@ import com.p2p.meshify.domain.model.Payload
 import com.p2p.meshify.domain.model.Handshake
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.core.network.base.IMeshTransport
-import com.p2p.meshify.core.common.security.EncryptedSessionKeyStore
 import com.p2p.meshify.core.common.security.SimplePeerIdProvider
-import com.p2p.meshify.domain.security.util.EcdhSessionManager
-import com.p2p.meshify.core.common.util.HexUtil
-import java.security.KeyPair
 import com.p2p.meshify.core.network.base.TransportEvent
 import com.p2p.meshify.core.network.base.TransportCapability
 import kotlinx.coroutines.*
@@ -50,8 +46,7 @@ class LanTransportImpl(
     private val context: Context,
     private val socketManager: SocketManager,
     private val settingsRepository: ISettingsRepository,
-    private val peerIdProvider: SimplePeerIdProvider,
-    private val sessionKeyStore: EncryptedSessionKeyStore
+    private val peerIdProvider: SimplePeerIdProvider
 ) : IMeshTransport {
 
     // ✅ Transport metadata
@@ -138,14 +133,6 @@ class LanTransportImpl(
     private var watchdogJob: Job? = null
     private var visibilityJob: Job? = null
     private var cleanupFailedCountsJob: Job? = null
-
-    // ECDH V2 Handshake: ephemeral key management
-    // Uses shared sessionKeyStore for session storage
-    private val ecdhSessionManager = EcdhSessionManager()
-
-    // Temporary cache for ephemeral keys during handshake (cleared after session derivation)
-    // Key: peerId, Value: Pair(ephemeralPrivateKeyBytes, nonceBytes)
-    private val pendingEphemeralKeys = ConcurrentHashMap<String, Pair<ByteArray, ByteArray>>()
 
     override suspend fun start() {
         val myId = settingsRepository.getDeviceId()
@@ -250,118 +237,21 @@ class LanTransportImpl(
         val name = handshake.name
         val hash = handshake.avatarHash
 
-        // V2 Handshake: Derive session key if ephemeral keys are present
-        if (handshake.version >= 2 && handshake.ephemeralPubKeyHex != null && handshake.nonceHex != null) {
-            try {
-                // Check if we have stored ephemeral keys for this peer
-                val storedKeys = pendingEphemeralKeys[senderId]
-
-                if (storedKeys != null) {
-                    // We initiated: finalize session key using stored ephemeral private key
-                    val (myEphemeralPrivKey, myNonce) = storedKeys
-                    val peerEphemeralPubKeyHex = handshake.ephemeralPubKeyHex
-                        ?: run {
-                            Logger.e("Missing ephemeral key in handshake", null, "LanTransport")
-                            return
-                        }
-                    val peerEphemeralPubKey = peerEphemeralPubKeyHex.hexToByteArray()
-                    val peerNonceHex = handshake.nonceHex
-                        ?: run {
-                            Logger.e("Missing nonce in handshake", null, "LanTransport")
-                            return
-                        }
-                    val peerNonce = peerNonceHex.hexToByteArray()
-
-                    val sessionKey = ecdhSessionManager.finalizeSessionKey(
-                        peerEphemeralPubKeyBytes = peerEphemeralPubKey,
-                        peerNonce = peerNonce,
-                        myEphemeralPrivateKey = myEphemeralPrivKey,
-                        myNonce = myNonce
-                    )
-
-                    // Zero out ephemeral private key after use (forward secrecy)
-                    ecdhSessionManager.zeroPrivateKey(myEphemeralPrivKey)
-                    pendingEphemeralKeys.remove(senderId)
-
-                    // Store session in shared sessionKeyStore (no TOFU validation in simplified protocol)
-                    sessionKeyStore.putSessionKey(senderId, sessionKey, "")
-                    Logger.d("Session established with peer", "LanTransport")
-
-                    Logger.i("Session key derived (initiator)", "LanTransport")
-                } else {
-                    // Peer initiated: generate ephemeral keypair and derive session key
-                    val myEphemeralKeypair = ecdhSessionManager.generateEphemeralKeypair()
-                    val myNonce = ecdhSessionManager.generateNonce()
-
-                    val peerEphemeralPubKeyHex = handshake.ephemeralPubKeyHex
-                        ?: run {
-                            Logger.e("Missing ephemeral key in handshake", null, "LanTransport")
-                            return
-                        }
-                    val peerEphemeralPubKey = peerEphemeralPubKeyHex.hexToByteArray()
-                    val peerNonceHex = handshake.nonceHex
-                        ?: run {
-                            Logger.e("Missing nonce in handshake", null, "LanTransport")
-                            return
-                        }
-                    val peerNonce = peerNonceHex.hexToByteArray()
-
-                    val sessionKey = ecdhSessionManager.deriveSessionKeyFromPeer(
-                        peerEphemeralPubKeyBytes = peerEphemeralPubKey,
-                        peerNonce = peerNonce,
-                        myEphemeralKeyPair = myEphemeralKeypair,
-                        myNonce = myNonce
-                    )
-
-                    // Store our ephemeral keys for session finalization
-                    pendingEphemeralKeys[senderId] = Pair(
-                        myEphemeralKeypair.private.encoded,
-                        myNonce
-                    )
-
-                    // Store session in shared sessionKeyStore (no TOFU validation in simplified protocol)
-                    sessionKeyStore.putSessionKey(senderId, sessionKey, "")
-                    Logger.d("Session established with peer", "LanTransport")
-
-                    Logger.i("Session key derived (responder)", "LanTransport")
-                }
-            } catch (e: Exception) {
-                Logger.e("LanTransport -> Failed to derive session key for $senderId", e)
-            }
-        }
-
         peerMapMutex.withLock {
             if (!peerMap.containsKey(senderId)) {
                 val rssi = getPeerRssi()
                 scope.launch {
-                    // ✅ FIX: Use parsed name instead of generic "Peer_"
                     _events.emit(TransportEvent.DeviceDiscovered(senderId, name, address, hash, rssi, com.p2p.meshify.domain.model.TransportType.LAN))
                 }
 
-                // ✅ PF10: FIX repeated firstOrNull() by using cached values
-                // Previous code called firstOrNull() twice per handshake (5-10ms delay each)
                 val displayName = getCachedDisplayName()
                 val avatarHash = getCachedAvatarHash()
                 val myPeerId = peerIdProvider.getPeerId()
 
-                // V2 Handshake: Generate ephemeral keypair for forward secrecy
-                val ephemeralKeypair = ecdhSessionManager.generateEphemeralKeypair()
-                val ephemeralPubKeyHex = HexUtil.toHex(ephemeralKeypair.public.encoded)
-                val nonceHex = HexUtil.toHex(ecdhSessionManager.generateNonce())
-
-                // Store ephemeral private key and nonce for session finalization
-                pendingEphemeralKeys[senderId] = Pair(
-                    ephemeralKeypair.private.encoded,
-                    nonceHex.hexToByteArray()
-                )
-
                 val myHandshake = Handshake(
-                    version = 2,
+                    version = 3,
                     name = displayName,
                     avatarHash = avatarHash,
-                    identityPubKeyHex = null, // No identity key in simplified protocol
-                    ephemeralPubKeyHex = ephemeralPubKeyHex,
-                    nonceHex = nonceHex,
                     timestamp = System.currentTimeMillis()
                 )
 
@@ -782,30 +672,16 @@ class LanTransportImpl(
                 val myName = settingsRepository.displayName.firstOrNull() ?: "Unknown"
                 val myAvatarHash = settingsRepository.avatarHash.firstOrNull()
 
-                // V2 Handshake: Generate ephemeral keypair for forward secrecy
-                val ephemeralKeypair = ecdhSessionManager.generateEphemeralKeypair()
-                val ephemeralPubKeyHex = HexUtil.toHex(ephemeralKeypair.public.encoded)
-                val nonceHex = HexUtil.toHex(ecdhSessionManager.generateNonce())
-
-                // Store ephemeral private key and nonce for session finalization
-                pendingEphemeralKeys[peerId] = Pair(
-                    ephemeralKeypair.private.encoded,
-                    nonceHex.hexToByteArray()
-                )
-
                 val myHandshake = Handshake(
-                    version = 2,
+                    version = 3,
                     name = myName,
                     avatarHash = myAvatarHash,
-                    identityPubKeyHex = null, // No identity key in simplified protocol
-                    ephemeralPubKeyHex = ephemeralPubKeyHex,
-                    nonceHex = nonceHex,
                     timestamp = System.currentTimeMillis()
                 )
 
                 Logger.i("LanTransport -> Resolved peer $peerId at $address. Sending Handshake.")
 
-                // ✅ FIX: Pre-warm connection before sending handshake
+                // Pre-warm connection before sending handshake
                 socketManager.registerKnownPeer(peerId, address)
 
                 sendPayload(peerId, Payload(
