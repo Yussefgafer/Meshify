@@ -9,25 +9,20 @@ import com.p2p.meshify.core.data.local.entity.ChatEntity
 import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.data.local.entity.MessageStatus
 import com.p2p.meshify.core.data.local.entity.PendingMessageEntity
-import com.p2p.meshify.core.data.repository.MessageRepository
 import com.p2p.meshify.core.data.repository.MessageAttachmentRepository
-import com.p2p.meshify.core.data.repository.util.MessageForwardHelper
-import com.p2p.meshify.core.data.repository.util.EncryptedPayloadSender
-import com.p2p.meshify.core.data.repository.util.MessageSerializationUtil
-import com.p2p.meshify.core.data.security.impl.MessageEnvelopeCrypto
+import com.p2p.meshify.core.data.repository.MessageRepository
 import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.repository.IFileManager
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.core.data.repository.interfaces.IMessageSendingService
-import com.p2p.meshify.core.data.repository.interfaces.ISessionManagementService
 import kotlinx.coroutines.CoroutineScope
 import java.io.File
 import java.util.UUID
 
 /**
  * Implementation of message sending operations.
- * Delegates to MessageRepository for standard sends, handles encrypted/grouped/forwarded messages directly.
+ * Handles plaintext message sending (no encryption after Phase 3).
  */
 class MessageSendingServiceImpl(
     private val messageRepository: MessageRepository,
@@ -38,50 +33,26 @@ class MessageSendingServiceImpl(
     private val transportManager: TransportManager,
     private val fileManager: IFileManager,
     private val settingsRepository: ISettingsRepository,
-    private val sessionManagementService: ISessionManagementService,
-    private val messageCrypto: MessageEnvelopeCrypto,
     private val stringProvider: StringResourceProvider,
     private val scope: CoroutineScope
 ) : IMessageSendingService {
 
-    private val encryptedPayloadSender = EncryptedPayloadSender(
-        messageDao = messageDao,
-        chatDao = chatDao,
-        pendingMessageDao = pendingMessageDao,
-        transportManager = transportManager,
-        fileManager = fileManager,
-        settingsRepository = settingsRepository,
-        sessionManagementService = sessionManagementService,
-        messageCrypto = messageCrypto,
-        stringProvider = stringProvider,
-        scope = scope
-    )
-
-    private val forwardHelper = MessageForwardHelper(
-        messageDao = messageDao,
-        chatDao = chatDao,
-        transportManager = transportManager,
-        fileManager = fileManager,
-        settingsRepository = settingsRepository,
-        sessionManagementService = sessionManagementService,
-        messageCrypto = messageCrypto,
-        encryptedPayloadSender = encryptedPayloadSender
-    )
-
     override suspend fun sendMessage(peerId: String, peerName: String, text: String, replyToId: String?): Result<Unit> {
-        val sessionKeyInfo = sessionManagementService.getOrEstablishSessionKey(peerId)
-            ?: return Result.failure(SecurityException("Secure session required - cannot send plaintext to $peerId"))
-
         val myId = settingsRepository.getDeviceId()
-        val envelope = messageCrypto.encrypt(
-            plaintext = text.toByteArray(Charsets.UTF_8),
+        val timestamp = System.currentTimeMillis()
+        val messageId = UUID.randomUUID().toString()
+
+        // Create plaintext message envelope
+        val envelope = com.p2p.meshify.domain.security.model.MessageEnvelope(
             senderId = myId,
             recipientId = peerId,
-            sessionKey = sessionKeyInfo.sessionKey
+            text = text,
+            timestamp = timestamp,
+            messageType = "text"
         )
 
-        val envelopeBytes = MessageSerializationUtil.serializeEnvelope(envelope)
-        return sendEncryptedPayload(peerId, peerName, envelopeBytes, replyToId)
+        val envelopeBytes = serializeEnvelope(envelope)
+        return sendPlaintextPayload(text, peerId, peerName, envelopeBytes, replyToId)
     }
 
     override suspend fun sendImage(peerId: String, peerName: String, imageBytes: ByteArray, extension: String, replyToId: String?): Result<Unit> {
@@ -141,7 +112,7 @@ class MessageSendingServiceImpl(
             groupId = messageId
         )
 
-        val cleanName = MessageSerializationUtil.parseName(peerName)
+        val cleanName = parseName(peerName)
         chatDao.insertChat(ChatEntity(peerId, cleanName, caption.ifBlank { stringProvider.getString(R.string.label_album) }, timestamp))
         messageDao.insertMessage(message)
 
@@ -164,15 +135,125 @@ class MessageSendingServiceImpl(
     }
 
     override suspend fun forwardMessage(messageId: String, targetPeerIds: List<String>): Result<Unit> {
-        return forwardHelper.forwardMessage(messageId, targetPeerIds)
+        // Forwarding is handled by ChatRepositoryImpl facade
+        return Result.failure(NotImplementedError("Forwarding should be handled by ChatRepositoryImpl"))
     }
 
-    private suspend fun sendEncryptedPayload(
+    private suspend fun sendPlaintextPayload(
+        displayText: String,
         peerId: String,
         peerName: String,
-        encryptedData: ByteArray,
+        envelopeData: ByteArray,
         replyToId: String?
     ): Result<Unit> {
-        return encryptedPayloadSender.sendEncryptedPayload(peerId, peerName, encryptedData, replyToId)
+        val messageId = UUID.randomUUID().toString()
+        val myId = settingsRepository.getDeviceId()
+        val timestamp = System.currentTimeMillis()
+        val cleanName = parseName(peerName)
+
+        val message = MessageEntity(
+            id = messageId,
+            chatId = peerId,
+            senderId = myId,
+            text = displayText,
+            mediaPath = null,
+            type = MessageType.TEXT,
+            timestamp = timestamp,
+            isFromMe = true,
+            status = MessageStatus.QUEUED,
+            replyToId = replyToId
+        )
+
+        chatDao.insertChat(ChatEntity(peerId, cleanName, message.text, timestamp))
+        messageDao.insertMessage(message)
+
+        val isOnline = transportManager.getAllTransports().any { it.onlinePeers.value.contains(peerId) }
+
+        if (!isOnline) {
+            pendingMessageDao.insert(
+                PendingMessageEntity(
+                    id = messageId,
+                    recipientId = peerId,
+                    recipientName = cleanName,
+                    content = message.text ?: "[Message]",
+                    type = MessageType.TEXT
+                )
+            )
+            return Result.success(Unit)
+        }
+
+        val payload = com.p2p.meshify.domain.model.Payload(
+            id = messageId,
+            senderId = myId,
+            timestamp = timestamp,
+            type = com.p2p.meshify.domain.model.Payload.PayloadType.TEXT,
+            data = envelopeData
+        )
+
+        return try {
+            messageDao.updateMessageStatus(messageId, MessageStatus.SENDING)
+            val transports = transportManager.selectBestTransport(peerId)
+            if (transports.isEmpty()) {
+                Result.failure(Exception("No available transport"))
+            } else {
+                val results = transports.map { transport ->
+                    runCatching {
+                        kotlinx.coroutines.withTimeout(30000L) {
+                            transport.sendPayload(peerId, payload)
+                        }
+                    }
+                }
+
+                val firstSuccess = results.find { it.isSuccess }
+                if (firstSuccess != null) {
+                    messageDao.updateMessageStatus(messageId, MessageStatus.SENT)
+                    Result.success(Unit)
+                } else {
+                    messageDao.updateMessageStatus(messageId, MessageStatus.FAILED)
+                    pendingMessageDao.insert(
+                        PendingMessageEntity(
+                            id = messageId,
+                            recipientId = peerId,
+                            recipientName = cleanName,
+                            content = message.text ?: "[Message]",
+                            type = MessageType.TEXT
+                        )
+                    )
+                    Result.failure(Exception("All transports failed"))
+                }
+            }
+        } catch (e: Exception) {
+            messageDao.updateMessageStatus(messageId, MessageStatus.FAILED)
+            Result.failure(e)
+        }
+    }
+
+    private fun serializeEnvelope(envelope: com.p2p.meshify.domain.security.model.MessageEnvelope): ByteArray {
+        val textBytes = envelope.text.toByteArray(Charsets.UTF_8)
+        val senderIdBytes = envelope.senderId.toByteArray(Charsets.UTF_8)
+        val recipientIdBytes = envelope.recipientId.toByteArray(Charsets.UTF_8)
+        val messageTypeBytes = envelope.messageType.toByteArray(Charsets.UTF_8)
+
+        val totalSize = 2 + senderIdBytes.size +
+                2 + recipientIdBytes.size +
+                4 + textBytes.size +
+                8 + // timestamp
+                2 + messageTypeBytes.size
+
+        return java.nio.ByteBuffer.allocate(totalSize).apply {
+            putShort(senderIdBytes.size.toShort())
+            put(senderIdBytes)
+            putShort(recipientIdBytes.size.toShort())
+            put(recipientIdBytes)
+            putInt(textBytes.size)
+            put(textBytes)
+            putLong(envelope.timestamp)
+            putShort(messageTypeBytes.size.toShort())
+            put(messageTypeBytes)
+        }.array()
+    }
+
+    private fun parseName(peerName: String): String {
+        return peerName.substringBefore(" (").trim()
     }
 }

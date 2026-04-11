@@ -9,17 +9,13 @@ import com.p2p.meshify.core.data.local.dao.PendingMessageDao
 import com.p2p.meshify.core.data.local.entity.ChatEntity
 import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.data.local.entity.MessageStatus
-import com.p2p.meshify.core.data.security.impl.EcdhSessionManager
-import com.p2p.meshify.core.data.security.impl.MessageEnvelopeCrypto
 import com.p2p.meshify.core.network.TransportManager
-import com.p2p.meshify.core.common.security.EncryptedSessionKeyStore
 import com.p2p.meshify.core.common.util.StringResourceProvider
 import com.p2p.meshify.core.util.NotificationHelper
 import com.p2p.meshify.domain.model.DeleteType
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.repository.IFileManager
 import com.p2p.meshify.domain.repository.ISettingsRepository
-import com.p2p.meshify.domain.security.model.MessageEnvelope
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -35,7 +31,6 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import java.security.KeyPairGenerator
 
 /**
  * Unit tests for ChatRepositoryImpl.
@@ -62,18 +57,9 @@ class ChatRepositoryImplTest {
     private val mockFileManager: IFileManager = mockk(relaxed = true)
     private val mockNotificationHelper: NotificationHelper = mockk(relaxed = true)
     private val mockSettingsRepository: ISettingsRepository = mockk(relaxed = true)
-    private val mockMessageCrypto: MessageEnvelopeCrypto = mockk(relaxed = true)
-    private val mockEcdhSessionManager: EcdhSessionManager = mockk(relaxed = true)
-    private val mockSessionKeyStore: EncryptedSessionKeyStore = mockk(relaxed = true)
-    
+
     // Reusable test flows
     private val emptyOnlinePeersFlow = MutableStateFlow<Set<String>>(emptySet())
-    
-    // Session key info mock to prevent handshake polling
-    private val mockSessionKeyInfo = EncryptedSessionKeyStore.SessionKeyInfo(
-        sessionKey = ByteArray(32) { 0x42 },
-        peerPublicKeyHex = "abcd1234"
-    )
 
     private lateinit var repository: ChatRepositoryImpl
 
@@ -87,25 +73,15 @@ class ChatRepositoryImplTest {
         // Default: no online peers (peer is offline)
         every { mockTransportManager.getAllTransports() } returns emptyList()
 
-        // Default: ALWAYS return session key to prevent handshake polling
-        coEvery { mockSessionKeyStore.getSessionKey(any()) } returns mockSessionKeyInfo
-
         // String provider defaults
         every { mockStringProvider.getString(any(), *varargAny { true }) } returns "mocked string"
         every { mockContext.getString(any()) } returns "mocked string"
-        
+
         // Mock transport for all tests
         val mockTransport = mockk<com.p2p.meshify.core.network.base.IMeshTransport>(relaxed = true)
         every { mockTransport.onlinePeers } returns emptyOnlinePeersFlow
         coEvery { mockTransport.sendPayload(any(), any()) } returns Result.success(Unit)
         every { mockTransportManager.selectBestTransport(any()) } returns listOf(mockTransport)
-        
-        // Mock ECDH session manager to generate real keypairs
-        val keyPairGenerator = KeyPairGenerator.getInstance("EC")
-        keyPairGenerator.initialize(256)
-        val testKeyPair = keyPairGenerator.generateKeyPair()
-        coEvery { mockEcdhSessionManager.generateEphemeralKeypair() } returns testKeyPair
-        coEvery { mockEcdhSessionManager.generateNonce() } returns ByteArray(16)
 
         repository = ChatRepositoryImpl(
             context = mockContext,
@@ -117,10 +93,7 @@ class ChatRepositoryImplTest {
             transportManager = mockTransportManager,
             fileManager = mockFileManager,
             notificationHelper = mockNotificationHelper,
-            settingsRepository = mockSettingsRepository,
-            messageCrypto = mockMessageCrypto,
-            ecdhSessionManager = mockEcdhSessionManager,
-            sessionKeyStore = mockSessionKeyStore
+            settingsRepository = mockSettingsRepository
         )
     }
 
@@ -247,25 +220,8 @@ class ChatRepositoryImplTest {
     // because it triggers Android Log usage. The scenario is covered in integration tests.
 
     @Test
-    fun `sendMessage encrypts and sends when session exists and peer is offline`() = runTest {
+    fun `sendMessage sends plaintext when peer is offline`() = runTest {
         // Given
-        val sessionKeyInfo = EncryptedSessionKeyStore.SessionKeyInfo(
-            sessionKey = ByteArray(32) { 0x42 },
-            peerPublicKeyHex = "abcd1234"
-        )
-        coEvery { mockSessionKeyStore.getSessionKey("peer1") } returns sessionKeyInfo
-
-        val encryptedEnvelope = MessageEnvelope(
-            senderId = "my-device-id",
-            recipientId = "peer1",
-            nonce = ByteArray(12),
-            timestamp = System.currentTimeMillis(),
-            iv = ByteArray(12),
-            ciphertext = ByteArray(32),
-            signature = ByteArray(64)
-        )
-        coEvery { mockMessageCrypto.encrypt(any(), any(), "peer1", any()) } returns encryptedEnvelope
-
         // Peer is offline
         every { mockTransportManager.getAllTransports() } returns emptyList()
 
@@ -277,7 +233,7 @@ class ChatRepositoryImplTest {
         // Message should be saved
         val messageSlot = slot<MessageEntity>()
         coVerify { mockMessageDao.insertMessage(capture(messageSlot)) }
-        assertEquals("Hello text should be encrypted, DB shows placeholder", "[Encrypted]", messageSlot.captured.text)
+        assertEquals("Hello", messageSlot.captured.text)
         assertEquals(MessageStatus.QUEUED, messageSlot.captured.status)
         // And queued for later delivery
         coVerify { mockPendingMessageDao.insert(any()) }

@@ -1,7 +1,6 @@
 package com.p2p.meshify.feature.realdevicetesting.adapter
 
 import android.content.Context
-import com.p2p.meshify.core.common.security.EncryptedSessionKeyStore
 import com.p2p.meshify.core.common.security.SimplePeerIdProvider
 import com.p2p.meshify.core.network.base.TransportEvent
 import com.p2p.meshify.core.network.lan.LanTransportImpl
@@ -45,13 +44,11 @@ private const val TAG = "LanTransportTestAdapter"
  * @param context Android application context.
  * @param settingsRepository Settings provider (for device ID, display name, etc.).
  * @param peerIdProvider Simple peer ID provider.
- * @param sessionKeyStore Encrypted session key store (for ECDH session keys).
  */
 class LanTransportTestAdapter(
     private val context: Context,
     private val settingsRepository: ISettingsRepository,
-    private val peerIdProvider: SimplePeerIdProvider,
-    private val sessionKeyStore: EncryptedSessionKeyStore
+    private val peerIdProvider: SimplePeerIdProvider
 ) : TransportTestAdapter {
 
     // Transport metadata
@@ -90,8 +87,7 @@ class LanTransportTestAdapter(
             context = context,
             socketManager = socketManager,
             settingsRepository = settingsRepository,
-            peerIdProvider = peerIdProvider,
-            sessionKeyStore = sessionKeyStore
+            peerIdProvider = peerIdProvider
         )
 
         // Create scope for this adapter's lifecycle

@@ -6,9 +6,6 @@ import com.p2p.meshify.core.data.local.dao.ChatDao
 import com.p2p.meshify.core.data.local.dao.MessageDao
 import com.p2p.meshify.core.data.local.dao.PendingMessageDao
 import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
-import com.p2p.meshify.core.data.security.impl.EcdhSessionManager
-import com.p2p.meshify.core.data.security.impl.MessageEnvelopeCrypto
-import com.p2p.meshify.core.common.security.EncryptedSessionKeyStore
 import com.p2p.meshify.core.common.util.StringResourceProvider
 import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.core.util.NotificationHelper
@@ -50,10 +47,7 @@ object RepositoryModule {
         transportManager: TransportManager,
         fileManager: IFileManager,
         notificationHelper: NotificationHelper,
-        settingsRepository: ISettingsRepository,
-        messageCrypto: MessageEnvelopeCrypto,
-        ecdhSessionManager: EcdhSessionManager,
-        sessionKeyStore: EncryptedSessionKeyStore
+        settingsRepository: ISettingsRepository
     ): ChatRepositoryImpl {
         return ChatRepositoryImpl(
             context = context,
@@ -65,10 +59,7 @@ object RepositoryModule {
             transportManager = transportManager,
             fileManager = fileManager,
             notificationHelper = notificationHelper,
-            settingsRepository = settingsRepository,
-            messageCrypto = messageCrypto,
-            ecdhSessionManager = ecdhSessionManager,
-            sessionKeyStore = sessionKeyStore
+            settingsRepository = settingsRepository
         )
     }
 

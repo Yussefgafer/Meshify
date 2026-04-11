@@ -6,10 +6,6 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.p2p.meshify.core.data.local.MeshifyDatabase
 import com.p2p.meshify.core.data.repository.PeerTrustStore
-import com.p2p.meshify.core.data.security.impl.EcdhSessionManager
-import com.p2p.meshify.core.data.security.impl.InMemoryNonceCache
-import com.p2p.meshify.core.data.security.impl.MessageEnvelopeCrypto
-import com.p2p.meshify.core.common.security.EncryptedSessionKeyStore
 import com.p2p.meshify.core.common.security.SimplePeerIdProvider
 import com.p2p.meshify.core.common.util.AndroidStringResourceProvider
 import com.p2p.meshify.core.common.util.StringResourceProvider
@@ -71,34 +67,8 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideNonceCache(): InMemoryNonceCache {
-        return InMemoryNonceCache()
-    }
-
-    @Provides
-    @Singleton
     fun providePeerTrustStore(database: MeshifyDatabase): PeerTrustStore {
         return PeerTrustStore(database.trustedPeerDao())
-    }
-
-    @Provides
-    @Singleton
-    fun provideEcdhSessionManager(): EcdhSessionManager {
-        return EcdhSessionManager()
-    }
-
-    @Provides
-    @Singleton
-    fun provideMessageCrypto(
-        nonceCache: InMemoryNonceCache
-    ): MessageEnvelopeCrypto {
-        return MessageEnvelopeCrypto(nonceCache)
-    }
-
-    @Provides
-    @Singleton
-    fun provideSessionKeyStore(@ApplicationContext context: Context): EncryptedSessionKeyStore {
-        return EncryptedSessionKeyStore(context)
     }
 
     @Provides
@@ -118,14 +88,12 @@ object AppModule {
     fun provideTransportManager(
         @ApplicationContext context: Context,
         settingsRepository: ISettingsRepository,
-        peerIdProvider: SimplePeerIdProvider,
-        sessionKeyStore: EncryptedSessionKeyStore
+        peerIdProvider: SimplePeerIdProvider
     ): TransportManager {
         return TransportManager.createDefault(
             context,
             settingsRepository,
-            peerIdProvider,
-            sessionKeyStore
+            peerIdProvider
         )
     }
 }
