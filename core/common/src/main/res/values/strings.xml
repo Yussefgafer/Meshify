@@ -21,7 +21,10 @@
     <string name="search_chats_hint">Search chats…</string>
     <string name="search_no_results">No results found</string>
     <string name="search_in_chat_hint">Search messages…</string>
-    <string name="search_results_count">%d result(s)</string>
+    <plurals name="search_results_count">
+        <item quantity="one">%d result</item>
+        <item quantity="other">%d results</item>
+    </plurals>
 
     <!-- Discovery Screen -->
     <string name="screen_discovery_title">Discovery</string>
@@ -42,9 +45,15 @@
     <string name="attach_file">File</string>
     <string name="attach_video">Video</string>
     <string name="msg_failed">Send Failed</string>
-    <string name="msg_selected_count">%d selected</string>
+    <plurals name="msg_selected_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
     <string name="delete_confirmation_title">Delete Messages</string>
-    <string name="delete_confirmation_text">Are you sure you want to delete %d selected messages?</string>
+    <plurals name="delete_confirmation_text">
+        <item quantity="one">Are you sure you want to delete %d selected message?</item>
+        <item quantity="other">Are you sure you want to delete %d selected messages?</item>
+    </plurals>
     <string name="btn_delete">Delete</string>
     <string name="btn_cancel">Cancel</string>
     
@@ -73,7 +82,10 @@
     <string name="dialog_delete_single_text">This action cannot be undone.</string>
     <string name="dialog_delete_everyone_warning">This will delete the message for all participants.</string>
     <string name="dialog_delete_multiple_title">Delete Messages?</string>
-    <string name="dialog_delete_multiple_text">Are you sure you want to delete %d messages?</string>
+    <plurals name="dialog_delete_multiple_text">
+        <item quantity="one">Are you sure you want to delete %d message?</item>
+        <item quantity="other">Are you sure you want to delete %d messages?</item>
+    </plurals>
     <string name="dialog_delete_confirm">Delete</string>
     <string name="chat_message_media_not_found">Media file not found</string>
     <string name="chat_message_file_prefix">File: </string>
@@ -91,7 +103,10 @@
     <string name="chat_action_delete_for_everyone">Delete for Everyone</string>
     
     <!-- Chat Screen - Selection Mode -->
-    <string name="chat_selection_selected">%d selected</string>
+    <plurals name="chat_selection_selected">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
     <string name="chat_selection_subtitle">Select more or take action</string>
     <string name="chat_selection_exit_desc">Exit selection mode</string>
     <string name="chat_selection_copy_desc">Copy</string>
@@ -186,7 +201,8 @@
     <string name="forward_dialog_btn_cancel">Cancel</string>
     <string name="forward_dialog_btn_forward">Forward (%d)</string>
     <string name="forward_dialog_btn_forward_retry">Retry</string>
-    
+    <string name="error_forward_partial">%1$d of %2$d peers could not receive the message</string>
+
     <!-- Forward Message Context -->
     <string name="forward_context_text">Forwarded from %1$s:\n%2$s</string>
     <string name="forward_context_image">Forwarded image from %s</string>
@@ -329,9 +345,9 @@
     <string name="chat_loading_desc">Loading messages</string>
 
     <!-- Chat Error States - P0-02 -->
-    <string name="chat_error_send_failed">فشل إرسال الرسالة</string>
-    <string name="chat_error_peer_offline">الطرف غير متصل - تم حفظ الرسالة</string>
-    <string name="chat_error_network">خطأ في الشبكة - حاول مرة أخرى</string>
+    <string name="chat_error_send_failed">Failed to send message</string>
+    <string name="chat_error_peer_offline">Peer offline — message saved</string>
+    <string name="chat_error_network">Network error — try again</string>
 
     <!-- Error Messages (English fallback for core:data module) -->
     <string name="error_peer_offline_message_saved">Peer offline - message saved</string>
@@ -432,8 +448,6 @@
     <string name="content_desc_unverified_tap_verify">Unverified — tap to verify</string>
     <string name="chat_empty_title">No messages yet</string>
     <string name="chat_empty_desc">Start a conversation with %s</string>
-    <string name="onboarding_page_indicator">Page %d</string>
-    <string name="onboarding_go_to_page">Go to page %d</string>
     <string name="permission_deny_accessibility">Deny %s</string>
     <string name="permission_allow_accessibility">Allow %s</string>
 
@@ -483,7 +497,10 @@
 
     <!-- Forward Message Dialog -->
     <string name="forward_dialog_progress_format">%1$d/%2$d</string>
-    <string name="forward_dialog_more_messages">+%d more</string>
+    <plurals name="forward_dialog_more_messages">
+        <item quantity="one">+%d more</item>
+        <item quantity="other">+%d more</item>
+    </plurals>
 
     <!-- Forward Message Types (for buildForwardContext in MessageSendingServiceImpl) -->
     <string name="forward_image_label">📷 Image</string>

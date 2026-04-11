@@ -50,6 +50,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -327,7 +328,11 @@ fun ChatScreen(
                     // Results count indicator
                     if (searchQuery.isNotBlank() && searchResults.isNotEmpty()) {
                         Text(
-                            text = stringResource(R.string.search_results_count, searchResults.size),
+                            text = pluralStringResource(
+                                R.plurals.search_results_count,
+                                searchResults.size,
+                                searchResults.size
+                            ),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Md)
@@ -362,7 +367,8 @@ fun ChatScreen(
                     },
                     stagedAttachments = uiState.stagedAttachments,
                     onRemoveAttachment = viewModel::removeStagedAttachment,
-                    onStageAttachment = viewModel::stageAttachment
+                    onStageAttachment = viewModel::stageAttachment,
+                    isSending = uiState.isSending
                 )
             }
         }

@@ -18,6 +18,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -56,7 +57,11 @@ fun SelectionModeTopBar(
         title = {
             Column {
                 Text(
-                    text = stringResource(R.string.chat_selection_selected, selectedCount),
+                    text = pluralStringResource(
+                        R.plurals.chat_selection_selected,
+                        selectedCount,
+                        selectedCount
+                    ),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )

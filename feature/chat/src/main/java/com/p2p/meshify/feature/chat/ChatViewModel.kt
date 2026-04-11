@@ -10,7 +10,6 @@ import com.p2p.meshify.core.common.R
 import com.p2p.meshify.core.data.local.entity.ChatEntity
 import com.p2p.meshify.core.data.local.entity.MessageAttachmentEntity
 import com.p2p.meshify.core.data.local.entity.MessageEntity
-import com.p2p.meshify.core.data.local.entity.MessageStatus
 import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
 import com.p2p.meshify.core.ui.components.ForwardDialogState
 import com.p2p.meshify.core.util.Logger
@@ -73,24 +72,6 @@ class ChatViewModel @Inject constructor(
     fun setTransportTypeProvider(provider: () -> TransportType) {
         _transportTypeProvider = provider
     }
-
-    /**
-     * Secondary constructor for manual factory usage (non-Hilt).
-     * Allows backward compatibility with existing MainActivity ViewModel factory.
-     */
-    constructor(
-        context: Context,
-        peerId: String,
-        peerName: String,
-        repository: ChatRepositoryImpl
-    ) : this(
-        context = context,
-        savedStateHandle = SavedStateHandle().also {
-            it["peerId"] = peerId
-            it["peerName"] = peerName
-        },
-        repository = repository
-    )
 
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
@@ -284,6 +265,9 @@ class ChatViewModel @Inject constructor(
             _uiState.update { it.copy(isSending = true) }
 
             try {
+                // Capture transport type before sending — race-free, no delay needed
+                val transportType = _transportTypeProvider?.invoke() ?: TransportType.LAN
+
                 if (hasAttachments) {
                     // Send grouped message with attachments
                     val attachments = state.stagedAttachments.map { it.bytes to it.type }
@@ -295,18 +279,16 @@ class ChatViewModel @Inject constructor(
                     _uiState.update { it.copy(inputText = "", draftText = "", replyTo = null) }
                 }
 
-                // Record which transport was used for the most recently sent message
-                // Small delay to ensure Room Flow has emitted the new message
-                kotlinx.coroutines.delay(50)
-                _uiState.update { currentState ->
-                    val lastSentMessage = currentState.messages.lastOrNull { it.isFromMe && it.status != MessageStatus.QUEUED }
-                    if (lastSentMessage != null) {
-                        val transportType = _transportTypeProvider?.invoke() ?: TransportType.LAN
+                // Record transport type for the newly sent message.
+                // The repository insert is synchronous (suspend), so the message is already in the DB.
+                // We read the current state via .first() — no arbitrary delay needed.
+                val currentMessages = repository.getMessages(peerId).first()
+                val lastSentMessage = currentMessages.lastOrNull { it.isFromMe }
+                if (lastSentMessage != null) {
+                    _uiState.update { currentState ->
                         currentState.copy(
                             transportUsed = currentState.transportUsed + (lastSentMessage.id to transportType)
                         )
-                    } else {
-                        currentState
                     }
                 }
             } catch (e: Exception) {
@@ -604,10 +586,16 @@ class ChatViewModel @Inject constructor(
             }
             
             // Show result
-            if (failedCount == 0) {
-                Logger.d("ChatViewModel -> Successfully forwarded $successCount messages to ${peerIds.size} peers")
-            } else {
+            if (failedCount > 0) {
+                val totalAttempts = successCount + failedCount
+                _uiState.update {
+                    it.copy(
+                        sendError = context.getString(R.string.error_forward_partial, failedCount, totalAttempts)
+                    )
+                }
                 Logger.w("ChatViewModel -> Forwarded $successCount messages, $failedCount failed")
+            } else {
+                Logger.d("ChatViewModel -> Successfully forwarded $successCount messages to ${peerIds.size} peers")
             }
             
             // Reset state after delay

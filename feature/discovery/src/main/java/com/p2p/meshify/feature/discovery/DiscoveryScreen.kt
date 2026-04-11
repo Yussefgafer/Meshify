@@ -110,45 +110,46 @@ fun DiscoveryScreen(
                 )
             }
             // ✅ P0-4: Error state — display error message with retry
-            else if (uiState.errorMessage != null) {
-                ErrorState(
-                    message = uiState.errorMessage!!,
-                    padding = padding,
-                    onRetry = { viewModel.refresh() }
-                )
-            }
-            // ✅ UX-04: Modern Loading Bar at top (MD3E style)
-            else if (uiState.isSearching && uiState.discoveredPeers.isEmpty()) {
-                Column(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    // Modern linear progress indicator with MD3E motion
-                    LinearProgressIndicator(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(4.dp)
-                            .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+            else {
+                val errorMessage = uiState.errorMessage
+                if (errorMessage != null) {
+                    ErrorState(
+                        message = errorMessage,
+                        padding = padding,
+                        onRetry = { viewModel.refresh() }
                     )
+                } else if (uiState.isSearching && uiState.discoveredPeers.isEmpty()) {
+                    Column(
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        // Modern linear progress indicator with MD3E motion
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                        )
 
-                    Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Lg))
+                        Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Lg))
 
+                        EmptyDiscoveryState(
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                } else if (uiState.discoveredPeers.isEmpty()) {
                     EmptyDiscoveryState(
                         modifier = Modifier.fillMaxSize()
                     )
+                } else {
+                    PeerList(
+                        modifier = Modifier.fillMaxSize(),
+                        peers = uiState.discoveredPeers,
+                        onPeerClick = onPeerClick,
+                        listState = listState
+                    )
                 }
-            } else if (uiState.discoveredPeers.isEmpty()) {
-                EmptyDiscoveryState(
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                PeerList(
-                    modifier = Modifier.fillMaxSize(),
-                    peers = uiState.discoveredPeers,
-                    onPeerClick = onPeerClick,
-                    listState = listState
-                )
             }
         }
     }

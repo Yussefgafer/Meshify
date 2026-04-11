@@ -41,7 +41,11 @@
     <string name="onboarding_content_desc_devices">Connected devices icon</string>
     <string name="onboarding_content_desc_permissions">Permission icons</string>
     <string name="onboarding_content_desc_ble">Bluetooth nearby illustration</string>
-    
+
+    <!-- Page Indicator -->
+    <string name="onboarding_page_indicator">Page %d</string>
+    <string name="onboarding_go_to_page">Go to page %d</string>
+
     <!-- Pre-Permission Dialog Strings -->
     <string name="permission_icon_desc">Permission icon</string>
     <string name="permission_check">Check</string>

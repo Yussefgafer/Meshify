@@ -86,8 +86,14 @@ class MeshifyApp : Application(), SingletonImageLoader.Factory {
                     is TransportEvent.DeviceLost -> {
                         Logger.w("MeshifyApp -> Device lost: ${event.deviceId}")
                     }
-                    else -> {
-                        Logger.d("MeshifyApp -> Transport event: ${event::class.simpleName}")
+                    is TransportEvent.ConnectionEstablished -> {
+                        Logger.i("MeshifyApp -> Connection established: ${event.deviceId}")
+                    }
+                    is TransportEvent.ConnectionLost -> {
+                        Logger.w("MeshifyApp -> Connection lost: ${event.deviceId}, reason: ${event.reason ?: "unknown"}")
+                    }
+                    is TransportEvent.Error -> {
+                        Logger.e("MeshifyApp -> Transport error: ${event.message}", event.exception)
                     }
                 }
             }
@@ -100,10 +106,11 @@ class MeshifyApp : Application(), SingletonImageLoader.Factory {
                     if (bleTransport == null) {
                         val peerId = peerIdProvider.getPeerId()
                         val deviceName = settingsRepository.displayName.first()
-                        bleTransport = BleTransportImpl(this@MeshifyApp, settingsRepository, peerId, deviceName)
-                        transportManager.registerTransport("ble", bleTransport!!)
-                        bleTransport?.start()
-                        bleTransport?.startDiscovery()
+                        val newBleTransport = BleTransportImpl(this@MeshifyApp, settingsRepository, peerId, deviceName)
+                        bleTransport = newBleTransport
+                        transportManager.registerTransport("ble", newBleTransport)
+                        newBleTransport.start()
+                        newBleTransport.startDiscovery()
                         Logger.i("MeshifyApp -> BLE transport enabled and started")
                     }
                 } else {

@@ -41,7 +41,8 @@ import kotlinx.coroutines.withContext
 class ChatMessagesViewModel(
     private val context: Context,
     private val chatRepository: ChatRepositoryImpl,
-    private val peerId: String
+    private val peerId: String,
+    private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
 
     // ==================== Pagination State ====================
@@ -140,7 +141,7 @@ class ChatMessagesViewModel(
                 _uiState.update { it.copy(isLoadingMore = true) }
 
                 try {
-                    val newPage = withContext(Dispatchers.IO) {
+                    val newPage = withContext(ioDispatcher) {
                         chatRepository.getMessagesPaged(peerId, pageSize, currentPage * pageSize)
                             .take(1)
                             .firstOrNull()
