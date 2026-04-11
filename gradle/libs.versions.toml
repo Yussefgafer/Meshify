@@ -1,18 +1,18 @@
 [versions]
 agp = "9.1.0"
 kotlin = "2.3.10"
-ksp = "2.3.5"
-hilt = "2.59"
+ksp = "2.3.6"
+hilt = "2.59.2"
 hiltNavigationCompose = "1.2.0"
-coreKtx = "1.12.0"
+coreKtx = "1.17.0"
 junit = "4.13.2"
 junitVersion = "1.1.5"
 espressoCore = "3.5.1"
 lifecycle = "2.10.0"
-activityCompose = "1.10.1"
-composeBom = "2026.02.00"
-material3 = "1.4.0-alpha10"
-material = "1.14.0-alpha09"
+activityCompose = "1.12.3"
+composeBom = "2026.03.01"
+material3 = "1.5.0-alpha17"
+material = "1.14.0-alpha10"
 navigation = "2.9.7"
 googleFonts = "1.7.8"
 room = "2.8.4"
@@ -21,13 +21,16 @@ datastore = "1.1.1"
 media3 = "1.8.0"
 accompanist = "0.36.0"
 exifinterface = "1.3.7"
-paging = "3.3.5"
+paging = "3.4.0"
 # Testing
 mockk = "1.14.0"
 turbine = "1.1.0"
 coreTesting = "2.2.0"
 robolectric = "4.14.1"
 testCore = "1.5.0"
+# Kotlinx
+kotlinxCoroutines = "1.10.2"
+kotlinxSerialization = "1.10.0"
 
 [libraries]
 media3_exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
@@ -64,9 +67,9 @@ androidx_navigation_compose = { group = "androidx.navigation", name = "navigatio
 coil3_compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil3" }
 coil3_network = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil3" }
 androidx_ui_text_google_fonts = { group = "androidx.compose.ui", name = "ui-text-google-fonts", version.ref = "googleFonts" }
-kotlinx_serialization_json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version = "1.7.3" }
-kotlinx_coroutines_core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version = "1.9.0" }
-kotlinx_coroutines_test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version = "1.9.0" }
+kotlinx_serialization_json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+kotlinx_coroutines_core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
+kotlinx_coroutines_test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
 accompanist_permissions = { group = "com.google.accompanist", name = "accompanist-permissions", version.ref = "accompanist" }
 androidx_exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "exifinterface" }
 # Testing Libraries
