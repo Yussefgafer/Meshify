@@ -340,7 +340,6 @@
 
     <!-- Security Warning Messages (for ChatViewModel) -->
     <string name="security_warning_decryption_failed">فشل فك تشفير رسالة من %1$s: %2$s</string>
-    <string name="security_warning_tofu_violation">تحذير أمني: تغير مفتاح التشفير لـ %1$s</string>
     <string name="security_warning_session_expired">انتهت الجلسة مع %1$s - يرجى إعادة الاتصال</string>
 
     <!-- ChatApp-Compose Chat Input Strings -->

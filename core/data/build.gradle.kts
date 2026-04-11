@@ -67,10 +67,6 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
 
-    // Security - EncryptedSharedPreferences
-    implementation(libs.androidx.security.crypto)
-    implementation(libs.androidx.security.crypto.ktx)
-
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

@@ -52,7 +52,6 @@ data class ChatUiState(
     val isSending: Boolean = false,
     val sendError: String? = null,
     val uploadError: String? = null,
-    val securityWarning: String? = null,
     val transportUsed: Map<String, TransportType> = emptyMap()
 )
 
@@ -715,13 +714,6 @@ class ChatViewModel @Inject constructor(
      */
     fun clearUploadError() {
         _uiState.update { it.copy(uploadError = null) }
-    }
-
-    /**
-     * Clear the security warning after it has been shown.
-     */
-    fun clearSecurityWarning() {
-        _uiState.update { it.copy(securityWarning = null) }
     }
 
     // ==================== Search Functions ====================

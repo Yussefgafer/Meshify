@@ -70,7 +70,6 @@ class ChatMessagesViewModelTest {
         assertTrue(state.messages.isEmpty())
         assertFalse(state.isOnline)
         assertFalse(state.hasMoreMessages)
-        assertNull(state.securityWarning)
         assertNull(state.sendError)
     }
 
@@ -275,18 +274,6 @@ class ChatMessagesViewModelTest {
         viewModel.clearUploadError()
 
         assertNull(viewModel.uiState.value.uploadError)
-    }
-
-    // ==================== clearSecurityWarning Tests ====================
-
-    @Test
-    fun `clearSecurityWarning should set securityWarning to null`() = runTest {
-        // Initial state has no warning
-        assertNull(viewModel.uiState.value.securityWarning)
-
-        viewModel.clearSecurityWarning()
-
-        assertNull(viewModel.uiState.value.securityWarning)
     }
 
     // ==================== deleteMessage Tests ====================
