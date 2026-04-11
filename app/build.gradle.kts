@@ -12,12 +12,12 @@ plugins {
 
 android {
     namespace = "com.p2p.meshify"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.p2p.meshify"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 

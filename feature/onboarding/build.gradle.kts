@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.p2p.meshify.feature.onboarding"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 26
