@@ -125,8 +125,10 @@ class MessageForwardHelper(
         }
 
         val envelope = try {
+            val myId = settingsRepository.getDeviceId()
             messageCrypto.encrypt(
                 plaintext = forwardContext.toByteArray(Charsets.UTF_8),
+                senderId = myId,
                 recipientId = peerId,
                 sessionKey = sessionKeyInfo.sessionKey
             )
@@ -223,8 +225,10 @@ class MessageForwardHelper(
             }
 
             val envelope = try {
+                val myId = settingsRepository.getDeviceId()
                 messageCrypto.encrypt(
                     plaintext = mediaBytes,
+                    senderId = myId,
                     recipientId = peerId,
                     sessionKey = sessionKeyInfo.sessionKey
                 )

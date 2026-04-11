@@ -7,8 +7,8 @@ import com.p2p.meshify.core.network.lan.LanTransportImpl
 import com.p2p.meshify.core.network.lan.SocketManager
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.repository.ISettingsRepository
-import com.p2p.meshify.domain.security.interfaces.PeerIdentityRepository
 import com.p2p.meshify.core.common.security.EncryptedSessionKeyStore
+import com.p2p.meshify.core.common.security.SimplePeerIdProvider
 import com.p2p.meshify.domain.model.TransportMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.merge
@@ -211,7 +211,7 @@ class TransportManager(
      * Factory method to create default transport manager with all protocols.
      * @param context Android context
      * @param settingsRepository Settings repository for configuration
-     * @param peerIdentity Peer identity repository for key exchange
+     * @param peerIdProvider Simple peer ID provider (UUID)
      * @param sessionKeyStore Shared encrypted session key store
      * @return TransportManager with default transports registered
      */
@@ -219,7 +219,7 @@ class TransportManager(
         fun createDefault(
             context: Context,
             settingsRepository: ISettingsRepository,
-            peerIdentity: PeerIdentityRepository,
+            peerIdProvider: SimplePeerIdProvider,
             sessionKeyStore: EncryptedSessionKeyStore
         ): TransportManager {
             val manager = TransportManager(context, settingsRepository)
@@ -227,7 +227,7 @@ class TransportManager(
             // Register LAN transport (always available)
             manager.registerTransport(
                 "lan",
-                LanTransportImpl(context, manager.socketManager, settingsRepository, peerIdentity, sessionKeyStore)
+                LanTransportImpl(context, manager.socketManager, settingsRepository, peerIdProvider, sessionKeyStore)
             )
 
             // NOTE: BLE transport is NOT registered here — it is managed by MeshifyApp

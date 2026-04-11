@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.FontFamilyPreset
@@ -46,10 +47,18 @@ import com.p2p.meshify.feature.settings.DeveloperScreen
 import com.p2p.meshify.feature.settings.DeveloperViewModel
 import com.p2p.meshify.feature.realdevicetesting.ui.RealDeviceTestingViewModel
 import com.p2p.meshify.feature.realdevicetesting.ui.RealDeviceTestScreen
+import com.p2p.meshify.feature.onboarding.WelcomeScreen
+import com.p2p.meshify.feature.onboarding.WelcomeViewModel
+import com.p2p.meshify.feature.onboarding.PrePermissionDialog
+import com.p2p.meshify.feature.onboarding.PermissionSummaryDialog
+import com.p2p.meshify.feature.onboarding.PermissionDefinitions
 import com.p2p.meshify.core.domain.interfaces.WifiStateChecker
 import com.p2p.meshify.core.data.local.MeshifyDatabase
+import androidx.hilt.navigation.compose.hiltViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -77,15 +86,27 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        checkAndRequestPermissions()
+
+        val app = application as MeshifyApp
+
+        // Only request permissions immediately if onboarding was already completed.
+        // Otherwise, permissions will be requested after the onboarding flow.
+        lifecycleScope.launch {
+            val completed = try {
+                app.settingsRepository.hasCompletedOnboarding.first()
+            } catch (e: Exception) {
+                true // fallback: assume completed to avoid blocking app startup
+            }
+            if (completed) {
+                checkAndRequestPermissions()
+            }
+        }
 
         // Prevent screenshots and screen recording of sensitive chat data
         window.setFlags(
             WindowManager.LayoutParams.FLAG_SECURE,
             WindowManager.LayoutParams.FLAG_SECURE
         )
-
-        val app = application as MeshifyApp
 
         setContent {
             val settingsRepo = app.settingsRepository
@@ -100,6 +121,7 @@ class MainActivity : ComponentActivity() {
             val seedColorInt by settingsRepo.seedColor.collectAsState(initial = 0xFF006D68.toInt())
 
             var isReady by remember { mutableStateOf(false) }
+            var startDestination by remember { mutableStateOf<Screen?>(null) }
             val navController = rememberNavController()
 
             LaunchedEffect(Unit) {
@@ -107,9 +129,14 @@ class MainActivity : ComponentActivity() {
                     withContext(Dispatchers.IO) {
                         app.chatRepository
                         app.transportManager
+
+                        // Check if onboarding was completed
+                        val completed = app.settingsRepository.hasCompletedOnboarding.first()
+                        startDestination = if (completed) Screen.Home else Screen.Onboarding
                     }
                     isReady = true
                 } catch (e: Exception) {
+                    startDestination = Screen.Home // fallback
                     isReady = true
                 }
             }
@@ -155,8 +182,11 @@ class MainActivity : ComponentActivity() {
                                 modifier = Modifier.fillMaxSize(),
                                 color = Color.Transparent
                             ) {
+                                val effectiveStart = startDestination ?: Screen.Home
+
                                 MeshifyNavHost(
                                     navController = navController,
+                                    startDestination = effectiveStart,
                                     onHomeRoute = {
                                         val homeViewModel: RecentChatsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                                             factory = object : androidx.lifecycle.ViewModelProvider.Factory {
@@ -240,7 +270,15 @@ class MainActivity : ComponentActivity() {
                                         DeveloperScreen(
                                             viewModel = developerViewModel,
                                             onBackClick = { navController.popBackStack() },
-                                            onRealDeviceTestingClick = { navController.navigate(Screen.RealDeviceTesting) }
+                                            onRealDeviceTestingClick = { navController.navigate(Screen.RealDeviceTesting) },
+                                            onResetOnboardingClick = {
+                                                lifecycleScope.launch {
+                                                    app.settingsRepository.resetOnboardingCompleted()
+                                                }
+                                                navController.navigate(Screen.Onboarding) {
+                                                    popUpTo(Screen.Home) { inclusive = true }
+                                                }
+                                            }
                                         )
                                     },
                                     onRealDeviceTestingRoute = {
@@ -254,6 +292,17 @@ class MainActivity : ComponentActivity() {
                                         RealDeviceTestScreen(
                                             viewModel = realDeviceTestViewModel,
                                             onNavigateBack = { navController.popBackStack() }
+                                        )
+                                    },
+                                    onOnboardingRoute = {
+                                        OnboardingRoute(
+                                            settingsRepository = app.settingsRepository,
+                                            onNavigateToHome = {
+                                                navController.navigate(Screen.Home) {
+                                                    popUpTo(Screen.Onboarding) { inclusive = true }
+                                                }
+                                            },
+                                            onRequestPermissions = { checkAndRequestPermissions() }
                                         )
                                     }
                                 )
@@ -297,5 +346,72 @@ class MainActivity : ComponentActivity() {
         } else {
             startAppService()
         }
+    }
+}
+
+/**
+ * Onboarding flow composable.
+ * Shows welcome screens, pre-permission dialogs, and marks onboarding complete.
+ */
+@Composable
+private fun OnboardingRoute(
+    settingsRepository: com.p2p.meshify.domain.repository.ISettingsRepository,
+    onNavigateToHome: () -> Unit,
+    onRequestPermissions: () -> Unit
+) {
+    val onboardingViewModel: WelcomeViewModel = hiltViewModel()
+    val permissions = PermissionDefinitions.getPermissions()
+    val scope = rememberCoroutineScope()
+
+    var currentPermissionIndex by remember { mutableStateOf(0) }
+    var showPermissionDialog by remember { mutableStateOf(false) }
+    var showSummaryDialog by remember { mutableStateOf(false) }
+    val grantedPermissions = remember { mutableStateListOf<String>() }
+
+    WelcomeScreen(
+        viewModel = onboardingViewModel,
+        onGetStartedClick = {
+            showPermissionDialog = true
+            currentPermissionIndex = 0
+        }
+    )
+
+    if (showPermissionDialog && currentPermissionIndex < permissions.size) {
+        PrePermissionDialog(
+            currentPermission = permissions[currentPermissionIndex],
+            onAllowClick = {
+                grantedPermissions.add(permissions[currentPermissionIndex].id)
+                if (currentPermissionIndex < permissions.size - 1) {
+                    currentPermissionIndex++
+                } else {
+                    showPermissionDialog = false
+                    showSummaryDialog = true
+                }
+            },
+            onDenyClick = {
+                if (currentPermissionIndex < permissions.size - 1) {
+                    currentPermissionIndex++
+                } else {
+                    showPermissionDialog = false
+                    showSummaryDialog = true
+                }
+            },
+            onDismiss = { showPermissionDialog = false }
+        )
+    }
+
+    if (showSummaryDialog) {
+        PermissionSummaryDialog(
+            grantedCount = grantedPermissions.size,
+            totalCount = permissions.size,
+            onStartClick = {
+                onRequestPermissions()
+                scope.launch {
+                    settingsRepository.setOnboardingCompleted()
+                }
+                onNavigateToHome()
+                showSummaryDialog = false
+            }
+        )
     }
 }

@@ -27,8 +27,6 @@ bouncyCastle = "1.82"
 securityCrypto = "1.1.0"
 biometric = "1.1.0"
 biometricKtx = "1.4.0-alpha02"
-sqlcipher = "4.14.0"
-androidxSqlite = "2.6.2"
 # Testing
 mockk = "1.14.0"
 turbine = "1.1.0"
@@ -83,8 +81,6 @@ androidx_security_crypto = { group = "androidx.security", name = "security-crypt
 androidx_security_crypto_ktx = { group = "androidx.security", name = "security-crypto-ktx", version.ref = "securityCrypto" }
 androidx_biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
 androidx_biometric_ktx = { group = "androidx.biometric", name = "biometric-ktx", version.ref = "biometricKtx" }
-sqlcipher_android = { group = "net.zetetic", name = "sqlcipher-android", version.ref = "sqlcipher" }
-androidx_sqlite = { group = "androidx.sqlite", name = "sqlite", version.ref = "androidxSqlite" }
 # Testing Libraries
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 mockkAndroid = { group = "io.mockk", name = "mockk-android", version.ref = "mockk" }

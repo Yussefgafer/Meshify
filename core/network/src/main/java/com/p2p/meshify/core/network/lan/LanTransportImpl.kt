@@ -13,9 +13,9 @@ import com.p2p.meshify.core.util.FileUtils
 import com.p2p.meshify.domain.model.Payload
 import com.p2p.meshify.domain.model.Handshake
 import com.p2p.meshify.domain.repository.ISettingsRepository
-import com.p2p.meshify.domain.security.interfaces.PeerIdentityRepository
 import com.p2p.meshify.core.network.base.IMeshTransport
 import com.p2p.meshify.core.common.security.EncryptedSessionKeyStore
+import com.p2p.meshify.core.common.security.SimplePeerIdProvider
 import com.p2p.meshify.domain.security.util.EcdhSessionManager
 import com.p2p.meshify.core.common.util.HexUtil
 import java.security.KeyPair
@@ -50,7 +50,7 @@ class LanTransportImpl(
     private val context: Context,
     private val socketManager: SocketManager,
     private val settingsRepository: ISettingsRepository,
-    private val peerIdentity: PeerIdentityRepository,
+    private val peerIdProvider: SimplePeerIdProvider,
     private val sessionKeyStore: EncryptedSessionKeyStore
 ) : IMeshTransport {
 
@@ -283,20 +283,9 @@ class LanTransportImpl(
                     ecdhSessionManager.zeroPrivateKey(myEphemeralPrivKey)
                     pendingEphemeralKeys.remove(senderId)
 
-                    // Store session in shared sessionKeyStore with TOFU validation
-                    handshake.identityPubKeyHex?.let { peerIdentityPubKeyHex ->
-                        // TOFU validation: check if peer's identity key has changed
-                        val tofuResult = sessionKeyStore.validatePeerPublicKey(senderId, peerIdentityPubKeyHex)
-                        if (tofuResult == false) {
-                            Logger.e("TOFU VIOLATION: Peer identity key changed", null, "LanTransport")
-                            Logger.e("BLOCKING session establishment - possible MITM attack", null, "LanTransport")
-                            return // ABORT - do not establish session
-                        }
-
-                        // TOFU passed (or first contact), store session
-                        sessionKeyStore.putSessionKey(senderId, sessionKey, peerIdentityPubKeyHex)
-                        Logger.d("Session established with peer (TOFU validated)", "LanTransport")
-                    }
+                    // Store session in shared sessionKeyStore (no TOFU validation in simplified protocol)
+                    sessionKeyStore.putSessionKey(senderId, sessionKey, "")
+                    Logger.d("Session established with peer", "LanTransport")
 
                     Logger.i("Session key derived (initiator)", "LanTransport")
                 } else {
@@ -330,20 +319,9 @@ class LanTransportImpl(
                         myNonce
                     )
 
-                    // Store session in shared sessionKeyStore with TOFU validation
-                    handshake.identityPubKeyHex?.let { peerIdentityPubKeyHex ->
-                        // TOFU validation: check if peer's identity key has changed
-                        val tofuResult = sessionKeyStore.validatePeerPublicKey(senderId, peerIdentityPubKeyHex)
-                        if (tofuResult == false) {
-                            Logger.e("TOFU VIOLATION: Peer identity key changed", null, "LanTransport")
-                            Logger.e("BLOCKING session establishment - possible MITM attack", null, "LanTransport")
-                            return // ABORT - do not establish session
-                        }
-
-                        // TOFU passed (or first contact), store session
-                        sessionKeyStore.putSessionKey(senderId, sessionKey, peerIdentityPubKeyHex)
-                        Logger.d("Session established with peer (TOFU validated)", "LanTransport")
-                    }
+                    // Store session in shared sessionKeyStore (no TOFU validation in simplified protocol)
+                    sessionKeyStore.putSessionKey(senderId, sessionKey, "")
+                    Logger.d("Session established with peer", "LanTransport")
 
                     Logger.i("Session key derived (responder)", "LanTransport")
                 }
@@ -364,7 +342,7 @@ class LanTransportImpl(
                 // Previous code called firstOrNull() twice per handshake (5-10ms delay each)
                 val displayName = getCachedDisplayName()
                 val avatarHash = getCachedAvatarHash()
-                val identityPubKeyHex = peerIdentity.getPublicKeyHex()
+                val myPeerId = peerIdProvider.getPeerId()
 
                 // V2 Handshake: Generate ephemeral keypair for forward secrecy
                 val ephemeralKeypair = ecdhSessionManager.generateEphemeralKeypair()
@@ -381,7 +359,7 @@ class LanTransportImpl(
                     version = 2,
                     name = displayName,
                     avatarHash = avatarHash,
-                    identityPubKeyHex = identityPubKeyHex,
+                    identityPubKeyHex = null, // No identity key in simplified protocol
                     ephemeralPubKeyHex = ephemeralPubKeyHex,
                     nonceHex = nonceHex,
                     timestamp = System.currentTimeMillis()
@@ -803,7 +781,6 @@ class LanTransportImpl(
                 // Immediately send our Handshake to the newly resolved peer
                 val myName = settingsRepository.displayName.firstOrNull() ?: "Unknown"
                 val myAvatarHash = settingsRepository.avatarHash.firstOrNull()
-                val myIdentityPubKeyHex = peerIdentity.getPublicKeyHex()
 
                 // V2 Handshake: Generate ephemeral keypair for forward secrecy
                 val ephemeralKeypair = ecdhSessionManager.generateEphemeralKeypair()
@@ -820,7 +797,7 @@ class LanTransportImpl(
                     version = 2,
                     name = myName,
                     avatarHash = myAvatarHash,
-                    identityPubKeyHex = myIdentityPubKeyHex,
+                    identityPubKeyHex = null, // No identity key in simplified protocol
                     ephemeralPubKeyHex = ephemeralPubKeyHex,
                     nonceHex = nonceHex,
                     timestamp = System.currentTimeMillis()

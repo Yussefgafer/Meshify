@@ -17,6 +17,7 @@ import androidx.navigation.toRoute
 fun MeshifyNavHost(
     navController: NavHostController,
     startDestination: Screen = Screen.Home,
+    onOnboardingRoute: @Composable () -> Unit = {},
     onHomeRoute: @Composable () -> Unit = {},
     onDiscoveryRoute: @Composable () -> Unit = {},
     onChatRoute: @Composable (peerId: String, peerName: String?) -> Unit = { _, _ -> },
@@ -28,6 +29,10 @@ fun MeshifyNavHost(
         navController = navController,
         startDestination = startDestination
     ) {
+        composable<Screen.Onboarding> {
+            onOnboardingRoute()
+        }
+
         composable<Screen.Home> {
             onHomeRoute()
         }

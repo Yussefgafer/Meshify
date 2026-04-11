@@ -114,14 +114,8 @@ class PayloadProcessingServiceImpl(
             val sessionKeyInfo = sessionKeyStore.getSessionKey(peerId)
                 ?: throw SecurityException("No session key for peer $peerId - cannot decrypt message")
 
-            val senderPublicKeyHex = getPeerPublicKey(peerId)
-                ?: throw SecurityException("Unknown peer $peerId - public key not found")
-
-            val senderPublicKeyBytes = senderPublicKeyHex.hexToByteArray()
-
             val plaintext = messageCrypto.decrypt(
                 envelope = envelope,
-                senderPublicKeyBytes = senderPublicKeyBytes,
                 sessionKey = sessionKeyInfo.sessionKey
             )
 
@@ -243,19 +237,14 @@ class PayloadProcessingServiceImpl(
             val cleanName = parseName(handshake.name)
             chatDao.insertChat(ChatEntity(payload.senderId, cleanName, "Connected", payload.timestamp))
 
-            val identityPubKeyHex = handshake.identityPubKeyHex
             val ephemeralPubKeyHex = handshake.ephemeralPubKeyHex
             val nonceHex = handshake.nonceHex
 
-            if (!identityPubKeyHex.isNullOrBlank() &&
-                !ephemeralPubKeyHex.isNullOrBlank() &&
-                !nonceHex.isNullOrBlank()) {
-
+            if (!ephemeralPubKeyHex.isNullOrBlank() && !nonceHex.isNullOrBlank()) {
                 Logger.d("PayloadProcessingService", "Handshake V2 from ${peerId.take(8)}... with ephemeral key exchange")
 
                 val sessionEstablished = sessionManagementService.establishSessionFromHandshake(
                     peerId = peerId,
-                    peerIdentityPubKeyHex = identityPubKeyHex,
                     peerEphemeralPubKeyHex = ephemeralPubKeyHex,
                     peerNonceHex = nonceHex
                 )
@@ -263,11 +252,9 @@ class PayloadProcessingServiceImpl(
                 if (sessionEstablished) {
                     Logger.d("PayloadProcessingService", "Encrypted V2 session established with ${peerId.take(8)}...")
                 } else {
-                    Logger.e("TOFU VIOLATION: Session establishment aborted for ${peerId.take(8)}...", tag = "PayloadProcessingService")
+                    Logger.e("Session establishment failed for ${peerId.take(8)}...", tag = "PayloadProcessingService")
                     return
                 }
-            } else if (!identityPubKeyHex.isNullOrBlank()) {
-                Logger.w("PayloadProcessingService", "Handshake V1 from ${peerId.take(8)}... (no forward secrecy)")
             } else {
                 Logger.e("Handshake from ${peerId.take(8)}... missing public keys - REJECTING", tag = "PayloadProcessingService")
                 return

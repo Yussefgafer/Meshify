@@ -2,10 +2,10 @@ package com.p2p.meshify.feature.realdevicetesting.adapter
 
 import android.content.Context
 import com.p2p.meshify.core.common.security.EncryptedSessionKeyStore
+import com.p2p.meshify.core.common.security.SimplePeerIdProvider
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.TransportType
 import com.p2p.meshify.domain.repository.ISettingsRepository
-import com.p2p.meshify.domain.security.interfaces.PeerIdentityRepository
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
@@ -44,7 +44,7 @@ class TestRegistry private constructor() {
      *
      * @param context Android application context.
      * @param settingsRepository Settings provider.
-     * @param peerIdentity Identity provider.
+     * @param peerIdProvider Simple peer ID provider.
      * @param sessionKeyStore Encrypted session key store.
      * @param peerId This device's peer identity (for BLE advertising).
      * @param deviceName This device's display name (for BLE advertising).
@@ -52,7 +52,7 @@ class TestRegistry private constructor() {
     suspend fun initialize(
         context: Context,
         settingsRepository: ISettingsRepository,
-        peerIdentity: PeerIdentityRepository,
+        peerIdProvider: SimplePeerIdProvider,
         sessionKeyStore: EncryptedSessionKeyStore,
         peerId: String,
         deviceName: String
@@ -68,7 +68,7 @@ class TestRegistry private constructor() {
         val lanAdapter = LanTransportTestAdapter(
             context = context,
             settingsRepository = settingsRepository,
-            peerIdentity = peerIdentity,
+            peerIdProvider = peerIdProvider,
             sessionKeyStore = sessionKeyStore
         )
         adapters[lanAdapter.transportType.name.lowercase()] = lanAdapter

@@ -19,7 +19,6 @@ import com.p2p.meshify.domain.model.DeleteType
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.repository.IFileManager
 import com.p2p.meshify.domain.repository.ISettingsRepository
-import com.p2p.meshify.domain.security.interfaces.PeerIdentityRepository
 import com.p2p.meshify.domain.security.model.MessageEnvelope
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -63,7 +62,6 @@ class ChatRepositoryImplTest {
     private val mockFileManager: IFileManager = mockk(relaxed = true)
     private val mockNotificationHelper: NotificationHelper = mockk(relaxed = true)
     private val mockSettingsRepository: ISettingsRepository = mockk(relaxed = true)
-    private val mockPeerIdentity: PeerIdentityRepository = mockk(relaxed = true)
     private val mockMessageCrypto: MessageEnvelopeCrypto = mockk(relaxed = true)
     private val mockEcdhSessionManager: EcdhSessionManager = mockk(relaxed = true)
     private val mockSessionKeyStore: EncryptedSessionKeyStore = mockk(relaxed = true)
@@ -120,7 +118,6 @@ class ChatRepositoryImplTest {
             fileManager = mockFileManager,
             notificationHelper = mockNotificationHelper,
             settingsRepository = mockSettingsRepository,
-            peerIdentity = mockPeerIdentity,
             messageCrypto = mockMessageCrypto,
             ecdhSessionManager = mockEcdhSessionManager,
             sessionKeyStore = mockSessionKeyStore
@@ -267,7 +264,7 @@ class ChatRepositoryImplTest {
             ciphertext = ByteArray(32),
             signature = ByteArray(64)
         )
-        coEvery { mockMessageCrypto.encrypt(any(), "peer1", any()) } returns encryptedEnvelope
+        coEvery { mockMessageCrypto.encrypt(any(), any(), "peer1", any()) } returns encryptedEnvelope
 
         // Peer is offline
         every { mockTransportManager.getAllTransports() } returns emptyList()

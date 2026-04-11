@@ -44,6 +44,55 @@
     
     <!-- Pre-Permission Dialog Strings -->
     <string name="permission_icon_desc">Permission icon</string>
-    <string name="permission_check">Permission check icon</string>
-    <string name="permission_all_set">All set icon</string>
+    <string name="permission_check">Check</string>
+    <string name="permission_all_set">All Set</string>
+    <string name="permission_dialog_what_happens_title">What happens:</string>
+    <string name="permission_dialog_if_deny_title">If you deny:</string>
+    <string name="permission_dialog_allow">Allow</string>
+    <string name="permission_dialog_deny">Deny</string>
+    <string name="permission_dialog_start_messaging">Start Messaging</string>
+    <string name="permission_summary_title">You\'re All Set!</string>
+    <string name="permission_summary_desc">Meshify is ready to use. Start discovering nearby devices and send messages!</string>
+    <string name="permission_partial_warning">Some features may be limited.</string>
+
+    <!-- Permission Definitions - Bluetooth -->
+    <string name="perm_bluetooth_title">Bluetooth Permission</string>
+    <string name="perm_bluetooth_desc">We use Bluetooth to discover nearby devices and establish connections.</string>
+    <string name="perm_bluetooth_what_happens_1">Scan for nearby Meshify users</string>
+    <string name="perm_bluetooth_what_happens_2">Create secure connections</string>
+    <string name="perm_bluetooth_if_deny_1">Cannot discover new devices</string>
+    <string name="perm_bluetooth_if_deny_2">Cannot connect via Bluetooth</string>
+
+    <!-- Permission Definitions - Location (Android &lt; 13) -->
+    <string name="perm_location_title">Location Permission</string>
+    <string name="perm_location_desc">Location access is required for WiFi Direct discovery on older Android versions.</string>
+    <string name="perm_location_what_happens_1">Enable mDNS peer discovery</string>
+    <string name="perm_location_what_happens_2">Find devices on same network</string>
+    <string name="perm_location_if_deny_1">Cannot discover peers via LAN</string>
+    <string name="perm_location_if_deny_2">App works in offline mode only</string>
+
+    <!-- Permission Definitions - Nearby WiFi (Android 13+) -->
+    <string name="perm_nearby_wifi_title">Nearby WiFi Devices</string>
+    <string name="perm_nearby_wifi_desc">This permission allows direct device-to-device connections without internet.</string>
+    <string name="perm_nearby_wifi_what_happens_1">Connect to nearby Meshify users</string>
+    <string name="perm_nearby_wifi_what_happens_2">Transfer messages via WiFi</string>
+    <string name="perm_nearby_wifi_if_deny_1">Cannot use WiFi Direct</string>
+    <string name="perm_nearby_wifi_if_deny_2">Limited to Bluetooth only</string>
+
+    <!-- Permission Definitions - Notifications -->
+    <string name="perm_notifications_title">Notifications</string>
+    <string name="perm_notifications_desc">Get notified when you receive new messages from nearby devices.</string>
+    <string name="perm_notifications_what_happens_1">Show message alerts</string>
+    <string name="perm_notifications_what_happens_2">Notify about new connections</string>
+    <string name="perm_notifications_if_deny_1">No message notifications</string>
+    <string name="perm_notifications_if_deny_2">Must open app to see messages</string>
+
+    <!-- Permission Definitions - Storage/Photos -->
+    <string name="perm_storage_title">Photos &amp; Files</string>
+    <string name="perm_storage_desc">Access photos and files to send them to nearby devices.</string>
+    <string name="perm_storage_what_happens_1">Select images to send</string>
+    <string name="perm_storage_what_happens_2">Share files with peers</string>
+    <string name="perm_storage_if_deny_1">Cannot send images</string>
+    <string name="perm_storage_if_deny_2">Cannot share files</string>
+    <string name="perm_storage_if_deny_3">Text messages still work</string>
 </resources>
