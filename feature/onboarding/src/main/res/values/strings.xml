@@ -1,102 +1,89 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Onboarding Screen Strings -->
-    
-    <!-- Page 1: Welcome -->
-    <string name="onboarding_welcome_title">Welcome to Meshify</string>
-    <string name="onboarding_welcome_subtitle">Experience the future of private communication</string>
-    <string name="onboarding_welcome_desc">A decentralized mesh network that keeps your conversations secure and private</string>
-    
-    <!-- Page 2: Privacy -->
-    <string name="onboarding_privacy_title">Private &amp; Secure</string>
-    <string name="onboarding_privacy_subtitle">Your data stays yours</string>
-    <string name="onboarding_privacy_desc">End-to-end encrypted messages with no central servers. Your conversations never leave the mesh network</string>
-    <string name="onboarding_privacy_policy_link">Privacy Policy</string>
+    <!-- Language -->
+    <string name="ob_lang_en">English</string>
+    <string name="ob_lang_ar">العربية</string>
 
-    <!-- Page 3: BLE Nearby (NEW) -->
-    <string name="onboarding_ble_title">Message Anyone Nearby</string>
-    <string name="onboarding_ble_subtitle">No Wi-Fi. No Internet.</string>
-    <string name="onboarding_ble_desc">Connect directly to devices within range using Bluetooth. Messages travel device-to-device, fully encrypted. Perfect for crowded places, offices, or anywhere the internet can\'t reach</string>
-    <string name="onboarding_ble_content_desc">Bluetooth nearby messaging illustration</string>
+    <!-- Onboarding — Page 1: Welcome -->
+    <string name="ob_welcome_title">Welcome to Meshify</string>
+    <string name="ob_welcome_desc">Offline messaging.\nDirect. Private. Yours.</string>
+    <string name="ob_language_label">Language</string>
+    <string name="ob_btn_next">Next</string>
+    <string name="ob_btn_skip">Skip</string>
+    <string name="ob_btn_get_started">Get Started</string>
 
-    <!-- Page 4: P2P -->
-    <string name="onboarding_p2p_title">Direct P2P Messaging</string>
-    <string name="onboarding_p2p_subtitle">No internet required</string>
-    <string name="onboarding_p2p_desc">Connect directly with nearby devices using WiFi, Bluetooth, or mesh networking. Send messages even without internet</string>
-    
-    <!-- Page 4: Get Started -->
-    <string name="onboarding_get_started_title">Let\'s Get Started</string>
-    <string name="onboarding_get_started_subtitle">Ready to join the mesh?</string>
-    <string name="onboarding_get_started_desc">We\'ll need a few permissions to enable peer discovery and secure communication</string>
-    <string name="onboarding_btn_get_started">Get Started</string>
-    
-    <!-- Common -->
-    <string name="onboarding_btn_next">Next</string>
-    <string name="onboarding_btn_skip">Skip</string>
-    <string name="onboarding_terms_of_service_link">Terms of Service</string>
-    <string name="onboarding_content_desc_illustration">Onboarding illustration</string>
-    <string name="onboarding_content_desc_dot">Page indicator dot</string>
-    <string name="onboarding_content_desc_avatar">Avatar icon</string>
-    <string name="onboarding_content_desc_shield">Security shield icon</string>
-    <string name="onboarding_content_desc_devices">Connected devices icon</string>
-    <string name="onboarding_content_desc_permissions">Permission icons</string>
-    <string name="onboarding_content_desc_ble">Bluetooth nearby illustration</string>
+    <!-- Onboarding — Page 2: How It Works -->
+    <string name="ob_how_title">How It Works</string>
+    <string name="ob_step_discover_title">Discover</string>
+    <string name="ob_step_discover_desc">Meshify finds other users on your local network automatically</string>
+    <string name="ob_step_connect_title">Connect</string>
+    <string name="ob_step_connect_desc">Tap a device to create a direct peer-to-peer link</string>
+    <string name="ob_step_chat_title">Chat</string>
+    <string name="ob_step_chat_desc">Send messages that never leave your local network</string>
 
-    <!-- Page Indicator -->
-    <string name="onboarding_page_indicator">Page %d</string>
-    <string name="onboarding_go_to_page">Go to page %d</string>
+    <!-- Onboarding — Page 3: Permissions -->
+    <string name="ob_perm_title">Almost There</string>
+    <string name="ob_perm_desc">Meshify needs a few permissions to work. We\'ll explain each one.</string>
 
-    <!-- Pre-Permission Dialog Strings -->
-    <string name="permission_icon_desc">Permission icon</string>
-    <string name="permission_check">Check</string>
-    <string name="permission_all_set">All Set</string>
-    <string name="permission_dialog_what_happens_title">What happens:</string>
-    <string name="permission_dialog_if_deny_title">If you deny:</string>
-    <string name="permission_dialog_allow">Allow</string>
-    <string name="permission_dialog_deny">Deny</string>
-    <string name="permission_dialog_start_messaging">Start Messaging</string>
-    <string name="permission_summary_title">You\'re All Set!</string>
-    <string name="permission_summary_desc">Meshify is ready to use. Start discovering nearby devices and send messages!</string>
-    <string name="permission_partial_warning">Some features may be limited.</string>
+    <!-- Permission Labels (Page 3 list) -->
+    <string name="ob_perm_label_nearby">Nearby Devices</string>
+    <string name="ob_perm_label_bt">Bluetooth</string>
+    <string name="ob_perm_label_notif">Notifications</string>
+    <string name="ob_perm_required">Required</string>
+    <string name="ob_perm_optional">Optional</string>
+    <string name="ob_perm_not_asked">Not asked</string>
+    <string name="ob_perm_granted">Granted</string>
+    <string name="ob_perm_denied">Denied</string>
+    <string name="ob_perm_denied_permanent">Denied — change in Settings</string>
+    <string name="ob_perm_skipped">Skipped</string>
+    <string name="ob_perm_already_granted">Already granted</string>
 
-    <!-- Permission Definitions - Bluetooth -->
-    <string name="perm_bluetooth_title">Bluetooth Permission</string>
-    <string name="perm_bluetooth_desc">We use Bluetooth to discover nearby devices and establish connections.</string>
-    <string name="perm_bluetooth_what_happens_1">Scan for nearby Meshify users</string>
-    <string name="perm_bluetooth_what_happens_2">Create secure connections</string>
-    <string name="perm_bluetooth_if_deny_1">Cannot discover new devices</string>
-    <string name="perm_bluetooth_if_deny_2">Cannot connect via Bluetooth</string>
+    <!-- Permission Card -->
+    <string name="ob_card_why_title">Why we need this:</string>
+    <string name="ob_card_deny_title">If you deny:</string>
+    <string name="ob_card_deny">Deny</string>
+    <string name="ob_card_allow">Allow</string>
 
-    <!-- Permission Definitions - Location (Android &lt; 13) -->
-    <string name="perm_location_title">Location Permission</string>
-    <string name="perm_location_desc">Location access is required for WiFi Direct discovery on older Android versions.</string>
-    <string name="perm_location_what_happens_1">Enable mDNS peer discovery</string>
-    <string name="perm_location_what_happens_2">Find devices on same network</string>
-    <string name="perm_location_if_deny_1">Cannot discover peers via LAN</string>
-    <string name="perm_location_if_deny_2">App works in offline mode only</string>
+    <!-- Permission: Nearby WiFi (Android 13+) -->
+    <string name="ob_perm_nearby_why_1">Find other Meshify users on your local network</string>
+    <string name="ob_perm_nearby_why_2">Send messages via direct WiFi connection</string>
+    <string name="ob_perm_nearby_deny_1">Cannot discover peers on WiFi</string>
+    <string name="ob_perm_nearby_deny_2">Limited to Bluetooth only</string>
 
-    <!-- Permission Definitions - Nearby WiFi (Android 13+) -->
-    <string name="perm_nearby_wifi_title">Nearby WiFi Devices</string>
-    <string name="perm_nearby_wifi_desc">This permission allows direct device-to-device connections without internet.</string>
-    <string name="perm_nearby_wifi_what_happens_1">Connect to nearby Meshify users</string>
-    <string name="perm_nearby_wifi_what_happens_2">Transfer messages via WiFi</string>
-    <string name="perm_nearby_wifi_if_deny_1">Cannot use WiFi Direct</string>
-    <string name="perm_nearby_wifi_if_deny_2">Limited to Bluetooth only</string>
+    <!-- Permission: Location (Android &lt; 13) -->
+    <string name="ob_perm_loc_why_1">Enable mDNS peer discovery</string>
+    <string name="ob_perm_loc_why_2">Find devices on the same network</string>
+    <string name="ob_perm_loc_deny_1">Cannot discover peers via LAN</string>
+    <string name="ob_perm_loc_deny_2">App works in offline mode only</string>
 
-    <!-- Permission Definitions - Notifications -->
-    <string name="perm_notifications_title">Notifications</string>
-    <string name="perm_notifications_desc">Get notified when you receive new messages from nearby devices.</string>
-    <string name="perm_notifications_what_happens_1">Show message alerts</string>
-    <string name="perm_notifications_what_happens_2">Notify about new connections</string>
-    <string name="perm_notifications_if_deny_1">No message notifications</string>
-    <string name="perm_notifications_if_deny_2">Must open app to see messages</string>
+    <!-- Permission: Bluetooth -->
+    <string name="ob_perm_bt_why_1">Scan for nearby Meshify users</string>
+    <string name="ob_perm_bt_why_2">Create secure connections without WiFi</string>
+    <string name="ob_perm_bt_deny_1">Cannot discover new devices via Bluetooth</string>
+    <string name="ob_perm_bt_deny_2">Cannot connect via Bluetooth</string>
 
-    <!-- Permission Definitions - Storage/Photos -->
-    <string name="perm_storage_title">Photos &amp; Files</string>
-    <string name="perm_storage_desc">Access photos and files to send them to nearby devices.</string>
-    <string name="perm_storage_what_happens_1">Select images to send</string>
-    <string name="perm_storage_what_happens_2">Share files with peers</string>
-    <string name="perm_storage_if_deny_1">Cannot send images</string>
-    <string name="perm_storage_if_deny_2">Cannot share files</string>
-    <string name="perm_storage_if_deny_3">Text messages still work</string>
+    <!-- Permission: Notifications -->
+    <string name="ob_perm_notif_why_1">Show message alerts when you receive new messages</string>
+    <string name="ob_perm_notif_why_2">Notify about new device connections</string>
+    <string name="ob_perm_notif_deny_1">No message notifications</string>
+    <string name="ob_perm_notif_deny_2">Must open app to see messages</string>
+
+    <!-- Summary Dialog -->
+    <string name="ob_summary_title">You\'re All Set!</string>
+    <string name="ob_summary_desc">Meshify is ready. Start discovering nearby devices and messaging!</string>
+    <string name="ob_summary_partial">Some permissions were denied. You can change them in Settings anytime.</string>
+    <string name="ob_summary_all_granted">All permissions granted</string>
+    <string name="ob_summary_count">%d of %d granted</string>
+    <string name="ob_summary_view_details">View details</string>
+    <string name="ob_summary_start">Start Messaging</string>
+
+    <!-- Skip confirmation -->
+    <string name="ob_skip_confirm_title">Leave onboarding?</string>
+    <string name="ob_skip_confirm_desc">You can grant permissions later in Settings</string>
+    <string name="ob_skip_confirm_stay">Stay</string>
+    <string name="ob_skip_confirm_leave">Enter Anyway</string>
+
+    <!-- Content descriptions (accessibility) -->
+    <string name="ob_cd_lang_switch">Switch language</string>
+    <string name="ob_cd_page_indicator">Page indicator</string>
 </resources>

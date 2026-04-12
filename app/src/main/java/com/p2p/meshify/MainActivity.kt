@@ -49,9 +49,11 @@ import com.p2p.meshify.feature.realdevicetesting.ui.RealDeviceTestingViewModel
 import com.p2p.meshify.feature.realdevicetesting.ui.RealDeviceTestScreen
 import com.p2p.meshify.feature.onboarding.WelcomeScreen
 import com.p2p.meshify.feature.onboarding.WelcomeViewModel
-import com.p2p.meshify.feature.onboarding.PrePermissionDialog
 import com.p2p.meshify.feature.onboarding.PermissionSummaryDialog
+import com.p2p.meshify.feature.onboarding.PermissionRequestCard
+import com.p2p.meshify.feature.onboarding.SkipConfirmationDialog
 import com.p2p.meshify.feature.onboarding.PermissionDefinitions
+import com.p2p.meshify.feature.onboarding.PermissionRequestResult
 import com.p2p.meshify.core.domain.interfaces.WifiStateChecker
 import com.p2p.meshify.core.data.local.MeshifyDatabase
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -61,6 +63,20 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+
+/**
+ * Delay to allow the permission card exit animation to complete before advancing.
+ * This is a known workaround because Compose's AnimatedVisibility does not expose
+ * an onComplete callback that can be observed from a LaunchedEffect.
+ * The values are conservative estimates that work on most devices.
+ */
+private const val PERMISSION_EXIT_ANIMATION_DELAY_MS = 800L
+
+/**
+ * Delay for auto-advancing when a permission is already granted.
+ * Allows the user to see the "Granted" state briefly before moving on.
+ */
+private const val PERMISSION_ALREADY_GRANTED_DISPLAY_DELAY_MS = 600L
 
 /**
  * Main entry point of the Meshify application.
@@ -81,6 +97,27 @@ class MainActivity : ComponentActivity() {
             // App still works with LAN-only mode; BLE features will be limited
             startAppService()
         }
+    }
+
+    // Callback for onboarding permission requests
+    var permissionResultCallback: ((Map<String, Boolean>) -> Unit)? = null
+        internal set
+
+    private val onboardingPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        permissionResultCallback?.invoke(results)
+        permissionResultCallback = null
+    }
+
+    /**
+     * Request specific permissions from the onboarding flow.
+     * Returns results via the callback.
+     */
+    private fun requestSpecificPermissions(permissions: List<String>) {
+        if (permissions.isEmpty()) return
+        permissionResultCallback = null // Reset
+        onboardingPermissionLauncher.launch(permissions.toTypedArray())
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -300,13 +337,16 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onOnboardingRoute = {
                                         OnboardingRoute(
+                                            activity = this@MainActivity,
                                             settingsRepository = app.settingsRepository,
                                             onNavigateToHome = {
                                                 navController.navigate(Screen.Home) {
                                                     popUpTo(Screen.Onboarding) { inclusive = true }
                                                 }
                                             },
-                                            onRequestPermissions = { checkAndRequestPermissions() }
+                                            onRequestPermissions = { perms ->
+                                                requestSpecificPermissions(perms)
+                                            }
                                         )
                                     }
                                 )
@@ -355,66 +395,159 @@ class MainActivity : ComponentActivity() {
 
 /**
  * Onboarding flow composable.
- * Shows welcome screens, pre-permission dialogs, and marks onboarding complete.
+ * 3 pages: Welcome → How It Works → Permissions.
+ * Handles language switching, permission requests, and navigation.
  */
 @Composable
 private fun OnboardingRoute(
+    activity: MainActivity,
     settingsRepository: com.p2p.meshify.domain.repository.ISettingsRepository,
     onNavigateToHome: () -> Unit,
-    onRequestPermissions: () -> Unit
+    onRequestPermissions: (List<String>) -> Unit
 ) {
     val onboardingViewModel: WelcomeViewModel = hiltViewModel()
     val permissions = PermissionDefinitions.getPermissions()
     val scope = rememberCoroutineScope()
 
+    // Hoist LocalContext to top level
+    val context = LocalContext.current
+
+    // Language: "en" or "ar"
+    var currentLang by remember { mutableStateOf("en") }
+
+    // Permission flow state
+    var isPermissionFlowActive by remember { mutableStateOf(false) }
     var currentPermissionIndex by remember { mutableStateOf(0) }
-    var showPermissionDialog by remember { mutableStateOf(false) }
+    val permissionResults = remember { mutableStateMapOf<String, PermissionRequestResult>() }
+    var advanceTrigger by remember { mutableIntStateOf(0) }
     var showSummaryDialog by remember { mutableStateOf(false) }
-    val grantedPermissions = remember { mutableStateListOf<String>() }
+    var showSkipConfirm by remember { mutableStateOf(false) }
 
-    WelcomeScreen(
-        viewModel = onboardingViewModel,
-        onGetStartedClick = {
-            showPermissionDialog = true
-            currentPermissionIndex = 0
+    // Wire permission result callback from Activity — single persistent callback
+    DisposableEffect(activity) {
+        val callback: (Map<String, Boolean>) -> Unit = { results ->
+            val currentPerm = permissions.getOrNull(currentPermissionIndex)
+            if (currentPerm != null) {
+                val isGranted = results.values.all { it }
+                permissionResults[currentPerm.id] = if (isGranted) {
+                    PermissionRequestResult.Granted
+                } else {
+                    val wasDeniedPermanently = currentPerm.androidPermissions.any { p ->
+                        results[p] == false && !activity.shouldShowRequestPermissionRationale(p)
+                    }
+                    if (wasDeniedPermanently) {
+                        PermissionRequestResult.DeniedPermanently
+                    } else {
+                        PermissionRequestResult.Denied
+                    }
+                }
+                advanceTrigger++
+            }
         }
-    )
-
-    if (showPermissionDialog && currentPermissionIndex < permissions.size) {
-        PrePermissionDialog(
-            currentPermission = permissions[currentPermissionIndex],
-            onAllowClick = {
-                grantedPermissions.add(permissions[currentPermissionIndex].id)
-                if (currentPermissionIndex < permissions.size - 1) {
-                    currentPermissionIndex++
-                } else {
-                    showPermissionDialog = false
-                    showSummaryDialog = true
-                }
-            },
-            onDenyClick = {
-                if (currentPermissionIndex < permissions.size - 1) {
-                    currentPermissionIndex++
-                } else {
-                    showPermissionDialog = false
-                    showSummaryDialog = true
-                }
-            },
-            onDismiss = { showPermissionDialog = false }
-        )
+        activity.permissionResultCallback = callback
+        onDispose {
+            activity.permissionResultCallback = null
+        }
     }
 
-    if (showSummaryDialog) {
-        PermissionSummaryDialog(
-            grantedCount = grantedPermissions.size,
-            totalCount = permissions.size,
-            onStartClick = {
-                onRequestPermissions()
+    // WelcomeScreen
+    WelcomeScreen(
+        viewModel = onboardingViewModel,
+        currentLang = currentLang,
+        onLangChange = { newLang ->
+            currentLang = newLang
+        },
+        onNextClick = {
+            // Page 3 "Get Started" → start permission flow
+            isPermissionFlowActive = true
+            currentPermissionIndex = 0
+            onboardingViewModel.startPermissionFlow()
+        },
+        onSkipClick = {
+            if (isPermissionFlowActive) {
+                showSkipConfirm = true
+            } else {
                 scope.launch {
                     settingsRepository.setOnboardingCompleted()
                 }
                 onNavigateToHome()
+            }
+        }
+    )
+
+    // Auto-advance after permission result
+    LaunchedEffect(advanceTrigger) {
+        if (advanceTrigger > 0) {
+            kotlinx.coroutines.delay(PERMISSION_EXIT_ANIMATION_DELAY_MS)
+            currentPermissionIndex++
+        }
+    }
+
+    // Permission flow: show cards one by one
+    if (isPermissionFlowActive && currentPermissionIndex < permissions.size) {
+        val perm = permissions[currentPermissionIndex]
+
+        // Check if already granted
+        val alreadyGranted = perm.androidPermissions.all { pid ->
+            android.content.pm.PackageManager.PERMISSION_GRANTED ==
+                context.checkSelfPermission(pid)
+        }
+
+        if (alreadyGranted) {
+            LaunchedEffect(perm.id) {
+                permissionResults[perm.id] = PermissionRequestResult.Granted
+                advanceTrigger++
+                kotlinx.coroutines.delay(PERMISSION_ALREADY_GRANTED_DISPLAY_DELAY_MS)
+                currentPermissionIndex++
+            }
+        } else {
+            PermissionRequestCard(
+                permission = perm,
+                onAllowClick = {
+                    onRequestPermissions(perm.androidPermissions)
+                },
+                onDenyClick = {
+                    permissionResults[perm.id] = PermissionRequestResult.Denied
+                    currentPermissionIndex++
+                },
+                onRequestDismiss = {
+                    isPermissionFlowActive = false
+                    showSummaryDialog = true
+                }
+            )
+        }
+    }
+
+    // Show summary when all permissions processed
+    if (showSummaryDialog) {
+        val grantedCount = permissionResults.count { it.value == PermissionRequestResult.Granted }
+        PermissionSummaryDialog(
+            grantedCount = grantedCount,
+            totalCount = permissions.size,
+            permissionResults = permissionResults.toMap(),
+            onStartClick = {
+                scope.launch {
+                    settingsRepository.setOnboardingCompleted()
+                }
+                onNavigateToHome()
+            },
+            onDismiss = {
                 showSummaryDialog = false
+            }
+        )
+    }
+
+    // Skip confirmation
+    if (showSkipConfirm) {
+        SkipConfirmationDialog(
+            onStayClick = { showSkipConfirm = false },
+            onLeaveClick = {
+                showSkipConfirm = false
+                isPermissionFlowActive = false
+                scope.launch {
+                    settingsRepository.setOnboardingCompleted()
+                }
+                onNavigateToHome()
             }
         )
     }
