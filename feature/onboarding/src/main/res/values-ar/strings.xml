@@ -1,102 +1,89 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Onboarding Screen Strings -->
+    <!-- Language -->
+    <string name="ob_lang_en">English</string>
+    <string name="ob_lang_ar">العربية</string>
 
-    <!-- Page 1: Welcome -->
-    <string name="onboarding_welcome_title">مرحباً بك في ميشفاي</string>
-    <string name="onboarding_welcome_subtitle">اختبر مستقبل التواصل الخاص</string>
-    <string name="onboarding_welcome_desc">شبكة لامركزية تحافظ على أمان وخصوصية محادثاتك</string>
+    <!-- Onboarding — Page 1: Welcome -->
+    <string name="ob_welcome_title">مرحباً بك في ميشفاي</string>
+    <string name="ob_welcome_desc">مراسلة بدون إنترنت.\nمباشر. خاص. لك.</string>
+    <string name="ob_language_label">اللغة</string>
+    <string name="ob_btn_next">التالي</string>
+    <string name="ob_btn_skip">تخطي</string>
+    <string name="ob_btn_get_started">لنبدأ</string>
 
-    <!-- Page 2: Privacy -->
-    <string name="onboarding_privacy_title">خاص وآمن</string>
-    <string name="onboarding_privacy_subtitle">بياناتك تبقى لك</string>
-    <string name="onboarding_privacy_desc">رسائل مشفرة من طرف إلى طرف بدون خوادم مركزية. محادثاتك لا تغادر الشبكة أبداً</string>
-    <string name="onboarding_privacy_policy_link">سياسة الخصوصية</string>
+    <!-- Onboarding — Page 2: How It Works -->
+    <string name="ob_how_title">كيف يعمل</string>
+    <string name="ob_step_discover_title">اكتشف</string>
+    <string name="ob_step_discover_desc">يكتشف ميشفاي المستخدمين الآخرين على شبكتك المحلية تلقائياً</string>
+    <string name="ob_step_connect_title">اتصل</string>
+    <string name="ob_step_connect_desc">اضغط على جهاز لإنشاء اتصال مباشر بين الأجهزة</string>
+    <string name="ob_step_chat_title">راسل</string>
+    <string name="ob_step_chat_desc">أرسل رسائل لا تغادر شبكتك المحلية أبداً</string>
 
-    <!-- Page 3: BLE Nearby -->
-    <string name="onboarding_ble_title">راسل أي شخص قريب</string>
-    <string name="onboarding_ble_subtitle">بدون واي فاي. بدون إنترنت.</string>
-    <string name="onboarding_ble_desc">اتصل مباشرة بالأجهزة القريبة عبر البلوتوث. الرسائل تنتقل جهازاً لجهاز، مشفرة بالكامل. مثالي للأماكن المزدحمة والمكاتب وأي مكان لا يصله الإنترنت</string>
-    <string name="onboarding_ble_content_desc">رسوم توضيحية للرسائل القريبة بالبلوتوث</string>
+    <!-- Onboarding — Page 3: Permissions -->
+    <string name="ob_perm_title">اقتربنا</string>
+    <string name="ob_perm_desc">يحتاج ميشفاي لبعض الأذونات للعمل. سنشرح كل واحد.</string>
 
-    <!-- Page 4: P2P -->
-    <string name="onboarding_p2p_title">مراسلة مباشرة P2P</string>
-    <string name="onboarding_p2p_subtitle">بدون إنترنت</string>
-    <string name="onboarding_p2p_desc">اتصل مباشرة بالأجهزة القريبة عبر الواي فاي أو البلوتوث أو الشبكة. أرسل الرسائل حتى بدون إنترنت</string>
+    <!-- Permission Labels (Page 3 list) -->
+    <string name="ob_perm_label_nearby">الأجهزة القريبة</string>
+    <string name="ob_perm_label_bt">البلوتوث</string>
+    <string name="ob_perm_label_notif">الإشعارات</string>
+    <string name="ob_perm_required">مطلوب</string>
+    <string name="ob_perm_optional">اختياري</string>
+    <string name="ob_perm_not_asked">لم يُطلب</string>
+    <string name="ob_perm_granted">ممنوح</string>
+    <string name="ob_perm_denied">مرفوض</string>
+    <string name="ob_perm_denied_permanent">مرفوض — غيّر من الإعدادات</string>
+    <string name="ob_perm_skipped">متخطى</string>
+    <string name="ob_perm_already_granted">ممنوح مسبقاً</string>
 
-    <!-- Page 5: Get Started -->
-    <string name="onboarding_get_started_title">لنبدأ</string>
-    <string name="onboarding_get_started_subtitle">مستعد للانضمام للشبكة؟</string>
-    <string name="onboarding_get_started_desc">سنحتاج لبعض الأذونات لتمكين اكتشاف الأقران والتواصل الآمن</string>
-    <string name="onboarding_btn_get_started">لنبدأ</string>
+    <!-- Permission Card -->
+    <string name="ob_card_why_title">لماذا نحتاج هذا:</string>
+    <string name="ob_card_deny_title">إذا رفضت:</string>
+    <string name="ob_card_deny">رفض</string>
+    <string name="ob_card_allow">سماح</string>
 
-    <!-- Common -->
-    <string name="onboarding_btn_next">التالي</string>
-    <string name="onboarding_btn_skip">تخطي</string>
-    <string name="onboarding_terms_of_service_link">شروط الخدمة</string>
-    <string name="onboarding_content_desc_illustration">رسوم توضيحية</string>
-    <string name="onboarding_content_desc_dot">نقطة مؤشر الصفحة</string>
-    <string name="onboarding_content_desc_avatar">أيقونة الصورة الرمزية</string>
-    <string name="onboarding_content_desc_shield">أيقونة الدرع الأمني</string>
-    <string name="onboarding_content_desc_devices">أيقونة الأجهزة المتصلة</string>
-    <string name="onboarding_content_desc_permissions">أيقونات الأذونات</string>
-    <string name="onboarding_content_desc_ble">رسوم البلوتوث القريبة</string>
+    <!-- Permission: Nearby WiFi (Android 13+) -->
+    <string name="ob_perm_nearby_why_1">العثور على مستخدمي ميشفاي على شبكتك المحلية</string>
+    <string name="ob_perm_nearby_why_2">إرسال الرسائل عبر اتصال WiFi مباشر</string>
+    <string name="ob_perm_nearby_deny_1">لا يمكن اكتشاف الأقران عبر WiFi</string>
+    <string name="ob_perm_nearby_deny_2">مقتصر على البلوتوث فقط</string>
 
-    <!-- Pre-Permission Dialog Strings -->
-    <string name="permission_icon_desc">أيقونة الإذن</string>
-    <string name="permission_check">تحقق</string>
-    <string name="permission_all_set">كل شيء جاهز</string>
-    <string name="permission_dialog_what_happens_title">ماذا يحدث:</string>
-    <string name="permission_dialog_if_deny_title">إذا رفضت:</string>
-    <string name="permission_dialog_allow">سماح</string>
-    <string name="permission_dialog_deny">رفض</string>
-    <string name="permission_dialog_start_messaging">بدء المراسلة</string>
-    <string name="permission_summary_title">أنت جاهز!</string>
-    <string name="permission_summary_desc">ميشفاي جاهز للاستخدام. ابدأ اكتشاف الأجهزة القريبة وإرسال الرسائل!</string>
-    <string name="permission_partial_warning">بعض الميزات قد تكون محدودة.</string>
+    <!-- Permission: Location (Android &lt; 13) -->
+    <string name="ob_perm_loc_why_1">تمكين اكتشاف الأقران عبر mDNS</string>
+    <string name="ob_perm_loc_why_2">العثور على الأجهزة على نفس الشبكة</string>
+    <string name="ob_perm_loc_deny_1">لا يمكن اكتشاف الأقران عبر LAN</string>
+    <string name="ob_perm_loc_deny_2">التطبيق يعمل بوضع عدم الاتصال فقط</string>
 
-    <!-- Page Indicator Accessibility -->
-    <string name="onboarding_page_indicator">صفحة %d</string>
-    <string name="onboarding_go_to_page">الانتقال لصفحة %d</string>
+    <!-- Permission: Bluetooth -->
+    <string name="ob_perm_bt_why_1">مسح مستخدمي ميشفاي القريبين</string>
+    <string name="ob_perm_bt_why_2">إنشاء اتصالات آمنة بدون WiFi</string>
+    <string name="ob_perm_bt_deny_1">لا يمكن اكتشاف أجهزة جديدة عبر البلوتوث</string>
+    <string name="ob_perm_bt_deny_2">لا يمكن الاتصال عبر البلوتوث</string>
 
-    <!-- Permission Definitions - Bluetooth -->
-    <string name="perm_bluetooth_title">إذن البلوتوث</string>
-    <string name="perm_bluetooth_desc">نستخدم البلوتوث لاكتشاف الأجهزة القريبة وإنشاء الاتصالات.</string>
-    <string name="perm_bluetooth_what_happens_1">مسح مستخدمي ميشفاي القريبين</string>
-    <string name="perm_bluetooth_what_happens_2">إنشاء اتصالات آمنة</string>
-    <string name="perm_bluetooth_if_deny_1">لا يمكن اكتشاف أجهزة جديدة</string>
-    <string name="perm_bluetooth_if_deny_2">لا يمكن الاتصال عبر البلوتوث</string>
+    <!-- Permission: Notifications -->
+    <string name="ob_perm_notif_why_1">إظهار تنبيهات الرسائل عند استقبال رسائل جديدة</string>
+    <string name="ob_perm_notif_why_2">إشعار باتصالات الأجهزة الجديدة</string>
+    <string name="ob_perm_notif_deny_1">لا إشعارات للرسائل</string>
+    <string name="ob_perm_notif_deny_2">يجب فتح التطبيق لرؤية الرسائل</string>
 
-    <!-- Permission Definitions - Location (Android &lt; 13) -->
-    <string name="perm_location_title">إذن الموقع</string>
-    <string name="perm_location_desc">الوصول للموقع مطلوب لاكتشاف WiFi Direct في إصدارات أندرويد القديمة.</string>
-    <string name="perm_location_what_happens_1">تمكين اكتشاف الأقران عبر mDNS</string>
-    <string name="perm_location_what_happens_2">العثور على الأجهزة على نفس الشبكة</string>
-    <string name="perm_location_if_deny_1">لا يمكن اكتشاف الأقران عبر LAN</string>
-    <string name="perm_location_if_deny_2">التطبيق يعمل بوضع عدم الاتصال فقط</string>
+    <!-- Summary Dialog -->
+    <string name="ob_summary_title">أنت جاهز!</string>
+    <string name="ob_summary_desc">ميشفاي جاهز. ابدأ اكتشاف الأجهزة القريبة والمراسلة!</string>
+    <string name="ob_summary_partial">تم رفض بعض الأذونات. يمكنك تغييرها من الإعدادات في أي وقت.</string>
+    <string name="ob_summary_all_granted">جميع الأذونات ممنوحة</string>
+    <string name="ob_summary_count">%d من %d ممنوحة</string>
+    <string name="ob_summary_view_details">عرض التفاصيل</string>
+    <string name="ob_summary_start">بدء المراسلة</string>
 
-    <!-- Permission Definitions - Nearby WiFi (Android 13+) -->
-    <string name="perm_nearby_wifi_title">أجهزة WiFi القريبة</string>
-    <string name="perm_nearby_wifi_desc">هذا الإذن يسمح بالاتصال المباشر بين الأجهزة بدون إنترنت.</string>
-    <string name="perm_nearby_wifi_what_happens_1">الاتصال بمستخدمي ميشفاي القريبين</string>
-    <string name="perm_nearby_wifi_what_happens_2">نقل الرسائل عبر WiFi</string>
-    <string name="perm_nearby_wifi_if_deny_1">لا يمكن استخدام WiFi Direct</string>
-    <string name="perm_nearby_wifi_if_deny_2">مقتصر على البلوتوث فقط</string>
+    <!-- Skip confirmation -->
+    <string name="ob_skip_confirm_title">مغادرة الإعداد؟</string>
+    <string name="ob_skip_confirm_desc">يمكنك منح الأذونات لاحقاً من الإعدادات</string>
+    <string name="ob_skip_confirm_stay">البقاء</string>
+    <string name="ob_skip_confirm_leave">دخول على أي حال</string>
 
-    <!-- Permission Definitions - Notifications -->
-    <string name="perm_notifications_title">الإشعارات</string>
-    <string name="perm_notifications_desc">احصل على إشعارات عند استلام رسائل جديدة من الأجهزة القريبة.</string>
-    <string name="perm_notifications_what_happens_1">إظهار تنبيهات الرسائل</string>
-    <string name="perm_notifications_what_happens_2">إشعار بالاتصالات الجديدة</string>
-    <string name="perm_notifications_if_deny_1">لا إشعارات للرسائل</string>
-    <string name="perm_notifications_if_deny_2">يجب فتح التطبيق لرؤية الرسائل</string>
-
-    <!-- Permission Definitions - Storage/Photos -->
-    <string name="perm_storage_title">الصور والملفات</string>
-    <string name="perm_storage_desc">الوصول للصور والملفات لإرسالها للأجهزة القريبة.</string>
-    <string name="perm_storage_what_happens_1">اختيار الصور للإرسال</string>
-    <string name="perm_storage_what_happens_2">مشاركة الملفات مع الأقران</string>
-    <string name="perm_storage_if_deny_1">لا يمكن إرسال الصور</string>
-    <string name="perm_storage_if_deny_2">لا يمكن مشاركة الملفات</string>
-    <string name="perm_storage_if_deny_3">الرسائل النصية لا تزال تعمل</string>
+    <!-- Content descriptions (accessibility) -->
+    <string name="ob_cd_lang_switch">تغيير اللغة</string>
+    <string name="ob_cd_page_indicator">مؤشر الصفحة</string>
 </resources>

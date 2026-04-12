@@ -12,7 +12,10 @@ import javax.inject.Inject
 
 /**
  * ViewModel for the onboarding flow.
- * Manages page navigation, state, and user interactions.
+ * Manages page navigation, language state, and permission tracking.
+ *
+ * Note: This ViewModel does NOT request Android permissions directly.
+ * Permission requests are handled by the Activity via callbacks.
  */
 @HiltViewModel
 class WelcomeViewModel @Inject constructor() : ViewModel() {
@@ -20,11 +23,8 @@ class WelcomeViewModel @Inject constructor() : ViewModel() {
     private val _uiState = MutableStateFlow(WelcomeUiState())
     val uiState: StateFlow<WelcomeUiState> = _uiState.asStateFlow()
 
-    private val pages = OnboardingPages.getPages()
-
     /**
      * Navigate to the next page.
-     * Automatically handles the last page transition.
      */
     fun nextPage() {
         val currentState = _uiState.value
@@ -32,34 +32,9 @@ class WelcomeViewModel @Inject constructor() : ViewModel() {
             _uiState.update {
                 it.copy(
                     currentPage = it.currentPage + 1,
-                    isLastPage = it.currentPage + 1 == it.totalPages - 1,
                     isAnimating = true
                 )
             }
-            
-            // Reset animation flag after animation completes
-            viewModelScope.launch {
-                kotlinx.coroutines.delay(300)
-                _uiState.update { it.copy(isAnimating = false) }
-            }
-        }
-    }
-
-    /**
-     * Navigate to the previous page.
-     */
-    fun previousPage() {
-        val currentState = _uiState.value
-        if (currentState.currentPage > 0 && !currentState.isAnimating) {
-            _uiState.update {
-                it.copy(
-                    currentPage = it.currentPage - 1,
-                    isLastPage = it.currentPage - 1 == it.totalPages - 1,
-                    isAnimating = true
-                )
-            }
-            
-            // Reset animation flag after animation completes
             viewModelScope.launch {
                 kotlinx.coroutines.delay(300)
                 _uiState.update { it.copy(isAnimating = false) }
@@ -69,22 +44,18 @@ class WelcomeViewModel @Inject constructor() : ViewModel() {
 
     /**
      * Navigate to a specific page.
-     * Used by the page indicator dots.
      */
     fun goToPage(pageIndex: Int) {
         val currentState = _uiState.value
-        if (pageIndex in 0 until currentState.totalPages && 
-            pageIndex != currentState.currentPage && 
+        if (pageIndex in 0 until currentState.totalPages &&
+            pageIndex != currentState.currentPage &&
             !currentState.isAnimating) {
             _uiState.update {
                 it.copy(
                     currentPage = pageIndex,
-                    isLastPage = pageIndex == it.totalPages - 1,
                     isAnimating = true
                 )
             }
-            
-            // Reset animation flag after animation completes
             viewModelScope.launch {
                 kotlinx.coroutines.delay(300)
                 _uiState.update { it.copy(isAnimating = false) }
@@ -93,35 +64,55 @@ class WelcomeViewModel @Inject constructor() : ViewModel() {
     }
 
     /**
-     * Skip onboarding and go directly to the last page.
+     * Toggle the language menu.
      */
-    fun skipOnboarding() {
-        val currentState = _uiState.value
-        if (!currentState.isAnimating) {
-            _uiState.update {
-                it.copy(
-                    currentPage = it.totalPages - 1,
-                    isLastPage = true,
-                    isAnimating = true
-                )
-            }
-            
-            viewModelScope.launch {
-                kotlinx.coroutines.delay(300)
-                _uiState.update { it.copy(isAnimating = false) }
-            }
+    fun toggleLangMenu() {
+        _uiState.update { it.copy(isLangMenuOpen = !it.isLangMenuOpen) }
+    }
+
+    /**
+     * Start the permission flow (transition to showing permission cards).
+     */
+    fun startPermissionFlow() {
+        _uiState.update {
+            it.copy(
+                isPermissionFlowActive = true,
+                isAnimating = true
+            )
+        }
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(200)
+            _uiState.update { it.copy(isAnimating = false) }
         }
     }
 
     /**
-     * Get the current page info.
+     * Show the summary dialog after permissions are processed.
      */
-    fun getCurrentPageInfo(): OnboardingPageInfo {
-        return pages[_uiState.value.currentPage]
+    fun showSummary() {
+        _uiState.update {
+            it.copy(
+                isPermissionFlowActive = false,
+                isSummaryVisible = true
+            )
+        }
     }
 
     /**
-     * Get all pages for reference.
+     * Dismiss the summary dialog.
      */
-    fun getAllPages(): List<OnboardingPageInfo> = pages
+    fun dismissSummary() {
+        _uiState.update { it.copy(isSummaryVisible = false) }
+    }
+}
+
+/**
+ * Sealed class for illustration types used in onboarding.
+ */
+sealed class IllustrationType {
+    object MeshNetwork : IllustrationType()
+    object DiscoveryScreen : IllustrationType()
+    object ConnectScreen : IllustrationType()
+    object ChatScreen : IllustrationType()
+    object ShieldCheck : IllustrationType()
 }
