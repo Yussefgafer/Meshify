@@ -5,7 +5,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -98,7 +97,8 @@ fun MeshifyTextInputDialog(
     onValueChange: (String) -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
-    placeholder: String = ""
+    placeholder: String = "",
+    errorText: String? = null
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -110,7 +110,9 @@ fun MeshifyTextInputDialog(
                 placeholder = { Text(placeholder) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(MeshifyDesignSystem.Shapes.Input.topStart),
-                singleLine = true
+                singleLine = true,
+                isError = errorText != null,
+                supportingText = errorText?.let { { Text(it, color = MaterialTheme.colorScheme.error) } }
             )
         },
         confirmButton = {
@@ -217,10 +219,14 @@ fun ThemeSelectionBottomSheet(
     onThemeSelected: (ThemeMode) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val systemLabel = stringResource(R.string.settings_theme_system)
+    val lightLabel = stringResource(R.string.settings_theme_light)
+    val darkLabel = stringResource(R.string.settings_theme_dark)
+
     val themes = listOf(
-        ThemeMode.SYSTEM to "System Default",
-        ThemeMode.LIGHT to "Light",
-        ThemeMode.DARK to "Dark"
+        ThemeMode.SYSTEM to systemLabel,
+        ThemeMode.LIGHT to lightLabel,
+        ThemeMode.DARK to darkLabel
     )
 
     ModalBottomSheet(
@@ -236,7 +242,7 @@ fun ThemeSelectionBottomSheet(
                 Spacer(
                     modifier = Modifier
                         .size(40.dp, 4.dp)
-                        .clip(CircleShape)
+                        .clip(MeshifyDesignSystem.Shapes.Pill)
                         .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(0.3f))
                 )
             }
@@ -322,20 +328,20 @@ fun SeedColorPickerGrid(
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .clip(CircleShape)
+                    .clip(MeshifyDesignSystem.Shapes.Pill)
                     .background(color)
                     .then(
                         if (isSelected) {
                             Modifier.border(
                                 3.dp,
                                 MaterialTheme.colorScheme.onSurface,
-                                CircleShape
+                                MeshifyDesignSystem.Shapes.Pill
                             )
                         } else {
                             Modifier.border(
                                 1.dp,
                                 color.copy(0.3f),
-                                CircleShape
+                                MeshifyDesignSystem.Shapes.Pill
                             )
                         }
                     )

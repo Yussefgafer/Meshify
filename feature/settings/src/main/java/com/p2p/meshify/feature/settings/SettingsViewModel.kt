@@ -9,6 +9,7 @@ import com.p2p.meshify.core.util.FileUtils
 import com.p2p.meshify.domain.model.BubbleStyle
 import com.p2p.meshify.domain.model.FontFamilyPreset
 import com.p2p.meshify.domain.model.MotionPreset
+import com.p2p.meshify.domain.model.ShapeStyle
 import com.p2p.meshify.domain.model.TransportMode
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.domain.repository.ThemeMode
@@ -33,6 +34,7 @@ data class SettingsUiState(
     val isNetworkVisible: Boolean = true,
     val avatarHash: String? = null,
     val deviceId: String = "",
+    val deviceIdLoaded: Boolean = false,
     val appVersion: String = "",
     val motionPreset: MotionPreset = MotionPreset.STANDARD,
     val motionScale: Float = 1.0f,
@@ -47,7 +49,9 @@ data class SettingsUiState(
     val notificationSound: Boolean = true,
     val notificationVibrate: Boolean = true,
     val bleEnabled: Boolean = false,
-    val transportMode: TransportMode = TransportMode.AUTO
+    val transportMode: TransportMode = TransportMode.AUTO,
+    val displayNameError: String? = null,
+    val shapeStyle: ShapeStyle = ShapeStyle.CIRCLE
 )
 
 /**
@@ -89,11 +93,12 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.notificationVibrate.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(notificationVibrate = value) }.launchIn(viewModelScope)
         settingsRepository.bleEnabled.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(bleEnabled = value) }.launchIn(viewModelScope)
         settingsRepository.transportMode.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(transportMode = value) }.launchIn(viewModelScope)
+        settingsRepository.shapeStyle.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(shapeStyle = value) }.launchIn(viewModelScope)
 
         // Load deviceId asynchronously and update state when ready
         viewModelScope.launch {
             val deviceId = settingsRepository.getDeviceId()
-            _settingsUiState.value = _settingsUiState.value.copy(deviceId = deviceId)
+            _settingsUiState.value = _settingsUiState.value.copy(deviceId = deviceId, deviceIdLoaded = true)
             _deviceId.value = deviceId
         }
     }
@@ -106,7 +111,12 @@ class SettingsViewModel @Inject constructor(
 
     fun updateDisplayName(name: String) {
         viewModelScope.launch {
-            settingsRepository.updateDisplayName(name)
+            try {
+                settingsRepository.updateDisplayName(name)
+                _settingsUiState.value = _settingsUiState.value.copy(displayNameError = null)
+            } catch (e: IllegalArgumentException) {
+                _settingsUiState.value = _settingsUiState.value.copy(displayNameError = e.message)
+            }
         }
     }
 
@@ -160,6 +170,12 @@ class SettingsViewModel @Inject constructor(
     fun setMotionPreset(preset: MotionPreset) {
         viewModelScope.launch {
             settingsRepository.setMotionPreset(preset)
+        }
+    }
+
+    fun setShapeStyle(style: ShapeStyle) {
+        viewModelScope.launch {
+            settingsRepository.setShapeStyle(style)
         }
     }
 
