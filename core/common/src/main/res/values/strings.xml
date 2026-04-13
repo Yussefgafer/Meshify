@@ -582,4 +582,51 @@
 
     <!-- Generic Dialog Buttons -->
     <string name="dialog_btn_close">Close</string>
+
+    <!-- Settings — Shape Style Dialog Labels -->
+    <string name="settings_shape_label_sunny">Star</string>
+    <string name="settings_shape_label_breezy">Wavy</string>
+    <string name="settings_shape_label_pentagon">Geometric</string>
+    <string name="settings_shape_label_blob">Organic</string>
+    <string name="settings_shape_label_burst">Burst</string>
+    <string name="settings_shape_label_clover">Clover</string>
+    <string name="settings_shape_label_circle">Circle</string>
+
+    <string name="settings_section_md3e_expressive">MD3E Expressive</string>
+    <string name="settings_motion_scale_desc">Animation intensity</string>
+
+    <string name="settings_font_family">Font Family</string>
+
+    <string name="settings_bubble_rounded">Rounded</string>
+    <string name="settings_bubble_style">Bubble Style</string>
+
+    <string name="setting_haptic_feedback">Haptic Feedback</string>
+    <string name="setting_haptic_feedback_desc">Tactile feedback on interactions</string>
+
+    <!-- Settings — Font Family Dialog Labels -->
+    <string name="settings_font_label_poppins">Poppins</string>
+    <string name="settings_font_label_lora">Lora</string>
+    <string name="settings_font_label_montserrat">Montserrat</string>
+    <string name="settings_font_label_playfair">Playfair</string>
+    <string name="settings_font_label_inter">Inter</string>
+
+    <!-- Settings — Bubble Style Dialog Labels -->
+    <string name="settings_bubble_label_tailed">Tailed</string>
+    <string name="settings_bubble_label_squarcles">Squarcles</string>
+    <string name="settings_bubble_label_organic">Organic</string>
+
+    <!-- Settings — Credits Dialog -->
+    <string name="settings_credits_title">Credits</string>
+    <string name="settings_credits_text">Built with ❤️ by Jo\n\nKotlin + Jetpack Compose + Material 3 Expressive\nDecentralized P2P Messaging</string>
+
+    <!-- Settings — Validation Errors -->
+    <string name="settings_error_display_name_empty">Name must be at least 1 character</string>
+    <string name="settings_error_display_name_long">Name must be 30 characters or less</string>
+
+    <!-- Settings — Device ID Loading -->
+    <string name="settings_device_id_loading">Loading…</string>
+
+    <!-- Settings — Backup Import -->
+    <string name="settings_backup_import_success">Backup imported successfully</string>
+    <string name="settings_backup_import_error">Failed to import backup</string>
 </resources>

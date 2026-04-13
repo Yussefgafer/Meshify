@@ -196,7 +196,10 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
     }
 
     override suspend fun updateDisplayName(name: String) {
-        safeEdit { it[KEY_DISPLAY_NAME] = name }.onFailure { e ->
+        val trimmed = name.trim()
+        require(trimmed.isNotEmpty()) { "Display name must be at least 1 character" }
+        require(trimmed.length <= 30) { "Display name must be 30 characters or less" }
+        safeEdit { it[KEY_DISPLAY_NAME] = trimmed }.onFailure { e ->
             Logger.e("SettingsRepository -> Failed to update display name", e)
         }
     }
@@ -351,11 +354,23 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
 
     override suspend fun clearCache() {
         try {
-            // Clear app cache directory
-            val cacheDir = context.cacheDir
-            if (cacheDir.exists()) {
-                cacheDir.deleteRecursively()
+            // Only clear avatar files that are not the current avatar
+            val currentAvatarHash = context.dataStore.data.map { it[KEY_AVATAR_HASH] }.firstOrNull()
+            val avatarsDir = java.io.File(context.filesDir, "avatars")
+            if (avatarsDir.exists() && avatarsDir.isDirectory) {
+                avatarsDir.listFiles()?.forEach { file ->
+                    if (file.name != currentAvatarHash) {
+                        file.delete()
+                    }
+                }
             }
+
+            // Clear Coil image cache directory only
+            val coilCacheDir = java.io.File(context.cacheDir, "image_manager_disk_cache")
+            if (coilCacheDir.exists()) {
+                coilCacheDir.deleteRecursively()
+            }
+
             Logger.d("SettingsRepository -> Cache cleared successfully")
         } catch (e: Exception) {
             Logger.e("SettingsRepository -> Failed to clear cache", e)
@@ -375,16 +390,36 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
             }
             
             val backupData = mapOf(
+                // Core settings
                 "display_name" to prefs[KEY_DISPLAY_NAME],
                 "theme_mode" to prefs[KEY_THEME_MODE],
                 "dynamic_color" to prefs[KEY_DYNAMIC_COLOR],
+                "haptic_feedback" to prefs[KEY_HAPTIC_FEEDBACK],
+                "network_visible" to prefs[KEY_NETWORK_VISIBLE],
+                "avatar_hash" to prefs[KEY_AVATAR_HASH],
+                // MD3E settings
+                "shape_style" to prefs[KEY_SHAPE_STYLE],
+                "motion_preset" to prefs[KEY_MOTION_PRESET],
+                "motion_scale" to prefs[KEY_MOTION_SCALE]?.toString(),
+                "font_family" to prefs[KEY_FONT_FAMILY],
+                "custom_font_uri" to prefs[KEY_CUSTOM_FONT_URI],
+                "bubble_style" to prefs[KEY_BUBBLE_STYLE],
+                "visual_density" to prefs[KEY_VISUAL_DENSITY]?.toString(),
+                "seed_color" to prefs[KEY_SEED_COLOR]?.toString(),
+                // App settings
                 "app_language" to prefs[KEY_APP_LANGUAGE],
-                "font_size_scale" to prefs[KEY_FONT_SIZE_SCALE],
+                "font_size_scale" to prefs[KEY_FONT_SIZE_SCALE]?.toString(),
                 "notifications_enabled" to prefs[KEY_NOTIFICATIONS_ENABLED],
+                "notification_sound" to prefs[KEY_NOTIFICATION_SOUND],
+                "notification_vibrate" to prefs[KEY_NOTIFICATION_VIBRATE],
+                // BLE settings
+                "ble_enabled" to prefs[KEY_BLE_ENABLED],
+                "transport_mode" to prefs[KEY_TRANSPORT_MODE],
+                // Metadata
                 "export_timestamp" to System.currentTimeMillis().toString()
             )
             // filterValues removes all nulls, so mapValues safely receives non-null values
-            .filterValues { it != null }.mapValues { it.value }
+            .filterValues { it != null }.mapValues { it.value.toString() }
             val json = Json.encodeToString(backupData)
             Logger.d("SettingsRepository -> Backup exported successfully")
             Result.success(json)
@@ -398,18 +433,37 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
         return try {
             val backupData = Json.decodeFromString<Map<String, String>>(backupJson)
             val editResult = safeEdit { prefs ->
+                // Core settings
                 backupData["display_name"]?.let { prefs[KEY_DISPLAY_NAME] = it }
                 backupData["theme_mode"]?.let { prefs[KEY_THEME_MODE] = it }
                 backupData["dynamic_color"]?.let { prefs[KEY_DYNAMIC_COLOR] = it.toBoolean() }
+                backupData["haptic_feedback"]?.let { prefs[KEY_HAPTIC_FEEDBACK] = it.toBoolean() }
+                backupData["network_visible"]?.let { prefs[KEY_NETWORK_VISIBLE] = it.toBoolean() }
+                backupData["avatar_hash"]?.let { prefs[KEY_AVATAR_HASH] = it }
+                // MD3E settings
+                backupData["shape_style"]?.let { prefs[KEY_SHAPE_STYLE] = it }
+                backupData["motion_preset"]?.let { prefs[KEY_MOTION_PRESET] = it }
+                backupData["motion_scale"]?.let { prefs[KEY_MOTION_SCALE] = it.toFloat() }
+                backupData["font_family"]?.let { prefs[KEY_FONT_FAMILY] = it }
+                backupData["custom_font_uri"]?.let { prefs[KEY_CUSTOM_FONT_URI] = it }
+                backupData["bubble_style"]?.let { prefs[KEY_BUBBLE_STYLE] = it }
+                backupData["visual_density"]?.let { prefs[KEY_VISUAL_DENSITY] = it.toFloat() }
+                backupData["seed_color"]?.let { prefs[KEY_SEED_COLOR] = it.toInt() }
+                // App settings
                 backupData["app_language"]?.let { prefs[KEY_APP_LANGUAGE] = it }
                 backupData["font_size_scale"]?.let { prefs[KEY_FONT_SIZE_SCALE] = it.toFloat() }
                 backupData["notifications_enabled"]?.let { prefs[KEY_NOTIFICATIONS_ENABLED] = it.toBoolean() }
+                backupData["notification_sound"]?.let { prefs[KEY_NOTIFICATION_SOUND] = it.toBoolean() }
+                backupData["notification_vibrate"]?.let { prefs[KEY_NOTIFICATION_VIBRATE] = it.toBoolean() }
+                // BLE settings
+                backupData["ble_enabled"]?.let { prefs[KEY_BLE_ENABLED] = it.toBoolean() }
+                backupData["transport_mode"]?.let { prefs[KEY_TRANSPORT_MODE] = it }
             }
-            
+
             if (editResult.isFailure) {
                 return Result.failure(editResult.exceptionOrNull() ?: Exception("Failed to import backup"))
             }
-            
+
             Logger.d("SettingsRepository -> Backup imported successfully")
             Result.success(Unit)
         } catch (e: Exception) {

@@ -606,4 +606,51 @@
 
     <!-- Generic Dialog Buttons (Missing translation) -->
     <string name="dialog_btn_close">إغلاق</string>
+
+    <!-- Settings — Shape Style Dialog Labels -->
+    <string name="settings_shape_label_sunny">نجمة</string>
+    <string name="settings_shape_label_breezy">مموج</string>
+    <string name="settings_shape_label_pentagon">هندسي</string>
+    <string name="settings_shape_label_blob">عضوي</string>
+    <string name="settings_shape_label_burst">انفجار</string>
+    <string name="settings_shape_label_clover">برسيم</string>
+    <string name="settings_shape_label_circle">دائرة</string>
+
+    <string name="settings_section_md3e_expressive">MD3E تعبيري</string>
+    <string name="settings_motion_scale_desc">شدة الحركة</string>
+
+    <string name="settings_font_family">عائلة الخطوط</string>
+
+    <string name="settings_bubble_rounded">مستدير</string>
+    <string name="settings_bubble_style">نمط الفقاعات</string>
+
+    <string name="setting_haptic_feedback">الاهتزاز اللمسي</string>
+    <string name="setting_haptic_feedback_desc">استجابة لمسية عند التفاعل</string>
+
+    <!-- Settings — Font Family Dialog Labels -->
+    <string name="settings_font_label_poppins">Poppins</string>
+    <string name="settings_font_label_lora">Lora</string>
+    <string name="settings_font_label_montserrat">Montserrat</string>
+    <string name="settings_font_label_playfair">Playfair</string>
+    <string name="settings_font_label_inter">Inter</string>
+
+    <!-- Settings — Bubble Style Dialog Labels -->
+    <string name="settings_bubble_label_tailed">بذيل</string>
+    <string name="settings_bubble_label_squarcles">مربع-دائري</string>
+    <string name="settings_bubble_label_organic">عضوي</string>
+
+    <!-- Settings — Credits Dialog -->
+    <string name="settings_credits_title">الاعتمادات</string>
+    <string name="settings_credits_text">صُنع بـ ❤️ بواسطة جو\n\nKotlin + Jetpack Compose + Material 3 Expressive\nمراسلة لامركزية P2P</string>
+
+    <!-- Settings — Validation Errors -->
+    <string name="settings_error_display_name_empty">يجب أن يكون الاسم حرفاً واحداً على الأقل</string>
+    <string name="settings_error_display_name_long">يجب ألا يتجاوز الاسم 30 حرفاً</string>
+
+    <!-- Settings — Device ID Loading -->
+    <string name="settings_device_id_loading">جار التحميل…</string>
+
+    <!-- Settings — Backup Import -->
+    <string name="settings_backup_import_success">تم استيراد النسخة الاحتياطية بنجاح</string>
+    <string name="settings_backup_import_error">فشل في استيراد النسخة الاحتياطية</string>
 </resources>
