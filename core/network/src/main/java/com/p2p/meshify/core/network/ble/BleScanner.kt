@@ -29,9 +29,10 @@ class BleScanner(
     private val scanner: BluetoothLeScanner? = bluetoothAdapter?.bluetoothLeScanner
     private var isScanning = false
 
-    // Channel for discovered devices
-    private val _discoveryChannel = Channel<BleDiscoveredDevice>(Channel.BUFFERED)
-    val discoveryFlow: Flow<BleDiscoveredDevice> = _discoveryChannel.receiveAsFlow()
+    // Channel for discovered devices — lazily created to support restart after cleanup
+    private var _discoveryChannel: Channel<BleDiscoveredDevice> = Channel(Channel.BUFFERED)
+    var discoveryFlow: Flow<BleDiscoveredDevice> = _discoveryChannel.receiveAsFlow()
+        private set
 
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
@@ -73,6 +74,12 @@ class BleScanner(
         if (adapter == null || !adapter.isEnabled) {
             Logger.w("Bluetooth is disabled or adapter unavailable, cannot scan", tag = TAG)
             return
+        }
+
+        // Recreate channel if it was closed (e.g., after cleanup) and update flow reference
+        if (_discoveryChannel.isClosedForSend) {
+            _discoveryChannel = Channel(Channel.BUFFERED)
+            discoveryFlow = _discoveryChannel.receiveAsFlow()
         }
 
         val serviceUuid = UUID.fromString(AppConfig.BLE_SERVICE_UUID)
