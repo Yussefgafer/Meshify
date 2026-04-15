@@ -15,8 +15,6 @@ object AppConfig {
     const val BLE_TX_CHAR_UUID: String = "00001236-0000-1000-8000-00805f9b34fb"
     const val BLE_CCCD_UUID: String = "00002902-0000-1000-8000-00805f9b34fb"
     const val BLE_MTU_SIZE: Int = 512
-    const val BLE_ADVERTISING_INTERVAL_MS: Int = 100
-    const val BLE_SCAN_INTERVAL_MS: Long = 10_000L
     const val BLE_MAX_CONNECTIONS: Int = 7
     const val BLE_CHUNK_HEADER_SIZE: Int = 12
     const val BLE_REASSEMBLY_TIMEOUT_MS: Long = 5_000L

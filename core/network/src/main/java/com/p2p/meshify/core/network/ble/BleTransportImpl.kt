@@ -69,7 +69,7 @@ class BleTransportImpl(
     // State
     private var isStarted = false
     private var isDiscovering = false
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var scope: CoroutineScope? = null
     private var discoveryJob: Job? = null // Track discovery coroutine for cancellation
     private val sendLock = Mutex() // Prevent concurrent sends that would interleave chunks
 
@@ -88,6 +88,9 @@ class BleTransportImpl(
         Logger.d("Starting BLE Transport...", tag = TAG)
 
         try {
+            // Create a fresh scope for this transport instance
+            scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
             // Initialize connection pool
             connectionPool = BleConnectionPool()
 
@@ -95,13 +98,13 @@ class BleTransportImpl(
             bleGattServer = BleGattServer(
                 context = context,
                 onPayloadReceived = { peerId, data ->
-                    scope.launch { handleIncomingPayload(peerId, data) }
+                    scope?.launch { handleIncomingPayload(peerId, data) }
                 },
                 onClientConnected = { clientPeerId ->
-                    scope.launch { handleClientConnected(clientPeerId) }
+                    scope?.launch { handleClientConnected(clientPeerId) }
                 },
                 onClientDisconnected = { clientPeerId ->
-                    scope.launch { handleClientDisconnected(clientPeerId) }
+                    scope?.launch { handleClientDisconnected(clientPeerId) }
                 }
             )
             bleGattServer?.startServer()
@@ -110,10 +113,10 @@ class BleTransportImpl(
             bleGattClient = BleGattClient(
                 context = context,
                 onPayloadReceived = { peerId, data ->
-                    scope.launch { handleIncomingPayload(peerId, data) }
+                    scope?.launch { handleIncomingPayload(peerId, data) }
                 },
                 onConnectionStateChanged = { peerId, connected ->
-                    scope.launch { handleConnectionStateChanged(peerId, connected) }
+                    scope?.launch { handleConnectionStateChanged(peerId, connected) }
                 }
             )
 
@@ -157,9 +160,10 @@ class BleTransportImpl(
             _onlinePeers.value = emptySet()
             _typingPeers.value = emptySet()
             peerAddressMap.clear()
-            
-            // Cancel all coroutines in this transport's scope
-            scope.cancel()
+
+            // Cancel and nullify the scope
+            scope?.cancel()
+            scope = null
 
             Logger.d("BLE Transport stopped", tag = TAG)
         } catch (e: Exception) {
@@ -180,9 +184,10 @@ class BleTransportImpl(
 
         try {
             bleScanner = BleScanner()
-            
+
             // Collect discovered devices — track job for cancellation
-            discoveryJob = scope.launch {
+            val currentScope = scope ?: return
+            discoveryJob = currentScope.launch {
                 bleScanner?.discoveryFlow?.collect { device ->
                     handleDeviceDiscovered(device)
                 }
@@ -342,7 +347,8 @@ class BleTransportImpl(
      * Clean up periodic tasks.
      */
     private fun startPeriodicCleanup() {
-        scope.launch {
+        val currentScope = scope ?: return
+        currentScope.launch {
             while (isActive) {
                 delay(30_000L) // Every 30 seconds
                 connectionPool?.cleanupIdleConnections()

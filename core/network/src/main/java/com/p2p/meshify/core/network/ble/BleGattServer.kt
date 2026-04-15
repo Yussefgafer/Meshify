@@ -10,6 +10,7 @@ import android.bluetooth.BluetoothGattServerCallback
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothProfile
 import android.content.Context
+import android.os.Build
 import com.p2p.meshify.core.config.AppConfig
 import com.p2p.meshify.core.util.Logger
 import java.util.UUID
@@ -102,7 +103,7 @@ class BleGattServer(
 
     /**
      * Send data to a connected client via notification.
-     * Returns Result<Unit> indicating success or failure.
+     * Data is already chunked by BlePayloadSerializer; send as-is with version checks.
      */
     @SuppressLint("MissingPermission")
     suspend fun sendData(peerId: String, data: ByteArray): Result<Unit> {
@@ -120,22 +121,23 @@ class BleGattServer(
         }
 
         return try {
-            // Use serializer's max chunk size for consistency
-            val maxChunkSize = BlePayloadSerializer.getMaxChunkDataSize()
-            val chunks = data.toList().chunked(maxChunkSize)
-
-            for ((index, chunk) in chunks.withIndex()) {
-                txChar.value = chunk.toByteArray()
-                val success = gattServer?.notifyCharacteristicChanged(device, txChar, false) ?: false
-                if (!success) {
-                    Logger.e("BLE Server notification failed for chunk $index to $peerId", tag = TAG)
-                    return Result.failure(java.io.IOException("Notification failed for chunk $index"))
-                }
-                // Small delay to avoid BLE congestion
-                kotlinx.coroutines.delay(50)
+            // Data is already chunked by BlePayloadSerializer to fit within BLE MTU.
+            // Use modern notifyCharacteristicChanged for API 33+ or legacy fallback.
+            val success = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val statusCode = gattServer?.notifyCharacteristicChanged(device, txChar, false, data) ?: -1
+                statusCode == android.bluetooth.BluetoothStatusCodes.SUCCESS
+            } else {
+                @Suppress("DEPRECATION")
+                txChar.value = data
+                gattServer?.notifyCharacteristicChanged(device, txChar, false) ?: false
             }
 
-            Logger.d("BLE Server sent ${data.size} bytes to $peerId in ${chunks.size} chunks", tag = TAG)
+            if (!success) {
+                Logger.e("BLE Server notification failed to $peerId", tag = TAG)
+                return Result.failure(java.io.IOException("Notification failed"))
+            }
+
+            Logger.d("BLE Server sent ${data.size} bytes to $peerId", tag = TAG)
             Result.success(Unit)
         } catch (e: Exception) {
             Logger.e("BLE Server failed to send data to $peerId: ${e.message}", e, tag = TAG)

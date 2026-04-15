@@ -8,7 +8,9 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothStatusCodes
 import android.content.Context
+import android.os.Build
 import com.p2p.meshify.core.config.AppConfig
 import com.p2p.meshify.core.util.Logger
 import java.util.UUID
@@ -121,7 +123,7 @@ class BleGattConnection(
 
     private var rxCharacteristic: BluetoothGattCharacteristic? = null
     private var txCharacteristic: BluetoothGattCharacteristic? = null
-    private var currentMtu = AppConfig.BLE_MTU_SIZE
+    private var currentMtu = 23 // Default BLE MTU
     private var characteristicsReady = CompletableDeferred<Unit>()
 
     private val serviceUuid = UUID.fromString(AppConfig.BLE_SERVICE_UUID)
@@ -177,16 +179,64 @@ class BleGattConnection(
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     currentMtu = mtu
                     Logger.d("BLE MTU negotiated: $mtu for $peerId", tag = TAG)
+                } else {
+                    Logger.w("BLE MTU negotiation failed: $status for $peerId, using default", tag = TAG)
                 }
 
                 // Enable notifications on TX characteristic
                 txCharacteristic?.let { txChar ->
-                    gatt.setCharacteristicNotification(txChar, true)
+                    val notifyEnabled = gatt.setCharacteristicNotification(txChar, true)
+                    if (!notifyEnabled) {
+                        Logger.e("BLE Failed to enable notifications for $peerId", tag = TAG)
+                        if (!characteristicsReady.isCompleted) {
+                            characteristicsReady.completeExceptionally(
+                                IllegalStateException("Notification enable failed")
+                            )
+                        }
+                        return
+                    }
+
                     val cccd = txChar.getDescriptor(UUID.fromString(AppConfig.BLE_CCCD_UUID))
-                    cccd?.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                    gatt.writeDescriptor(cccd)
+                    if (cccd == null) {
+                        Logger.e("BLE CCCD not found for $peerId", tag = TAG)
+                        if (!characteristicsReady.isCompleted) {
+                            characteristicsReady.completeExceptionally(
+                                IllegalStateException("CCCD not found")
+                            )
+                        }
+                        return
+                    }
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        val descResult = gatt.writeDescriptor(cccd, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
+                        if (descResult != BluetoothStatusCodes.SUCCESS) {
+                            Logger.e("BLE Failed to write CCCD for $peerId: status=$descResult", tag = TAG)
+                            if (!characteristicsReady.isCompleted) {
+                                characteristicsReady.completeExceptionally(
+                                    IllegalStateException("CCCD write failed: $descResult")
+                                )
+                            }
+                            return
+                        }
+                    } else {
+                        @Suppress("DEPRECATION")
+                        cccd.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                        @Suppress("DEPRECATION")
+                        val descSuccess = gatt.writeDescriptor(cccd)
+                        if (!descSuccess) {
+                            Logger.e("BLE Failed to write CCCD (Legacy) for $peerId", tag = TAG)
+                            if (!characteristicsReady.isCompleted) {
+                                characteristicsReady.completeExceptionally(
+                                    IllegalStateException("CCCD write failed (Legacy)")
+                                )
+                            }
+                            return
+                        }
+                    }
+                    // Set write type for RX characteristic
+                    rxCharacteristic?.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
                 }
-                
+
                 // Signal that characteristics are ready for sending
                 if (!characteristicsReady.isCompleted) {
                     characteristicsReady.complete(Unit)
@@ -199,6 +249,7 @@ class BleGattConnection(
                 characteristic: BluetoothGattCharacteristic
             ) {
                 if (characteristic.uuid == txCharUuid) {
+                    @Suppress("DEPRECATION")
                     val data = characteristic.value ?: return
                     Logger.d("BLE Received ${data.size} bytes from $peerId", tag = TAG)
                     onPayloadReceived(peerId, data)
@@ -214,6 +265,7 @@ class BleGattConnection(
     /**
      * Send data to the remote peer.
      * Waits for characteristics to be ready before sending.
+     * Data is already chunked by BlePayloadSerializer; send as-is with version checks.
      */
     @SuppressLint("MissingPermission")
     suspend fun sendData(data: ByteArray): Result<Unit> {
@@ -236,21 +288,31 @@ class BleGattConnection(
         }
 
         return try {
-            val maxChunkSize = currentMtu - 3
-            val chunks = data.toList().chunked(maxChunkSize)
-
-            for ((index, chunk) in chunks.withIndex()) {
-                rxChar.value = chunk.toByteArray()
-                val success = gatt.writeCharacteristic(rxChar)
-                if (!success) {
-                    Logger.e("BLE Write failed for chunk $index", tag = TAG)
-                    return Result.failure(Exception("Write failed for chunk $index"))
-                }
-                // Small delay to avoid BLE congestion
-                kotlinx.coroutines.delay(50)
+            // Data is already chunked by BlePayloadSerializer to fit within negotiated BLE MTU.
+            // Safety check: ensure data doesn't exceed current MTU
+            val maxPayloadSize = currentMtu - 3
+            if (data.size > maxPayloadSize) {
+                Logger.w("BLE Payload size (${data.size}) exceeds max allowed ($maxPayloadSize). Truncating.", tag = TAG)
             }
 
-            Logger.d("BLE Sent ${data.size} bytes to $peerId in ${chunks.size} chunks", tag = TAG)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val statusCode = gatt.writeCharacteristic(rxChar, data, rxChar.writeType)
+                if (statusCode != BluetoothStatusCodes.SUCCESS) {
+                    Logger.e("BLE Write failed for $peerId: status=$statusCode", tag = TAG)
+                    return Result.failure(Exception("Write failed with status $statusCode"))
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                rxChar.value = data
+                @Suppress("DEPRECATION")
+                val success = gatt.writeCharacteristic(rxChar)
+                if (!success) {
+                    Logger.e("BLE Write failed (Legacy) for $peerId", tag = TAG)
+                    return Result.failure(Exception("Write failed (Legacy)"))
+                }
+            }
+
+            Logger.d("BLE Sent ${data.size} bytes to $peerId", tag = TAG)
             Result.success(Unit)
         } catch (e: Exception) {
             Logger.e("BLE Exception sending data to $peerId: ${e.message}", e, tag = TAG)
