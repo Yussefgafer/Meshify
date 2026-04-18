@@ -622,8 +622,61 @@ class ChatRepositoryImpl(
     }
 
     private suspend fun handleFilePayload(peerId: String, payload: Payload) {
-        // File handling would be implemented here
-        Logger.d("ChatRepository -> Received file payload from $peerId")
+        try {
+            val fileBytes = payload.data
+            val messageType = when (payload.type) {
+                Payload.PayloadType.VIDEO -> MessageType.VIDEO
+                Payload.PayloadType.FILE -> MessageType.FILE
+                else -> MessageType.FILE
+            }
+
+            // Determine file extension based on type
+            val extension = when (messageType) {
+                MessageType.VIDEO -> "mp4" // Default to mp4 for videos
+                MessageType.IMAGE -> "jpg" // Default to jpg for images
+                else -> "bin" // Default to bin for generic files
+            }
+
+            // Save file to disk
+            val fileName = "received_${payload.id}.$extension"
+            val savedPath = fileManager.saveMedia(fileName, fileBytes)
+
+            if (savedPath == null) {
+                Logger.e("ChatRepository -> Failed to save received file from $peerId")
+                return
+            }
+
+            Logger.d("ChatRepository -> File saved successfully: $savedPath (${fileBytes.size} bytes)")
+
+            // Create message in database
+            val message = MessageEntity(
+                id = payload.id,
+                chatId = peerId,
+                senderId = payload.senderId,
+                text = null,
+                mediaPath = savedPath,
+                type = messageType,
+                timestamp = payload.timestamp,
+                isFromMe = false,
+                status = MessageStatus.SENT
+            )
+
+            // Save message to database
+            val existingChat = chatDao.getChatById(peerId)
+            val finalName = if (existingChat != null) parseName(existingChat.peerName) else "${AppConstants.DEFAULT_PEER_NAME_PREFIX}${peerId.take(4)}"
+            chatDao.insertChat(ChatEntity(peerId, finalName, "[${messageType.name}]", payload.timestamp))
+            messageDao.insertMessage(message)
+
+            // Send notification
+            notificationHelper.showMessageNotification(finalName, message)
+
+            // Send ACK to sender
+            sendSystemCommand(payload.senderId, "ACK_${payload.id}")
+
+            Logger.d("ChatRepository -> File payload processed successfully from $peerId")
+        } catch (e: Exception) {
+            Logger.e("ChatRepository -> Failed to handle file payload from $peerId", e)
+        }
     }
 
     override suspend fun sendSystemCommand(peerId: String, command: String) {

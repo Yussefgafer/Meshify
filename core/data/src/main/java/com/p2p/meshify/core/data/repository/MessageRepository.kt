@@ -156,6 +156,15 @@ class MessageRepository(
         extension: String,
         replyToId: String?
     ): Result<Unit> {
+        // Validate video size before processing (50MB limit)
+        val videoSize = videoBytes.size
+        val maxVideoSize = 50 * 1024 * 1024 // 50MB
+        if (videoSize > maxVideoSize) {
+            val sizeMB = videoSize / 1024 / 1024
+            Logger.e("MessageRepository -> Video too large: ${sizeMB}MB (max ${maxVideoSize / 1024 / 1024}MB)")
+            return Result.failure(Exception("Video too large (max 50MB)"))
+        }
+
         val messageId = UUID.randomUUID().toString()
         val myId = settingsRepository.getDeviceId()
         val fileName = "sent_vid_$messageId.$extension"
