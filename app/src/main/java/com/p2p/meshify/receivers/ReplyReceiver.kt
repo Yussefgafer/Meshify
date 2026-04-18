@@ -229,7 +229,9 @@ class ReplyReceiver : BroadcastReceiver() {
         }
 
         // Send the reply with proper error handling - ALL validation happens inside coroutine
-        CoroutineScope(Dispatchers.IO).launch {
+        // FIX: Use lifecycle-managed scope that auto-cancels when work completes
+        val replyJobScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        replyJobScope.launch {
             try {
                 // Safe cast inside coroutine as well
                 val localApp = context.applicationContext as? MeshifyApp
@@ -240,7 +242,7 @@ class ReplyReceiver : BroadcastReceiver() {
 
                 val repository = localApp.chatRepository
                 val chatDao = localApp.database.chatDao()
-                
+
                 // Validate chat exists INSIDE coroutine (no main thread blocking)
                 val chat = withTimeoutOrNull(2000) {
                     chatDao.getChatById(chatId)
@@ -289,6 +291,9 @@ class ReplyReceiver : BroadcastReceiver() {
                 showReplyErrorNotification(context, errorMessage, chatId, sanitizedText)
                 // Schedule retry with exponential backoff
                 scheduleRetry(context, chatId, sanitizedText)
+            } finally {
+                // FIX: Always cancel the scope to prevent memory leak
+                replyJobScope.cancel()
             }
         }
     }

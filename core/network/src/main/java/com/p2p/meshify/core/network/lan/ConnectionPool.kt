@@ -233,18 +233,25 @@ class ConnectionPool {
      * Clears all connections (for shutdown).
      */
     fun clearAll() {
-        val iterator = activeConnections.iterator()
-        while (iterator.hasNext()) {
-            val entry = iterator.next()
+        // FIX: Use toList() to create a snapshot before modifying to avoid any potential
+        // issues with iterator.remove() during concurrent access
+        val entries = activeConnections.toList()
+        val activeCount = entries.size
+        entries.forEach { (key, pooledSocket) ->
             try {
-                entry.value.socket.close()
+                pooledSocket.socket.close()
             } catch (e: Exception) {
-                Logger.e("ConnectionPool -> Failed to close socket: ${entry.key}", e)
+                Logger.e("ConnectionPool -> Failed to close socket: $key", e)
             }
-            iterator.remove()
+        }
+        // FIX: Drain and release all permits to prevent permit leak on shutdown
+        activeConnections.clear()
+        // Release permits for all closed connections
+        repeat(activeCount) {
+            poolSemaphore.release()
         }
         connectionLocks.clear()
         knownPeers.clear()
-        Logger.d("ConnectionPool -> Cleared all connections")
+        Logger.d("ConnectionPool -> Cleared all connections, released $activeCount permits")
     }
 }

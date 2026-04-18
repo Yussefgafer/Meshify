@@ -42,24 +42,29 @@ class ProgressFileReader(
         var uploaded: Long = 0
         var lastEmittedProgress = -1
 
-        FileInputStream(file).use { inputStream ->
-            while (true) {
-                val read = inputStream.read(buffer)
-                if (read == -1) break
+        try {
+            FileInputStream(file).use { inputStream ->
+                while (true) {
+                    val read = inputStream.read(buffer)
+                    if (read == -1) break
 
-                outputStream.write(buffer, 0, read)
-                uploaded += read
+                    outputStream.write(buffer, 0, read)
+                    uploaded += read
 
-                val progress = calculateProgress(uploaded, fileSize)
-                lastEmittedProgress = emitProgress(progress, lastEmittedProgress, _progressFlow, progressCallback)
+                    val progress = calculateProgress(uploaded, fileSize)
+                    lastEmittedProgress = emitProgress(progress, lastEmittedProgress, _progressFlow, progressCallback)
+                }
             }
+
+            // Ensure we reach 100%
+            _progressFlow.value = 100
+            progressCallback?.invoke(100)
+
+            return outputStream.toByteArray()
+        } finally {
+            // FIX: Close the output stream to free memory
+            outputStream.close()
         }
-
-        // Ensure we reach 100%
-        _progressFlow.value = 100
-        progressCallback?.invoke(100)
-
-        return outputStream.toByteArray()
     }
 
     /**

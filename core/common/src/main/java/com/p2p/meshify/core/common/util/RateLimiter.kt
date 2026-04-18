@@ -66,18 +66,30 @@ class RateLimiter(
         val now = System.currentTimeMillis()
         val windowStart = now - windowMs
 
-        // Remove expired timestamps and empty entries
-        timestamps.entries.removeIf { (_, requestTimestamps) ->
+        // FIX: Use snapshot iteration to avoid concurrent modification issues
+        // First, clean up expired timestamps from each list
+        val keysToRemove = mutableListOf<String>()
+        timestamps.forEach { (key, requestTimestamps) ->
             synchronized(requestTimestamps) {
                 requestTimestamps.removeAll { it < windowStart }
-                requestTimestamps.isEmpty()
+                if (requestTimestamps.isEmpty()) {
+                    keysToRemove.add(key)
+                }
             }
         }
+        // Remove empty entries after iteration
+        keysToRemove.forEach { timestamps.remove(it) }
 
         // Enforce max identifiers limit - remove oldest entries if exceeded
         if (timestamps.size > maxIdentifiers) {
-            val oldestEntries = timestamps.entries
-                .sortedBy { it.value.minOrNull() ?: 0L }
+            // FIX: Create a snapshot to avoid holding the map lock during sort
+            val snapshot = timestamps.entries.toList()
+            val oldestEntries = snapshot
+                .sortedBy { entry ->
+                    synchronized(entry.value) {
+                        entry.value.minOrNull() ?: 0L
+                    }
+                }
                 .take(timestamps.size - maxIdentifiers)
             oldestEntries.forEach { timestamps.remove(it.key) }
         }
