@@ -154,32 +154,64 @@ class SocketManager(
                                 Logger.e("SocketManager -> Invalid payload length from $address: $length")
                                 break
                             }
-                            
+
                             // Read payload bytes
                             val bytes = ByteArray(length)
                             var totalRead = 0
-                            
+
                             while (totalRead < length) {
                                 val remaining = length - totalRead
                                 val readSize = minOf(buffer.size, remaining)
                                 val bytesRead = inputStream.read(buffer, 0, readSize)
-                                
+
                                 if (bytesRead == -1) {
                                     Logger.e("SocketManager -> End of stream from $address")
                                     break
                                 }
-                                
+
                                 System.arraycopy(buffer, 0, bytes, totalRead, bytesRead)
                                 totalRead += bytesRead
                             }
-                            
+
                             // Update last used timestamp
                             connectionPool.updateLastUsed(address)
-                            
-                            // Emit payload
+
+                            // Deserialize payload header
                             val payload = PayloadSerializer.deserialize(bytes)
+
+                            // Check for parallel transfer marker (for large files)
+                            if (payload.type == Payload.PayloadType.FILE || payload.type == Payload.PayloadType.VIDEO) {
+                                // Check if there's a parallel mode marker available
+                                if (inputStream.available() >= 4) {
+                                    inputStream.mark(4)
+                                    val marker = inputStream.readInt()
+                                    if (marker == 1) {
+                                        // Parallel transfer detected - receive file using ParallelFileTransfer
+                                        Logger.d("SocketManager -> Parallel transfer detected for ${payload.id}, receiving file...")
+                                        val fileResult = ParallelFileTransfer.receiveFile(pooledSocket)
+                                        if (fileResult.isSuccess) {
+                                            // Create new payload with received file data
+                                            val fileBytes = fileResult.getOrNull()!!
+                                            val enrichedPayload = payload.copy(data = fileBytes)
+                                            _incomingPayloads.emit(address to enrichedPayload)
+                                            Logger.d("SocketManager -> Parallel transfer completed: ${fileBytes.size} bytes")
+                                            continue // Continue to next iteration
+                                        } else {
+                                            Logger.e("SocketManager -> Parallel transfer failed: ${fileResult.exceptionOrNull()?.message}")
+                                            // Still emit original payload but log the error
+                                            _incomingPayloads.emit(address to payload)
+                                            continue
+                                        }
+                                    } else {
+                                        // Not a parallel transfer marker, reset stream
+                                        inputStream.reset()
+                                    }
+                                }
+                            }
+
+                            // Standard payload emit (no parallel transfer)
                             _incomingPayloads.emit(address to payload)
-                            
+
                         } catch (e: EOFException) {
                             Logger.d("SocketManager -> Connection closed normally: $address")
                             break
