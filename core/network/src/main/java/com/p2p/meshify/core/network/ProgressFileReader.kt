@@ -1,5 +1,6 @@
 package com.p2p.meshify.core.network
 
+import com.p2p.meshify.core.config.AppConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -69,7 +70,7 @@ class ProgressFileReader(
     }
 
     companion object {
-        private const val BUFFER_SIZE = 8192 // 8KB - balances smoothness vs performance
+        private const val BUFFER_SIZE = AppConfig.DEFAULT_BUFFER_SIZE // Use configured buffer size (32KB)
 
         /**
          * Calculates the upload progress as a percentage.

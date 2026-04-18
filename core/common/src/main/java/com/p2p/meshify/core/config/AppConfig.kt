@@ -21,9 +21,9 @@ object AppConfig {
 
     // Connection Management
     const val SOCKET_TIMEOUT_MS = 15_000
-    const val DISCOVERY_SCAN_INTERVAL_MS = 30_000L
+    const val DISCOVERY_SCAN_INTERVAL_MS = 60_000L // Increased from 30s to 60s to reduce frequent restarts
 
     // Buffer & Payload Limits
     const val MAX_PAYLOAD_SIZE_BYTES = 10 * 1024 * 1024 // 10MB limit for safety
-    const val DEFAULT_BUFFER_SIZE = 8192
+    const val DEFAULT_BUFFER_SIZE = 32768 // Increased from 8KB to 32KB for better throughput
 }

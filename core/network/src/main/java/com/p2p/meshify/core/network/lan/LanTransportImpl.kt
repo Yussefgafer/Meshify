@@ -119,7 +119,7 @@ class LanTransportImpl(
 
     // Dead peer threshold: remove peer after this many consecutive failures
     companion object {
-        private const val MAX_FAILURES_BEFORE_REMOVAL = 3
+        private const val MAX_FAILURES_BEFORE_REMOVAL = 5 // Increased from 3 to handle unstable networks
         private const val CLEANUP_FAILED_COUNTS_INTERVAL_MS = 5 * 60 * 1000L // 5 minutes
         private const val NSD_RETRY_DELAY_MS = 2000L // 2s initial retry
         private const val NSD_MAX_RETRIES = 3
@@ -239,7 +239,7 @@ class LanTransportImpl(
 
         peerMapMutex.withLock {
             if (!peerMap.containsKey(senderId)) {
-                val rssi = getPeerRssi()
+                val rssi = getPeerRssi(address)
                 scope.launch {
                     _events.emit(TransportEvent.DeviceDiscovered(senderId, name, address, hash, rssi, com.p2p.meshify.domain.model.TransportType.LAN))
                 }
@@ -359,13 +359,13 @@ class LanTransportImpl(
      * Get RSSI for a peer device.
      * Uses actual WiFi RSSI when available, falls back to latency-based estimation.
      */
-    private fun getPeerRssi(): Int {
+    private fun getPeerRssi(peerAddress: String): Int {
         val actualRssi = getActualRssi()
         return if (actualRssi != Int.MIN_VALUE) {
             actualRssi
         } else {
             // Fallback: estimate RSSI based on network latency (RTT)
-            estimateRssiFromLatency()
+            estimateRssiFromLatency(peerAddress)
         }
     }
 
@@ -373,29 +373,62 @@ class LanTransportImpl(
      * Estimate RSSI based on network round-trip time (RTT).
      * Lower latency = closer proximity = stronger signal.
      * RTT thresholds: <10ms = -40dBm (excellent), >200ms = -85dBm (poor)
+     *
+     * @param peerAddress The peer's IP address to measure latency to
      */
-    private fun estimateRssiFromLatency(): Int {
+    private fun estimateRssiFromLatency(peerAddress: String): Int {
         return try {
-            val socket = java.net.Socket()
-            socket.soTimeout = 1000
-            socket.connect(java.net.InetSocketAddress("127.0.0.1", 8888), 1000)
-            val startTime = System.currentTimeMillis()
-            // Send a ping byte and wait for response (if server responds)
-            socket.getOutputStream().write(byteArrayOf(0x00))
-            socket.getInputStream().read()
-            val rtt = System.currentTimeMillis() - startTime
-            socket.close()
+            // Try to use existing socket from connection pool
+            val existingSocket = socketManager.hasValidConnection(peerAddress)
 
-            // Convert RTT to estimated RSSI
-            when {
-                rtt < 10 -> -40  // Excellent: very close, low latency
-                rtt < 50 -> -55  // Good: same subnet, fast response
-                rtt < 100 -> -65 // Moderate: some network delay
-                rtt < 200 -> -75 // Poor: significant latency
-                else -> -85      // Very poor: high latency, edge of range
+            if (existingSocket) {
+                // If we have an existing socket, use it for latency estimation
+                val socket = socketManager.getConnection(peerAddress)
+                if (socket != null && socket.isConnected && !socket.isClosed) {
+                    val startTime = System.currentTimeMillis()
+                    try {
+                        // Send a quick ping and measure response time
+                        val outputStream = socket.getOutputStream()
+                        outputStream.write(byteArrayOf(0x00))
+                        outputStream.flush()
+                        val rtt = System.currentTimeMillis() - startTime
+
+                        // Convert RTT to estimated RSSI
+                        when {
+                            rtt < 5 -> -40  // Excellent: very close, low latency
+                            rtt < 20 -> -55  // Good: same subnet, fast response
+                            rtt < 50 -> -65 // Moderate: some network delay
+                            rtt < 100 -> -75 // Poor: significant latency
+                            else -> -85      // Very poor: high latency, edge of range
+                        }
+                    } catch (e: Exception) {
+                        // If ping fails on existing socket, return poor signal
+                        -85
+                    }
+                } else {
+                    -85
+                }
+            } else {
+                // No existing socket, try a quick connection test
+                val socket = java.net.Socket()
+                socket.soTimeout = 1000
+                val startTime = System.currentTimeMillis()
+                socket.connect(java.net.InetSocketAddress(peerAddress, AppConfig.DEFAULT_PORT), 1000)
+                val rtt = System.currentTimeMillis() - startTime
+                socket.close()
+
+                // Convert RTT to estimated RSSI
+                when {
+                    rtt < 10 -> -40  // Excellent: very close, low latency
+                    rtt < 50 -> -55  // Good: same subnet, fast response
+                    rtt < 100 -> -65 // Moderate: some network delay
+                    rtt < 200 -> -75 // Poor: significant latency
+                    else -> -85      // Very poor: high latency, edge of range
+                }
             }
         } catch (e: Exception) {
             // Cannot estimate — return very poor signal
+            Logger.e("LanTransport -> Failed to estimate RSSI for $peerAddress", e)
             -90
         }
     }
@@ -690,7 +723,7 @@ class LanTransportImpl(
                     data = Json.encodeToString(myHandshake).toByteArray()
                 ))
 
-                val rssi = getPeerRssi()
+                val rssi = getPeerRssi(address)
                 _events.emit(TransportEvent.DeviceDiscovered(peerId, "Peer_${peerId.take(4)}", address, null, rssi, com.p2p.meshify.domain.model.TransportType.LAN))
             }
         }

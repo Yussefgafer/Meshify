@@ -143,7 +143,7 @@ class SocketManager(
                     ?: throw Exception("Failed to get pooled socket")
                 
                 val inputStream = DataInputStream(pooledSocket.getInputStream())
-                val buffer = ByteArray(8192) // 8KB buffer for better throughput
+                val buffer = ByteArray(AppConfig.DEFAULT_BUFFER_SIZE) // Use configured buffer size
                 
                 try {
                     while (isRunning && !pooledSocket.isClosed) {
@@ -335,6 +335,20 @@ class SocketManager(
      * Gets the number of active connections.
      */
     fun getActiveConnectionCount(): Int = connectionPool.getActiveConnectionCount()
+
+    /**
+     * Checks if a valid connection exists for a peer.
+     */
+    fun hasValidConnection(peerAddress: String): Boolean {
+        return connectionPool.hasValidConnection(peerAddress)
+    }
+
+    /**
+     * Gets a connection for a peer.
+     */
+    fun getConnection(peerAddress: String): java.net.Socket? {
+        return connectionPool.getConnection(peerAddress)
+    }
     
     /**
      * Sends large file using parallel transfer for better performance.
