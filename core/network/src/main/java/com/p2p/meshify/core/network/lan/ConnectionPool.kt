@@ -26,7 +26,7 @@ class ConnectionPool {
     companion object {
         const val IDLE_TIMEOUT_MS = 5 * 60 * 1000L // 5 minutes
         private const val CLEANUP_INTERVAL_MS = 60 * 1000L // 1 minute
-        private const val MAX_POOL_SIZE = 50
+        private const val MAX_POOL_SIZE = 100 // Increased from 50 to support more concurrent connections
     }
     
     // Thread-safe map for active connections
