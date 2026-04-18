@@ -55,15 +55,14 @@ class KeepAliveManager(
                         data = KEEP_ALIVE_PING.toByteArray()
                     )
                     
-                    // Quick ping without blocking
+                    // Quick ping without blocking - using use() to ensure stream is closed
                     withTimeout(PING_TIMEOUT_MS) {
-                        val outputStream = DataOutputStream(
-                            pooledSocket.socket.getOutputStream()
-                        )
-                        val bytes = com.p2p.meshify.core.util.PayloadSerializer.serialize(pingPayload)
-                        outputStream.writeInt(bytes.size)
-                        outputStream.write(bytes)
-                        outputStream.flush()
+                        DataOutputStream(pooledSocket.socket.getOutputStream()).use { outputStream ->
+                            val bytes = com.p2p.meshify.core.util.PayloadSerializer.serialize(pingPayload)
+                            outputStream.writeInt(bytes.size)
+                            outputStream.write(bytes)
+                            outputStream.flush()
+                        }
                     }
                     
                     connectionPool.updateLastUsed(peerId)

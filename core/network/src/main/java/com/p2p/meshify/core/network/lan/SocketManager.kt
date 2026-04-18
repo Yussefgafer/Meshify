@@ -191,10 +191,15 @@ class SocketManager(
                                         val fileResult = ParallelFileTransfer.receiveFile(pooledSocket)
                                         if (fileResult.isSuccess) {
                                             // Create new payload with received file data
-                                            val fileBytes = fileResult.getOrNull()!!
-                                            val enrichedPayload = payload.copy(data = fileBytes)
-                                            _incomingPayloads.emit(address to enrichedPayload)
-                                            Logger.d("SocketManager -> Parallel transfer completed: ${fileBytes.size} bytes")
+                                            val fileBytes = fileResult.getOrNull()
+                                            if (fileBytes != null) {
+                                                val enrichedPayload = payload.copy(data = fileBytes)
+                                                _incomingPayloads.emit(address to enrichedPayload)
+                                                Logger.d("SocketManager -> Parallel transfer completed: ${fileBytes.size} bytes")
+                                            } else {
+                                                Logger.e("SocketManager -> Parallel transfer returned null bytes")
+                                                _incomingPayloads.emit(address to payload)
+                                            }
                                             continue // Continue to next iteration
                                         } else {
                                             Logger.e("SocketManager -> Parallel transfer failed: ${fileResult.exceptionOrNull()?.message}")

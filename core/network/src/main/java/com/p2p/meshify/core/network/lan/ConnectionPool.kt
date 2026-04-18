@@ -85,11 +85,12 @@ class ConnectionPool {
     
     /**
      * Removes a connection from the pool.
-     * 
+     *
      * @param peerId Peer identifier
      * @param closeSocket If true, closes the socket
+     * @param releasePermit If true, releases the semaphore permit (should be false if permit wasn't acquired)
      */
-    fun removeConnection(peerId: String, closeSocket: Boolean = true) {
+    fun removeConnection(peerId: String, closeSocket: Boolean = true, releasePermit: Boolean = true) {
         activeConnections.remove(peerId)?.let { pooledSocket ->
             if (closeSocket) {
                 try {
@@ -101,7 +102,9 @@ class ConnectionPool {
             } else {
                 Logger.d("ConnectionPool -> Removed connection for $peerId (not closing)")
             }
-            poolSemaphore.release()
+            if (releasePermit) {
+                poolSemaphore.release()
+            }
             cleanupConnectionLock(peerId)
         }
     }

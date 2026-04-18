@@ -411,19 +411,29 @@ class LanTransportImpl(
             } else {
                 // No existing socket, try a quick connection test
                 val socket = java.net.Socket()
-                socket.soTimeout = 1000
-                val startTime = System.currentTimeMillis()
-                socket.connect(java.net.InetSocketAddress(peerAddress, AppConfig.DEFAULT_PORT), 1000)
-                val rtt = System.currentTimeMillis() - startTime
-                socket.close()
+                try {
+                    socket.soTimeout = 1000
+                    val startTime = System.currentTimeMillis()
+                    socket.connect(java.net.InetSocketAddress(peerAddress, AppConfig.DEFAULT_PORT), 1000)
+                    val rtt = System.currentTimeMillis() - startTime
 
-                // Convert RTT to estimated RSSI
-                when {
-                    rtt < 10 -> -40  // Excellent: very close, low latency
-                    rtt < 50 -> -55  // Good: same subnet, fast response
-                    rtt < 100 -> -65 // Moderate: some network delay
-                    rtt < 200 -> -75 // Poor: significant latency
-                    else -> -85      // Very poor: high latency, edge of range
+                    // Convert RTT to estimated RSSI
+                    when {
+                        rtt < 10 -> -40  // Excellent: very close, low latency
+                        rtt < 50 -> -55  // Good: same subnet, fast response
+                        rtt < 100 -> -65 // Moderate: some network delay
+                        rtt < 200 -> -75 // Poor: significant latency
+                        else -> -85      // Very poor: high latency, edge of range
+                    }
+                } finally {
+                    // Always close the socket to prevent resource leak
+                    try {
+                        if (!socket.isClosed) {
+                            socket.close()
+                        }
+                    } catch (e: Exception) {
+                        Logger.w("LanTransport -> Failed to close RSSI test socket: ${e.message}")
+                    }
                 }
             }
         } catch (e: Exception) {
