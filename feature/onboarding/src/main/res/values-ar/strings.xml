@@ -73,7 +73,7 @@
     <string name="ob_summary_desc">ميشفاي جاهز. ابدأ اكتشاف الأجهزة القريبة والمراسلة!</string>
     <string name="ob_summary_partial">تم رفض بعض الأذونات. يمكنك تغييرها من الإعدادات في أي وقت.</string>
     <string name="ob_summary_all_granted">جميع الأذونات ممنوحة</string>
-    <string name="ob_summary_count">%d من %d ممنوحة</string>
+    <string name="ob_summary_count">تم منح %1$d من %2$d</string>
     <string name="ob_summary_view_details">عرض التفاصيل</string>
     <string name="ob_summary_start">بدء المراسلة</string>
 

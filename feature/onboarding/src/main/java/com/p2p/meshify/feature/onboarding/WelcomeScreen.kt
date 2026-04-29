@@ -35,7 +35,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
+import com.p2p.meshify.core.ui.components.PremiumNoiseTexture
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -84,11 +86,14 @@ fun WelcomeScreen(
         }
     }
 
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.surface
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = modifier.fillMaxSize()) {
+        // Dynamic immersive background
+        OnboardingBackground(currentPage = uiState.currentPage)
+        
+        // Noise texture for tactile feel
+        PremiumNoiseTexture(alpha = 0.04f)
+
+        Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             // Top bar: Language chip + Skip
             TopBar(
                 currentLang = currentLang,
@@ -108,28 +113,41 @@ fun WelcomeScreen(
             // Pages
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = MeshifyDesignSystem.Spacing.Md)
             ) { page ->
-                when (page) {
-                    0 -> WelcomePage(
-                        onLangMenuToggle = { viewModel.toggleLangMenu() },
-                        isLangMenuOpen = uiState.isLangMenuOpen,
-                        currentLang = currentLang,
-                        onLangSelected = { lang ->
-                            haptics.perform(HapticPattern.Pop)
-                            viewModel.toggleLangMenu()
-                            onLangChange(lang)
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    )
+                // Apply a parallax effect to the page content
+                val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            translationX = pageOffset * size.width * 0.5f
+                            alpha = 1f - kotlin.math.abs(pageOffset).coerceIn(0f, 1f)
+                        }
+                ) {
+                    when (page) {
+                        0 -> WelcomePage(
+                            onLangMenuToggle = { viewModel.toggleLangMenu() },
+                            isLangMenuOpen = uiState.isLangMenuOpen,
+                            currentLang = currentLang,
+                            onLangSelected = { lang ->
+                                haptics.perform(HapticPattern.Pop)
+                                viewModel.toggleLangMenu()
+                                onLangChange(lang)
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
 
-                    1 -> HowItWorksPage(modifier = Modifier.fillMaxSize())
+                        1 -> HowItWorksPage(modifier = Modifier.fillMaxSize())
 
-                    2 -> PermissionsOverviewPage(
-                        permissions = PermissionDefinitions.getPermissions(),
-                        permissionStatuses = emptyMap(),
-                        modifier = Modifier.fillMaxSize()
-                    )
+                        2 -> PermissionsOverviewPage(
+                            permissions = PermissionDefinitions.getPermissions(),
+                            permissionStatuses = emptyMap(),
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
             }
 
@@ -176,30 +194,41 @@ private fun TopBar(
                 vertical = MeshifyDesignSystem.Spacing.Xs
             )
     ) {
-        // Language chip
-        FilterChip(
-            selected = false,
+        // Language chip - Stylized as a Squircle
+        Surface(
             onClick = onLangMenuToggle,
-            label = {
-                Text(
-                    text = if (currentLang == "ar") stringResource(R.string.ob_lang_ar) else stringResource(R.string.ob_lang_en),
-                    style = MaterialTheme.typography.labelMedium
-                )
-            },
-            leadingIcon = {
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            shape = SquircleShape(4.0f),
+            modifier = Modifier.height(40.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Md),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Xs)
+            ) {
                 Icon(
                     Icons.Default.Language,
                     contentDescription = stringResource(R.string.ob_cd_lang_switch),
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.primary
                 )
-            },
-            shape = MeshifyDesignSystem.Shapes.Pill
-        )
+                Text(
+                    text = if (currentLang == "ar") stringResource(R.string.ob_lang_ar) else stringResource(R.string.ob_lang_en),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
 
         DropdownMenu(
             expanded = isLangMenuOpen,
             onDismissRequest = onLangMenuToggle,
-            modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            modifier = Modifier
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                .graphicsLayer {
+                    shape = SquircleShape(3.5f)
+                    clip = true
+                }
         ) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.ob_lang_en)) },
@@ -228,7 +257,8 @@ private fun TopBar(
             Text(
                 text = stringResource(R.string.ob_btn_skip),
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -252,40 +282,37 @@ private fun BottomNav(
             .fillMaxWidth()
             .padding(MeshifyDesignSystem.Spacing.Lg),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Md)
+        verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Lg)
     ) {
-        // Page dots
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Sm),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            for (i in 0 until totalPages) {
-                PageDot(
-                    isActive = i == currentPage,
-                    onClick = { onPageSelected(i) }
-                )
-            }
-        }
+        // Squircle Page Indicator
+        SquirclePageIndicator(
+            currentPage = currentPage,
+            totalPages = totalPages,
+            onPageSelected = onPageSelected
+        )
 
-        // Button
-        Button(
+        // Button - High tactile feel Squircle
+        Surface(
             onClick = onNextClick,
             enabled = !isAnimating,
+            color = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            shape = SquircleShape(3.5f),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
-            shape = MeshifyDesignSystem.Shapes.Button
+                .height(64.dp)
         ) {
-            Text(
-                text = if (currentPage == 2) {
-                    stringResource(R.string.ob_btn_get_started)
-                } else {
-                    stringResource(R.string.ob_btn_next)
-                },
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onPrimary
-            )
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    text = if (currentPage == 2) {
+                        stringResource(R.string.ob_btn_get_started)
+                    } else {
+                        stringResource(R.string.ob_btn_next)
+                    },
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
         }
     }
 }
@@ -341,65 +368,75 @@ fun PermissionRequestCard(
         visible = true,
         enter = slideInVertically(
             initialOffsetY = { it },
-            animationSpec = spring(dampingRatio = 0.8f, stiffness = 350f)
-        ) + fadeIn(tween(250)),
+            animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f)
+        ) + fadeIn(tween(300)),
         exit = slideOutVertically(
             targetOffsetY = { it },
-            animationSpec = tween(200)
-        ) + fadeOut(tween(200))
+            animationSpec = tween(250)
+        ) + fadeOut(tween(250))
     ) {
         // Dim background
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.3f))
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.4f))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = onRequestDismiss
                 )
         ) {
-            // Card
-            Card(
+            // Card - Premium Squircle
+            Surface(
                 modifier = modifier
                     .fillMaxWidth(0.92f)
                     .align(Alignment.BottomCenter)
                     .padding(bottom = MeshifyDesignSystem.Spacing.Xl),
-                shape = MeshifyDesignSystem.Shapes.CardLarge,
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                )
+                shape = SquircleShape(4.0f),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                tonalElevation = 8.dp
             ) {
                 Column(
                     modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Lg),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Icon
-                    Icon(
-                        imageVector = when (permission.iconType) {
-                            PermissionIconType.Wifi -> Icons.Filled.Wifi
-                            PermissionIconType.Bluetooth -> Icons.AutoMirrored.Filled.BluetoothSearching
-                            PermissionIconType.Notifications -> Icons.Filled.Notifications
-                            PermissionIconType.Location -> Icons.Filled.LocationOn
-                        },
-                        contentDescription = null,
-                        modifier = Modifier.size(MeshifyDesignSystem.IconSizes.XXL),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                    // Tactile Icon Container
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .graphicsLayer {
+                                shape = SquircleShape(3.0f)
+                                clip = true
+                            }
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = when (permission.iconType) {
+                                PermissionIconType.Wifi -> Icons.Filled.Wifi
+                                PermissionIconType.Bluetooth -> Icons.AutoMirrored.Filled.BluetoothSearching
+                                PermissionIconType.Notifications -> Icons.Filled.Notifications
+                                PermissionIconType.Location -> Icons.Filled.LocationOn
+                            },
+                            contentDescription = null,
+                            modifier = Modifier.size(MeshifyDesignSystem.IconSizes.XXL),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
 
-                    Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Md))
+                    Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Lg))
 
                     Text(
                         text = stringResource(permission.labelRes),
                         style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.ExtraBold,
+                        fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.onSurface,
                         textAlign = TextAlign.Center
                     )
 
-                    Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Sm))
+                    Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Md))
 
-                    // What happens
+                    // What happens - Premium Card
                     InfoSection(
                         titleRes = R.string.ob_card_why_title,
                         pointsRes = permission.whatHappensRes,
@@ -408,55 +445,60 @@ fun PermissionRequestCard(
 
                     Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Sm))
 
-                    // If deny
+                    // If deny - Premium Card
                     InfoSection(
                         titleRes = R.string.ob_card_deny_title,
                         pointsRes = permission.ifDenyRes,
                         iconTint = MaterialTheme.colorScheme.error
                     )
 
-                    Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Md))
+                    Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Lg))
 
-                    // Buttons
+                    // Buttons - Premium Squircles
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Sm)
+                        horizontalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Md)
                     ) {
-                        TextButton(
+                        Surface(
                             onClick = {
                                 haptics.perform(HapticPattern.Tick)
                                 onDenyClick()
                             },
                             modifier = Modifier
                                 .weight(1f)
-                                .height(48.dp)
+                                .height(56.dp),
+                            shape = SquircleShape(3.5f),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                         ) {
-                            Text(
-                                text = stringResource(R.string.ob_card_deny),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = stringResource(R.string.ob_card_deny),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
 
-                        Button(
+                        Surface(
                             onClick = {
                                 haptics.perform(HapticPattern.Pop)
                                 onAllowClick()
                             },
                             modifier = Modifier
                                 .weight(1f)
-                                .height(48.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
-                            ),
-                            shape = MeshifyDesignSystem.Shapes.Button
+                                .height(56.dp),
+                            shape = SquircleShape(3.5f),
+                            color = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
                         ) {
-                            Text(
-                                text = stringResource(R.string.ob_card_allow),
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Medium
-                            )
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = stringResource(R.string.ob_card_allow),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Black
+                                )
+                            }
                         }
                     }
                 }
@@ -472,40 +514,41 @@ private fun InfoSection(
     iconTint: Color,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(MeshifyDesignSystem.Shapes.CardMedium)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-            .padding(MeshifyDesignSystem.Spacing.Md)
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = SquircleShape(3.5f),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
     ) {
-        Text(
-            text = stringResource(titleRes),
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = iconTint
-        )
+        Column(modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Md)) {
+            Text(
+                text = stringResource(titleRes),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Black,
+                color = iconTint
+            )
 
-        Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Xxs))
+            Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Xs))
 
-        pointsRes.forEach { pointRes ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Xs)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = iconTint
-                )
-                Text(
-                    text = stringResource(pointRes),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            pointsRes.forEach { pointRes ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Xs),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = iconTint
+                    )
+                    Text(
+                        text = stringResource(pointRes),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.2
+                    )
+                }
             }
-            Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Xxs))
         }
     }
 }
@@ -529,42 +572,50 @@ fun PermissionResultCard(
     AnimatedVisibility(
         visible = true,
         enter = scaleIn(
-            initialScale = 0.8f,
+            initialScale = 0.85f,
             animationSpec = spring(dampingRatio = 0.7f, stiffness = 400f)
-        ) + fadeIn(tween(200))
+        ) + fadeIn(tween(250))
     ) {
-        Card(
-            modifier = modifier
-                .fillMaxWidth(0.92f),
-            shape = MeshifyDesignSystem.Shapes.CardLarge,
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-            )
+        Surface(
+            modifier = modifier.fillMaxWidth(0.92f),
+            shape = SquircleShape(4.0f),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            tonalElevation = 4.dp
         ) {
             Row(
                 modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Lg),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Md)
+                horizontalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Lg)
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(MeshifyDesignSystem.IconSizes.XXL),
-                    tint = iconTint
-                )
-
-                Column(
-                    modifier = Modifier.weight(1f)
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .graphicsLayer {
+                            shape = SquircleShape(3.0f)
+                            clip = true
+                        }
+                        .background(iconTint.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
                 ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(MeshifyDesignSystem.IconSizes.XXL),
+                        tint = iconTint
+                    )
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(permission.labelRes),
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = stringResource(statusText),
                         style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
                         color = iconTint
                     )
                 }
@@ -601,8 +652,12 @@ fun PermissionSummaryDialog(
         Surface(
             modifier = modifier
                 .fillMaxWidth(0.92f)
-                .clip(MeshifyDesignSystem.Shapes.CardLarge),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh
+                .graphicsLayer {
+                    shape = SquircleShape(4.0f)
+                    clip = true
+                },
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            tonalElevation = 12.dp
         ) {
             Column(
                 modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Xl),
@@ -611,11 +666,12 @@ fun PermissionSummaryDialog(
                 // Success icon
                 Box(
                     modifier = Modifier
-                        .size(80.dp)
-                        .background(
-                            color = StatusOnline.copy(alpha = 0.1f),
-                            shape = RoundedCornerShape(40.dp)
-                        ),
+                        .size(88.dp)
+                        .graphicsLayer {
+                            shape = SquircleShape(3.5f)
+                            clip = true
+                        }
+                        .background(color = (if (allGranted) StatusOnline else MaterialTheme.colorScheme.error).copy(alpha = 0.1f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -626,48 +682,60 @@ fun PermissionSummaryDialog(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Md))
+                Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Lg))
 
                 Text(
                     text = stringResource(R.string.ob_summary_title),
                     style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.ExtraBold,
+                    fontWeight = FontWeight.Black,
                     color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Xs))
-
-                Text(
-                    text = stringResource(R.string.ob_summary_desc),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
 
                 Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Sm))
 
-                if (!allGranted) {
-                    Text(
-                        text = stringResource(R.string.ob_summary_count, grantedCount, totalCount),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Xxs))
-                    Text(
-                        text = stringResource(R.string.ob_summary_partial),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        textAlign = TextAlign.Center
-                    )
-                } else {
-                    Text(
-                        text = stringResource(R.string.ob_summary_all_granted),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = StatusOnline,
-                        textAlign = TextAlign.Center
-                    )
+                Text(
+                    text = stringResource(R.string.ob_summary_desc),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.3
+                )
+
+                Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Md))
+
+                Surface(
+                    shape = SquircleShape(3.0f),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Md),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        if (!allGranted) {
+                            Text(
+                                text = stringResource(R.string.ob_summary_count, grantedCount, totalCount),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Black,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = stringResource(R.string.ob_summary_partial),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error,
+                                textAlign = TextAlign.Center
+                            )
+                        } else {
+                            Text(
+                                text = stringResource(R.string.ob_summary_all_granted),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Black,
+                                color = StatusOnline
+                            )
+                        }
+                    }
                 }
 
                 // Expandable details
@@ -680,7 +748,7 @@ fun PermissionSummaryDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = MeshifyDesignSystem.Spacing.Md),
-                        verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Xxs)
+                        verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Xs)
                     ) {
                         permissionResults.forEach { (id, result) ->
                             val perm = PermissionDefinitions.getPermissions().find { it.id == id } ?: return@forEach
@@ -692,6 +760,7 @@ fun PermissionSummaryDialog(
                                 Text(
                                     text = stringResource(perm.labelRes),
                                     style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 val (statusText, color) = when (result) {
@@ -701,7 +770,8 @@ fun PermissionSummaryDialog(
                                 }
                                 Text(
                                     text = stringResource(statusText),
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Black,
                                     color = color
                                 )
                             }
@@ -717,30 +787,34 @@ fun PermissionSummaryDialog(
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 ) {
                     Text(
-                        text = stringResource(R.string.ob_summary_view_details),
-                        style = MaterialTheme.typography.labelMedium,
+                        text = if (showDetails) "Hide details" else stringResource(R.string.ob_summary_view_details),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
 
-                Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Md))
+                Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Lg))
 
-                Button(
+                Surface(
                     onClick = {
                         haptics.perform(HapticPattern.Success)
                         onStartClick()
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
-                    shape = MeshifyDesignSystem.Shapes.Button
+                        .height(64.dp),
+                    shape = SquircleShape(3.5f),
+                    color = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
-                    Text(
-                        text = stringResource(R.string.ob_summary_start),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = stringResource(R.string.ob_summary_start),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
                 }
             }
         }
