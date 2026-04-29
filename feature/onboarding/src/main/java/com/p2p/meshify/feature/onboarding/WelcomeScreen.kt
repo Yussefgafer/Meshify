@@ -61,6 +61,7 @@ fun WelcomeScreen(
     onLangChange: (String) -> Unit,
     onNextClick: () -> Unit,
     onSkipClick: () -> Unit,
+    permissionStatuses: Map<String, PermissionStatus> = emptyMap(),
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -71,6 +72,7 @@ fun WelcomeScreen(
         initialPageOffsetFraction = 0f
     ) { 3 }
 
+    // Sync PagerState with ViewModel state
     LaunchedEffect(uiState.currentPage) {
         if (pagerState.currentPage != uiState.currentPage) {
             pagerState.animateScrollToPage(
@@ -80,10 +82,14 @@ fun WelcomeScreen(
         }
     }
 
-    LaunchedEffect(pagerState.currentPage) {
-        if (pagerState.currentPage != uiState.currentPage && !uiState.isAnimating) {
-            viewModel.goToPage(pagerState.currentPage)
-        }
+    // Sync ViewModel with PagerState (User scroll)
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.currentPage }
+            .collect { page ->
+                if (page != uiState.currentPage && !uiState.isAnimating) {
+                    viewModel.goToPage(page)
+                }
+            }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -144,7 +150,7 @@ fun WelcomeScreen(
 
                         2 -> PermissionsOverviewPage(
                             permissions = PermissionDefinitions.getPermissions(),
-                            permissionStatuses = emptyMap(),
+                            permissionStatuses = permissionStatuses,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -787,7 +793,7 @@ fun PermissionSummaryDialog(
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 ) {
                     Text(
-                        text = if (showDetails) "Hide details" else stringResource(R.string.ob_summary_view_details),
+                        text = if (showDetails) stringResource(R.string.ob_summary_hide_details) else stringResource(R.string.ob_summary_view_details),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary

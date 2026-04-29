@@ -75,7 +75,8 @@
     <string name="ob_summary_all_granted">All permissions granted</string>
     <string name="ob_summary_count">%1$d of %2$d granted</string>
     <string name="ob_summary_view_details">View details</string>
-    <string name="ob_summary_start">Start Messaging</string>
+    <string name="ob_summary_hide_details">Hide details</string>
+    <string name="ob_summary_start">Start Meshify</string>
 
     <!-- Skip confirmation -->
     <string name="ob_skip_confirm_title">Leave onboarding?</string>

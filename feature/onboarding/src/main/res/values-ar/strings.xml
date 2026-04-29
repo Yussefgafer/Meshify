@@ -75,7 +75,8 @@
     <string name="ob_summary_all_granted">جميع الأذونات ممنوحة</string>
     <string name="ob_summary_count">تم منح %1$d من %2$d</string>
     <string name="ob_summary_view_details">عرض التفاصيل</string>
-    <string name="ob_summary_start">بدء المراسلة</string>
+    <string name="ob_summary_hide_details">إخفاء التفاصيل</string>
+    <string name="ob_summary_start">ابدأ Meshify</string>
 
     <!-- Skip confirmation -->
     <string name="ob_skip_confirm_title">مغادرة الإعداد؟</string>

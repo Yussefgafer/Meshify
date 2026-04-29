@@ -18,6 +18,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
@@ -27,25 +30,28 @@ import kotlin.math.pow
  * A proper Squircle (superellipse) shape implementation.
  * n = 3.0 or 4.0 provides the "smooth" rounded corner look preferred by modern UI.
  */
-fun SquircleShape(n: Float = 3.0f) = GenericShape { size, _ ->
-    val radius = size.width / 2f
-    val path = Path()
-    
-    // x = r * cos(t)^(2/n)
-    // y = r * sin(t)^(2/n)
-    // We iterate through 360 degrees
-    for (i in 0..360) {
-        val angle = Math.toRadians(i.toDouble())
-        val cos = kotlin.math.cos(angle)
-        val sin = kotlin.math.sin(angle)
+fun SquircleShape(n: Float = 3.0f): GenericShape {
+    return GenericShape { size, _ ->
+        val radius = size.width / 2f
+        val path = Path()
         
-        val x = radius + radius * abs(cos).pow(2.0 / n).let { if (cos < 0) -it else it }.toFloat()
-        val y = radius + radius * abs(sin).pow(2.0 / n).let { if (sin < 0) -it else it }.toFloat()
-        
-        if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        // x = r * cos(t)^(2/n)
+        // y = r * sin(t)^(2/n)
+        // Optimized: 120 steps is plenty for smooth curves on mobile screens
+        val steps = 120
+        for (i in 0..steps) {
+            val angle = (2.0 * Math.PI * i) / steps
+            val cos = kotlin.math.cos(angle)
+            val sin = kotlin.math.sin(angle)
+            
+            val x = radius + radius * abs(cos).pow(2.0 / n).let { if (cos < 0) -it else it }.toFloat()
+            val y = radius + radius * abs(sin).pow(2.0 / n).let { if (sin < 0) -it else it }.toFloat()
+            
+            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        }
+        path.close()
+        this.addPath(path)
     }
-    path.close()
-    this.addPath(path)
 }
 
 /**
@@ -88,7 +94,7 @@ fun OnboardingBackground(
     )
 
     Box(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-        Canvas(modifier = Modifier.fillMaxSize().blur(80.dp).alpha(0.6f)) {
+        Canvas(modifier = Modifier.fillMaxSize().blur(40.dp).alpha(0.6f)) {
             // Blob 1
             drawCircle(
                 brush = Brush.radialGradient(
@@ -140,6 +146,10 @@ fun SquirclePageIndicator(
     onPageSelected: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val pageIndicatorDesc = stringResource(R.string.ob_cd_page_indicator)
+    val activeShape = remember { SquircleShape(3.5f) }
+    val inactiveShape = remember { SquircleShape(3.0f) }
+
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -165,7 +175,7 @@ fun SquirclePageIndicator(
                     .width(width)
                     .height(10.dp)
                     .graphicsLayer {
-                        shape = SquircleShape(if (isActive) 3.5f else 3.0f)
+                        shape = if (isActive) activeShape else inactiveShape
                         clip = true
                     }
                     .background(
@@ -175,6 +185,7 @@ fun SquirclePageIndicator(
                             MaterialTheme.colorScheme.onSurface.copy(alpha = alpha)
                     )
                     .clickable { onPageSelected(index) }
+                    .semantics { contentDescription = pageIndicatorDesc }
             )
         }
     }

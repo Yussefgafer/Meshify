@@ -48,12 +48,13 @@ import com.p2p.meshify.feature.settings.DeveloperViewModel
 import com.p2p.meshify.feature.realdevicetesting.ui.RealDeviceTestingViewModel
 import com.p2p.meshify.feature.realdevicetesting.ui.RealDeviceTestScreen
 import com.p2p.meshify.feature.onboarding.WelcomeScreen
+import com.p2p.meshify.feature.onboarding.PermissionStatus
+import com.p2p.meshify.feature.onboarding.PermissionRequestResult
 import com.p2p.meshify.feature.onboarding.WelcomeViewModel
 import com.p2p.meshify.feature.onboarding.PermissionSummaryDialog
 import com.p2p.meshify.feature.onboarding.PermissionRequestCard
 import com.p2p.meshify.feature.onboarding.SkipConfirmationDialog
 import com.p2p.meshify.feature.onboarding.PermissionDefinitions
-import com.p2p.meshify.feature.onboarding.PermissionRequestResult
 import com.p2p.meshify.core.domain.interfaces.WifiStateChecker
 import com.p2p.meshify.core.data.local.MeshifyDatabase
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -457,6 +458,15 @@ private fun OnboardingRoute(
         onLangChange = { newLang ->
             currentLang = newLang
         },
+        permissionStatuses = permissions.associate { 
+            val res = permissionResults[it.id]
+            it.id to when (res) {
+                PermissionRequestResult.Granted -> PermissionStatus.Granted
+                PermissionRequestResult.Denied -> PermissionStatus.Denied
+                PermissionRequestResult.DeniedPermanently -> PermissionStatus.DeniedPermanently
+                else -> PermissionStatus.NotAsked
+            }
+        },
         onNextClick = {
             // Page 3 "Get Started" → start permission flow
             isPermissionFlowActive = true
@@ -479,7 +489,14 @@ private fun OnboardingRoute(
     LaunchedEffect(advanceTrigger) {
         if (advanceTrigger > 0) {
             kotlinx.coroutines.delay(PERMISSION_EXIT_ANIMATION_DELAY_MS)
-            currentPermissionIndex++
+            if (currentPermissionIndex < permissions.size) {
+                currentPermissionIndex++
+            }
+            // If we reached the end, show summary
+            if (currentPermissionIndex >= permissions.size) {
+                isPermissionFlowActive = false
+                showSummaryDialog = true
+            }
         }
     }
 
@@ -497,8 +514,7 @@ private fun OnboardingRoute(
             LaunchedEffect(perm.id) {
                 permissionResults[perm.id] = PermissionRequestResult.Granted
                 advanceTrigger++
-                kotlinx.coroutines.delay(PERMISSION_ALREADY_GRANTED_DISPLAY_DELAY_MS)
-                currentPermissionIndex++
+                // The LaunchedEffect(advanceTrigger) will handle the index increment after a delay
             }
         } else {
             PermissionRequestCard(
@@ -508,7 +524,7 @@ private fun OnboardingRoute(
                 },
                 onDenyClick = {
                     permissionResults[perm.id] = PermissionRequestResult.Denied
-                    currentPermissionIndex++
+                    advanceTrigger++ // Use trigger instead of direct increment to ensure consistency
                 },
                 onRequestDismiss = {
                     isPermissionFlowActive = false
