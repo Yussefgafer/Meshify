@@ -267,7 +267,7 @@ private fun StepCard(
             horizontalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Md),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // High-end Step Indicator
+            // High-end Step Indicator with Number
             Box(
                 modifier = Modifier
                     .size(56.dp)
@@ -278,6 +278,12 @@ private fun StepCard(
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
+                Text(
+                    text = stepNumber.toString(),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                )
                 OnboardingIllustration(
                     illustrationType = illustrationType,
                     modifier = Modifier.size(36.dp)
@@ -379,7 +385,8 @@ fun PermissionsOverviewPage(
                         iconType = perm.iconType,
                         labelRes = perm.labelRes,
                         importanceLabelRes = perm.importanceLabelRes,
-                        status = status
+                        status = status,
+                        isRequired = perm.isRequired
                     )
                 }
             }
@@ -395,6 +402,7 @@ private fun PermissionRow(
     labelRes: Int,
     importanceLabelRes: Int,
     status: PermissionStatus,
+    isRequired: Boolean,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -440,7 +448,7 @@ private fun PermissionRow(
                 Text(
                     text = stringResource(importanceLabelRes),
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (stringResource(importanceLabelRes) == stringResource(R.string.ob_perm_required)) 
+                    color = if (isRequired) 
                         MaterialTheme.colorScheme.primary 
                     else 
                         MaterialTheme.colorScheme.onSurfaceVariant
@@ -712,7 +720,10 @@ private fun ShieldCheckIllustration(modifier: Modifier) {
         label = "scale"
     )
 
-    Canvas(modifier = modifier) {
+    Canvas(modifier = modifier.graphicsLayer { 
+        scaleX = scale
+        scaleY = scale
+    }) {
         val center = Offset(size.width / 2, size.height / 2)
         val shieldW = size.width * 0.6f
         val shieldH = size.height * 0.7f

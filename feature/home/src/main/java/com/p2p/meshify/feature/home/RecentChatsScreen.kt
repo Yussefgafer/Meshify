@@ -136,7 +136,12 @@ fun RecentChatsScreen(
                         else -> {
                             LazyColumn(
                                 modifier = Modifier.weight(1f),
-                                contentPadding = PaddingValues(bottom = MeshifyDesignSystem.Spacing.Xxl)
+                                contentPadding = PaddingValues(
+                                    start = MeshifyDesignSystem.Spacing.Md,
+                                    end = MeshifyDesignSystem.Spacing.Md,
+                                    bottom = MeshifyDesignSystem.Spacing.Xxl
+                                ),
+                                verticalArrangement = Arrangement.spacedBy(2.dp) // Subtle separation like SectionBlock
                             ) {
                                 item {
                                     MeshifySectionHeader(stringResource(R.string.chats_recent_header))
