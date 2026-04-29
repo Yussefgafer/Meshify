@@ -1,5 +1,6 @@
 package com.p2p.meshify.feature.onboarding
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -20,12 +21,16 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.p2p.meshify.core.ui.hooks.HapticPattern
+import com.p2p.meshify.core.ui.hooks.LocalPremiumHaptics
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
 import com.p2p.meshify.core.ui.theme.MeshifyPrimary
 import com.p2p.meshify.core.ui.theme.StatusOnline
@@ -51,39 +56,48 @@ fun WelcomePage(
     ) {
         Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Xl))
 
-        // Illustration
-        OnboardingIllustration(
-            illustrationType = IllustrationType.MeshNetwork,
-            modifier = Modifier.size(220.dp)
-        )
-
-        Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Xl))
+        // Large Premium Illustration
+        Box(
+            modifier = Modifier
+                .size(280.dp)
+                .graphicsLayer {
+                    shadowElevation = 20f
+                    shape = SquircleShape(4.0f)
+                    clip = true
+                }
+                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)),
+            contentAlignment = Alignment.Center
+        ) {
+            OnboardingIllustration(
+                illustrationType = IllustrationType.MeshNetwork,
+                modifier = Modifier.size(200.dp)
+            )
+        }
 
         // Title + Description
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Sm)
+            verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Md)
         ) {
             Text(
                 text = stringResource(R.string.ob_welcome_title),
-                style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.ExtraBold,
+                style = MaterialTheme.typography.displayMedium,
+                fontWeight = FontWeight.Black,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center
             )
 
             Text(
                 text = stringResource(R.string.ob_welcome_desc),
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.3
+                lineHeight = MaterialTheme.typography.titleMedium.lineHeight * 1.4
             )
         }
 
-        // Language Selector
-        LanguageSelector(
-            onLangMenuToggle = onLangMenuToggle,
+        // Satisfying Language Toggle
+        LanguageToggle(
             currentLang = currentLang,
             onLangSelected = onLangSelected
         )
@@ -93,57 +107,81 @@ fun WelcomePage(
 }
 
 @Composable
-private fun LanguageSelector(
-    onLangMenuToggle: () -> Unit,
+private fun LanguageToggle(
     currentLang: String,
     onLangSelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
+    val haptics = LocalPremiumHaptics.current
+    
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        shape = SquircleShape(4.0f),
         modifier = modifier
+            .padding(bottom = MeshifyDesignSystem.Spacing.Lg)
+            .height(56.dp)
+            .width(220.dp)
     ) {
-        Text(
-            text = stringResource(R.string.ob_language_label),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = MeshifyDesignSystem.Spacing.Xs)
-        )
-
         Row(
-            horizontalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Sm),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.fillMaxSize().padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            FilterChip(
-                selected = currentLang == "en",
-                onClick = { if (currentLang != "en") onLangSelected("en") },
-                label = { Text(stringResource(R.string.ob_lang_en)) },
-                leadingIcon = {
-                    if (currentLang == "en") {
-                        Icon(
-                            Icons.Default.Check,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
+            LanguageOption(
+                label = stringResource(R.string.ob_lang_en),
+                isSelected = currentLang == "en",
+                onClick = { 
+                    if (currentLang != "en") {
+                        haptics.perform(HapticPattern.Pop)
+                        onLangSelected("en") 
                     }
                 },
-                shape = MeshifyDesignSystem.Shapes.Pill
+                modifier = Modifier.weight(1f)
             )
-
-            FilterChip(
-                selected = currentLang == "ar",
-                onClick = { if (currentLang != "ar") onLangSelected("ar") },
-                label = { Text(stringResource(R.string.ob_lang_ar)) },
-                leadingIcon = {
-                    if (currentLang == "ar") {
-                        Icon(
-                            Icons.Default.Check,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
+            LanguageOption(
+                label = stringResource(R.string.ob_lang_ar),
+                isSelected = currentLang == "ar",
+                onClick = { 
+                    if (currentLang != "ar") {
+                        haptics.perform(HapticPattern.Pop)
+                        onLangSelected("ar") 
                     }
                 },
-                shape = MeshifyDesignSystem.Shapes.Pill
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun LanguageOption(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val backgroundColor by animateColorAsState(
+        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+        animationSpec = tween(400),
+        label = "bg"
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = tween(400),
+        label = "content"
+    )
+
+    Surface(
+        onClick = onClick,
+        color = backgroundColor,
+        contentColor = contentColor,
+        shape = SquircleShape(3.5f),
+        modifier = modifier.fillMaxHeight()
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium
             )
         }
     }
@@ -176,7 +214,7 @@ fun HowItWorksPage(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = MeshifyDesignSystem.Spacing.Xl)
+            .padding(horizontal = MeshifyDesignSystem.Spacing.Lg)
     ) {
         Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Lg))
 
@@ -184,7 +222,7 @@ fun HowItWorksPage(modifier: Modifier = Modifier) {
         Text(
             text = stringResource(R.string.ob_how_title),
             style = MaterialTheme.typography.displaySmall,
-            fontWeight = FontWeight.ExtraBold,
+            fontWeight = FontWeight.Black,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
@@ -192,16 +230,15 @@ fun HowItWorksPage(modifier: Modifier = Modifier) {
 
         Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Xl))
 
-        // Vertical steps
-        steps.forEachIndexed { index, step ->
-            StepCard(
-                stepNumber = index + 1,
-                titleRes = step.titleRes,
-                descRes = step.descRes,
-                illustrationType = step.illustrationType
-            )
-            if (index < steps.size - 1) {
-                Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Md))
+        // Vertical steps - Redesigned as Premium Cards
+        Column(verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Md)) {
+            steps.forEachIndexed { index, step ->
+                StepCard(
+                    stepNumber = index + 1,
+                    titleRes = step.titleRes,
+                    descRes = step.descRes,
+                    illustrationType = step.illustrationType
+                )
             }
         }
 
@@ -217,61 +254,47 @@ private fun StepCard(
     illustrationType: IllustrationType,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = MeshifyDesignSystem.Shapes.CardLarge,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        )
+        shape = SquircleShape(3.5f),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        border = null
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(MeshifyDesignSystem.Spacing.Md),
-            horizontalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Md)
+            horizontalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Md),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Step number + illustration
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Xs)
+            // High-end Step Indicator
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .graphicsLayer {
+                        shape = SquircleShape(3.0f)
+                        clip = true
+                    }
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .background(
-                            color = MaterialTheme.colorScheme.primary,
-                            shape = RoundedCornerShape(12.dp)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = stepNumber.toString(),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
-
                 OnboardingIllustration(
                     illustrationType = illustrationType,
-                    modifier = Modifier.size(64.dp)
+                    modifier = Modifier.size(36.dp)
                 )
             }
 
             // Title + description
             Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(vertical = MeshifyDesignSystem.Spacing.Xs),
+                modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
                     text = stringResource(titleRes),
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.Black,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Xxs))
                 Text(
                     text = stringResource(descRes),
                     style = MaterialTheme.typography.bodyMedium,
@@ -302,46 +325,53 @@ fun PermissionsOverviewPage(
     ) {
         Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Lg))
 
-        // Illustration
-        OnboardingIllustration(
-            illustrationType = IllustrationType.ShieldCheck,
-            modifier = Modifier.size(140.dp)
-        )
-
-        Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Lg))
+        // Large Shield Illustration
+        Box(
+            modifier = Modifier
+                .size(180.dp)
+                .graphicsLayer {
+                    shape = SquircleShape(4.0f)
+                    clip = true
+                }
+                .background(StatusOnline.copy(alpha = 0.1f)),
+            contentAlignment = Alignment.Center
+        ) {
+            OnboardingIllustration(
+                illustrationType = IllustrationType.ShieldCheck,
+                modifier = Modifier.size(120.dp)
+            )
+        }
 
         // Title + Description
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Xs)
+            verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Sm)
         ) {
             Text(
                 text = stringResource(R.string.ob_perm_title),
                 style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.ExtraBold,
+                fontWeight = FontWeight.Black,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center
             )
 
             Text(
                 text = stringResource(R.string.ob_perm_desc),
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
         }
 
-        // Permission list
-        Card(
+        // Permission list - Redesigned
+        Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = MeshifyDesignSystem.Shapes.CardLarge,
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-            )
+            shape = SquircleShape(3.5f),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
         ) {
             Column(
                 modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Md),
-                verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Sm)
+                verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Md)
             ) {
                 permissions.forEach { perm ->
                     val status = permissionStatuses[perm.id] ?: PermissionStatus.NotAsked
@@ -368,40 +398,52 @@ private fun PermissionRow(
     modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = MeshifyDesignSystem.Spacing.Xs),
+        modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Sm)
+            horizontalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Md)
         ) {
-            // Icon
-            Icon(
-                imageVector = when (iconType) {
-                    PermissionIconType.Wifi -> Icons.Filled.Wifi
-                    PermissionIconType.Bluetooth -> Icons.AutoMirrored.Filled.BluetoothSearching
-                    PermissionIconType.Notifications -> Icons.Filled.Notifications
-                    PermissionIconType.Location -> Icons.Filled.LocationOn
-                },
-                contentDescription = null,
-                modifier = Modifier.size(MeshifyDesignSystem.IconSizes.Large),
-                tint = MaterialTheme.colorScheme.primary
-            )
+            // Tactile Icon
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .graphicsLayer {
+                        shape = SquircleShape(3.0f)
+                        clip = true
+                    }
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = when (iconType) {
+                        PermissionIconType.Wifi -> Icons.Filled.Wifi
+                        PermissionIconType.Bluetooth -> Icons.AutoMirrored.Filled.BluetoothSearching
+                        PermissionIconType.Notifications -> Icons.Filled.Notifications
+                        PermissionIconType.Location -> Icons.Filled.LocationOn
+                    },
+                    contentDescription = null,
+                    modifier = Modifier.size(MeshifyDesignSystem.IconSizes.Large),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
 
             Column {
                 Text(
                     text = stringResource(labelRes),
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium,
+                    fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = stringResource(importanceLabelRes),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (stringResource(importanceLabelRes) == stringResource(R.string.ob_perm_required)) 
+                        MaterialTheme.colorScheme.primary 
+                    else 
+                        MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -426,11 +468,15 @@ private fun StatusBadge(status: PermissionStatus, modifier: Modifier = Modifier)
     Text(
         text = stringResource(textRes),
         style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.Bold,
         color = badgeColor,
         modifier = modifier
-            .clip(MeshifyDesignSystem.Shapes.Pill)
+            .graphicsLayer {
+                shape = SquircleShape(3.5f)
+                clip = true
+            }
             .background(bgColor)
-            .padding(horizontal = MeshifyDesignSystem.Spacing.Xs, vertical = MeshifyDesignSystem.Spacing.Xxs)
+            .padding(horizontal = MeshifyDesignSystem.Spacing.Sm, vertical = MeshifyDesignSystem.Spacing.Xxs)
     )
 }
 
