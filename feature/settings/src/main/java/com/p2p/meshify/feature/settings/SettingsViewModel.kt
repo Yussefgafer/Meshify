@@ -170,9 +170,4 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun importBackup(backupJson: String, onResult: (Result<Unit>) -> Unit) {
-        viewModelScope.launch {
-            onResult(settingsRepository.importBackup(backupJson))
-        }
-    }
 }

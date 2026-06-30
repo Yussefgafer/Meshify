@@ -286,34 +286,6 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
         }
     }
 
-    override suspend fun importBackup(backupJson: String): Result<Unit> {
-        return try {
-            val backupData = Json.decodeFromString<Map<String, String>>(backupJson)
-            val editResult = safeEdit { prefs ->
-                backupData["display_name"]?.let { prefs[KEY_DISPLAY_NAME] = it }
-                backupData["theme_mode"]?.let { prefs[KEY_THEME_MODE] = it }
-                backupData["dynamic_color"]?.let { prefs[KEY_DYNAMIC_COLOR] = it.toBoolean() }
-                backupData["haptic_feedback"]?.let { prefs[KEY_HAPTIC_FEEDBACK] = it.toBoolean() }
-                backupData["network_visible"]?.let { prefs[KEY_NETWORK_VISIBLE] = it.toBoolean() }
-                backupData["avatar_hash"]?.let { prefs[KEY_AVATAR_HASH] = it }
-                backupData["seed_color"]?.let { prefs[KEY_SEED_COLOR] = it.toInt() }
-                backupData["app_language"]?.let { prefs[KEY_APP_LANGUAGE] = it }
-                backupData["font_size_scale"]?.let { prefs[KEY_FONT_SIZE_SCALE] = it.toFloat() }
-                backupData["notifications_enabled"]?.let { prefs[KEY_NOTIFICATIONS_ENABLED] = it.toBoolean() }
-                backupData["notification_sound"]?.let { prefs[KEY_NOTIFICATION_SOUND] = it.toBoolean() }
-                backupData["notification_vibrate"]?.let { prefs[KEY_NOTIFICATION_VIBRATE] = it.toBoolean() }
-                backupData["ble_enabled"]?.let { prefs[KEY_BLE_ENABLED] = it.toBoolean() }
-                backupData["transport_mode"]?.let { prefs[KEY_TRANSPORT_MODE] = it }
-            }
-            if (editResult.isFailure) {
-                return Result.failure(editResult.exceptionOrNull() ?: Exception("Failed to import backup"))
-            }
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
     override fun getAppVersion(): String {
         return try {
             val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
