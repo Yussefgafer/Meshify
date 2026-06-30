@@ -396,7 +396,6 @@ fun ChatScreen(
                 MessageList(
                 messages = uiState.messages,
                 isLoading = uiState.isLoading,
-                isLoadingMore = false,
                 selectedMessages = selectedMessages,
                 uploadProgressMap = uploadProgressMap,
                 transportUsed = uiState.transportUsed,
