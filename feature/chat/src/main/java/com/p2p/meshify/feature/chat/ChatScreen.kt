@@ -242,16 +242,6 @@ fun ChatScreen(
             }
     }
 
-    // Lazy loading: load more when user scrolls to top
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex }
-            .collect { firstVisibleIndex ->
-                if (firstVisibleIndex < 5 && uiState.hasMoreMessages && !uiState.isLoadingMore) {
-                    viewModel.loadMoreMessages()
-                }
-            }
-    }
-
     // BackHandler: exit search mode first
     BackHandler(enabled = isSearching) {
         viewModel.stopSearch()
@@ -406,7 +396,7 @@ fun ChatScreen(
                 MessageList(
                 messages = uiState.messages,
                 isLoading = uiState.isLoading,
-                isLoadingMore = uiState.isLoadingMore,
+                isLoadingMore = false,
                 selectedMessages = selectedMessages,
                 uploadProgressMap = uploadProgressMap,
                 transportUsed = uiState.transportUsed,

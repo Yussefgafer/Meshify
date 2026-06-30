@@ -7,7 +7,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.p2p.meshify.core.common.R
-import com.p2p.meshify.core.data.local.entity.ChatEntity
 import com.p2p.meshify.core.data.local.entity.MessageAttachmentEntity
 import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
@@ -29,7 +28,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.milliseconds
 import java.io.File
-import java.util.UUID
 import javax.inject.Inject
 
 /** Debounce interval for search input to avoid excessive DB queries */
@@ -43,11 +41,9 @@ data class ChatUiState(
     val isOnline: Boolean = false,
     val isPeerTyping: Boolean = false,
     val inputText: String = "",
-    val draftText: String = "", // P2-11: Persisted draft text survives config changes
+    val draftText: String = "",
     val replyTo: MessageEntity? = null,
     val stagedAttachments: List<StagedAttachment> = emptyList(),
-    val hasMoreMessages: Boolean = false,
-    val isLoadingMore: Boolean = false,
     val isSending: Boolean = false,
     val sendError: String? = null,
     val uploadError: String? = null,
@@ -77,7 +73,6 @@ class ChatViewModel @Inject constructor(
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     private val stageMutex = Mutex()
-    private val paginationMutex = Mutex()
     
     // Forward dialog state
     private val _forwardDialogState = MutableStateFlow(ForwardDialogState())
@@ -109,43 +104,18 @@ class ChatViewModel @Inject constructor(
 
     private var searchCollectionJob: kotlinx.coroutines.Job? = null
 
-    // Pagination state - using ArrayDeque for O(1) prepend operations
-    private var currentPage = 0
-    private val pageSize = 50
-    private var isAllMessagesLoaded = false
-    private val allMessages = ArrayDeque<MessageEntity>(initialCapacity = 100)
-
-    // ✅ PERF-01: Maximum messages to keep in memory (reduced from 500 to 200)
-    // Reduces memory usage by 5-8MB in long conversations
-    // 200 messages = ~4MB vs 500 messages = ~10MB
-    companion object {
-        private const val MAX_MESSAGES_IN_MEMORY = 200 // Reduced from 500 for better memory efficiency
-    }
-
     // ✅ Double tap protection - prevent sending same message twice
     private var lastSendTime = 0L
     private val sendDebounceMs = 500L // 500ms debounce
 
     init {
-        // Load initial page of messages
-        loadMoreMessages()
-
-        // ✅ FIX: Collect messages flow with distinctUntilChanged to reduce recompositions
-        // This ensures real-time updates when messages are received from the network
         viewModelScope.launch {
             repository.getMessages(peerId)
-                .distinctUntilChanged() // ✅ PF03: Prevent excessive recompositions
+                .distinctUntilChanged()
                 .collect { messages ->
                     Logger.d("ChatViewModel -> Messages updated: ${messages.size} messages for peer $peerId")
-
-                    // ✅ FIX: Only update UI state, don't manipulate allMessages here
-                    // allMessages is only for pagination (loadMoreMessages)
                     _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            messages = messages,
-                            hasMoreMessages = !isAllMessagesLoaded
-                        )
+                        it.copy(isLoading = false, messages = messages)
                     }
                 }
         }
@@ -169,61 +139,6 @@ class ChatViewModel @Inject constructor(
                     }
                     Logger.e("ChatViewModel -> Message send failed: ${event.messageId}")
                 }
-            }
-        }
-    }
-
-    /**
-     * Loads more messages for pagination.
-     * Called initially and when user scrolls to top.
-     */
-    fun loadMoreMessages() {
-        viewModelScope.launch {
-            // Use tryLock to avoid waiting if already loading
-            if (!paginationMutex.tryLock()) return@launch
-
-            try {
-                if (isAllMessagesLoaded || _uiState.value.isLoadingMore) return@launch
-
-                _uiState.update { it.copy(isLoadingMore = true) }
-
-                try {
-                    // ✅ PF04: FIX blocking .first() by using take(1).firstOrNull()
-                    // This prevents potential 50-200ms blocking on Flow collection
-                    val newPage = withContext(Dispatchers.IO) {
-                        repository.getMessagesPaged(peerId, pageSize, currentPage * pageSize)
-                            .take(1)
-                            .firstOrNull()
-                            ?: emptyList()
-                    }
-
-                    if (newPage.isEmpty()) {
-                        isAllMessagesLoaded = true
-                    } else {
-                        // Prepend new messages efficiently using ArrayDeque
-                        allMessages.addAll(0, newPage)
-
-                        // Remove oldest messages if exceeding max to prevent memory leaks
-                        while (allMessages.size > MAX_MESSAGES_IN_MEMORY) {
-                            allMessages.removeLast()
-                        }
-
-                        currentPage++
-                    }
-
-                    _uiState.update {
-                        it.copy(
-                            messages = allMessages.toList(),
-                            hasMoreMessages = !isAllMessagesLoaded,
-                            isLoadingMore = false
-                        )
-                    }
-                } catch (e: Exception) {
-                    Logger.e("ChatViewModel -> Failed to load messages", e)
-                    _uiState.update { it.copy(isLoadingMore = false) }
-                }
-            } finally {
-                paginationMutex.unlock()
             }
         }
     }
