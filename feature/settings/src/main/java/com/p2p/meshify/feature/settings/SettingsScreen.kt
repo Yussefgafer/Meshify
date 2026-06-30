@@ -3,6 +3,7 @@ package com.p2p.meshify.feature.settings
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
@@ -564,6 +565,7 @@ fun SettingsScreen(
             onOptionSelected = { lang ->
                 haptics.perform(HapticPattern.Pop)
                 viewModel.setAppLanguage(lang)
+                (context as? ComponentActivity)?.recreate()
                 showLanguageDialog = false
             },
             onDismiss = { showLanguageDialog = false },
