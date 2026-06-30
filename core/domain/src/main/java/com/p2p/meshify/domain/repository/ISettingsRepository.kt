@@ -47,7 +47,5 @@ interface ISettingsRepository {
     suspend fun setNotificationVibrate(enabled: Boolean)
     suspend fun clearCache()
     suspend fun exportBackup(): Result<String>
-    suspend fun importBackup(backupJson: String): Result<Unit>
-
     fun getAppVersion(): String
 }
