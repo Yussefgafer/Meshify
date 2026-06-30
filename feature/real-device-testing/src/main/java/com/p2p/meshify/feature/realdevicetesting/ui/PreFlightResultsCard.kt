@@ -60,7 +60,7 @@ fun PreFlightResultsCard(
         modifier = modifier
             .fillMaxWidth()
             .animateContentSize(animationSpec = spring(dampingRatio = 0.75f, stiffness = 350f)),
-        shape = MeshifyDesignSystem.Shapes.CardMedium,
+        shape = MeshifyDesignSystem.Shapes.Card,
         colors = CardDefaults.cardColors(
             containerColor = when {
                 isRunning -> MaterialTheme.colorScheme.surfaceContainerLow

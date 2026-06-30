@@ -236,7 +236,7 @@ fun MessageBubble(
                                     // Show placeholder when file is missing
                                     Surface(
                                         color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
-                                        shape = MeshifyDesignSystem.Shapes.CardMedium,
+                                        shape = MeshifyDesignSystem.Shapes.Card,
                                         modifier = Modifier
                                             .sizeIn(maxWidth = 260.dp, maxHeight = 120.dp)
                                             .padding(vertical = 8.dp)

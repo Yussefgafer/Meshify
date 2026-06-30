@@ -2,11 +2,6 @@ package com.p2p.meshify.feature.onboarding
 
 import android.Manifest
 import android.os.Build
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -28,7 +23,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -76,7 +70,7 @@ fun WelcomeScreen(
             HorizontalPager(state = pagerState, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = MeshifyDesignSystem.Spacing.Md)) { page ->
                 Box(modifier = Modifier.fillMaxSize()) {
                     when (page) {
-                        0 -> WelcomePage(currentLang = currentLang, onLangSelected = { onLangChange(it) }, modifier = Modifier.fillMaxSize())
+                        0 -> WelcomePage(modifier = Modifier.fillMaxSize())
                         1 -> HowItWorksPage(modifier = Modifier.fillMaxSize())
                         2 -> PermissionsOverviewPage(permissions = PermissionDefinitions.getPermissions(), permissionStatuses = permissionStatuses, modifier = Modifier.fillMaxSize())
                     }
@@ -152,11 +146,10 @@ private fun BottomNav(currentPage: Int, totalPages: Int, isAnimating: Boolean, o
 fun PermissionRequestCard(permission: PermissionInfo, onAllowClick: () -> Unit, onDenyClick: () -> Unit, onRequestDismiss: () -> Unit, modifier: Modifier = Modifier) {
     val haptics = LocalPremiumHaptics.current
 
-    AnimatedVisibility(visible = true, enter = slideInVertically(initialOffsetY = { it }) + fadeIn(), exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()) {
-        Box(
-            modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.4f))
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onRequestDismiss)
-        ) {
+    Box(
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.4f))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onRequestDismiss)
+    ) {
             Surface(
                 modifier = modifier.fillMaxWidth(0.92f).align(Alignment.BottomCenter).padding(bottom = MeshifyDesignSystem.Spacing.Xl),
                 shape = MeshifyDesignSystem.Shapes.Dialog, color = MaterialTheme.colorScheme.surfaceContainerHigh, tonalElevation = 8.dp
@@ -205,7 +198,6 @@ fun PermissionRequestCard(permission: PermissionInfo, onAllowClick: () -> Unit, 
             }
         }
     }
-}
 
 @Composable
 private fun InfoSection(titleRes: Int, pointsRes: List<Int>, iconTint: Color, modifier: Modifier = Modifier) {
@@ -231,17 +223,15 @@ fun PermissionResultCard(permission: PermissionInfo, result: PermissionRequestRe
         PermissionRequestResult.DeniedPermanently -> Triple(Icons.Default.Warning, MaterialTheme.colorScheme.error, R.string.ob_perm_denied_permanent)
     }
 
-    AnimatedVisibility(visible = true, enter = fadeIn(), exit = fadeOut()) {
-        Surface(modifier = modifier.fillMaxWidth(0.92f), shape = MeshifyDesignSystem.Shapes.Dialog, color = MaterialTheme.colorScheme.surfaceContainerHigh, tonalElevation = 4.dp) {
-            Row(modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Lg), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Lg)) {
-                Box(modifier = Modifier.size(64.dp).background(iconTint.copy(alpha = 0.1f), shape = MeshifyDesignSystem.Shapes.IconContainer), contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, modifier = Modifier.size(MeshifyDesignSystem.IconSizes.XXL), tint = iconTint)
-                }
+    Surface(modifier = modifier.fillMaxWidth(0.92f), shape = MeshifyDesignSystem.Shapes.Dialog, color = MaterialTheme.colorScheme.surfaceContainerHigh, tonalElevation = 4.dp) {
+        Row(modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Lg), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Lg)) {
+            Box(modifier = Modifier.size(64.dp).background(iconTint.copy(alpha = 0.1f), shape = MeshifyDesignSystem.Shapes.IconContainer), contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(MeshifyDesignSystem.IconSizes.XXL), tint = iconTint)
+            }
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = stringResource(permission.labelRes), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                    Text(text = stringResource(statusText), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = iconTint)
-                }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = stringResource(permission.labelRes), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                Text(text = stringResource(statusText), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = iconTint)
             }
         }
     }

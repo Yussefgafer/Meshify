@@ -189,7 +189,7 @@ fun OobVerificationDialog(
                 Text(stringResource(R.string.dialog_btn_cancel))
             }
         },
-        shape = MeshifyDesignSystem.DialogShapes.Default
+        shape = MeshifyDesignSystem.Shapes.Dialog
     )
 }
 

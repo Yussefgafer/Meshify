@@ -15,7 +15,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -25,8 +24,6 @@ import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
 
 @Composable
 fun WelcomePage(
-    currentLang: String,
-    onLangSelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -48,39 +45,6 @@ fun WelcomePage(
         Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Md))
 
         Text(text = stringResource(R.string.ob_welcome_desc), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
-
-        Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Xxl))
-
-        LanguageToggle(currentLang = currentLang, onLangSelected = onLangSelected)
-    }
-}
-
-@Composable
-private fun LanguageToggle(currentLang: String, onLangSelected: (String) -> Unit) {
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-        shape = MeshifyDesignSystem.Shapes.CardMedium,
-        modifier = Modifier.height(56.dp).width(220.dp)
-    ) {
-        Row(modifier = Modifier.fillMaxSize().padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            LanguageOption(label = stringResource(R.string.ob_lang_en), isSelected = currentLang == "en", onClick = { if (currentLang != "en") onLangSelected("en") }, modifier = Modifier.weight(1f))
-            LanguageOption(label = stringResource(R.string.ob_lang_ar), isSelected = currentLang == "ar", onClick = { if (currentLang != "ar") onLangSelected("ar") }, modifier = Modifier.weight(1f))
-        }
-    }
-}
-
-@Composable
-private fun LanguageOption(label: String, isSelected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Surface(
-        onClick = onClick,
-        color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-        contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-        shape = MeshifyDesignSystem.Shapes.CardSmall,
-        modifier = modifier.fillMaxHeight()
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Text(text = label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-        }
     }
 }
 
@@ -114,7 +78,7 @@ fun HowItWorksPage(modifier: Modifier = Modifier) {
 private fun StepCard(stepNumber: Int, titleRes: Int, descRes: Int, icon: ImageVector, modifier: Modifier = Modifier) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = MeshifyDesignSystem.Shapes.CardMedium,
+        shape = MeshifyDesignSystem.Shapes.Card,
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
     ) {
         Row(modifier = Modifier.fillMaxWidth().padding(MeshifyDesignSystem.Spacing.Md), horizontalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Md), verticalAlignment = Alignment.CenterVertically) {
@@ -157,7 +121,7 @@ fun PermissionsOverviewPage(permissions: List<PermissionInfo>, permissionStatuse
 
         Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Xl))
 
-        Surface(modifier = Modifier.fillMaxWidth(), shape = MeshifyDesignSystem.Shapes.CardMedium, color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)) {
+        Surface(modifier = Modifier.fillMaxWidth(), shape = MeshifyDesignSystem.Shapes.Card, color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)) {
             Column(modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Md), verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Md)) {
                 permissions.forEach { perm ->
                     PermissionRow(perm.iconType, perm.labelRes, perm.importanceLabelRes, permissionStatuses[perm.id] ?: PermissionStatus.NotAsked, perm.isRequired)

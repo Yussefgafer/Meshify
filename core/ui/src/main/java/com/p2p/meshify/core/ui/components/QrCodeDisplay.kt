@@ -55,7 +55,7 @@ fun QrCodeDisplay(
         Surface(
             modifier = Modifier.size(240.dp),
             color = MaterialTheme.colorScheme.surface,
-            shape = MeshifyDesignSystem.Shapes.CardMedium,
+            shape = MeshifyDesignSystem.Shapes.Card,
             tonalElevation = MeshifyDesignSystem.Elevation.Level2
         ) {
             Box(contentAlignment = Alignment.Center) {
