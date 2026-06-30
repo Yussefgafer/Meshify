@@ -2,6 +2,7 @@ package com.p2p.meshify
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -59,6 +60,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -118,11 +120,23 @@ class MainActivity : ComponentActivity() {
         onboardingPermissionLauncher.launch(permissions.toTypedArray())
     }
 
+    private fun applyLocale(language: String) {
+        val locale = java.util.Locale.forLanguageTag(language)
+        java.util.Locale.setDefault(locale)
+        val config = Configuration(resources.configuration)
+        config.setLocale(locale)
+        resources.updateConfiguration(config, resources.displayMetrics)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         val app = application as MeshifyApp
+
+        // Apply stored locale before setContent so strings render in the right language
+        val lang = runBlocking { app.settingsRepository.appLanguage.first() }
+        applyLocale(lang)
 
         // Only request permissions immediately if onboarding was already completed.
         // Otherwise, permissions will be requested after the onboarding flow.
@@ -396,7 +410,7 @@ private fun OnboardingRoute(
     val context = LocalContext.current
 
     // Language: "en" or "ar"
-    var currentLang by remember { mutableStateOf("en") }
+    val currentLang by settingsRepository.appLanguage.collectAsState(initial = "en")
 
     // Permission flow state
     var isPermissionFlowActive by remember { mutableStateOf(false) }
@@ -438,7 +452,10 @@ private fun OnboardingRoute(
             viewModel = onboardingViewModel,
             currentLang = currentLang,
             onLangChange = { newLang ->
-                currentLang = newLang
+                scope.launch {
+                    settingsRepository.setAppLanguage(newLang)
+                    activity.recreate()
+                }
             },
             permissionStatuses = permissions.associate { 
                 val res = permissionResults[it.id]
