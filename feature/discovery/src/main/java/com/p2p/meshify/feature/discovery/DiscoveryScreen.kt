@@ -127,7 +127,7 @@ fun DiscoveryScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(4.dp)
-                                .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)),
+                                .clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)),
                             color = MaterialTheme.colorScheme.primary,
                             trackColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
                         )
@@ -321,7 +321,7 @@ private fun SignalStrengthIndicator(signalStrength: SignalStrength) {
                     .background(
                         if (index < bars) color
                         else color.copy(alpha = 0.2f),
-                        RoundedCornerShape(2.dp)
+                        MeshifyDesignSystem.Shapes.Pill
                     )
             )
         }

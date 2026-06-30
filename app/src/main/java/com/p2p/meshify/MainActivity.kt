@@ -433,86 +433,86 @@ private fun OnboardingRoute(
         }
     }
 
-    // WelcomeScreen
-    WelcomeScreen(
-        viewModel = onboardingViewModel,
-        currentLang = currentLang,
-        onLangChange = { newLang ->
-            currentLang = newLang
-        },
-        permissionStatuses = permissions.associate { 
-            val res = permissionResults[it.id]
-            it.id to when (res) {
-                PermissionRequestResult.Granted -> PermissionStatus.Granted
-                PermissionRequestResult.Denied -> PermissionStatus.Denied
-                PermissionRequestResult.DeniedPermanently -> PermissionStatus.DeniedPermanently
-                else -> PermissionStatus.NotAsked
-            }
-        },
-        onNextClick = {
-            // Page 3 "Get Started" → start permission flow
-            isPermissionFlowActive = true
-            currentPermissionIndex = 0
-            onboardingViewModel.startPermissionFlow()
-        },
-        onSkipClick = {
-            if (isPermissionFlowActive) {
-                showSkipConfirm = true
-            } else {
-                scope.launch {
-                    settingsRepository.setOnboardingCompleted()
+    Box(modifier = Modifier.fillMaxSize()) {
+        WelcomeScreen(
+            viewModel = onboardingViewModel,
+            currentLang = currentLang,
+            onLangChange = { newLang ->
+                currentLang = newLang
+            },
+            permissionStatuses = permissions.associate { 
+                val res = permissionResults[it.id]
+                it.id to when (res) {
+                    PermissionRequestResult.Granted -> PermissionStatus.Granted
+                    PermissionRequestResult.Denied -> PermissionStatus.Denied
+                    PermissionRequestResult.DeniedPermanently -> PermissionStatus.DeniedPermanently
+                    else -> PermissionStatus.NotAsked
                 }
-                onNavigateToHome()
+            },
+            onNextClick = {
+                // Page 3 "Get Started" → start permission flow
+                isPermissionFlowActive = true
+                currentPermissionIndex = 0
+                onboardingViewModel.startPermissionFlow()
+            },
+            onSkipClick = {
+                if (isPermissionFlowActive) {
+                    showSkipConfirm = true
+                } else {
+                    scope.launch {
+                        settingsRepository.setOnboardingCompleted()
+                    }
+                    onNavigateToHome()
+                }
+            }
+        )
+
+        // Permission flow: show cards one by one
+        if (isPermissionFlowActive && currentPermissionIndex < permissions.size) {
+            val perm = permissions[currentPermissionIndex]
+
+            // Check if already granted
+            val alreadyGranted = perm.androidPermissions.all { pid ->
+                android.content.pm.PackageManager.PERMISSION_GRANTED ==
+                    context.checkSelfPermission(pid)
+            }
+
+            if (alreadyGranted) {
+                LaunchedEffect(perm.id) {
+                    permissionResults[perm.id] = PermissionRequestResult.Granted
+                    advanceTrigger++
+                }
+            } else {
+                PermissionRequestCard(
+                    permission = perm,
+                    onAllowClick = {
+                        onRequestPermissions(perm.androidPermissions)
+                    },
+                    onDenyClick = {
+                        permissionResults[perm.id] = PermissionRequestResult.Denied
+                        advanceTrigger++
+                    },
+                    onRequestDismiss = {
+                        isPermissionFlowActive = false
+                        showSummaryDialog = true
+                    }
+                )
             }
         }
-    )
 
-    // Auto-advance after permission result
-    LaunchedEffect(advanceTrigger) {
-        if (advanceTrigger > 0) {
-            kotlinx.coroutines.delay(PERMISSION_EXIT_ANIMATION_DELAY_MS)
-            if (currentPermissionIndex < permissions.size) {
-                currentPermissionIndex++
-            }
-            // If we reached the end, show summary
-            if (currentPermissionIndex >= permissions.size) {
-                isPermissionFlowActive = false
-                showSummaryDialog = true
-            }
-        }
-    }
-
-    // Permission flow: show cards one by one
-    if (isPermissionFlowActive && currentPermissionIndex < permissions.size) {
-        val perm = permissions[currentPermissionIndex]
-
-        // Check if already granted
-        val alreadyGranted = perm.androidPermissions.all { pid ->
-            android.content.pm.PackageManager.PERMISSION_GRANTED ==
-                context.checkSelfPermission(pid)
-        }
-
-        if (alreadyGranted) {
-            LaunchedEffect(perm.id) {
-                permissionResults[perm.id] = PermissionRequestResult.Granted
-                advanceTrigger++
-                // The LaunchedEffect(advanceTrigger) will handle the index increment after a delay
-            }
-        } else {
-            PermissionRequestCard(
-                permission = perm,
-                onAllowClick = {
-                    onRequestPermissions(perm.androidPermissions)
-                },
-                onDenyClick = {
-                    permissionResults[perm.id] = PermissionRequestResult.Denied
-                    advanceTrigger++ // Use trigger instead of direct increment to ensure consistency
-                },
-                onRequestDismiss = {
+        // Auto-advance after permission result
+        LaunchedEffect(advanceTrigger) {
+            if (advanceTrigger > 0) {
+                kotlinx.coroutines.delay(PERMISSION_EXIT_ANIMATION_DELAY_MS)
+                if (currentPermissionIndex < permissions.size) {
+                    currentPermissionIndex++
+                }
+                // If we reached the end, show summary
+                if (currentPermissionIndex >= permissions.size) {
                     isPermissionFlowActive = false
                     showSummaryDialog = true
                 }
-            )
+            }
         }
     }
 

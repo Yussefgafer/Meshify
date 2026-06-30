@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.Bluetooth
@@ -166,7 +165,7 @@ fun MessageBubble(
                         if (message.replyToId != null) {
                             Surface(
                                 color = contentColor.copy(alpha = 0.08f),
-                                shape = RoundedCornerShape(10.dp),
+                                shape = MeshifyDesignSystem.Shapes.CardSmall,
                                 modifier = Modifier.padding(bottom = 6.dp)
                             ) {
                                 Text(
@@ -237,7 +236,7 @@ fun MessageBubble(
                                     // Show placeholder when file is missing
                                     Surface(
                                         color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
-                                        shape = RoundedCornerShape(12.dp),
+                                        shape = MeshifyDesignSystem.Shapes.CardMedium,
                                         modifier = Modifier
                                             .sizeIn(maxWidth = 260.dp, maxHeight = 120.dp)
                                             .padding(vertical = 8.dp)

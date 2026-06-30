@@ -18,14 +18,16 @@ object MeshifyDesignSystem {
     }
 
     object Shapes {
-        val Card = RoundedCornerShape(0.dp)
-        val CardLarge = RoundedCornerShape(0.dp)
-        val CardMedium = RoundedCornerShape(0.dp)
-        val CardSmall = RoundedCornerShape(0.dp)
-        val Button = RoundedCornerShape(0.dp)
-        val Input = RoundedCornerShape(0.dp)
-        val Pill = RoundedCornerShape(0.dp)
-        val Avatar = RoundedCornerShape(0.dp)
+        val Card = RoundedCornerShape(12.dp)
+        val CardLarge = RoundedCornerShape(16.dp)
+        val CardMedium = RoundedCornerShape(12.dp)
+        val CardSmall = RoundedCornerShape(8.dp)
+        val Button = RoundedCornerShape(10.dp)
+        val Input = RoundedCornerShape(8.dp)
+        val Pill = RoundedCornerShape(8.dp)
+        val Avatar = RoundedCornerShape(8.dp)
+        val IconContainer = RoundedCornerShape(12.dp)
+        val Dialog = RoundedCornerShape(16.dp)
     }
 
     object IconSizes {
@@ -45,9 +47,9 @@ object MeshifyDesignSystem {
     }
 
     object DialogShapes {
-        val Default = RoundedCornerShape(0.dp)
-        val Small = RoundedCornerShape(0.dp)
-        val Medium = RoundedCornerShape(0.dp)
+        val Default = RoundedCornerShape(16.dp)
+        val Small = RoundedCornerShape(12.dp)
+        val Medium = RoundedCornerShape(16.dp)
     }
 
     object SeedColorPresets {
