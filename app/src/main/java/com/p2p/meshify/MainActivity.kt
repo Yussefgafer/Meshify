@@ -453,7 +453,6 @@ private fun OnboardingRoute(
                 // Page 3 "Get Started" → start permission flow
                 isPermissionFlowActive = true
                 currentPermissionIndex = 0
-                onboardingViewModel.startPermissionFlow()
             },
             onSkipClick = {
                 if (isPermissionFlowActive) {

@@ -74,8 +74,6 @@
     <string name="ob_summary_partial">Some permissions were denied. You can change them in Settings anytime.</string>
     <string name="ob_summary_all_granted">All permissions granted</string>
     <string name="ob_summary_count">%1$d of %2$d granted</string>
-    <string name="ob_summary_view_details">View details</string>
-    <string name="ob_summary_hide_details">Hide details</string>
     <string name="ob_summary_start">Start Meshify</string>
 
     <!-- Skip confirmation -->

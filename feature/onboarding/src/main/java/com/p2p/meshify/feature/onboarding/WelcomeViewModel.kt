@@ -42,20 +42,4 @@ class WelcomeViewModel @Inject constructor() : ViewModel() {
     fun toggleLangMenu() {
         _uiState.update { it.copy(isLangMenuOpen = !it.isLangMenuOpen) }
     }
-
-    fun startPermissionFlow() {
-        _uiState.update { it.copy(isPermissionFlowActive = true, isAnimating = true) }
-        viewModelScope.launch {
-            delay(200)
-            _uiState.update { it.copy(isAnimating = false) }
-        }
-    }
-
-    fun showSummary() {
-        _uiState.update { it.copy(isPermissionFlowActive = false, isSummaryVisible = true) }
-    }
-
-    fun dismissSummary() {
-        _uiState.update { it.copy(isSummaryVisible = false) }
-    }
 }

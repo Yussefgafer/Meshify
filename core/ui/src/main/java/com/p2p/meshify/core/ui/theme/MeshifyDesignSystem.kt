@@ -20,7 +20,6 @@ object MeshifyDesignSystem {
     object Shapes {
         val Card = RoundedCornerShape(12.dp)
         val CardLarge = RoundedCornerShape(16.dp)
-        val CardMedium = RoundedCornerShape(12.dp)
         val CardSmall = RoundedCornerShape(8.dp)
         val Button = RoundedCornerShape(10.dp)
         val Input = RoundedCornerShape(8.dp)
@@ -46,14 +45,8 @@ object MeshifyDesignSystem {
         val XXL = 120.dp
     }
 
-    object DialogShapes {
-        val Default = RoundedCornerShape(16.dp)
-        val Small = RoundedCornerShape(12.dp)
-        val Medium = RoundedCornerShape(16.dp)
-    }
-
     object SeedColorPresets {
-        val Teal = Color(0xFF008080)
+        val Teal = Color(0xFF006D68)
         val Blue = Color(0xFF0000FF)
         val Purple = Color(0xFF800080)
         val Pink = Color(0xFFFFC0CB)
