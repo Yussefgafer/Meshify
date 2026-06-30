@@ -25,13 +25,10 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
 import com.p2p.meshify.core.util.Logger
-import com.p2p.meshify.domain.model.FontFamilyPreset
-import com.p2p.meshify.domain.model.MotionPreset
+
 import com.p2p.meshify.service.MeshForegroundService
-import com.p2p.meshify.core.ui.components.PremiumNoiseTexture
 import com.p2p.meshify.core.ui.navigation.MeshifyNavHost
 import com.p2p.meshify.core.ui.navigation.Screen
-import com.p2p.meshify.core.ui.theme.MD3EFontFamilies
 import com.p2p.meshify.core.ui.theme.MeshifyTheme
 import com.p2p.meshify.core.ui.hooks.rememberPremiumHaptics
 import com.p2p.meshify.core.ui.hooks.LocalPremiumHaptics
@@ -150,12 +147,6 @@ class MainActivity : ComponentActivity() {
             val settingsRepo = app.settingsRepository
             val themeMode by settingsRepo.themeMode.collectAsState(initial = com.p2p.meshify.domain.repository.ThemeMode.SYSTEM)
             val dynamicColor by settingsRepo.dynamicColorEnabled.collectAsState(initial = true)
-            val motionPreset by settingsRepo.motionPreset.collectAsState(initial = MotionPreset.STANDARD)
-            val motionScale by settingsRepo.motionScale.collectAsState(initial = 1.0f)
-            val fontFamilyPreset by settingsRepo.fontFamilyPreset.collectAsState(initial = FontFamilyPreset.ROBOTO)
-            val shapeStyle by settingsRepo.shapeStyle.collectAsState(initial = com.p2p.meshify.domain.model.ShapeStyle.CIRCLE)
-            val bubbleStyle by settingsRepo.bubbleStyle.collectAsState(initial = com.p2p.meshify.domain.model.BubbleStyle.ROUNDED)
-            val visualDensity by settingsRepo.visualDensity.collectAsState(initial = 1.0f)
             val seedColorInt by settingsRepo.seedColor.collectAsState(initial = 0xFF006D68.toInt())
 
             var isReady by remember { mutableStateOf(false) }
@@ -185,12 +176,6 @@ class MainActivity : ComponentActivity() {
             MeshifyTheme(
                 themeMode = themeMode.name,
                 dynamicColor = dynamicColor,
-                motionPreset = motionPreset,
-                motionScale = motionScale,
-                fontFamily = MD3EFontFamilies.getFontFamily(fontFamilyPreset),
-                shapeStyle = shapeStyle,
-                bubbleStyle = bubbleStyle,
-                visualDensity = visualDensity,
                 seedColor = seedColor
             ) {
                 CompositionLocalProvider(LocalPremiumHaptics provides premiumHaptics) {
@@ -213,9 +198,6 @@ class MainActivity : ComponentActivity() {
                         Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
                     } else {
                         Box(modifier = Modifier.fillMaxSize()) {
-                            // High-end tactile feel
-                            PremiumNoiseTexture(alpha = 0.03f)
-
                             Surface(
                                 modifier = Modifier.fillMaxSize(),
                                 color = Color.Transparent

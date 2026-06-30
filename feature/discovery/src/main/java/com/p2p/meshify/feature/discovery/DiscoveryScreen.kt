@@ -42,7 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.p2p.meshify.core.common.R
-import com.p2p.meshify.core.ui.components.*
+import com.p2p.meshify.core.ui.components.MeshifyAvatar
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
 import com.p2p.meshify.domain.model.PeerDevice
 import com.p2p.meshify.domain.model.SignalStrength
@@ -198,9 +198,8 @@ private fun PeerListItem(
                 .padding(MeshifyDesignSystem.Spacing.Md),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            MorphingAvatar(
-                initials = peer.name.take(1),
-                isOnline = true,
+            MeshifyAvatar(
+                initials = peer.name.take(2),
                 size = 48.dp
             )
 

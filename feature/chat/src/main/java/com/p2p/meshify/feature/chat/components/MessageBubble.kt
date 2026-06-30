@@ -113,7 +113,6 @@ fun MessageBubble(
     message: MessageEntity,
     attachments: List<MessageAttachmentEntity>,
     peerName: String,
-    bubbleStyle: com.p2p.meshify.domain.model.BubbleStyle,
     isSelected: Boolean = false,
     uploadProgress: Int? = null,
     transportType: TransportType? = null,
@@ -126,8 +125,8 @@ fun MessageBubble(
     val containerColor = if (message.isFromMe) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer
     val contentColor = if (message.isFromMe) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
 
-    // Professional Chat Bubble Shape from Design System
-    val bubbleShape = if (message.isFromMe) MeshifyDesignSystem.Shapes.BubbleMe else MeshifyDesignSystem.Shapes.BubblePeer
+    // Square chat bubble shape
+    val bubbleShape = MeshifyDesignSystem.Shapes.Card
 
     Column(
         modifier = Modifier

@@ -251,34 +251,29 @@ All of the following have been permanently removed:
 ## UI/UX CONVENTIONS
 
 ### Material 3
-- Uses `androidx.compose.material3:material3:1.4.0-alpha10`
-- Opt-in: `@OptIn(ExperimentalMaterial3ExpressiveApi::class)`
-- Motion presets: Gentle, Standard, Snappy, Bouncy
+- Uses `androidx.compose.material3:material3` (via BOM 2026.02.00)
+- Standard Material 3 (no Expressive API / MD3E)
 
 ### Theme System
 - **Modes**: Light, Dark, System
 - **Dynamic Colors**: Material You support
 - **Custom Seed Colors**: User-selectable accent colors
 - **Persistence**: Stored via DataStore
+- **Square shapes**: All components use `RoundedCornerShape(0.dp)` (sharp squares)
 
 ### Localization
 - **Languages**: English, Arabic
 - **RTL Support**: Full right-to-left layout support
 - **String Resources**: All UI strings in `strings.xml`
-- **Google Fonts**: For typography
 
-## UI/UX CONVENTIONS (FIDGET TOY PHILOSOPHY)
-
-### Core Philosophy
-- **The "Fidget Toy" Feel:** Every user interaction MUST have an immediate, satisfying, and physically plausible reaction. The app should feel alive, tactile, and playful.
-- **Zero Latency Illusion:** Since the app is offline-first, UI updates must be instant. Never block UI animations waiting for background tasks.
+## UI/UX CONVENTIONS
 
 ### Design Language & Shapes
-- **Standard:** Material You 3 Expressive (M3E) / Android 16 design language.
-- **Strict Shape Rules:**
-  - **NEVER** use perfect `CircleShape` or hard sharp corners.
-  - **ALWAYS** use **Squircles** or highly rounded squares (e.g., `RoundedCornerShape(24.dp)` or `28.dp` for large elements, `16.dp` for smaller ones).
-  - **Shape Morphing:** Interactive elements MUST animate their corner radius or border thickness on press/hover (e.g., a button morphs from `24.dp` to `32.dp` when pressed down).
+- **Square/minimal**: Sharp corners (`RoundedCornerShape(0.dp)`) for all surfaces, avatars, dialogs
+- **No shape morphing**: Removed `RoundedPolygon`, `Morph`, `MorphingAvatar`, `AnimatedMorphingFAB`
+- **Simple avatars**: `MeshifyAvatar` with square shape, online indicator as small square dot
+- **Standard FAB**: `FloatingActionButton` instead of `AnimatedMorphingFAB`
+- **No PremiumNoiseTexture**: Removed (was invisible black overlay)
 
 ---
 
@@ -347,5 +342,44 @@ All of the following have been permanently removed:
 | `app/build.gradle.kts` | App-level build config (signing, features) |
 | `app/proguard-rules.pro` | R8/ProGuard rules |
 | `app/src/main/AndroidManifest.xml` | Android manifest (permissions, components) |
+
+---
+
+## CHANGE LOG
+
+### 2026-06-30 — UI Refactor (Ponytail)
+**Branch**: `refactor/ui-cleanup`
+
+**Deleted files:**
+- `core/ui/theme/MD3ETheme.kt` — MotionSpecs, MD3EShapes, MotionDurations (RoundedPolygon morphing)
+- `core/ui/theme/Font.kt` — 6 font presets all mapped to `FontFamily.SansSerif` (dead code)
+
+**Simplified domain models (single-value enums):**
+- `ShapeStyle.SQUARE` only (removed SUNNY, BREEZY, PENTAGON, BLOB, BURST, CLOVER, CIRCLE)
+- `MotionPreset.STANDARD` only (removed GENTLE, SNAPPY, BOUNCY)
+- `FontFamilyPreset.ROBOTO` only (removed POPPINS, LORA, MONTSERRAT, PLAYFAIR, INTER)
+- `BubbleStyle.ROUNDED` only (removed TAILED, SQUARCLES, ORGANIC)
+
+**Replaced components:**
+- `MorphingAvatar` → `MeshifyAvatar` (square, no RoundedPolygon)
+- `AnimatedMorphingFAB` → standard `FloatingActionButton`
+- `ExpressivePulseHeader` → `MeshifyAvatar`
+- `PremiumNoiseTexture` → removed from all screens
+
+**Design system:**
+- Merged `MeshifyThemeProperties` into `MeshifyDesignSystem`
+- All shapes: `RoundedCornerShape(0.dp)` (square)
+- Removed `MeshifyDesignSystem.Motion`
+- Removed `ChatBubbleShapes` / `getBubbleShape`
+
+**Cleaned up:**
+- Settings screen: 1024 → ~760 lines (removed 4 MD3E dialogs)
+- SettingsViewModel: 292 → ~178 lines (removed 8+ dead flows)
+- SettingsRepository: 497 → ~340 lines (removed MD3E keys)
+- ISettingsRepository: 98 → ~62 lines
+- MainActivity: 570 → ~490 lines
+- `Theme.kt` simplified (no motion, font, shape, bubble params)
+- Removed `SignalStrength.getShapePair()` / `getMorphDuration()`
+- Removed `getTypography()` from Type.kt
 
 

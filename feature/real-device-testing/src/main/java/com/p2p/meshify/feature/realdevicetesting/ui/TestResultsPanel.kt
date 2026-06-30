@@ -1,6 +1,7 @@
 package com.p2p.meshify.feature.realdevicetesting.ui
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -251,14 +252,14 @@ private fun ResultItem(
     var expanded by remember { mutableStateOf(result.error != null) }
     val rotation by animateFloatAsState(
         targetValue = if (expanded) 90f else 0f,
-        animationSpec = MeshifyDesignSystem.Motion.expressiveSpring(),
+        animationSpec = spring(dampingRatio = 0.75f, stiffness = 350f),
         label = "result_rotation"
     )
 
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .animateContentSize(animationSpec = MeshifyDesignSystem.Motion.expressiveSpring()),
+            .animateContentSize(animationSpec = spring(dampingRatio = 0.75f, stiffness = 350f)),
         shape = MeshifyDesignSystem.Shapes.CardSmall,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh

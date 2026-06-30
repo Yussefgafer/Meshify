@@ -68,7 +68,6 @@ import com.p2p.meshify.core.ui.components.FullImageViewer
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
 import com.p2p.meshify.core.ui.hooks.HapticPattern
 import com.p2p.meshify.core.ui.hooks.LocalPremiumHaptics
-import com.p2p.meshify.core.ui.theme.LocalMeshifyThemeConfig
 import com.p2p.meshify.domain.model.DeleteType
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.feature.chat.components.BackConfirmationDialog
@@ -132,7 +131,6 @@ fun ChatScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
     val listState = rememberLazyListState()
-    val themeConfig = LocalMeshifyThemeConfig.current
     val clipboard = LocalClipboardManager.current
     var menuMessage by remember { mutableStateOf<MessageEntity?>(null) }
     var selectedFullImage by remember { mutableStateOf<String?>(null) }
@@ -414,7 +412,6 @@ fun ChatScreen(
                 uploadProgressMap = uploadProgressMap,
                 transportUsed = uiState.transportUsed,
                 peerName = peerName,
-                bubbleStyle = themeConfig.bubbleStyle,
                 listState = listState,
                 getAttachmentsForGroupId = viewModel::getAttachmentsForMessage,
                 onLongClick = { message ->

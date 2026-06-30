@@ -37,7 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
-import com.p2p.meshify.core.ui.components.PremiumNoiseTexture
+
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -96,9 +96,6 @@ fun WelcomeScreen(
         // Dynamic immersive background
         OnboardingBackground(currentPage = uiState.currentPage)
         
-        // Noise texture for tactile feel
-        PremiumNoiseTexture(alpha = 0.04f)
-
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             // Top bar: Language chip + Skip
             TopBar(

@@ -624,9 +624,8 @@ private fun ForwardPeerItem(
             )
             
             // Avatar
-            MorphingAvatar(
-                initials = name.take(1),
-                isOnline = isOnline,
+            MeshifyAvatar(
+                initials = name.take(2),
                 size = 44.dp
             )
             
