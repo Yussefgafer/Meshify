@@ -39,7 +39,6 @@ data class ChatUiState(
     val isLoading: Boolean = true,
     val messages: List<MessageEntity> = emptyList(),
     val isOnline: Boolean = false,
-    val isPeerTyping: Boolean = false,
     val inputText: String = "",
     val draftText: String = "",
     val replyTo: MessageEntity? = null,
