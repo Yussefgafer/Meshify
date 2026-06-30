@@ -42,5 +42,8 @@ Rev.md
 .DS_Store
 Thumbs.db
 MESHIFY_KEYSTORE_BASE64.txt
+.agents
+AGENT.md
+*.salive
 
 gha-creds-*.json

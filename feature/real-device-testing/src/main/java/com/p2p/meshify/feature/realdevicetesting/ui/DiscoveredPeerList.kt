@@ -1,6 +1,7 @@
 package com.p2p.meshify.feature.realdevicetesting.ui
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -136,7 +137,7 @@ private fun PeerListItem(
         } else {
             MaterialTheme.colorScheme.surfaceContainerHigh
         },
-        animationSpec = MeshifyDesignSystem.Motion.expressiveSpring(),
+        animationSpec = spring(dampingRatio = 0.75f, stiffness = 350f),
         label = "peer_background"
     )
 
@@ -146,7 +147,7 @@ private fun PeerListItem(
         } else {
             Color.Transparent
         },
-        animationSpec = MeshifyDesignSystem.Motion.expressiveSpring(),
+        animationSpec = spring(dampingRatio = 0.75f, stiffness = 350f),
         label = "peer_border"
     )
 
