@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
-import com.p2p.meshify.core.data.local.entity.MessageAttachmentEntity
+import com.p2p.meshify.core.ui.model.AttachmentUiModel
 import com.p2p.meshify.domain.model.MessageType
 import java.io.File
 
@@ -48,7 +48,7 @@ import java.io.File
  */
 @Composable
 fun AlbumMediaGrid(
-    attachments: List<MessageAttachmentEntity>,
+    attachments: List<AttachmentUiModel>,
     caption: String?,
     onImageClick: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -103,7 +103,7 @@ fun AlbumMediaGrid(
  */
 @Composable
 private fun AlbumMediaItem(
-    attachment: MessageAttachmentEntity,
+    attachment: AttachmentUiModel,
     onClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {

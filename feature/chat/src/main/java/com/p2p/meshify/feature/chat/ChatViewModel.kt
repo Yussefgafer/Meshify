@@ -16,6 +16,7 @@ import com.p2p.meshify.domain.model.DeleteType
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.model.TransportType
 import com.p2p.meshify.domain.security.model.SecurityEvent
+import com.p2p.meshify.core.ui.model.MessageUiModel
 import com.p2p.meshify.core.ui.model.StagedAttachment
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -34,6 +35,9 @@ import javax.inject.Inject
 private const val SEARCH_DEBOUNCE_MS = 300L
 
 private const val ATTACHMENT_CACHE_MAX_SIZE = 200
+
+/** Maximum number of transport type entries to keep in state map */
+private const val TRANSPORT_HISTORY_MAX_SIZE = 100
 
 data class ChatUiState(
     val isLoading: Boolean = true,
@@ -200,9 +204,13 @@ class ChatViewModel @Inject constructor(
                 val lastSentMessage = currentMessages.lastOrNull { it.isFromMe }
                 if (lastSentMessage != null) {
                     _uiState.update { currentState ->
-                        currentState.copy(
-                            transportUsed = currentState.transportUsed + (lastSentMessage.id to transportType)
-                        )
+                        val updated = currentState.transportUsed + (lastSentMessage.id to transportType)
+                        // Cap map size to prevent unbounded growth
+                        val capped = if (updated.size > TRANSPORT_HISTORY_MAX_SIZE) {
+                            // Keep only the most recent entries by dropping oldest
+                            updated.toList().takeLast(TRANSPORT_HISTORY_MAX_SIZE).toMap()
+                        } else updated
+                        currentState.copy(transportUsed = capped)
                     }
                 }
             } catch (e: Exception) {
@@ -351,6 +359,8 @@ class ChatViewModel @Inject constructor(
     fun deleteMessage(messageId: String, deleteType: DeleteType) {
         viewModelScope.launch {
             repository.deleteMessage(messageId, deleteType)
+            // Clean up transport history for deleted messages
+            _uiState.update { it.copy(transportUsed = it.transportUsed - messageId) }
         }
     }
 
@@ -401,7 +411,7 @@ class ChatViewModel @Inject constructor(
                 ?: return@launch
             
             _forwardDialogState.value = ForwardDialogState(
-                messages = listOf(message),
+                messages = listOf(message.toUiModel()),
                 selectedPeerIds = emptySet(),
                 searchQuery = "",
                 isForwarding = false,
@@ -421,7 +431,7 @@ class ChatViewModel @Inject constructor(
             val selectedMessages = uiState.value.messages.filter { it.id in selectedIds }
             
             _forwardDialogState.value = ForwardDialogState(
-                messages = selectedMessages,
+                messages = selectedMessages.map { it.toUiModel() },
                 selectedPeerIds = emptySet(),
                 searchQuery = "",
                 isForwarding = false,
@@ -560,6 +570,9 @@ class ChatViewModel @Inject constructor(
             selectedIds.forEach { messageId ->
                 repository.deleteMessage(messageId, deleteType)
             }
+            // Clean up transport history for all deleted messages
+            val idsToRemove = selectedIds.toSet()
+            _uiState.update { it.copy(transportUsed = it.transportUsed.filterKeys { it !in idsToRemove }) }
             clearSelection()
         }
     }
@@ -680,3 +693,14 @@ class ChatViewModel @Inject constructor(
         TransportType.LAN -> "" // LAN is default — no badge needed
     }
 }
+
+/**
+ * Maps a [MessageEntity] to a [MessageUiModel] for use in UI components
+ * that should not depend on data-layer entities directly.
+ */
+private fun MessageEntity.toUiModel() = MessageUiModel(
+    id = id,
+    text = text,
+    type = type,
+    timestamp = timestamp
+)

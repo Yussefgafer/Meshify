@@ -231,12 +231,11 @@ class ConnectionPool {
     
     /**
      * Clears all connections (for shutdown).
+     * Uses drainPermits() to safely reset the semaphore regardless of
+     * how many permits were already released by removeConnection().
      */
     fun clearAll() {
-        // FIX: Use toList() to create a snapshot before modifying to avoid any potential
-        // issues with iterator.remove() during concurrent access
         val entries = activeConnections.toList()
-        val activeCount = entries.size
         entries.forEach { (key, pooledSocket) ->
             try {
                 pooledSocket.socket.close()
@@ -244,14 +243,15 @@ class ConnectionPool {
                 Logger.e("ConnectionPool -> Failed to close socket: $key", e)
             }
         }
-        // FIX: Drain and release all permits to prevent permit leak on shutdown
         activeConnections.clear()
-        // Release permits for all closed connections
-        repeat(activeCount) {
-            poolSemaphore.release()
-        }
+        // drainPermits() acquires all available permits, returning the count.
+        // We then release back to MAX_POOL_SIZE to reset cleanly.
+        // This is safe even if removeConnection() already released some permits,
+        // because we drain whatever remains and restore the full amount.
+        poolSemaphore.drainPermits()
+        poolSemaphore.release(MAX_POOL_SIZE)
         connectionLocks.clear()
         knownPeers.clear()
-        Logger.d("ConnectionPool -> Cleared all connections, released $activeCount permits")
+        Logger.d("ConnectionPool -> Cleared all connections, semaphore reset to $MAX_POOL_SIZE")
     }
 }

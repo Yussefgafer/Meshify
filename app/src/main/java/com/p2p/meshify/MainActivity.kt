@@ -60,7 +60,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -134,9 +133,17 @@ class MainActivity : ComponentActivity() {
 
         val app = application as MeshifyApp
 
-        // Apply stored locale before setContent so strings render in the right language
-        val lang = runBlocking { app.settingsRepository.appLanguage.first() }
-        applyLocale(lang)
+        // Apply stored locale before setContent so strings render in the right language.
+        // Use lifecycleScope.launch instead of runBlocking to avoid blocking the main thread.
+        lifecycleScope.launch {
+            try {
+                val lang = app.settingsRepository.appLanguage.first()
+                applyLocale(lang)
+            } catch (e: Exception) {
+                Logger.e("MainActivity -> Failed to load language", e)
+                // Default locale will be used as fallback
+            }
+        }
 
         // Only request permissions immediately if onboarding was already completed.
         // Otherwise, permissions will be requested after the onboarding flow.
@@ -249,7 +256,7 @@ class MainActivity : ComponentActivity() {
                                         DiscoveryScreen(
                                             viewModel = discoveryViewModel,
                                             onPeerClick = { peer -> navController.navigate(Screen.Chat(peer.id, peer.name)) },
-                                            onSettingsClick = { navController.navigate(Screen.Settings) }
+                                            onBackClick = { navController.popBackStack() }
                                         )
                                     },
                                     onChatRoute = { peerId, peerName ->
