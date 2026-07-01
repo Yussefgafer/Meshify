@@ -38,6 +38,8 @@ import com.p2p.meshify.core.ui.components.MagneticChatItem
 import com.p2p.meshify.core.ui.components.DeleteConfirmationDialog
 import com.p2p.meshify.core.ui.components.ItemPosition
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
+import com.p2p.meshify.core.ui.theme.MeshifyThemeProperties
+
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -415,6 +417,5 @@ private fun UnreadBadge(displayCount: String) {
 }
 
 fun formatRecentTime(timestamp: Long): String {
-    val sdf = SimpleDateFormat("hh:mm a", Locale.US)
-    return sdf.format(Date(timestamp))
+    return com.p2p.meshify.core.common.util.formatMessageTime(timestamp)
 }

@@ -80,9 +80,7 @@ import com.p2p.meshify.feature.chat.components.ScrollToFAB
 import com.p2p.meshify.feature.chat.components.SelectionModeTopBar
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+
 
 // ── Search UI constants ──────────────────────────────────────────────
 private const val SEARCH_RESULT_BG_ALPHA_FROM_ME = 0.3f
@@ -640,6 +638,5 @@ private fun SearchResultItem(
 }
 
 private fun formatChatTime(timestamp: Long): String {
-    val sdf = SimpleDateFormat("hh:mm a", Locale.US)
-    return sdf.format(Date(timestamp))
+    return com.p2p.meshify.core.common.util.formatMessageTime(timestamp)
 }

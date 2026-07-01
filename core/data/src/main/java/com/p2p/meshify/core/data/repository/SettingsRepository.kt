@@ -6,6 +6,8 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.TransportMode
@@ -21,7 +23,14 @@ import java.util.UUID
 
 private val Context.dataStore by preferencesDataStore(name = "settings")
 
-class SettingsRepository(private val context: Context) : ISettingsRepository {
+/**
+ * Data layer implementation of Settings Repository.
+ * Extended for MD3E - Central Source of Truth for all design variables.
+ */
+class SettingsRepository(
+    private val context: Context,
+    private val prefsStore: DataStore<Preferences> = context.dataStore
+) : ISettingsRepository {
 
     companion object {
         val KEY_DISPLAY_NAME = stringPreferencesKey("display_name")
@@ -45,11 +54,11 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
         val KEY_NOTIFICATION_VIBRATE = booleanPreferencesKey("notification_vibrate")
     }
 
-    override val displayName: Flow<String> = context.dataStore.data.map { preferences ->
+    override val displayName: Flow<String> = prefsStore.data.map { preferences ->
         preferences[KEY_DISPLAY_NAME] ?: "User_${preferences[KEY_DEVICE_ID]?.take(4) ?: "Unknown"}"
     }
 
-    override val themeMode: Flow<ThemeMode> = context.dataStore.data.map { preferences ->
+    override val themeMode: Flow<ThemeMode> = prefsStore.data.map { preferences ->
         try {
             ThemeMode.valueOf(preferences[KEY_THEME_MODE] ?: "SYSTEM")
         } catch (e: Exception) {
@@ -57,19 +66,19 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
         }
     }
 
-    override val hapticFeedbackEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+    override val hapticFeedbackEnabled: Flow<Boolean> = prefsStore.data.map { preferences ->
         preferences[KEY_HAPTIC_FEEDBACK] ?: true
     }
 
-    override val dynamicColorEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+    override val dynamicColorEnabled: Flow<Boolean> = prefsStore.data.map { preferences ->
         preferences[KEY_DYNAMIC_COLOR] ?: true
     }
 
-    override val isNetworkVisible: Flow<Boolean> = context.dataStore.data.map { preferences ->
+    override val isNetworkVisible: Flow<Boolean> = prefsStore.data.map { preferences ->
         preferences[KEY_NETWORK_VISIBLE] ?: true
     }
 
-    override val avatarHash: Flow<String?> = context.dataStore.data.map { preferences ->
+    override val avatarHash: Flow<String?> = prefsStore.data.map { preferences ->
         preferences[KEY_AVATAR_HASH]
     }
 
@@ -81,7 +90,7 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
         preferences[KEY_BLE_ENABLED] ?: false
     }
 
-    override val transportMode: Flow<TransportMode> = context.dataStore.data.map { preferences ->
+    override val transportMode: Flow<TransportMode> = prefsStore.data.map { preferences ->
         try {
             TransportMode.valueOf(preferences[KEY_TRANSPORT_MODE] ?: "MULTI_PATH")
         } catch (e: Exception) {
@@ -97,25 +106,25 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
         preferences[KEY_APP_LANGUAGE] ?: "en"
     }
 
-    override val fontSizeScale: Flow<Float> = context.dataStore.data.map { preferences ->
+    override val fontSizeScale: Flow<Float> = prefsStore.data.map { preferences ->
         preferences[KEY_FONT_SIZE_SCALE] ?: 1.0f
     }
 
-    override val notificationsEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+    override val notificationsEnabled: Flow<Boolean> = prefsStore.data.map { preferences ->
         preferences[KEY_NOTIFICATIONS_ENABLED] ?: true
     }
 
-    override val notificationSound: Flow<Boolean> = context.dataStore.data.map { preferences ->
+    override val notificationSound: Flow<Boolean> = prefsStore.data.map { preferences ->
         preferences[KEY_NOTIFICATION_SOUND] ?: true
     }
 
-    override val notificationVibrate: Flow<Boolean> = context.dataStore.data.map { preferences ->
+    override val notificationVibrate: Flow<Boolean> = prefsStore.data.map { preferences ->
         preferences[KEY_NOTIFICATION_VIBRATE] ?: true
     }
 
     override suspend fun getDeviceId(): String {
         return try {
-            val prefs = context.dataStore.data.map { it[KEY_DEVICE_ID] }.firstOrNull()
+            val prefs = prefsStore.data.map { it[KEY_DEVICE_ID] }.firstOrNull()
             if (prefs != null) return prefs
             val newId = UUID.randomUUID().toString()
             safeEdit { it[KEY_DEVICE_ID] = newId }.onFailure { e ->
@@ -234,7 +243,8 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
 
     override suspend fun clearCache() {
         try {
-            val currentAvatarHash = context.dataStore.data.map { it[KEY_AVATAR_HASH] }.firstOrNull()
+            // Only clear avatar files that are not the current avatar
+            val currentAvatarHash = prefsStore.data.map { it[KEY_AVATAR_HASH] }.firstOrNull()
             val avatarsDir = java.io.File(context.filesDir, "avatars")
             if (avatarsDir.exists() && avatarsDir.isDirectory) {
                 avatarsDir.listFiles()?.forEach { file ->
@@ -257,7 +267,7 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
     override suspend fun exportBackup(): Result<String> {
         return try {
             val prefs = try {
-                context.dataStore.data.first()
+                prefsStore.data.first()
             } catch (e: Exception) {
                 return Result.failure(Exception("Failed to read preferences: ${e.message}", e))
             }
@@ -297,7 +307,7 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
 
     private suspend fun safeEdit(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit): Result<Unit> {
         return try {
-            context.dataStore.edit { block(it) }
+            prefsStore.edit { block(it) }
             Result.success(Unit)
         } catch (e: Exception) {
             Logger.e("SettingsRepository -> Write Failed", e)

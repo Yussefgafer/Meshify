@@ -21,6 +21,7 @@ import com.p2p.meshify.domain.repository.IChatRepository
 import com.p2p.meshify.domain.repository.IFileManager
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.core.network.TransportManager
+import com.p2p.meshify.core.common.util.PeerNameParser
 import com.p2p.meshify.core.common.util.StringResourceProvider
 import com.p2p.meshify.domain.security.model.MessageEnvelope
 import com.p2p.meshify.domain.security.model.SecurityEvent
@@ -108,6 +109,7 @@ class ChatRepositoryImpl(
     private val repositoryJob = SupervisorJob()
     private val scope = CoroutineScope(Dispatchers.IO + repositoryJob)
 
+    // TODO: Remove if unused after 2026-07 — consumed by ChatMessagesViewModel and ChatViewModel
     private val _securityEvents = MutableSharedFlow<SecurityEvent>(replay = 0)
     override val securityEvents: SharedFlow<SecurityEvent> = _securityEvents.asSharedFlow()
 
@@ -888,11 +890,7 @@ class ChatRepositoryImpl(
         )
     }
 
-    private fun parseName(raw: String): String {
-        return if (raw.contains("name")) {
-            try { Json.decodeFromString<Handshake>(raw).name } catch(e: Exception) { raw.take(20) }
-        } else raw.removePrefix("HELO_")
-    }
+    private fun parseName(raw: String): String = PeerNameParser.parseName(raw)
 
     // ==================== Cleanup ====================
 
