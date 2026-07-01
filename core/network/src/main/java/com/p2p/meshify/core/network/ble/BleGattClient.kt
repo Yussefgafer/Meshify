@@ -123,7 +123,8 @@ class BleGattConnection(
 
     private var rxCharacteristic: BluetoothGattCharacteristic? = null
     private var txCharacteristic: BluetoothGattCharacteristic? = null
-    private var currentMtu = 23 // Default BLE MTU
+    private var currentMtu = 23 // Default BLE MTU — updated via onMtuChanged
+    private var effectiveMtu: Int = 23 // min(negotiatedMtu, AppConfig.BLE_MTU_SIZE)
     private var characteristicsReady = CompletableDeferred<Unit>()
 
     private val serviceUuid = UUID.fromString(AppConfig.BLE_SERVICE_UUID)
@@ -178,9 +179,11 @@ class BleGattConnection(
             override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     currentMtu = mtu
-                    Logger.d("BLE MTU negotiated: $mtu for $peerId", tag = TAG)
+                    effectiveMtu = minOf(mtu, AppConfig.BLE_MTU_SIZE)
+                    Logger.d("BLE MTU negotiated: $mtu (effective: $effectiveMtu) for $peerId", tag = TAG)
                 } else {
-                    Logger.w("BLE MTU negotiation failed: $status for $peerId, using default", tag = TAG)
+                    // Keep default 23; effectiveMtu stays at 23
+                    Logger.w("BLE MTU negotiation failed: $status for $peerId, using default $effectiveMtu", tag = TAG)
                 }
 
                 // Enable notifications on TX characteristic
@@ -288,11 +291,17 @@ class BleGattConnection(
         }
 
         return try {
-            // Data is already chunked by BlePayloadSerializer to fit within negotiated BLE MTU.
-            // Safety check: ensure data doesn't exceed current MTU
-            val maxPayloadSize = currentMtu - 3
+            // Data is already chunked by BlePayloadSerializer. Safety check: ensure data fits
+            // within the effective MTU (negotiated MTU when available, otherwise default 23).
+            // The ATT protocol uses 3 bytes for headers, so the actual payload per packet is MTU - 3.
+            val maxPayloadSize = effectiveMtu - 3
             if (data.size > maxPayloadSize) {
-                Logger.w("BLE Payload size (${data.size}) exceeds max allowed ($maxPayloadSize). Truncating.", tag = TAG)
+                Logger.e("BLE Payload size (${data.size}) exceeds effective MTU payload capacity ($maxPayloadSize) for $peerId. " +
+                    "MTU negotiated: $currentMtu. Chunk size mismatch — BlePayloadSerializer must be aligned with negotiated MTU.",
+                    tag = TAG)
+                return Result.failure(IllegalStateException(
+                    "Chunk size ${data.size} exceeds MTU payload limit $maxPayloadSize (negotiated MTU: $currentMtu)"
+                ))
             }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
