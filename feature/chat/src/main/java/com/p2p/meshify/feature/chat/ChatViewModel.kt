@@ -7,7 +7,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.p2p.meshify.core.common.R
-import com.p2p.meshify.core.data.local.entity.ChatEntity
 import com.p2p.meshify.core.data.local.entity.MessageAttachmentEntity
 import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
@@ -18,6 +17,7 @@ import com.p2p.meshify.domain.model.DeleteType
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.model.TransportType
 import com.p2p.meshify.domain.security.model.SecurityEvent
+import com.p2p.meshify.core.ui.model.MessageUiModel
 import com.p2p.meshify.core.ui.model.StagedAttachment
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -30,7 +30,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.milliseconds
 import java.io.File
-import java.util.UUID
 import javax.inject.Inject
 
 /** Debounce interval for search input to avoid excessive DB queries */
@@ -38,17 +37,17 @@ private const val SEARCH_DEBOUNCE_MS = 300L
 
 private const val ATTACHMENT_CACHE_MAX_SIZE = 200
 
+/** Maximum number of transport type entries to keep in state map */
+private const val TRANSPORT_HISTORY_MAX_SIZE = 100
+
 data class ChatUiState(
     val isLoading: Boolean = true,
     val messages: List<MessageEntity> = emptyList(),
     val isOnline: Boolean = false,
-    val isPeerTyping: Boolean = false,
     val inputText: String = "",
-    val draftText: String = "", // P2-11: Persisted draft text survives config changes
+    val draftText: String = "",
     val replyTo: MessageEntity? = null,
     val stagedAttachments: List<StagedAttachment> = emptyList(),
-    val hasMoreMessages: Boolean = false,
-    val isLoadingMore: Boolean = false,
     val isSending: Boolean = false,
     val sendError: String? = null,
     val uploadError: String? = null,
@@ -82,7 +81,6 @@ class ChatViewModel @Inject constructor(
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     private val stageMutex = Mutex()
-    private val paginationMutex = Mutex()
     
     // Forward dialog state
     private val _forwardDialogState = MutableStateFlow(ForwardDialogState())
@@ -114,43 +112,18 @@ class ChatViewModel @Inject constructor(
 
     private var searchCollectionJob: kotlinx.coroutines.Job? = null
 
-    // Pagination state - using ArrayDeque for O(1) prepend operations
-    private var currentPage = 0
-    private val pageSize = 50
-    private var isAllMessagesLoaded = false
-    private val allMessages = ArrayDeque<MessageEntity>(initialCapacity = 100)
-
-    // ✅ PERF-01: Maximum messages to keep in memory (reduced from 500 to 200)
-    // Reduces memory usage by 5-8MB in long conversations
-    // 200 messages = ~4MB vs 500 messages = ~10MB
-    companion object {
-        private const val MAX_MESSAGES_IN_MEMORY = 200 // Reduced from 500 for better memory efficiency
-    }
-
     // ✅ Double tap protection - prevent sending same message twice
     private var lastSendTime = 0L
     private val sendDebounceMs = 500L // 500ms debounce
 
     init {
-        // Load initial page of messages
-        loadMoreMessages()
-
-        // ✅ FIX: Collect messages flow with distinctUntilChanged to reduce recompositions
-        // This ensures real-time updates when messages are received from the network
         viewModelScope.launch {
-            chatRepo.getMessages(peerId)
-                .distinctUntilChanged() // ✅ PF03: Prevent excessive recompositions
+            repository.getMessages(peerId)
+                .distinctUntilChanged()
                 .collect { messages ->
                     Logger.d("ChatViewModel -> Messages updated: ${messages.size} messages for peer $peerId")
-
-                    // ✅ FIX: Only update UI state, don't manipulate allMessages here
-                    // allMessages is only for pagination (loadMoreMessages)
                     _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            messages = messages,
-                            hasMoreMessages = !isAllMessagesLoaded
-                        )
+                        it.copy(isLoading = false, messages = messages)
                     }
                 }
         }
@@ -291,9 +264,13 @@ class ChatViewModel @Inject constructor(
                 val lastSentMessage = currentMessages.lastOrNull { it.isFromMe }
                 if (lastSentMessage != null) {
                     _uiState.update { currentState ->
-                        currentState.copy(
-                            transportUsed = currentState.transportUsed + (lastSentMessage.id to transportType)
-                        )
+                        val updated = currentState.transportUsed + (lastSentMessage.id to transportType)
+                        // Cap map size to prevent unbounded growth
+                        val capped = if (updated.size > TRANSPORT_HISTORY_MAX_SIZE) {
+                            // Keep only the most recent entries by dropping oldest
+                            updated.toList().takeLast(TRANSPORT_HISTORY_MAX_SIZE).toMap()
+                        } else updated
+                        currentState.copy(transportUsed = capped)
                     }
                 }
             } catch (e: Exception) {
@@ -442,6 +419,8 @@ class ChatViewModel @Inject constructor(
     fun deleteMessage(messageId: String, deleteType: DeleteType) {
         viewModelScope.launch {
             repository.deleteMessage(messageId, deleteType)
+            // Clean up transport history for deleted messages
+            _uiState.update { it.copy(transportUsed = it.transportUsed - messageId) }
         }
     }
 
@@ -492,7 +471,7 @@ class ChatViewModel @Inject constructor(
                 ?: return@launch
             
             _forwardDialogState.value = ForwardDialogState(
-                messages = listOf(message),
+                messages = listOf(message.toUiModel()),
                 selectedPeerIds = emptySet(),
                 searchQuery = "",
                 isForwarding = false,
@@ -512,7 +491,7 @@ class ChatViewModel @Inject constructor(
             val selectedMessages = uiState.value.messages.filter { it.id in selectedIds }
             
             _forwardDialogState.value = ForwardDialogState(
-                messages = selectedMessages,
+                messages = selectedMessages.map { it.toUiModel() },
                 selectedPeerIds = emptySet(),
                 searchQuery = "",
                 isForwarding = false,
@@ -651,6 +630,9 @@ class ChatViewModel @Inject constructor(
             selectedIds.forEach { messageId ->
                 repository.deleteMessage(messageId, deleteType)
             }
+            // Clean up transport history for all deleted messages
+            val idsToRemove = selectedIds.toSet()
+            _uiState.update { it.copy(transportUsed = it.transportUsed.filterKeys { it !in idsToRemove }) }
             clearSelection()
         }
     }
@@ -771,3 +753,14 @@ class ChatViewModel @Inject constructor(
         TransportType.LAN -> "" // LAN is default — no badge needed
     }
 }
+
+/**
+ * Maps a [MessageEntity] to a [MessageUiModel] for use in UI components
+ * that should not depend on data-layer entities directly.
+ */
+private fun MessageEntity.toUiModel() = MessageUiModel(
+    id = id,
+    text = text,
+    type = type,
+    timestamp = timestamp
+)

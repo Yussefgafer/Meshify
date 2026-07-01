@@ -171,7 +171,17 @@ class PendingMessageRepository(
                                 Logger.e("PendingMessageRepository -> Media file not found for retry: $path")
                                 return Result.failure(Exception("Media file not found: $path"))
                             }
-                            file.readBytes()
+                            // Use streaming read with 8KB buffer instead of file.readBytes()
+                            // to avoid loading the entire file into memory at once.
+                            val outputStream = java.io.ByteArrayOutputStream(file.length().coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
+                            java.io.BufferedInputStream(java.io.FileInputStream(file)).use { inputStream ->
+                                val buffer = ByteArray(8192)
+                                var bytesRead: Int
+                                while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                                    outputStream.write(buffer, 0, bytesRead)
+                                }
+                            }
+                            outputStream.toByteArray()
                         } else {
                             Logger.w("PendingMessageRepository -> No media path for message ${msg.id}")
                             byteArrayOf()

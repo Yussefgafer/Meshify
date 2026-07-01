@@ -50,7 +50,7 @@ fun TestProgressPanel(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = MeshifyDesignSystem.Shapes.CardMedium,
+        shape = MeshifyDesignSystem.Shapes.Card,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer
         )

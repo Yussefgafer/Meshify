@@ -36,10 +36,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.p2p.meshify.core.common.R
-import com.p2p.meshify.core.data.local.entity.ChatEntity
-import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.ui.hooks.HapticPattern
 import com.p2p.meshify.core.ui.hooks.LocalPremiumHaptics
+import com.p2p.meshify.core.ui.model.AttachmentUiModel
+import com.p2p.meshify.core.ui.model.ChatUiModel
+import com.p2p.meshify.core.ui.model.MessageUiModel
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.model.PeerDevice
@@ -51,10 +52,10 @@ import java.util.*
  * State holder for Forward Message Dialog.
  */
 data class ForwardDialogState(
-    val messages: List<MessageEntity> = emptyList(),
-    val recentChats: List<ChatEntity> = emptyList(),
+    val messages: List<MessageUiModel> = emptyList(),
+    val recentChats: List<ChatUiModel> = emptyList(),
     val discoveredDevices: List<PeerDevice> = emptyList(),
-    val allChats: List<ChatEntity> = emptyList(),
+    val allChats: List<ChatUiModel> = emptyList(),
     val onlinePeerIds: Set<String> = emptySet(), // ✅ FIX: Track online peers
     val selectedPeerIds: Set<String> = emptySet(),
     val searchQuery: String = "",
@@ -65,7 +66,7 @@ data class ForwardDialogState(
     val canForward: Boolean = selectedPeerIds.isNotEmpty()
     val selectedCount: Int = selectedPeerIds.size
     
-    val filteredRecentChats: List<ChatEntity>
+    val filteredRecentChats: List<ChatUiModel>
         get() = if (searchQuery.isBlank()) {
             recentChats.take(5)
         } else {
@@ -79,7 +80,7 @@ data class ForwardDialogState(
             discoveredDevices.filter { it.name.contains(searchQuery, ignoreCase = true) }
         }
     
-    val filteredAllChats: List<ChatEntity>
+    val filteredAllChats: List<ChatUiModel>
         get() = if (searchQuery.isBlank()) {
             allChats.filterNot { it.peerId in recentChats.map { chat -> chat.peerId }.toSet() }
         } else {
@@ -438,7 +439,7 @@ fun ForwardMessageDialog(
  */
 @Composable
 private fun ForwardPreviewCard(
-    messages: List<MessageEntity>
+    messages: List<MessageUiModel>
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -624,9 +625,8 @@ private fun ForwardPeerItem(
             )
             
             // Avatar
-            MorphingAvatar(
-                initials = name.take(1),
-                isOnline = isOnline,
+            MeshifyAvatar(
+                initials = name.take(2),
                 size = 44.dp
             )
             
