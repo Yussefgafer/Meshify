@@ -3,6 +3,7 @@ package com.p2p.meshify.feature.settings
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
@@ -37,13 +38,15 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.p2p.meshify.core.common.R
 import com.p2p.meshify.core.util.FileUtils
-import com.p2p.meshify.domain.model.BubbleStyle
-import com.p2p.meshify.domain.model.FontFamilyPreset
-import com.p2p.meshify.domain.model.MotionPreset
-import com.p2p.meshify.domain.model.ShapeStyle
 import com.p2p.meshify.domain.model.TransportMode
 import com.p2p.meshify.domain.repository.ThemeMode
-import com.p2p.meshify.core.ui.components.*
+import com.p2p.meshify.core.ui.components.MeshifySettingsGroup
+import com.p2p.meshify.core.ui.components.MeshifySettingsItem
+import com.p2p.meshify.core.ui.components.SeedColorPickerGrid
+import com.p2p.meshify.core.ui.components.MeshifyTextInputDialog
+import com.p2p.meshify.core.ui.components.ThemeSelectionBottomSheet
+import com.p2p.meshify.core.ui.components.MeshifySelectionDialog
+import com.p2p.meshify.core.ui.components.MeshifyAvatar
 import com.p2p.meshify.core.ui.hooks.HapticPattern
 import com.p2p.meshify.core.ui.hooks.LocalPremiumHaptics
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
@@ -73,16 +76,11 @@ fun SettingsScreen(
     // UI State for dialogs and bottom sheets
     var showNameDialog by remember { mutableStateOf(false) }
     var showThemeSheet by remember { mutableStateOf(false) }
-    var showMotionDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showFontSizeDialog by remember { mutableStateOf(false) }
     var showBackupDialog by remember { mutableStateOf(false) }
     var showBleSheet by remember { mutableStateOf(false) }
     var showCreditsDialog by remember { mutableStateOf(false) }
-    var showShapeDialog by remember { mutableStateOf(false) }
-    var showMotionScaleDialog by remember { mutableStateOf(false) }
-    var showFontFamilyDialog by remember { mutableStateOf(false) }
-    var showBubbleDialog by remember { mutableStateOf(false) }
     var nameInput by remember { mutableStateOf(state.displayName) }
     var cacheStatus by remember { mutableStateOf<String?>(null) }
     var backupStatus by remember { mutableStateOf<String?>(null) }
@@ -137,35 +135,16 @@ fun SettingsScreen(
         ) {
             Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Lg))
 
-            // === EXPRESSIVE PULSE HEADER (Avatar) ===
-            ExpressivePulseHeader(
-                size = 140.dp,
-                modifier = Modifier
-                    .scale(animateFloatAsState(1f, spring(dampingRatio = 0.7f, stiffness = 350f)).value)
-                    .clickable {
-                        haptics.perform(HapticPattern.Pop)
-                        imagePickerLauncher.launch("image/*")
-                    }
-            ) {
-                if (avatarFile != null) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(context)
-                            .data(avatarFile)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = stringResource(R.string.settings_content_desc_avatar),
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = stringResource(R.string.settings_avatar),
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+            // Avatar
+            MeshifyAvatar(
+                avatarHash = state.avatarHash,
+                initials = state.displayName.take(2),
+                size = 120.dp,
+                modifier = Modifier.clickable {
+                    haptics.perform(HapticPattern.Pop)
+                    imagePickerLauncher.launch("image/*")
                 }
-            }
+            )
 
             Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Md))
 
@@ -280,67 +259,6 @@ fun SettingsScreen(
                         )
                     }
                 }
-            }
-
-            // === SECTION 3: MESH ENGINE (MD3E) ===
-            MeshifySettingsGroup(title = stringResource(R.string.settings_section_md3e_expressive)) {
-                // Motion Physics
-                val gentleLabel = stringResource(R.string.settings_motion_gentle_label)
-                val standardLabel = stringResource(R.string.settings_motion_standard_label)
-                val snappyLabel = stringResource(R.string.settings_motion_snappy_label)
-                val bouncyLabel = stringResource(R.string.settings_motion_bouncy_label)
-                MeshifySettingsItem(
-                    title = stringResource(R.string.settings_motion_system),
-                    subtitle = when (state.motionPreset) {
-                        MotionPreset.GENTLE -> gentleLabel
-                        MotionPreset.STANDARD -> standardLabel
-                        MotionPreset.SNAPPY -> snappyLabel
-                        MotionPreset.BOUNCY -> bouncyLabel
-                    },
-                    icon = Icons.Default.Animation,
-                    onClick = { showMotionDialog = true }
-                )
-
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Md),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
-
-                // Shape Style
-                val sunnyLabel = stringResource(R.string.settings_shape_label_sunny)
-                val breezyLabel = stringResource(R.string.settings_shape_label_breezy)
-                val pentagonLabel = stringResource(R.string.settings_shape_label_pentagon)
-                val blobLabel = stringResource(R.string.settings_shape_label_blob)
-                val burstLabel = stringResource(R.string.settings_shape_label_burst)
-                val cloverLabel = stringResource(R.string.settings_shape_label_clover)
-                val circleLabel = stringResource(R.string.settings_shape_label_circle)
-                MeshifySettingsItem(
-                    title = stringResource(R.string.settings_shape_style),
-                    subtitle = when (state.shapeStyle) {
-                        ShapeStyle.SUNNY -> sunnyLabel
-                        ShapeStyle.BREEZY -> breezyLabel
-                        ShapeStyle.PENTAGON -> pentagonLabel
-                        ShapeStyle.BLOB -> blobLabel
-                        ShapeStyle.BURST -> burstLabel
-                        ShapeStyle.CLOVER -> cloverLabel
-                        ShapeStyle.CIRCLE -> circleLabel
-                    },
-                    icon = Icons.Default.Star,
-                    onClick = { showShapeDialog = true }
-                )
-
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Md),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
-
-                // Motion Scale
-                MeshifySettingsItem(
-                    title = stringResource(R.string.settings_motion_scale),
-                    subtitle = stringResource(R.string.settings_motion_scale_desc) + " (${state.motionScale}x)",
-                    icon = Icons.Default.AspectRatio,
-                    onClick = { showMotionScaleDialog = true }
-                )
             }
 
             // === SECTION 4: PRIVACY & VISIBILITY ===
@@ -636,40 +554,6 @@ fun SettingsScreen(
         )
     }
 
-    // Motion Preset Selection Dialog
-    if (showMotionDialog) {
-        val gentleLabel = stringResource(R.string.settings_motion_gentle_label)
-        val standardLabel = stringResource(R.string.settings_motion_standard_label)
-        val snappyLabel = stringResource(R.string.settings_motion_snappy_label)
-        val bouncyLabel = stringResource(R.string.settings_motion_bouncy_label)
-        MeshifySelectionDialog(
-            title = stringResource(R.string.settings_dialog_motion_preset),
-            options = MotionPreset.entries,
-            selectedOption = state.motionPreset,
-            onOptionSelected = {
-                haptics.perform(HapticPattern.Pop)
-                viewModel.setMotionPreset(it)
-            },
-            onDismiss = { showMotionDialog = false },
-            optionLabel = {
-                when (it) {
-                    MotionPreset.GENTLE -> gentleLabel
-                    MotionPreset.STANDARD -> standardLabel
-                    MotionPreset.SNAPPY -> snappyLabel
-                    MotionPreset.BOUNCY -> bouncyLabel
-                }
-            },
-            optionIcon = {
-                when (it) {
-                    MotionPreset.GENTLE -> Icons.Default.SlowMotionVideo
-                    MotionPreset.STANDARD -> Icons.Default.Speed
-                    MotionPreset.SNAPPY -> Icons.Default.FastForward
-                    MotionPreset.BOUNCY -> Icons.Default.TrendingUp
-                }
-            }
-        )
-    }
-
     // Language Selection Dialog
     if (showLanguageDialog) {
         val arabicLabel = stringResource(R.string.settings_language_arabic)
@@ -681,6 +565,7 @@ fun SettingsScreen(
             onOptionSelected = { lang ->
                 haptics.perform(HapticPattern.Pop)
                 viewModel.setAppLanguage(lang)
+                (context as? ComponentActivity)?.recreate()
                 showLanguageDialog = false
             },
             onDismiss = { showLanguageDialog = false },
@@ -811,113 +696,6 @@ fun SettingsScreen(
         )
     }
 
-    // Shape Style Dialog
-    if (showShapeDialog) {
-        val sunnyLabel = stringResource(R.string.settings_shape_label_sunny)
-        val breezyLabel = stringResource(R.string.settings_shape_label_breezy)
-        val pentagonLabel = stringResource(R.string.settings_shape_label_pentagon)
-        val blobLabel = stringResource(R.string.settings_shape_label_blob)
-        val burstLabel = stringResource(R.string.settings_shape_label_burst)
-        val cloverLabel = stringResource(R.string.settings_shape_label_clover)
-        val circleLabel = stringResource(R.string.settings_shape_label_circle)
-        MeshifySelectionDialog(
-            title = stringResource(R.string.settings_shape_style),
-            options = ShapeStyle.entries,
-            selectedOption = state.shapeStyle,
-            onOptionSelected = {
-                haptics.perform(HapticPattern.Pop)
-                viewModel.setShapeStyle(it)
-            },
-            onDismiss = { showShapeDialog = false },
-            optionLabel = {
-                when (it) {
-                    ShapeStyle.SUNNY -> sunnyLabel
-                    ShapeStyle.BREEZY -> breezyLabel
-                    ShapeStyle.PENTAGON -> pentagonLabel
-                    ShapeStyle.BLOB -> blobLabel
-                    ShapeStyle.BURST -> burstLabel
-                    ShapeStyle.CLOVER -> cloverLabel
-                    ShapeStyle.CIRCLE -> circleLabel
-                }
-            },
-            optionIcon = { Icons.Default.Star }
-        )
-    }
-
-    // Motion Scale Dialog
-    if (showMotionScaleDialog) {
-        val scaleOptions = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
-        MeshifySelectionDialog(
-            title = stringResource(R.string.settings_motion_scale),
-            options = scaleOptions,
-            selectedOption = state.motionScale.coerceIn(0.5f, 2.0f),
-            onOptionSelected = {
-                haptics.perform(HapticPattern.Pop)
-                viewModel.setMotionScale(it)
-            },
-            onDismiss = { showMotionScaleDialog = false },
-            optionLabel = { "${it}x" },
-            optionIcon = { Icons.Default.AspectRatio }
-        )
-    }
-
-    // Font Family Dialog
-    if (showFontFamilyDialog) {
-        val robotoLabel = stringResource(R.string.settings_font_roboto)
-        val poppinsLabel = stringResource(R.string.settings_font_label_poppins)
-        val loraLabel = stringResource(R.string.settings_font_label_lora)
-        val montserratLabel = stringResource(R.string.settings_font_label_montserrat)
-        val playfairLabel = stringResource(R.string.settings_font_label_playfair)
-        val interLabel = stringResource(R.string.settings_font_label_inter)
-        MeshifySelectionDialog(
-            title = stringResource(R.string.settings_font_family),
-            options = FontFamilyPreset.entries,
-            selectedOption = state.fontFamilyPreset,
-            onOptionSelected = {
-                haptics.perform(HapticPattern.Pop)
-                viewModel.setFontFamilyPreset(it)
-            },
-            onDismiss = { showFontFamilyDialog = false },
-            optionLabel = {
-                when (it) {
-                    FontFamilyPreset.ROBOTO -> robotoLabel
-                    FontFamilyPreset.POPPINS -> poppinsLabel
-                    FontFamilyPreset.LORA -> loraLabel
-                    FontFamilyPreset.MONTSERRAT -> montserratLabel
-                    FontFamilyPreset.PLAYFAIR -> playfairLabel
-                    FontFamilyPreset.INTER -> interLabel
-                }
-            },
-            optionIcon = { Icons.Default.TextFields }
-        )
-    }
-
-    // Bubble Style Dialog
-    if (showBubbleDialog) {
-        val roundedLabel = stringResource(R.string.settings_bubble_rounded)
-        val tailedLabel = stringResource(R.string.settings_bubble_label_tailed)
-        val squarclesLabel = stringResource(R.string.settings_bubble_label_squarcles)
-        val organicLabel = stringResource(R.string.settings_bubble_label_organic)
-        MeshifySelectionDialog(
-            title = stringResource(R.string.settings_bubble_style),
-            options = BubbleStyle.entries,
-            selectedOption = state.bubbleStyle,
-            onOptionSelected = {
-                haptics.perform(HapticPattern.Pop)
-                viewModel.setBubbleStyle(it)
-            },
-            onDismiss = { showBubbleDialog = false },
-            optionLabel = {
-                when (it) {
-                    BubbleStyle.ROUNDED -> roundedLabel
-                    BubbleStyle.TAILED -> tailedLabel
-                    BubbleStyle.SQUARCLES -> squarclesLabel
-                    BubbleStyle.ORGANIC -> organicLabel
-                }
-            },
-            optionIcon = { Icons.Default.ChatBubble }
-        )
-    }
 }
 
 /**

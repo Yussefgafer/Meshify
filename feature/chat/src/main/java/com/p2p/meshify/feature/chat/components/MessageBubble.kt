@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.Bluetooth
@@ -113,7 +112,6 @@ fun MessageBubble(
     message: MessageEntity,
     attachments: List<MessageAttachmentEntity>,
     peerName: String,
-    bubbleStyle: com.p2p.meshify.domain.model.BubbleStyle,
     isSelected: Boolean = false,
     uploadProgress: Int? = null,
     transportType: TransportType? = null,
@@ -126,8 +124,8 @@ fun MessageBubble(
     val containerColor = if (message.isFromMe) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer
     val contentColor = if (message.isFromMe) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
 
-    // Professional Chat Bubble Shape from Design System
-    val bubbleShape = if (message.isFromMe) MeshifyDesignSystem.Shapes.BubbleMe else MeshifyDesignSystem.Shapes.BubblePeer
+    // Square chat bubble shape
+    val bubbleShape = MeshifyDesignSystem.Shapes.Card
 
     Column(
         modifier = Modifier
@@ -167,7 +165,7 @@ fun MessageBubble(
                         if (message.replyToId != null) {
                             Surface(
                                 color = contentColor.copy(alpha = 0.08f),
-                                shape = RoundedCornerShape(10.dp),
+                                shape = MeshifyDesignSystem.Shapes.CardSmall,
                                 modifier = Modifier.padding(bottom = 6.dp)
                             ) {
                                 Text(
@@ -238,7 +236,7 @@ fun MessageBubble(
                                     // Show placeholder when file is missing
                                     Surface(
                                         color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
-                                        shape = RoundedCornerShape(12.dp),
+                                        shape = MeshifyDesignSystem.Shapes.Card,
                                         modifier = Modifier
                                             .sizeIn(maxWidth = 260.dp, maxHeight = 120.dp)
                                             .padding(vertical = 8.dp)

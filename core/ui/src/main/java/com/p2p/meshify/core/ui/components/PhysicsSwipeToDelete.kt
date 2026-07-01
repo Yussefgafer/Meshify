@@ -139,7 +139,7 @@ fun PhysicsSwipeToDelete(
                 .fillMaxWidth()
                 .offset { IntOffset(offsetX.value.roundToInt(), 0) }
                 .clip(shape)
-                .background(MaterialTheme.colorScheme.surface)
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .pointerInput(Unit) {
                     detectHorizontalDragGestures(
                         onDragStart = { isDragging = true },
