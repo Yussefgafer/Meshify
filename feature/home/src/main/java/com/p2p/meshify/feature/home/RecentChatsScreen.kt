@@ -38,7 +38,6 @@ import com.p2p.meshify.core.ui.components.MagneticChatItem
 import com.p2p.meshify.core.ui.components.DeleteConfirmationDialog
 import com.p2p.meshify.core.ui.components.ItemPosition
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
-import com.p2p.meshify.core.ui.theme.MeshifyThemeProperties
 
 import java.text.SimpleDateFormat
 import java.util.*
