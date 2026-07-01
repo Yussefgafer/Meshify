@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.Bluetooth
@@ -51,6 +50,7 @@ import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.data.local.entity.MessageStatus
 import com.p2p.meshify.core.ui.components.AlbumMediaGrid
 import com.p2p.meshify.core.ui.components.VideoPlayer
+import com.p2p.meshify.core.ui.model.AttachmentUiModel
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.model.TransportType
@@ -102,7 +102,6 @@ fun MessageBubble(
     message: MessageEntity,
     attachments: List<MessageAttachmentEntity>,
     peerName: String,
-    bubbleStyle: com.p2p.meshify.domain.model.BubbleStyle,
     isSelected: Boolean = false,
     uploadProgress: Int? = null,
     transportType: TransportType? = null,
@@ -115,8 +114,8 @@ fun MessageBubble(
     val containerColor = if (message.isFromMe) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer
     val contentColor = if (message.isFromMe) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
 
-    // Professional Chat Bubble Shape from Design System
-    val bubbleShape = if (message.isFromMe) MeshifyDesignSystem.Shapes.BubbleMe else MeshifyDesignSystem.Shapes.BubblePeer
+    // Square chat bubble shape
+    val bubbleShape = MeshifyDesignSystem.Shapes.Card
 
     Column(
         modifier = Modifier
@@ -156,7 +155,7 @@ fun MessageBubble(
                         if (message.replyToId != null) {
                             Surface(
                                 color = contentColor.copy(alpha = 0.08f),
-                                shape = RoundedCornerShape(10.dp),
+                                shape = MeshifyDesignSystem.Shapes.CardSmall,
                                 modifier = Modifier.padding(bottom = 6.dp)
                             ) {
                                 Text(
@@ -181,7 +180,7 @@ fun MessageBubble(
                         if (attachments.isNotEmpty()) {
                             if (message.text != null) Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xs))
                             AlbumMediaGrid(
-                                attachments = attachments,
+                                attachments = attachments.map { it.toAttachmentUiModel() },
                                 caption = null,
                                 onImageClick = onImageClick
                             )
@@ -227,7 +226,7 @@ fun MessageBubble(
                                     // Show placeholder when file is missing
                                     Surface(
                                         color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
-                                        shape = RoundedCornerShape(12.dp),
+                                        shape = MeshifyDesignSystem.Shapes.Card,
                                         modifier = Modifier
                                             .sizeIn(maxWidth = 260.dp, maxHeight = 120.dp)
                                             .padding(vertical = 8.dp)
@@ -340,7 +339,7 @@ fun StatusIcon(status: MessageStatus, tint: Color) {
     when (status) {
         MessageStatus.QUEUED -> Icon(
             Icons.Default.Schedule,
-            null,
+            stringResource(R.string.message_status_queued),
             modifier = Modifier.size(StatusIconSize),
             tint = tint.copy(StatusAlphaQueued)
         )
@@ -351,31 +350,31 @@ fun StatusIcon(status: MessageStatus, tint: Color) {
         )
         MessageStatus.SENT -> Icon(
             Icons.Default.Check,
-            null,
+            stringResource(R.string.message_status_sent),
             modifier = Modifier.size(StatusIconSize),
             tint = tint.copy(StatusAlphaDefault)
         )
         MessageStatus.DELIVERED -> Icon(
             Icons.Default.DoneAll,
-            null,
+            stringResource(R.string.message_status_delivered),
             modifier = Modifier.size(StatusIconSize),
             tint = tint.copy(StatusAlphaDefault)
         )
         MessageStatus.RECEIVED -> Icon(
             Icons.Default.Done,
-            null,
+            stringResource(R.string.message_status_received),
             modifier = Modifier.size(StatusIconSize),
             tint = tint.copy(StatusAlphaDefault)
         )
         MessageStatus.READ -> Icon(
             Icons.Default.DoneAll,
-            null,
+            stringResource(R.string.message_status_read),
             modifier = Modifier.size(StatusIconSize),
             tint = MaterialTheme.colorScheme.tertiary
         )
         MessageStatus.FAILED -> Icon(
             Icons.Default.Error,
-            null,
+            stringResource(R.string.message_status_failed),
             modifier = Modifier.size(StatusIconSize),
             tint = MaterialTheme.colorScheme.error
         )
@@ -410,3 +409,13 @@ private fun TransportTypeIcon(transportType: TransportType, tint: Color) {
         }
     }
 }
+
+/**
+ * Maps a [MessageAttachmentEntity] to an [AttachmentUiModel] for use in UI components
+ * that should not depend on data-layer entities directly.
+ */
+private fun MessageAttachmentEntity.toAttachmentUiModel() = AttachmentUiModel(
+    id = id,
+    type = type,
+    filePath = filePath
+)

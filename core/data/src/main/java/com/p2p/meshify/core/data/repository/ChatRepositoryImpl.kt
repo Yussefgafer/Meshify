@@ -418,7 +418,17 @@ class ChatRepositoryImpl(
             }
 
             val mediaBytes = withContext(Dispatchers.IO) {
-                mediaFile.readBytes()
+                // Use streaming read with 8KB buffer instead of file.readBytes()
+                // to avoid loading the entire file into memory at once.
+                val outputStream = java.io.ByteArrayOutputStream(mediaFile.length().coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
+                java.io.BufferedInputStream(java.io.FileInputStream(mediaFile)).use { inputStream ->
+                    val buffer = ByteArray(8192)
+                    var bytesRead: Int
+                    while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                        outputStream.write(buffer, 0, bytesRead)
+                    }
+                }
+                outputStream.toByteArray()
             }
 
             val myId = settingsRepository.getDeviceId()

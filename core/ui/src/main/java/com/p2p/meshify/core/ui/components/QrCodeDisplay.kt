@@ -9,7 +9,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.p2p.meshify.core.common.R
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
+import androidx.compose.ui.res.stringResource
 
 /**
  * Displays a QR code for Out-Of-Band identity verification.
@@ -55,13 +57,13 @@ fun QrCodeDisplay(
         Surface(
             modifier = Modifier.size(240.dp),
             color = MaterialTheme.colorScheme.surface,
-            shape = MeshifyDesignSystem.Shapes.CardMedium,
+            shape = MeshifyDesignSystem.Shapes.Card,
             tonalElevation = MeshifyDesignSystem.Elevation.Level2
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = Icons.Default.QrCode,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.content_desc_qr_code),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(48.dp)
                 )

@@ -107,15 +107,16 @@ object BlePayloadSerializer {
             ReassemblyState(totalChunks, totalSize)
         }
 
-        // Update sliding window timeout on each chunk arrival
-        state.lastUpdateTime = System.currentTimeMillis()
-
-        // Check for timeout
+        // Check for timeout BEFORE updating lastUpdateTime — otherwise
+        // now - now = 0 and the timeout NEVER triggers.
         if (System.currentTimeMillis() - state.lastUpdateTime > AppConfig.BLE_REASSEMBLY_TIMEOUT_MS) {
             Logger.w("Reassembly timeout for key: $reassemblyKey", tag = TAG)
             reassemblyBuffers.remove(reassemblyKey)
             return null
         }
+
+        // Update sliding window timeout on each chunk arrival
+        state.lastUpdateTime = System.currentTimeMillis()
 
         state.chunks[chunkIndex] = chunkData
 

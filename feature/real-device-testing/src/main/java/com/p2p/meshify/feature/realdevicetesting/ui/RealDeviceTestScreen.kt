@@ -232,7 +232,7 @@ private fun InitialStateContent(onRunPreflight: () -> Unit) {
 private fun RunningPreflightContent(state: RealDeviceTestingUiState.RunningPreflight) {
     TestingCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = MeshifyDesignSystem.Shapes.CardMedium,
+        shape = MeshifyDesignSystem.Shapes.Card,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column(
@@ -561,7 +561,7 @@ private fun TestsDoneContent(
 @Composable
 private fun TestingCard(
     modifier: Modifier = Modifier,
-    shape: RoundedCornerShape = MeshifyDesignSystem.Shapes.CardMedium,
+    shape: RoundedCornerShape = MeshifyDesignSystem.Shapes.Card,
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
     content: @Composable () -> Unit
 ) {

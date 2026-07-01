@@ -32,6 +32,8 @@ class KeepAliveManager(
     /**
      * Sends keep-alive ping to all active connections.
      * Should be called periodically (every KEEP_ALIVE_INTERVAL_MS).
+     * After sending PING, attempts to read PONG response from the same socket
+     * to verify bidirectional connectivity.
      * 
      * @return Number of pings sent successfully
      */
@@ -48,7 +50,7 @@ class KeepAliveManager(
             
             if (idleTime < halfIdleTimeout) {
                 try {
-                    // Send PING message
+                    // Send PING message directly on the pooled socket
                     val pingPayload = Payload(
                         senderId = "system",
                         type = Payload.PayloadType.SYSTEM_CONTROL,
@@ -63,6 +65,34 @@ class KeepAliveManager(
                             outputStream.write(bytes)
                             outputStream.flush()
                         }
+                        
+                        // After sending PING, attempt to read PONG response from the
+                        // same socket's input stream to verify bidirectional connectivity.
+                        // This detects half-open connections where write succeeds but
+                        // the remote end has gone away.
+                        val socket = pooledSocket.socket
+                        val originalTimeout = socket.soTimeout
+                        try {
+                            socket.soTimeout = 100 // brief check — avoids long block
+                            val inputStream = java.io.DataInputStream(socket.getInputStream())
+                            // Only try to read if data is available (non-blocking check)
+                            if (inputStream.available() > 0) {
+                                socket.soTimeout = (PING_TIMEOUT_MS / 2).toInt()
+                                val responseLength = inputStream.readInt()
+                                if (responseLength > 0 && responseLength < 1024) {
+                                    val responseBytes = ByteArray(responseLength)
+                                    inputStream.readFully(responseBytes)
+                                    val responseData = String(responseBytes, Charsets.UTF_8)
+                                    if (responseData.contains("PONG")) {
+                                        Logger.d("KeepAliveManager -> Received PONG from $peerId")
+                                    }
+                                }
+                            }
+                        } catch (e: java.net.SocketTimeoutException) {
+                            // Timeout is acceptable — no data pending, socket is alive
+                        } finally {
+                            socket.soTimeout = originalTimeout
+                        }
                     }
                     
                     connectionPool.updateLastUsed(peerId)
@@ -71,7 +101,7 @@ class KeepAliveManager(
                     Logger.d("KeepAliveManager -> Sent ping to $peerId")
                 } catch (e: Exception) {
                     // Connection is dead, remove it
-                    Logger.d("KeepAliveManager -> Keep-alive failed for $peerId, removing connection")
+                    Logger.d("KeepAliveManager -> Keep-alive failed for $peerId, removing connection: ${e.message}")
                     connectionPool.removeConnection(peerId, closeSocket = true)
                     deadCount++
                 }

@@ -30,8 +30,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,7 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.p2p.meshify.core.common.R
-import com.p2p.meshify.core.ui.components.*
+import com.p2p.meshify.core.ui.components.MeshifyAvatar
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
 import com.p2p.meshify.domain.model.PeerDevice
 import com.p2p.meshify.domain.model.SignalStrength
@@ -53,9 +53,9 @@ import com.p2p.meshify.domain.model.TransportType
 fun DiscoveryScreen(
     viewModel: DiscoveryViewModel,
     onPeerClick: (PeerDevice) -> Unit,
-    onSettingsClick: () -> Unit
+    onBackClick: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
 
     Scaffold(
@@ -68,7 +68,7 @@ fun DiscoveryScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onSettingsClick) {
+                    IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.content_desc_back))
                     }
                 },
@@ -127,7 +127,7 @@ fun DiscoveryScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(4.dp)
-                                .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)),
+                                .clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)),
                             color = MaterialTheme.colorScheme.primary,
                             trackColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
                         )
@@ -198,9 +198,8 @@ private fun PeerListItem(
                 .padding(MeshifyDesignSystem.Spacing.Md),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            MorphingAvatar(
-                initials = peer.name.take(1),
-                isOnline = true,
+            MeshifyAvatar(
+                initials = peer.name.take(2),
                 size = 48.dp
             )
 
@@ -286,7 +285,7 @@ private fun TransportBadge(transportType: TransportType) {
             if (transportType == TransportType.BOTH) {
                 Icon(
                     imageVector = Icons.Default.Bluetooth,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.content_desc_transport_badge),
                     modifier = Modifier.size(14.dp),
                     tint = badgeColor
                 )
@@ -322,7 +321,7 @@ private fun SignalStrengthIndicator(signalStrength: SignalStrength) {
                     .background(
                         if (index < bars) color
                         else color.copy(alpha = 0.2f),
-                        RoundedCornerShape(2.dp)
+                        MeshifyDesignSystem.Shapes.Pill
                     )
             )
         }
@@ -338,7 +337,7 @@ fun EmptyDiscoveryState(modifier: Modifier = Modifier) {
     ) {
         Icon(
             imageVector = Icons.Outlined.WifiOff,
-            contentDescription = null,
+            contentDescription = stringResource(R.string.content_desc_no_devices),
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             modifier = Modifier.size(64.dp)
         )
@@ -410,7 +409,7 @@ private fun WifiDisabledState(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                contentDescription = null,
+                contentDescription = stringResource(R.string.content_desc_open_wifi_settings),
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
@@ -435,7 +434,7 @@ private fun ErrorState(
     ) {
         Icon(
             imageVector = Icons.Default.Error,
-            contentDescription = null,
+            contentDescription = stringResource(R.string.content_desc_error_icon),
             tint = MaterialTheme.colorScheme.error,
             modifier = Modifier.size(64.dp)
         )
@@ -467,7 +466,7 @@ private fun ErrorState(
         ) {
             Icon(
                 imageVector = Icons.Default.Refresh,
-                contentDescription = null,
+                contentDescription = stringResource(R.string.content_desc_retry),
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(MeshifyDesignSystem.Spacing.Sm))
