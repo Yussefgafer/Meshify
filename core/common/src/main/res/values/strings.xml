@@ -322,6 +322,13 @@
 
     <string name="message_image">Message Image</string>
     <string name="message_status">Message Status</string>
+    <string name="message_status_queued">Message queued to send</string>
+    <string name="message_status_sending">Message sending</string>
+    <string name="message_status_sent">Message sent</string>
+    <string name="message_status_delivered">Message delivered</string>
+    <string name="message_status_received">Message received</string>
+    <string name="message_status_read">Message read</string>
+    <string name="message_status_failed">Message failed to send</string>
     <string name="message_reaction">Message Reaction</string>
 
     <!-- Dialog Buttons -->
@@ -629,4 +636,15 @@
     <!-- Settings — Backup Import -->
     <string name="settings_backup_import_success">Backup imported successfully</string>
     <string name="settings_backup_import_error">Failed to import backup</string>
+
+    <!-- Accessibility — Content Descriptions -->
+    <string name="content_desc_staged_media">Staged media attachment</string>
+    <string name="content_desc_video_icon">Video play icon</string>
+    <string name="content_desc_remove_attachment">Remove attachment</string>
+    <string name="content_desc_no_devices">No devices discovered</string>
+    <string name="content_desc_open_wifi_settings">Open Wi-Fi settings</string>
+    <string name="content_desc_image">Image attachment</string>
+    <string name="content_desc_error_icon">Error</string>
+    <string name="content_desc_retry">Retry</string>
+    <string name="content_desc_qr_code">QR Code for verification</string>
 </resources>

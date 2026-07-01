@@ -118,8 +118,17 @@ class TransportManager(
 
         return when (transportMode) {
             TransportMode.MULTI_PATH -> {
-                // Return ALL available transports for multi-path sending
-                if (capableTransports.isNotEmpty()) capableTransports else availableTransports
+                // Return transports where the peer is actually online
+                val transportsWithPeerOnline = capableTransports.filter { transport ->
+                    transport.onlinePeers.value.contains(peerId)
+                }
+                if (transportsWithPeerOnline.isNotEmpty()) {
+                    transportsWithPeerOnline
+                } else if (capableTransports.isNotEmpty()) {
+                    capableTransports
+                } else {
+                    availableTransports
+                }
             }
             TransportMode.LAN_ONLY -> {
                 listOfNotNull(getTransport("lan"))

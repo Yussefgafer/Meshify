@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.automirrored.filled.BluetoothSearching
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -67,7 +68,7 @@ fun SettingsScreen(
     val haptics = LocalPremiumHaptics.current
 
     // Unified SettingsUiState — single collectAsState replacing 16+ individual flows
-    val state by viewModel.settingsUiState.collectAsState()
+    val state by viewModel.settingsUiState.collectAsStateWithLifecycle()
     val appVersion = viewModel.appVersion
 
     // Derived state from unified state
