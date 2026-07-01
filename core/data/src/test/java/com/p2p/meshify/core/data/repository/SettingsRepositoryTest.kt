@@ -479,7 +479,7 @@ class SettingsRepositoryTest {
 
         val exportResult = repository.exportBackup()
         assertTrue(exportResult.isSuccess)
-        val backupJson = exportResult.getOrNull()!!
+        val backupJson = exportResult.getOrThrow()
 
         // Change settings
         repository.updateDisplayName("ChangedName")
@@ -510,7 +510,7 @@ class SettingsRepositoryTest {
     fun `exportBackup on fresh settings includes default values`() = runTest {
         val result = repository.exportBackup()
         assertTrue(result.isSuccess)
-        val json = result.getOrNull()!!
+        val json = result.getOrThrow()
         // Fresh settings should still have export_timestamp
         assertTrue(json.contains("export_timestamp"))
     }

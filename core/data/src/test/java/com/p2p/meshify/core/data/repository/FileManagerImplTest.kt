@@ -115,12 +115,6 @@ class FileManagerImplTest {
 
         // Then: returns null
         assertNull(savedPath)
-
-        // Cleanup
-        val blockingFile = File(context.filesDir, "media")
-        if (blockingFile.exists() && blockingFile.isFile) {
-            blockingFile.delete()
-        }
     }
 
     @Test

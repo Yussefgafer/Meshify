@@ -364,7 +364,7 @@ class ChatManagementRepositoryTest {
     // ============================================================================================
 
     @Test
-    fun `copyMessageToChat is deprecated but still works`() = runTest {
+    fun `forwardMessage with single peer works as delegation`() = runTest {
         // Given: this is a private method, but we test forwardMessage which it delegates to
         val originalMessage = MessageEntity(
             id = testMessageId, chatId = "source-peer", senderId = "original-sender",
