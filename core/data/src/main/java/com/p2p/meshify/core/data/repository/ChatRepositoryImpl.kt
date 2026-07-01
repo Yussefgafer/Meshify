@@ -109,6 +109,7 @@ class ChatRepositoryImpl(
     private val repositoryJob = SupervisorJob()
     private val scope = CoroutineScope(Dispatchers.IO + repositoryJob)
 
+    // TODO: Remove if unused after 2026-07 — consumed by ChatMessagesViewModel and ChatViewModel
     private val _securityEvents = MutableSharedFlow<SecurityEvent>(replay = 0)
     override val securityEvents: SharedFlow<SecurityEvent> = _securityEvents.asSharedFlow()
 

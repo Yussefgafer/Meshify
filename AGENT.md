@@ -352,6 +352,31 @@ All of the following have been permanently removed:
 
 ## CHANGE LOG
 
+### 2026-07-01 — Round 3 P1 Sprint (2× Qoder)
+
+**Branch**: `fix/round2-p2`
+
+**Scope**: 11 files changed, +180/-543 lines. Build: ✅
+
+| File | Fix |
+|------|-----|
+| `BleTransportImpl.kt` | `isAvailable` lazy dead → real-time BT check; fixed hardcoded `"ble_transport"` peer ID; NPE on re-start |
+| `BleGattClient.kt` | MTU default 23 → effective MTU (23 if negotiation fails, 512 if succeeds); rejects oversized chunks |
+| `BleGattServer.kt` | Randomized MAC workaround: stale entry cleanup by device name on reconnect |
+| `PendingMessageRepository.kt` | Added `pendingCount` + `pendingMessages` StateFlow; auto-retry on peer online |
+| `OobVerificationDialog.kt` | **DELETED** (359 lines) — dead UI (encryption removed) |
+| `OobVerificationViewModel.kt` | **DELETED** (163 lines) — corresponding dead ViewModel |
+| `FileManagerImpl.kt` | `media/` dir creation moved from `saveMedia()` → `init {}` |
+| `IChatRepository.kt` | `securityEvents` marked with TODO for removal |
+| `values-ar/strings.xml` | +41 Arabic translations (BLE, transport, dialogs, badges) |
+| `.gitignore` | Added entries for worktrees, cascade dirs |
+
+**Skipped (high effort, deferred):**
+- Generic `catch(e: Exception)` → specific types (100+ locations, needs careful review)
+- `@Suppress` cleanup (~30 annotations, needs per-file analysis)
+
+---
+
 ### 2026-07-01 — Round 2 P2 Sprint (2× Qoder)
 
 **Branch**: `fix/round2-p2`
