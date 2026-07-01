@@ -9,6 +9,7 @@ import com.p2p.meshify.core.data.local.entity.ChatEntity
 import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.data.local.entity.MessageStatus
 import com.p2p.meshify.core.data.local.entity.PendingMessageEntity
+import com.p2p.meshify.core.common.util.PeerNameParser
 import com.p2p.meshify.core.util.ImageCompressor
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.MessageType
@@ -501,12 +502,7 @@ class MessageRepository(
 
     // ==================== Helper Methods ====================
 
-    /**
-     * Parses peer name from format "name (device_id)".
-     */
-    private fun parseName(peerName: String): String {
-        return peerName.substringBefore(" (").trim()
-    }
+    private fun parseName(peerName: String): String = PeerNameParser.parseName(peerName)
 
     // ==================== Query Methods ====================
 

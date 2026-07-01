@@ -50,6 +50,9 @@ class ReplyReceiver : BroadcastReceiver() {
         // Shared retry scope to prevent memory leak
         private val retryScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
+        // Shared scope for reply processing — prevents scope-per-reply leaks
+        private val replyScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
         // Rate limiter: 10 replies per minute per chat, max 10000 identifiers to prevent memory exhaustion
         private val replyRateLimiter = RateLimiter(
             maxRequests = 10,
@@ -66,6 +69,7 @@ class ReplyReceiver : BroadcastReceiver() {
             replyRateLimiter.close()
             rateLimiterScope.cancel()
             retryScope.cancel()
+            replyScope.cancel()
         }
 
         /**
@@ -228,10 +232,9 @@ class ReplyReceiver : BroadcastReceiver() {
             return
         }
 
-        // Send the reply with proper error handling - ALL validation happens inside coroutine
-        // FIX: Use lifecycle-managed scope that auto-cancels when work completes
-        val replyJobScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-        replyJobScope.launch {
+        // Use goAsync() to prevent process death during reply processing
+        val pendingResult = goAsync()
+        replyScope.launch {
             try {
                 // Safe cast inside coroutine as well
                 val localApp = context.applicationContext as? MeshifyApp
@@ -292,8 +295,7 @@ class ReplyReceiver : BroadcastReceiver() {
                 // Schedule retry with exponential backoff
                 scheduleRetry(context, chatId, sanitizedText)
             } finally {
-                // FIX: Always cancel the scope to prevent memory leak
-                replyJobScope.cancel()
+                pendingResult.finish()
             }
         }
     }

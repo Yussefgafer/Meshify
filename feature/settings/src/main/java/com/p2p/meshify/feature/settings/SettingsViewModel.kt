@@ -14,10 +14,10 @@ import com.p2p.meshify.domain.model.TransportMode
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.domain.repository.ThemeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -72,28 +72,61 @@ class SettingsViewModel @Inject constructor(
     val settingsUiState: StateFlow<SettingsUiState> = _settingsUiState
 
     init {
-        // Collect each repository flow and update the unified state
-        settingsRepository.displayName.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(displayName = value) }.launchIn(viewModelScope)
-        settingsRepository.themeMode.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(themeMode = value) }.launchIn(viewModelScope)
-        settingsRepository.dynamicColorEnabled.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(dynamicColorEnabled = value) }.launchIn(viewModelScope)
-        settingsRepository.hapticFeedbackEnabled.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(hapticFeedbackEnabled = value) }.launchIn(viewModelScope)
-        settingsRepository.isNetworkVisible.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(isNetworkVisible = value) }.launchIn(viewModelScope)
-        settingsRepository.avatarHash.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(avatarHash = value) }.launchIn(viewModelScope)
-        settingsRepository.motionPreset.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(motionPreset = value) }.launchIn(viewModelScope)
-        settingsRepository.motionScale.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(motionScale = value) }.launchIn(viewModelScope)
-        settingsRepository.fontFamilyPreset.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(fontFamilyPreset = value) }.launchIn(viewModelScope)
-        settingsRepository.customFontUri.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(customFontUri = value) }.launchIn(viewModelScope)
-        settingsRepository.bubbleStyle.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(bubbleStyle = value) }.launchIn(viewModelScope)
-        settingsRepository.visualDensity.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(visualDensity = value) }.launchIn(viewModelScope)
-        settingsRepository.seedColor.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(seedColor = value) }.launchIn(viewModelScope)
-        settingsRepository.appLanguage.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(appLanguage = value) }.launchIn(viewModelScope)
-        settingsRepository.fontSizeScale.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(fontSizeScale = value) }.launchIn(viewModelScope)
-        settingsRepository.notificationsEnabled.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(notificationsEnabled = value) }.launchIn(viewModelScope)
-        settingsRepository.notificationSound.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(notificationSound = value) }.launchIn(viewModelScope)
-        settingsRepository.notificationVibrate.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(notificationVibrate = value) }.launchIn(viewModelScope)
-        settingsRepository.bleEnabled.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(bleEnabled = value) }.launchIn(viewModelScope)
-        settingsRepository.transportMode.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(transportMode = value) }.launchIn(viewModelScope)
-        settingsRepository.shapeStyle.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(shapeStyle = value) }.launchIn(viewModelScope)
+        // Collect all settings flows in a single combine() to avoid 21 separate collection jobs.
+        // Using listOf<Flow<*>> to force the combine overload that accepts mixed types.
+        viewModelScope.launch {
+            combine(
+                listOf<Flow<*>>(
+                    settingsRepository.displayName,
+                    settingsRepository.themeMode,
+                    settingsRepository.dynamicColorEnabled,
+                    settingsRepository.hapticFeedbackEnabled,
+                    settingsRepository.isNetworkVisible,
+                    settingsRepository.avatarHash,
+                    settingsRepository.motionPreset,
+                    settingsRepository.motionScale,
+                    settingsRepository.fontFamilyPreset,
+                    settingsRepository.customFontUri,
+                    settingsRepository.bubbleStyle,
+                    settingsRepository.visualDensity,
+                    settingsRepository.seedColor,
+                    settingsRepository.appLanguage,
+                    settingsRepository.fontSizeScale,
+                    settingsRepository.notificationsEnabled,
+                    settingsRepository.notificationSound,
+                    settingsRepository.notificationVibrate,
+                    settingsRepository.bleEnabled,
+                    settingsRepository.transportMode,
+                    settingsRepository.shapeStyle
+                )
+            ) { array: Array<*> ->
+                SettingsUiState(
+                    displayName = array[0] as String,
+                    themeMode = array[1] as ThemeMode,
+                    dynamicColorEnabled = array[2] as Boolean,
+                    hapticFeedbackEnabled = array[3] as Boolean,
+                    isNetworkVisible = array[4] as Boolean,
+                    avatarHash = array[5] as String?,
+                    motionPreset = array[6] as MotionPreset,
+                    motionScale = array[7] as Float,
+                    fontFamilyPreset = array[8] as FontFamilyPreset,
+                    customFontUri = array[9] as String?,
+                    bubbleStyle = array[10] as BubbleStyle,
+                    visualDensity = array[11] as Float,
+                    seedColor = array[12] as Int,
+                    appLanguage = array[13] as String,
+                    fontSizeScale = array[14] as Float,
+                    notificationsEnabled = array[15] as Boolean,
+                    notificationSound = array[16] as Boolean,
+                    notificationVibrate = array[17] as Boolean,
+                    bleEnabled = array[18] as Boolean,
+                    transportMode = array[19] as TransportMode,
+                    shapeStyle = array[20] as ShapeStyle
+                )
+            }.collect { state ->
+                _settingsUiState.value = state
+            }
+        }
 
         // Load deviceId asynchronously and update state when ready
         viewModelScope.launch {
