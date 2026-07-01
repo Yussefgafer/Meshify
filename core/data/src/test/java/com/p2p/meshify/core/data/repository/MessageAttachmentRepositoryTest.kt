@@ -42,8 +42,6 @@ class MessageAttachmentRepositoryTest {
 
     @Before
     fun setup() {
-        // Return unique path for each saveMedia call so filenames are distinct
-        var callIndex = 0
         coEvery { fileManager.saveMedia(any<String>(), any<ByteArray>()) } answers {
             val fileName = arg<String>(0)
             "/tmp/media/$fileName"

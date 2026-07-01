@@ -19,6 +19,7 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
+import io.mockk.unmockkAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -103,6 +104,7 @@ class MessageRepositoryTest {
     @After
     fun teardown() {
         database.close()
+        unmockkAll()
     }
 
     // ============================================================================================
