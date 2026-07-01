@@ -10,10 +10,10 @@ import com.p2p.meshify.domain.model.TransportMode
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.domain.repository.ThemeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 

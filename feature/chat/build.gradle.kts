@@ -32,10 +32,6 @@ android {
     buildFeatures {
         compose = true
     }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = "2.3.10"
-    }
 }
 
 dependencies {

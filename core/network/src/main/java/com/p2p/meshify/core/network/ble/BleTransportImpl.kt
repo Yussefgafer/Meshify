@@ -36,10 +36,11 @@ class BleTransportImpl(
 
     // Transport metadata
     override val transportName: String = "ble"
-    override val isAvailable: Boolean by lazy {
-        val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
-        bluetoothManager?.adapter?.isEnabled == true
-    }
+    override val isAvailable: Boolean
+        get() {
+            val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+            return bluetoothManager?.adapter?.isEnabled == true
+        }
 
     override val capabilities: Set<TransportCapability> = setOf(
         TransportCapability.LOW_POWER,
@@ -89,7 +90,10 @@ class BleTransportImpl(
 
         try {
             // Create a fresh scope for this transport instance
-            scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+            // Reinitialize if null or cancelled from a previous stop() cycle
+            if (scope == null || !scope!!.isActive) {
+                scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+            }
 
             // Initialize connection pool
             connectionPool = BleConnectionPool()
@@ -130,7 +134,7 @@ class BleTransportImpl(
             isStarted = true
             Logger.d("BLE Transport started successfully", tag = TAG)
 
-            _events.emit(TransportEvent.ConnectionEstablished("ble_transport"))
+            _events.emit(TransportEvent.ConnectionEstablished(peerId))
             
             // Start periodic cleanup of stale buffers and idle connections
             startPeriodicCleanup()

@@ -18,12 +18,15 @@ skills/
 
 **/build/
 /captures
-/agent
+agents
+agent
+AGENT.md
 /.gemini/
 .externalNativeBuild
 .cxx
 local.properties
 
+*.salive
 *.apk
 *.aab
 *.jks

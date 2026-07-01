@@ -56,17 +56,6 @@ import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.model.TransportType
 import com.p2p.meshify.core.common.R
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-
-/**
- * Thread-safe date formatter for message timestamps.
- * Hoisted to file-level to avoid recreation on every recomposition.
- */
-private val MessageTimeFormatter by lazy {
-    SimpleDateFormat("hh:mm a", Locale.US)
-}
 
 /**
  * Status indicator icon size for standard states */
@@ -294,7 +283,7 @@ fun MessageBubble(
                             .padding(top = MeshifyDesignSystem.Spacing.Xxs)
                     ) {
                         Text(
-                            text = MessageTimeFormatter.format(Date(message.timestamp)),
+                            text = com.p2p.meshify.core.common.util.formatMessageTime(message.timestamp),
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 10.sp,
                             color = contentColor.copy(alpha = 0.6f)

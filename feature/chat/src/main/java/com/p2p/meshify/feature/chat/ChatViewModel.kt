@@ -10,6 +10,7 @@ import com.p2p.meshify.core.common.R
 import com.p2p.meshify.core.data.local.entity.MessageAttachmentEntity
 import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
+import com.p2p.meshify.domain.repository.IChatRepository
 import com.p2p.meshify.core.ui.components.ForwardDialogState
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.DeleteType
@@ -58,12 +59,12 @@ data class ChatUiState(
 class ChatViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val savedStateHandle: SavedStateHandle,
-    private val repository: ChatRepositoryImpl
+    private val repository: IChatRepository
 ) : ViewModel() {
 
     // Peer ID and name from navigation arguments via SavedStateHandle
     val peerId: String = savedStateHandle.get<String>("peerId") ?: ""
-    val peerName: String = savedStateHandle.get<String>("peerName") ?: "Peer"
+    val peerName: String = savedStateHandle.get<String>("peerName") ?: context.getString(R.string.default_peer_name)
 
     // Resolves current transport type from app-level state for outgoing messages
     private var _transportTypeProvider: (() -> TransportType)? = null
@@ -71,6 +72,10 @@ class ChatViewModel @Inject constructor(
     fun setTransportTypeProvider(provider: () -> TransportType) {
         _transportTypeProvider = provider
     }
+
+    // Helper to access repository methods that are only available on ChatRepositoryImpl
+    // (query methods are not part of IChatRepository interface to avoid data-type coupling in domain layer)
+    private val chatRepo: ChatRepositoryImpl get() = repository as ChatRepositoryImpl
 
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
@@ -146,6 +151,61 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Loads more messages for pagination.
+     * Called initially and when user scrolls to top.
+     */
+    fun loadMoreMessages() {
+        viewModelScope.launch {
+            // Use tryLock to avoid waiting if already loading
+            if (!paginationMutex.tryLock()) return@launch
+
+            try {
+                if (isAllMessagesLoaded || _uiState.value.isLoadingMore) return@launch
+
+                _uiState.update { it.copy(isLoadingMore = true) }
+
+                try {
+                    // ✅ PF04: FIX blocking .first() by using take(1).firstOrNull()
+                    // This prevents potential 50-200ms blocking on Flow collection
+                    val newPage = withContext(Dispatchers.IO) {
+                        chatRepo.getMessagesPaged(peerId, pageSize, currentPage * pageSize)
+                            .take(1)
+                            .firstOrNull()
+                            ?: emptyList()
+                    }
+
+                    if (newPage.isEmpty()) {
+                        isAllMessagesLoaded = true
+                    } else {
+                        // Prepend new messages efficiently using ArrayDeque
+                        allMessages.addAll(0, newPage)
+
+                        // Remove oldest messages if exceeding max to prevent memory leaks
+                        while (allMessages.size > MAX_MESSAGES_IN_MEMORY) {
+                            allMessages.removeLast()
+                        }
+
+                        currentPage++
+                    }
+
+                    _uiState.update {
+                        it.copy(
+                            messages = allMessages.toList(),
+                            hasMoreMessages = !isAllMessagesLoaded,
+                            isLoadingMore = false
+                        )
+                    }
+                } catch (e: Exception) {
+                    Logger.e("ChatViewModel -> Failed to load messages", e)
+                    _uiState.update { it.copy(isLoadingMore = false) }
+                }
+            } finally {
+                paginationMutex.unlock()
+            }
+        }
+    }
+
     fun onInputChanged(text: String) {
         _uiState.update { it.copy(inputText = text, draftText = text) }
     }
@@ -200,7 +260,7 @@ class ChatViewModel @Inject constructor(
                 // Record transport type for the newly sent message.
                 // The repository insert is synchronous (suspend), so the message is already in the DB.
                 // We read the current state via .first() — no arbitrary delay needed.
-                val currentMessages = repository.getMessages(peerId).first()
+                val currentMessages = chatRepo.getMessages(peerId).first()
                 val lastSentMessage = currentMessages.lastOrNull { it.isFromMe }
                 if (lastSentMessage != null) {
                     _uiState.update { currentState ->
@@ -391,7 +451,7 @@ class ChatViewModel @Inject constructor(
         }
         // Not cached — fetch from DB
         val result = withContext(Dispatchers.IO) {
-            repository.getMessageAttachments(groupId)
+            chatRepo.getMessageAttachments(groupId)
         }
         // Store in cache
         synchronized(attachmentsCache) {
@@ -651,7 +711,7 @@ class ChatViewModel @Inject constructor(
                     if (query.isBlank()) {
                         _searchResults.value = emptyList()
                     } else {
-                        repository.searchMessagesInChat(peerId, query.trim())
+                        chatRepo.searchMessagesInChat(peerId, query.trim())
                             .catch { e ->
                                 Logger.e("ChatViewModel -> Search failed", e)
                                 _searchResults.value = emptyList()

@@ -13,6 +13,9 @@ import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.core.network.base.IMeshTransport
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.math.pow
@@ -41,6 +44,26 @@ class PendingMessageRepository(
         private const val RETRY_MAX_DELAY_MS = 30000L // 30 seconds
     }
 
+    // Observable pending count — allows UI to show badge/notification
+    private val _pendingCount = MutableStateFlow(0)
+    val pendingCount: StateFlow<Int> = _pendingCount.asStateFlow()
+
+    // Pending message cache for notification/visibility
+    private val _pendingMessages = MutableStateFlow<List<PendingMessageEntity>>(emptyList())
+    val pendingMessages: StateFlow<List<PendingMessageEntity>> = _pendingMessages.asStateFlow()
+
+    /**
+     * Refresh pending count and list from DB.
+     */
+    private suspend fun refreshPendingState() {
+        val all = withContext(Dispatchers.IO) { pendingMessageDao.getAll() }
+        _pendingMessages.value = all
+        _pendingCount.value = all.size
+        if (all.isNotEmpty()) {
+            Logger.w("PendingMessageRepository -> ${all.size} pending message(s) waiting for delivery")
+        }
+    }
+
     /**
      * Queue a message for later delivery.
      */
@@ -62,6 +85,7 @@ class PendingMessageRepository(
             maxRetries = RETRY_MAX_ATTEMPTS
         )
         pendingMessageDao.insert(pendingMessage)
+        refreshPendingState()
         Logger.w("PendingMessageRepository -> Message queued: $messageId for $recipientId")
     }
 
@@ -110,6 +134,9 @@ class PendingMessageRepository(
                 failureCount++
             }
         }
+
+        // Refresh pending state after retry batch completes
+        refreshPendingState()
 
         Logger.i("PendingMessageRepository -> Retry complete for $peerId: $successCount success, $failureCount failed")
 
@@ -234,6 +261,7 @@ class PendingMessageRepository(
      */
     suspend fun deletePendingMessage(messageId: String) {
         pendingMessageDao.deleteById(messageId)
+        refreshPendingState()
     }
 
     /**
@@ -241,7 +269,37 @@ class PendingMessageRepository(
      */
     suspend fun getAllPendingMessages(): List<PendingMessageEntity> =
         withContext(Dispatchers.IO) {
-            // ✅ FIX: Now uses the new getAll() DAO query
             pendingMessageDao.getAll()
         }
+
+    /**
+     * Auto-retry pending messages for a peer who just came online.
+     * Call this from transport event handlers when a peer transitions to connected.
+     * Only retries if there are actually queued messages for this peer.
+     */
+    suspend fun retryForOnlinePeer(peerId: String) {
+        val pending = withContext(Dispatchers.IO) { pendingMessageDao.getByRecipient(peerId) }
+        if (pending.isNotEmpty()) {
+            Logger.i("PendingMessageRepository -> Peer $peerId came online, retrying ${pending.size} pending message(s)")
+            retryPendingMessages(peerId)
+        }
+    }
+
+    /**
+     * Get count of pending messages for a specific recipient.
+     */
+    suspend fun getPendingCountForRecipient(recipientId: String): Int =
+        withContext(Dispatchers.IO) {
+            pendingMessageDao.getByRecipient(recipientId).size
+        }
+
+    /**
+     * Clear all pending messages (for testing / admin).
+     */
+    suspend fun clearAllPending() {
+        withContext(Dispatchers.IO) {
+            pendingMessageDao.deleteByStatus(MessageStatus.QUEUED)
+        }
+        refreshPendingState()
+    }
 }
