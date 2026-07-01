@@ -36,7 +36,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -123,12 +122,12 @@ fun ChatScreen(
 ) {
     val context = LocalContext.current
     val haptics = LocalPremiumHaptics.current
-    val uiState by viewModel.uiState.collectAsState()
-    val selectedMessages by viewModel.selectedMessages.collectAsState()
-    val forwardDialogState by viewModel.forwardDialogState.collectAsState()
-    val isSearching by viewModel.isSearching.collectAsState()
-    val searchQuery by viewModel.searchQuery.collectAsState()
-    val searchResults by viewModel.searchResults.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val selectedMessages by viewModel.selectedMessages.collectAsStateWithLifecycle()
+    val forwardDialogState by viewModel.forwardDialogState.collectAsStateWithLifecycle()
+    val isSearching by viewModel.isSearching.collectAsStateWithLifecycle()
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val clipboard = LocalClipboardManager.current
     var menuMessage by remember { mutableStateOf<MessageEntity?>(null) }

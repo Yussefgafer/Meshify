@@ -218,6 +218,17 @@ class LanTransportImpl(
         when (command) {
             "TYPING_ON" -> _typingPeers.update { it + senderId }
             "TYPING_OFF" -> _typingPeers.update { it - senderId }
+            "PING" -> {
+                // Respond with PONG so the remote KeepAliveManager knows the
+                // connection is still alive
+                scope.launch {
+                    sendPayload(senderId, Payload(
+                        senderId = settingsRepository.getDeviceId(),
+                        type = Payload.PayloadType.SYSTEM_CONTROL,
+                        data = "PONG".toByteArray()
+                    ))
+                }
+            }
         }
     }
 
@@ -370,19 +381,21 @@ class LanTransportImpl(
     }
 
     /**
-     * Estimate RSSI based on network round-trip time (RTT).
-     * Lower latency = closer proximity = stronger signal.
-     * RTT thresholds: <10ms = -40dBm (excellent), >200ms = -85dBm (poor)
+     * Estimate RSSI based on existing connection latency.
+     * Only uses already-established connections — does NOT open new TCP
+     * connections for estimation (wasteful and slow).
+     *
+     * RTT thresholds: <5ms = -40dBm (excellent), >100ms = -85dBm (poor)
      *
      * @param peerAddress The peer's IP address to measure latency to
      */
     private fun estimateRssiFromLatency(peerAddress: String): Int {
         return try {
-            // Try to use existing socket from connection pool
+            // Only use existing socket from connection pool — never open a new
+            // TCP connection just for RSSI estimation.
             val existingSocket = socketManager.hasValidConnection(peerAddress)
 
             if (existingSocket) {
-                // If we have an existing socket, use it for latency estimation
                 val socket = socketManager.getConnection(peerAddress)
                 if (socket != null && socket.isConnected && !socket.isClosed) {
                     val startTime = System.currentTimeMillis()
@@ -409,32 +422,9 @@ class LanTransportImpl(
                     -85
                 }
             } else {
-                // No existing socket, try a quick connection test
-                val socket = java.net.Socket()
-                try {
-                    socket.soTimeout = 1000
-                    val startTime = System.currentTimeMillis()
-                    socket.connect(java.net.InetSocketAddress(peerAddress, AppConfig.DEFAULT_PORT), 1000)
-                    val rtt = System.currentTimeMillis() - startTime
-
-                    // Convert RTT to estimated RSSI
-                    when {
-                        rtt < 10 -> -40  // Excellent: very close, low latency
-                        rtt < 50 -> -55  // Good: same subnet, fast response
-                        rtt < 100 -> -65 // Moderate: some network delay
-                        rtt < 200 -> -75 // Poor: significant latency
-                        else -> -85      // Very poor: high latency, edge of range
-                    }
-                } finally {
-                    // Always close the socket to prevent resource leak
-                    try {
-                        if (!socket.isClosed) {
-                            socket.close()
-                        }
-                    } catch (e: Exception) {
-                        Logger.w("LanTransport -> Failed to close RSSI test socket: ${e.message}")
-                    }
-                }
+                // No existing connection — return a conservative default
+                // instead of opening a new socket just for estimation.
+                -85
             }
         } catch (e: Exception) {
             // Cannot estimate — return very poor signal
