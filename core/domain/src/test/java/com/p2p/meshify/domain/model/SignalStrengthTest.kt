@@ -33,41 +33,6 @@ class SignalStrengthTest {
     }
 
     @Test
-    fun `getMorphDuration returns correct values for each strength`() {
-        assertEquals(500, SignalStrength.STRONG.getMorphDuration())
-        assertEquals(900, SignalStrength.MEDIUM.getMorphDuration())
-        assertEquals(1500, SignalStrength.WEAK.getMorphDuration())
-        assertEquals(0, SignalStrength.OFFLINE.getMorphDuration())
-    }
-
-    @Test
-    fun `getShapePair returns correct shapes for STRONG`() {
-        val shapes = SignalStrength.STRONG.getShapePair()
-        
-        assertEquals(2, shapes.size)
-        // STRONG should return two different complex shapes
-        assertNotEquals(shapes[0], shapes[1])
-    }
-
-    @Test
-    fun `getShapePair returns correct shapes for MEDIUM`() {
-        val shapes = SignalStrength.MEDIUM.getShapePair()
-        
-        assertEquals(2, shapes.size)
-        // MEDIUM should return two different shapes
-        assertNotEquals(shapes[0], shapes[1])
-    }
-
-    @Test
-    fun `getShapePair returns circle for OFFLINE`() {
-        val shapes = SignalStrength.OFFLINE.getShapePair()
-        
-        assertEquals(2, shapes.size)
-        // Both should be circles for OFFLINE - check if they're equal (circles are identical)
-        assertEquals(shapes[0], shapes[1])
-    }
-
-    @Test
     fun `SignalStrength enum values are correct`() {
         assertEquals(4, SignalStrength.values().size)
         assertEquals(SignalStrength.STRONG, SignalStrength.valueOf("STRONG"))

@@ -5,8 +5,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Error
@@ -30,9 +28,15 @@ import androidx.compose.ui.unit.dp
 import com.p2p.meshify.core.common.R
 import com.p2p.meshify.core.data.local.entity.ChatEntity
 import androidx.compose.material3.HorizontalDivider
-import com.p2p.meshify.core.ui.components.*
+import com.p2p.meshify.core.ui.components.MeshifyListItem
+import com.p2p.meshify.core.ui.components.MeshifySectionHeader
+import com.p2p.meshify.core.ui.components.MeshifyAvatarWithOnline
+import com.p2p.meshify.core.ui.components.MeshifyPill
+import com.p2p.meshify.core.ui.components.PhysicsSwipeToDelete
+import com.p2p.meshify.core.ui.components.MagneticChatItem
+import com.p2p.meshify.core.ui.components.DeleteConfirmationDialog
+import com.p2p.meshify.core.ui.components.ItemPosition
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
-import com.p2p.meshify.core.ui.theme.MeshifyThemeProperties
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -87,7 +91,9 @@ fun RecentChatsScreen(
             )
         },
         floatingActionButton = {
-            AnimatedMorphingFAB(onClick = onDiscoverClick)
+            FloatingActionButton(onClick = onDiscoverClick) {
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.content_desc_discovery))
+            }
         }
     ) { padding ->
         when {
@@ -136,7 +142,12 @@ fun RecentChatsScreen(
                         else -> {
                             LazyColumn(
                                 modifier = Modifier.weight(1f),
-                                contentPadding = PaddingValues(bottom = MeshifyDesignSystem.Spacing.Xxl)
+                                contentPadding = PaddingValues(
+                                    start = MeshifyDesignSystem.Spacing.Md,
+                                    end = MeshifyDesignSystem.Spacing.Md,
+                                    bottom = MeshifyDesignSystem.Spacing.Xxl
+                                ),
+                                verticalArrangement = Arrangement.spacedBy(2.dp) // Subtle separation like SectionBlock
                             ) {
                                 item {
                                     MeshifySectionHeader(stringResource(R.string.chats_recent_header))
@@ -170,8 +181,8 @@ fun RecentChatsScreen(
                                                 headline = chat.peerName,
                                                 supporting = chat.lastMessage ?: stringResource(R.string.last_msg_none),
                                                 leadingContent = {
-                                                    MorphingAvatar(
-                                                        initials = (chat.peerName.takeIf { it.isNotEmpty() } ?: "?").take(1),
+                                                    MeshifyAvatarWithOnline(
+                                                        initials = (chat.peerName.takeIf { it.isNotEmpty() } ?: "?"),
                                                         isOnline = isOnline,
                                                         size = 56.dp
                                                     )
@@ -232,8 +243,8 @@ fun ChatListItem(chat: ChatEntity, isOnline: Boolean, onClick: () -> Unit) {
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        MorphingAvatar(
-            initials = (chat.peerName.takeIf { it.isNotEmpty() } ?: "?").take(1),
+        MeshifyAvatarWithOnline(
+            initials = (chat.peerName.takeIf { it.isNotEmpty() } ?: "?"),
             isOnline = isOnline,
             size = 52.dp
         )
@@ -290,7 +301,7 @@ private fun LoadingState(
             modifier = Modifier
                 .size(48.dp)
                 .semantics { this.contentDescription = contentDescription },
-            shape = CircleShape,
+            shape = MeshifyDesignSystem.Shapes.IconContainer,
             color = MaterialTheme.colorScheme.surfaceContainerHighest
         ) {
             CircularProgressIndicator(
@@ -388,7 +399,7 @@ private fun SearchBarSection(
 @Composable
 private fun UnreadBadge(displayCount: String) {
     Surface(
-        shape = RoundedCornerShape(percent = 50),
+        shape = MeshifyDesignSystem.Shapes.Pill,
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.height(20.dp)
     ) {

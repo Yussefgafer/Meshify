@@ -42,7 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.p2p.meshify.core.common.R
-import com.p2p.meshify.core.ui.components.*
+import com.p2p.meshify.core.ui.components.MeshifyAvatar
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
 import com.p2p.meshify.domain.model.PeerDevice
 import com.p2p.meshify.domain.model.SignalStrength
@@ -127,7 +127,7 @@ fun DiscoveryScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(4.dp)
-                                .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)),
+                                .clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)),
                             color = MaterialTheme.colorScheme.primary,
                             trackColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
                         )
@@ -198,9 +198,8 @@ private fun PeerListItem(
                 .padding(MeshifyDesignSystem.Spacing.Md),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            MorphingAvatar(
-                initials = peer.name.take(1),
-                isOnline = true,
+            MeshifyAvatar(
+                initials = peer.name.take(2),
                 size = 48.dp
             )
 
@@ -322,7 +321,7 @@ private fun SignalStrengthIndicator(signalStrength: SignalStrength) {
                     .background(
                         if (index < bars) color
                         else color.copy(alpha = 0.2f),
-                        RoundedCornerShape(2.dp)
+                        MeshifyDesignSystem.Shapes.Pill
                     )
             )
         }
