@@ -33,8 +33,7 @@ import androidx.compose.material3.HorizontalDivider
 import com.p2p.meshify.core.ui.components.*
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
 import com.p2p.meshify.core.ui.theme.MeshifyThemeProperties
-import java.text.SimpleDateFormat
-import java.util.*
+
 
 /** Search bar border alpha — consistent with ChatScreen search styling */
 private const val SEARCH_BAR_BORDER_ALPHA = 0.5f
@@ -403,6 +402,5 @@ private fun UnreadBadge(displayCount: String) {
 }
 
 fun formatRecentTime(timestamp: Long): String {
-    val sdf = SimpleDateFormat("hh:mm a", Locale.US)
-    return sdf.format(Date(timestamp))
+    return com.p2p.meshify.core.common.util.formatMessageTime(timestamp)
 }

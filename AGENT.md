@@ -348,4 +348,72 @@ All of the following have been permanently removed:
 | `app/proguard-rules.pro` | R8/ProGuard rules |
 | `app/src/main/AndroidManifest.xml` | Android manifest (permissions, components) |
 
+---
+
+## CHANGE LOG
+
+### 2026-07-01 — Round 2 P2 Sprint (2× Qoder)
+
+**Branch**: `fix/round2-p2`
+
+**Scope**: 23 files changed (3 new), +104/-986 lines. Build: ✅
+
+**Qoder-1 (Architecture + Data Layer):**
+
+| File | Fix |
+|------|-----|
+| `ChatViewModel.kt` | Inject `IChatRepository` instead of `ChatRepositoryImpl` |
+| `MeshifyApp.kt` + `NetworkModule.kt` (new) | `new BleTransportImpl()` → Hilt `@Provides` in module |
+| `ReplyReceiver.kt` | Per-reply `CoroutineScope` → shared scope; `goAsync()` for process death |
+| `SettingsViewModel.kt` | 21× `.onEach{}.launchIn()` → single `combine()` |
+| `ChatRepositoryImpl.kt`, `MessageRepository.kt` | `parseName()` unified via `PeerNameParser` |
+| `app/schemas/` | Deleted stale v1-v3 schemas (wrong package path) |
+
+**Qoder-2 (Code Quality + UI):**
+
+| File | Fix |
+|------|-----|
+| 7× `build.gradle.kts` | Removed redundant `composeOptions` (plugin handles it) |
+| `strings.xml` (×3) | Removed ~150 duplicate strings + ~50 dead MD3E strings |
+| `TimeUtils.kt` (new) | Shared `formatMessageTime()` — replaces 3× duplicated format |
+| `ChatViewModel.kt` | Hardcoded `"Peer"` → string resource `default_peer_name` |
+| `MainActivity.kt` | Removed `FLAG_SECURE` (blocked accessibility + recording) |
+| 3 UI files | Updated to use shared `TimeUtils.formatMessageTime()` |
+
+---
+
+### 2026-07-01 — Round 1 Network + UI Sprint (2× Qoder)
+
+**Branch**: `bugfix/network-ui-sprint` (deleted)
+
+**Scope**: 27 files changed (3 new), +242/-120 lines. Build: ✅
+
+**Qoder-1 (Network + Data Layer):**
+
+| File | Fix |
+|------|-----|
+| `KeepAliveManager.kt` | PING now expects PONG response; reads socket after PING |
+| `BlePayloadSerializer.kt` | Timeout moved BEFORE `lastUpdateTime` (was `now-now=0`) |
+| `ConnectionPool.kt` | `clearAll()` uses `drainPermits()` to reset semaphore safely |
+| `TransportManager.kt` | `selectBestTransport()` MULTI_PATH filters by `onlinePeers` |
+| `LanTransportImpl.kt` | Added PONG response in `handleSystemCommand()` |
+| `ChatRepositoryImpl.kt` | `file.readBytes()` → chunked streaming (OOM fix) |
+| `PendingMessageRepository.kt` | Same streaming fix |
+| `ProgressFileReader.kt` | Long→Int overflow guard for files >2GB |
+| `MainActivity.kt` | `runBlocking` → `lifecycleScope.launch` |
+
+**Qoder-2 (UI + Architecture + Config):**
+
+| File | Fix |
+|------|-----|
+| `core/ui/build.gradle.kts` | Removed `core:data` dependency; created 3 UiModel files |
+| `core/domain/build.gradle.kts` | Removed `androidx.graphics.shapes` (pure Kotlin restored) |
+| `AppModule.kt` | `fallbackToDestructiveMigration(dropAllTables=true)` → without drop |
+| 7 UI files | 12× `collectAsState()` → `collectAsStateWithLifecycle()` |
+| `DiscoveryScreen.kt` | Fixed back navigation (`onSettingsClick`→`onBackClick`) |
+| `MessageBubble.kt` | Added contentDescription for all 7 status icons |
+| `ChatViewModel.kt` | `transportUsed` map capped at 100 + cleanup on delete |
+| 6 UI files | Accessibility: contentDescription for 15+ icons |
+| `strings.xml` | 15 new string resources for accessibility + status labels |
+
 
