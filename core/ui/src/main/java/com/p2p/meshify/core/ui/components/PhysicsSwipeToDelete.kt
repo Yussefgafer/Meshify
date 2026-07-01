@@ -20,9 +20,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.p2p.meshify.core.common.R
 import com.p2p.meshify.core.ui.hooks.HapticPattern
 import com.p2p.meshify.core.ui.hooks.LocalPremiumHaptics
 import kotlinx.coroutines.launch
@@ -115,7 +117,7 @@ fun PhysicsSwipeToDelete(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
                     alpha = unlockProgress
                 ) {
-                    Icon(Icons.Rounded.Close, null, Modifier.size(22.dp))
+                    Icon(Icons.Rounded.Close, stringResource(R.string.content_desc_close), Modifier.size(22.dp))
                 }
                 PhysicsSwipeActionButton(
                     onClick = {
@@ -127,7 +129,7 @@ fun PhysicsSwipeToDelete(
                 ) {
                     Icon(
                         Icons.Rounded.Delete,
-                        null,
+                        stringResource(R.string.content_desc_delete),
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(22.dp)
                     )

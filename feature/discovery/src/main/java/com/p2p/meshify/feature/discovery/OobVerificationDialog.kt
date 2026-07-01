@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -41,7 +42,7 @@ fun OobVerificationDialog(
     onDismiss: () -> Unit,
     viewModel: OobVerificationViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     // Navigate to success when verified
     LaunchedEffect(uiState.isVerified) {
@@ -75,7 +76,7 @@ fun OobVerificationDialog(
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.QrCode,
-                                contentDescription = null,
+                                contentDescription = stringResource(R.string.oob_method_qr),
                                 modifier = Modifier.size(MeshifyDesignSystem.IconSizes.Small)
                             )
                         },
@@ -89,7 +90,7 @@ fun OobVerificationDialog(
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.CompareArrows,
-                                contentDescription = null,
+                                contentDescription = stringResource(R.string.oob_method_sas),
                                 modifier = Modifier.size(MeshifyDesignSystem.IconSizes.Small)
                             )
                         },
@@ -103,7 +104,7 @@ fun OobVerificationDialog(
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.Nfc,
-                                contentDescription = null,
+                                contentDescription = stringResource(R.string.oob_method_nfc),
                                 modifier = Modifier.size(MeshifyDesignSystem.IconSizes.Small)
                             )
                         },
@@ -334,7 +335,7 @@ private fun NfcPlaceholderContent() {
     ) {
         Icon(
             imageVector = Icons.Default.Nfc,
-            contentDescription = null,
+            contentDescription = stringResource(R.string.oob_method_nfc),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(MeshifyDesignSystem.IconSizes.XL)
         )
