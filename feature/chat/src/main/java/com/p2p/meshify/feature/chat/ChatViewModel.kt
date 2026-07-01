@@ -118,7 +118,7 @@ class ChatViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            repository.getMessages(peerId)
+            chatRepo.getMessages(peerId)
                 .distinctUntilChanged()
                 .collect { messages ->
                     Logger.d("ChatViewModel -> Messages updated: ${messages.size} messages for peer $peerId")
@@ -151,60 +151,6 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Loads more messages for pagination.
-     * Called initially and when user scrolls to top.
-     */
-    fun loadMoreMessages() {
-        viewModelScope.launch {
-            // Use tryLock to avoid waiting if already loading
-            if (!paginationMutex.tryLock()) return@launch
-
-            try {
-                if (isAllMessagesLoaded || _uiState.value.isLoadingMore) return@launch
-
-                _uiState.update { it.copy(isLoadingMore = true) }
-
-                try {
-                    // ✅ PF04: FIX blocking .first() by using take(1).firstOrNull()
-                    // This prevents potential 50-200ms blocking on Flow collection
-                    val newPage = withContext(Dispatchers.IO) {
-                        chatRepo.getMessagesPaged(peerId, pageSize, currentPage * pageSize)
-                            .take(1)
-                            .firstOrNull()
-                            ?: emptyList()
-                    }
-
-                    if (newPage.isEmpty()) {
-                        isAllMessagesLoaded = true
-                    } else {
-                        // Prepend new messages efficiently using ArrayDeque
-                        allMessages.addAll(0, newPage)
-
-                        // Remove oldest messages if exceeding max to prevent memory leaks
-                        while (allMessages.size > MAX_MESSAGES_IN_MEMORY) {
-                            allMessages.removeLast()
-                        }
-
-                        currentPage++
-                    }
-
-                    _uiState.update {
-                        it.copy(
-                            messages = allMessages.toList(),
-                            hasMoreMessages = !isAllMessagesLoaded,
-                            isLoadingMore = false
-                        )
-                    }
-                } catch (e: Exception) {
-                    Logger.e("ChatViewModel -> Failed to load messages", e)
-                    _uiState.update { it.copy(isLoadingMore = false) }
-                }
-            } finally {
-                paginationMutex.unlock()
-            }
-        }
-    }
 
     fun onInputChanged(text: String) {
         _uiState.update { it.copy(inputText = text, draftText = text) }
