@@ -8,6 +8,9 @@
     <!-- App Name -->
     <string name="app_name">مشيفاي</string>
 
+    <!-- Default peer name fallback -->
+    <string name="default_peer_name">نظير</string>
+
     <!-- Home / Recent Chats Screen -->
     <string name="screen_home_title">مشيفاي</string>
     <string name="chats_recent_header">المحادثات الأخيرة</string>
@@ -195,9 +198,6 @@
 
     <!-- MD3E Settings - Shape Morphing -->
     <string name="settings_shape_style">تشكيل الأشكال</string>
-    <string name="settings_shape_style_desc">اختر الشكل النشط لرسوم التحول</string>
-    <string name="settings_shape_active">نشط</string>
-    <string name="settings_shape_tap_to_select">اضغط للاختيار</string>
 
     <!-- Forward Message Dialog -->
     <string name="forward_dialog_title">إعادة توجيه</string>
@@ -236,32 +236,8 @@
 
     <!-- MD3E Settings - Motion System -->
     <string name="settings_motion_system">نظام الحركة</string>
-    <string name="settings_motion_system_desc">اضبط فيزياء الزنبرك وسرعة الرسوم المتحركة</string>
     <string name="settings_motion_scale">مقياس الحركة</string>
-    <string name="settings_motion_gentle">حركة هادئة ورقيقة</string>
-    <string name="settings_motion_standard">متوازن - افتراضي MD3E</string>
-    <string name="settings_motion_snappy">سريع ومتجاوب</string>
-    <string name="settings_motion_bouncy">مرن ولاعب</string>
-
-    <!-- MD3E Settings - Typography -->
-    <string name="settings_typography">الخطوط</string>
-    <string name="settings_typography_desc">اختر عائلة الخطوط المفضلة</string>
-    <string name="settings_font_roboto">خط النظام الافتراضي</string>
-    <string name="settings_font_poppins">هندسي حديث</string>
-    <string name="settings_font_lora">Serif أنيق</string>
-    <string name="settings_font_montserrat">عصري حضري</string>
-    <string name="settings_font_playfair">Serif استعراضي</string>
-    <string name="settings_font_inter">خط واجهة نظيف</string>
-
-    <!-- MD3E Settings - Chat Bubbles -->
-    <string name="settings_chat_bubbles">فقاعات المحادثة</string>
-    <string name="settings_chat_bubbles_desc">اختر نمط شكل فقاعات المحادثة</string>
     <string name="about_version_format">الإصدار %s</string>
-
-    <!-- MD3E Settings - Visual Density -->
-    <string name="settings_visual_density">الكثافة البصرية</string>
-    <string name="settings_visual_density_desc">اضبط حجم وعناصر واجهة المستخدم والتباعد</string>
-    <string name="settings_density_label">الكثافة</string>
 
     <!-- About Screen -->
     <string name="about_screen_title">حول</string>
@@ -293,14 +269,6 @@
     <string name="settings_seed_color_desc">اختر لون علامتك التجارية عند إيقاف الألوان الديناميكية</string>
     <string name="color_selection_content_description">اختيار اللون</string>
 
-    <!-- MD3E Settings - Font Picker -->
-    <string name="settings_custom_font">خط مخصص</string>
-    <string name="settings_custom_font_desc">ارفع ملف خط بصيغة .ttf أو .otf من جهازك</string>
-    <string name="btn_upload_font">رفع خط</string>
-    <string name="btn_clear_font">مسح الخط المخصص</string>
-    <string name="font_file_selected">تم اختيار ملف الخط: %s</string>
-    <string name="no_custom_font">لم يتم رفع خط مخصص</string>
-
     <!-- Accessibility Content Descriptions -->
     <string name="content_desc_back">رجوع</string>
     <string name="content_desc_cancel">إلغاء</string>
@@ -331,6 +299,13 @@
 
     <string name="message_image">صورة الرسالة</string>
     <string name="message_status">حالة الرسالة</string>
+    <string name="message_status_queued">الرسالة في قائمة الانتظار للإرسال</string>
+    <string name="message_status_sending">جارٍ إرسال الرسالة</string>
+    <string name="message_status_sent">تم إرسال الرسالة</string>
+    <string name="message_status_delivered">تم تسليم الرسالة</string>
+    <string name="message_status_received">تم استلام الرسالة</string>
+    <string name="message_status_read">تم قراءة الرسالة</string>
+    <string name="message_status_failed">فشل إرسال الرسالة</string>
     <string name="message_reaction">تفاعل الرسالة</string>
 
     <!-- Dialog Buttons -->
@@ -559,13 +534,6 @@
     <string name="content_desc_unverified_tap_verify">لم يتم التحقق — اضغط للتحقق</string>
 
     <!-- Forward Message Labels (Missing translations) -->
-    <string name="forward_image_label">📷 صورة</string>
-    <string name="forward_video_label">🎥 فيديو</string>
-    <string name="forward_audio_label">🎵 صوت</string>
-    <string name="forward_file_label">📄 ملف</string>
-    <string name="forward_document_label">📄 مستند</string>
-    <string name="forward_archive_label">📦 أرشيف</string>
-    <string name="forward_apk_label">📱 تطبيق APK</string>
     <string name="label_forwarded">مُعاد الإرسال:</string>
     <string name="label_timestamp_format">" (%s)"</string>
 
@@ -628,6 +596,7 @@
     <string name="setting_haptic_feedback_desc">استجابة لمسية عند التفاعل</string>
 
     <!-- Settings — Font Family Dialog Labels -->
+    <string name="settings_font_roboto">خط النظام الافتراضي</string>
     <string name="settings_font_label_poppins">Poppins</string>
     <string name="settings_font_label_lora">Lora</string>
     <string name="settings_font_label_montserrat">Montserrat</string>
@@ -653,4 +622,15 @@
     <!-- Settings — Backup Import -->
     <string name="settings_backup_import_success">تم استيراد النسخة الاحتياطية بنجاح</string>
     <string name="settings_backup_import_error">فشل في استيراد النسخة الاحتياطية</string>
+
+    <!-- Accessibility — Content Descriptions (Missing translations) -->
+    <string name="content_desc_staged_media">مرفق وسائط مجهز</string>
+    <string name="content_desc_video_icon">أيقونة تشغيل الفيديو</string>
+    <string name="content_desc_remove_attachment">إزالة المرفق</string>
+    <string name="content_desc_no_devices">لم يتم اكتشاف أجهزة</string>
+    <string name="content_desc_open_wifi_settings">فتح إعدادات الواي فاي</string>
+    <string name="content_desc_image">مرفق صورة</string>
+    <string name="content_desc_error_icon">خطأ</string>
+    <string name="content_desc_retry">إعادة المحاولة</string>
+    <string name="content_desc_qr_code">رمز QR للتحقق</string>
 </resources>
