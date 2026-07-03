@@ -1,4 +1,4 @@
-V1.1.1
+V1.1.2
 - [Chore] Adding CHANGELOG.md to project
 - [Chore] Add more bugs to fix later like any version on this app
 - [Fix] Messages no longer silently lost on send failure — error shown, input text preserved
