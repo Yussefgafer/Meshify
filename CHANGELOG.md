@@ -1,6 +1,6 @@
 V1.1.1
-- [Fix] Adding CHANGELOG.md to project
-- [Fix] Add more bugs to fix later like any version on this app
+- [Chore] Adding CHANGELOG.md to project
+- [Chore] Add more bugs to fix later like any version on this app
 - [Fix] Messages no longer silently lost on send failure — error shown, input text preserved
 - [Fix] Settings changes (theme, BLE, notifications, etc.) now show error snackbar on DataStore failure
 - [Fix] Copy-to-clipboard shows success confirmation snackbar
