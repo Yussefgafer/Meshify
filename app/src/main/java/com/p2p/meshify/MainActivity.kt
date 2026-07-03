@@ -495,7 +495,7 @@ private fun OnboardingRoute(
 
         if (alreadyGranted) {
             LaunchedEffect(perm.id) {
-                permissionResults[perm.id] = PermissionRequestResult.Granted
+                permissionResults[perm.id] = PermissionRequestResult.AlreadyGranted
                 advanceTrigger++
                 kotlinx.coroutines.delay(PERMISSION_ALREADY_GRANTED_DISPLAY_DELAY_MS)
                 currentPermissionIndex++
@@ -520,7 +520,9 @@ private fun OnboardingRoute(
 
     // Show summary when all permissions processed
     if (showSummaryDialog) {
-        val grantedCount = permissionResults.count { it.value == PermissionRequestResult.Granted }
+        val grantedCount = permissionResults.count {
+            it.value == PermissionRequestResult.Granted || it.value == PermissionRequestResult.AlreadyGranted
+        }
         PermissionSummaryDialog(
             grantedCount = grantedCount,
             totalCount = permissions.size,
@@ -544,6 +546,13 @@ private fun OnboardingRoute(
             onLeaveClick = {
                 showSkipConfirm = false
                 isPermissionFlowActive = false
+                // Mark all remaining unprocessed permissions as Skipped
+                for (i in currentPermissionIndex until permissions.size) {
+                    val perm = permissions[i]
+                    if (perm.id !in permissionResults) {
+                        permissionResults[perm.id] = PermissionRequestResult.Skipped
+                    }
+                }
                 scope.launch {
                     settingsRepository.setOnboardingCompleted()
                 }

@@ -579,6 +579,7 @@ class ChatRepositoryImpl(
 
             if (saveResult.isSuccess) {
                 sendSystemCommand(payload.senderId, "ACK_${payload.id}")
+                    .onFailure { Logger.w("ChatRepository -> Failed to send ACK for ${payload.id}: ${it.message}") }
             } else {
                 Logger.e("Failed to save incoming message from $peerId", tag = "ChatRepository")
             }
@@ -672,6 +673,7 @@ class ChatRepositoryImpl(
 
             // Send ACK to sender
             sendSystemCommand(payload.senderId, "ACK_${payload.id}")
+                .onFailure { Logger.w("ChatRepository -> Failed to send ACK for ${payload.id}: ${it.message}") }
 
             Logger.d("ChatRepository -> File payload processed successfully from $peerId")
         } catch (e: Exception) {
@@ -679,7 +681,7 @@ class ChatRepositoryImpl(
         }
     }
 
-    override suspend fun sendSystemCommand(peerId: String, command: String) {
+    override suspend fun sendSystemCommand(peerId: String, command: String): Result<Unit> {
         val myId = settingsRepository.getDeviceId()
         val payload = Payload(
             senderId = myId,
@@ -687,8 +689,8 @@ class ChatRepositoryImpl(
             data = command.toByteArray()
         )
         val transport = transportManager.selectBestTransport(peerId).firstOrNull()
-            ?: throw IllegalStateException("No available transport for peer: $peerId")
-        transport.sendPayload(peerId, payload)
+            ?: return Result.failure(Exception("No available transport for peer: $peerId"))
+        return transport.sendPayload(peerId, payload)
     }
 
     override suspend fun retryPendingMessages(peerId: String): Result<Unit> {

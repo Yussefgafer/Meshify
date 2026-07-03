@@ -37,11 +37,6 @@ class DeveloperViewModel @Inject constructor(
     private val messageDao: MessageDao
 ) : ViewModel() {
 
-    fun requestClearAllData(onConfirm: () -> Unit) {
-        // Show confirmation dialog first
-        onConfirm()
-    }
-
     fun clearAllData(onComplete: () -> Unit) {
         viewModelScope.launch {
             try {
@@ -475,11 +470,11 @@ fun DeveloperScreen(
                 title = {
                     Column {
                         Text(
-                            text = "Developer Tools",
+                            text = stringResource(R.string.developer_screen_title),
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Mock data & debugging",
+                            text = stringResource(R.string.developer_screen_subtitle),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -503,9 +498,9 @@ fun DeveloperScreen(
             Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Md))
 
             // Mock Data Section
-            MeshifySettingsGroup(title = "Mock Data") {
+            MeshifySettingsGroup(title = stringResource(R.string.developer_group_mock_data)) {
                 MeshifySettingsItem(
-                    title = "Add Mock Conversations",
+                    title = stringResource(R.string.developer_add_mock_conversations),
                     subtitle = stringResource(R.string.developer_mock_conversations_subtitle),
                     icon = Icons.Default.Chat,
                     onClick = {
@@ -519,7 +514,7 @@ fun DeveloperScreen(
                 )
 
                 MeshifySettingsItem(
-                    title = "Add Media Messages",
+                    title = stringResource(R.string.developer_add_media_messages),
                     subtitle = stringResource(R.string.developer_mock_media_subtitle),
                     icon = Icons.Default.Image,
                     onClick = {
@@ -533,7 +528,7 @@ fun DeveloperScreen(
                 )
 
                 MeshifySettingsItem(
-                    title = "Add Reactions Demo",
+                    title = stringResource(R.string.developer_add_reactions_demo),
                     subtitle = stringResource(R.string.developer_mock_reactions_subtitle),
                     icon = Icons.Default.EmojiEmotions,
                     onClick = {
@@ -547,7 +542,7 @@ fun DeveloperScreen(
                 )
 
                 MeshifySettingsItem(
-                    title = "Add Replies Demo",
+                    title = stringResource(R.string.developer_add_replies_demo),
                     subtitle = stringResource(R.string.developer_mock_replies_subtitle),
                     icon = Icons.Default.Reply,
                     onClick = {
@@ -561,7 +556,7 @@ fun DeveloperScreen(
                 )
 
                 MeshifySettingsItem(
-                    title = "Add Long Conversation",
+                    title = stringResource(R.string.developer_add_long_conversation),
                     subtitle = stringResource(R.string.developer_mock_long_chat_subtitle),
                     icon = Icons.Default.FormatListNumbered,
                     onClick = {
@@ -585,9 +580,9 @@ fun DeveloperScreen(
             Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Md))
 
             // Cleanup Section
-            MeshifySettingsGroup(title = "Cleanup") {
+            MeshifySettingsGroup(title = stringResource(R.string.developer_group_cleanup)) {
                 MeshifySettingsItem(
-                    title = "Clear Mock Data",
+                    title = stringResource(R.string.developer_clear_mock_data),
                     subtitle = stringResource(R.string.developer_mock_clear_subtitle),
                     icon = Icons.Default.DeleteSweep,
                     onClick = {
@@ -601,7 +596,7 @@ fun DeveloperScreen(
                 )
 
                 MeshifySettingsItem(
-                    title = "Clear ALL Data",
+                    title = stringResource(R.string.developer_clear_all_data),
                     subtitle = stringResource(R.string.developer_clear_all_warning),
                     icon = Icons.Default.Warning,
                     onClick = {
@@ -680,7 +675,7 @@ fun DeveloperScreen(
                 modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Md),
                 action = {
                     TextButton(onClick = { statusMessage = null }) {
-                        Text("OK")
+                        Text(stringResource(R.string.developer_action_ok))
                     }
                 }
             ) {

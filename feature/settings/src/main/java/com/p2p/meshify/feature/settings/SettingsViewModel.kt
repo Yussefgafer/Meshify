@@ -71,6 +71,10 @@ class SettingsViewModel @Inject constructor(
     private val _settingsUiState = MutableStateFlow(SettingsUiState())
     val settingsUiState: StateFlow<SettingsUiState> = _settingsUiState
 
+    // Error feedback for failed DataStore writes — UI observes this for snackbar/toast
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage
+
     init {
         // Collect each repository flow and update the unified state
         settingsRepository.displayName.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(displayName = value) }.launchIn(viewModelScope)
@@ -120,27 +124,47 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun clearError() {
+        _errorMessage.value = null
+    }
+
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch {
-            settingsRepository.setThemeMode(mode)
+            try {
+                settingsRepository.setThemeMode(mode)
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Failed to save theme mode"
+            }
         }
     }
 
     fun setHapticFeedback(enabled: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setHapticFeedback(enabled)
+            try {
+                settingsRepository.setHapticFeedback(enabled)
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Failed to save haptic feedback setting"
+            }
         }
     }
 
     fun setDynamicColor(enabled: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setDynamicColor(enabled)
+            try {
+                settingsRepository.setDynamicColor(enabled)
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Failed to save dynamic color setting"
+            }
         }
     }
 
     fun setNetworkVisibility(visible: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setNetworkVisibility(visible)
+            try {
+                settingsRepository.setNetworkVisibility(visible)
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Failed to save network visibility setting"
+            }
         }
     }
 
@@ -211,57 +235,89 @@ class SettingsViewModel @Inject constructor(
 
     fun setSeedColor(color: Color) {
         viewModelScope.launch {
-            val colorInt = android.graphics.Color.argb(
-                (color.alpha * 255).toInt(),
-                (color.red * 255).toInt(),
-                (color.green * 255).toInt(),
-                (color.blue * 255).toInt()
-            )
-            settingsRepository.setSeedColor(colorInt)
+            try {
+                val colorInt = android.graphics.Color.argb(
+                    (color.alpha * 255).toInt(),
+                    (color.red * 255).toInt(),
+                    (color.green * 255).toInt(),
+                    (color.blue * 255).toInt()
+                )
+                settingsRepository.setSeedColor(colorInt)
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Failed to save seed color"
+            }
         }
     }
 
     // New Settings Functions
     fun setAppLanguage(language: String) {
         viewModelScope.launch {
-            settingsRepository.setAppLanguage(language)
+            try {
+                settingsRepository.setAppLanguage(language)
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Failed to save app language"
+            }
         }
     }
 
     fun setFontSizeScale(scale: Float) {
         viewModelScope.launch {
-            settingsRepository.setFontSizeScale(scale)
+            try {
+                settingsRepository.setFontSizeScale(scale)
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Failed to save font size scale"
+            }
         }
     }
 
     fun setNotificationsEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setNotificationsEnabled(enabled)
+            try {
+                settingsRepository.setNotificationsEnabled(enabled)
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Failed to save notifications enabled"
+            }
         }
     }
 
     fun setNotificationSound(enabled: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setNotificationSound(enabled)
+            try {
+                settingsRepository.setNotificationSound(enabled)
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Failed to save notification sound"
+            }
         }
     }
 
     fun setNotificationVibrate(enabled: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setNotificationVibrate(enabled)
+            try {
+                settingsRepository.setNotificationVibrate(enabled)
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Failed to save notification vibrate"
+            }
         }
     }
 
     // BLE Transport Mutators
     fun setBleEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setBleEnabled(enabled)
+            try {
+                settingsRepository.setBleEnabled(enabled)
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Failed to save BLE setting"
+            }
         }
     }
 
     fun setTransportMode(mode: TransportMode) {
         viewModelScope.launch {
-            settingsRepository.setTransportMode(mode)
+            try {
+                settingsRepository.setTransportMode(mode)
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Failed to save transport mode"
+            }
         }
     }
 
