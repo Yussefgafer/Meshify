@@ -1,3 +1,15 @@
 V1.1.1
-- Adding CHANGELOG.md to project
-- Add more bugs to fix later like any version on this app
+- [Fix] Adding CHANGELOG.md to project
+- [Fix] Add more bugs to fix later like any version on this app
+- [Fix] Messages no longer silently lost on send failure — error shown, input text preserved
+- [Fix] Settings changes (theme, BLE, notifications, etc.) now show error snackbar on DataStore failure
+- [Fix] Copy-to-clipboard shows success confirmation snackbar
+- [Fix] Forward messages now shows per-peer failure details + success confirmation
+- [Fix] AboutScreen dead Privacy Policy / License links removed
+- [Fix] HelpScreen "About" button now navigates correctly
+- [Fix] Permission flow properly tracks Skipped / AlreadyGranted states
+- [Fix] RecentChatsScreen search bar no longer hidden by keyboard
+- [Fix] DeveloperScreen hardcoded strings replaced with localized resources
+- [Fix] sendSystemCommand no longer crashes app when transport unavailable
+- [Chore] Discovery delay constants extracted for maintainability
+- [Chore] Dead code (requestClearAllData, copySelectedMessages no-op) removed
