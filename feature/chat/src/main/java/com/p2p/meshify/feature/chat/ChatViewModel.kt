@@ -271,11 +271,21 @@ class ChatViewModel @Inject constructor(
                 if (hasAttachments) {
                     // Send grouped message with attachments
                     val attachments = state.stagedAttachments.map { it.bytes to it.type }
-                    repository.sendGroupedMessage(peerId, peerName, state.inputText, attachments, state.replyTo?.id)
+                    val result = repository.sendGroupedMessage(peerId, peerName, state.inputText, attachments, state.replyTo?.id)
+                    if (result.isFailure) {
+                        val errorMessage = context.getString(R.string.error_message_send_failed, result.exceptionOrNull()?.message ?: context.getString(R.string.error_unknown))
+                        _uiState.update { it.copy(isSending = false, sendError = errorMessage, inputText = state.inputText) }
+                        return@launch
+                    }
                     _uiState.update { it.copy(inputText = "", draftText = "", replyTo = null, stagedAttachments = emptyList()) }
                 } else {
                     // Send text message
-                    repository.sendMessage(peerId, peerName, state.inputText, state.replyTo?.id)
+                    val result = repository.sendMessage(peerId, peerName, state.inputText, state.replyTo?.id)
+                    if (result.isFailure) {
+                        val errorMessage = context.getString(R.string.error_message_send_failed, result.exceptionOrNull()?.message ?: context.getString(R.string.error_unknown))
+                        _uiState.update { it.copy(isSending = false, sendError = errorMessage, inputText = state.inputText) }
+                        return@launch
+                    }
                     _uiState.update { it.copy(inputText = "", draftText = "", replyTo = null) }
                 }
 
@@ -561,6 +571,7 @@ class ChatViewModel @Inject constructor(
             val peerIds = currentState.selectedPeerIds.toList()
             var successCount = 0
             var failedCount = 0
+            val failedPeerIds = mutableSetOf<String>()
             
             // Forward each message to each peer
             messagesToForward.forEach { message ->
@@ -571,10 +582,12 @@ class ChatViewModel @Inject constructor(
                             successCount++
                         } else {
                             failedCount++
+                            failedPeerIds.add(peerId)
                             Logger.e("ChatViewModel -> Failed to forward message ${message.id} to $peerId: ${result.exceptionOrNull()?.message}")
                         }
                     } catch (e: Exception) {
                         failedCount++
+                        failedPeerIds.add(peerId)
                         Logger.e("ChatViewModel -> Exception forwarding message ${message.id} to $peerId", e)
                     }
                     
@@ -587,14 +600,18 @@ class ChatViewModel @Inject constructor(
             
             // Show result
             if (failedCount > 0) {
-                val totalAttempts = successCount + failedCount
                 _uiState.update {
                     it.copy(
-                        sendError = context.getString(R.string.error_forward_partial, failedCount, totalAttempts)
+                        sendError = context.getString(R.string.error_forward_partial, failedPeerIds.size, peerIds.size)
                     )
                 }
-                Logger.w("ChatViewModel -> Forwarded $successCount messages, $failedCount failed")
+                Logger.w("ChatViewModel -> Forwarded $successCount messages, $failedCount attempts failed across ${failedPeerIds.size} peer(s)")
             } else {
+                _uiState.update {
+                    it.copy(
+                        sendError = context.getString(R.string.forward_success, successCount, peerIds.size)
+                    )
+                }
                 Logger.d("ChatViewModel -> Successfully forwarded $successCount messages to ${peerIds.size} peers")
             }
             
@@ -684,6 +701,9 @@ class ChatViewModel @Inject constructor(
             if (textToCopy.isNotBlank()) {
                 clipboard.setText(androidx.compose.ui.text.AnnotatedString(textToCopy))
                 Logger.d("ChatViewModel -> Copied ${messages.size} messages to clipboard")
+                _uiState.update {
+                    it.copy(sendError = context.getString(R.string.chat_messages_copied, messages.size))
+                }
             }
 
             clearSelection()

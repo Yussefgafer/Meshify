@@ -32,6 +32,8 @@ local.properties
 *.old
 *.backup
 *~
+.agent
+AGENT.md
 qwen-code-export-*.md
 log_device1.txt
 GEMINI.md
@@ -44,3 +46,4 @@ Thumbs.db
 MESHIFY_KEYSTORE_BASE64.txt
 
 gha-creds-*.json
+.kotlin/sessions/kotlin-compiler-4170056346322323853.salive

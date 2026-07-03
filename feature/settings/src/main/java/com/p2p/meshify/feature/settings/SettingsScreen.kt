@@ -782,6 +782,26 @@ fun SettingsScreen(
         }
     }
 
+    // Error Message from ViewModel
+    val errorMessage by viewModel.errorMessage.collectAsState()
+    if (errorMessage != null) {
+        LaunchedEffect(errorMessage) {
+            kotlinx.coroutines.delay(3000)
+            viewModel.clearError()
+        }
+
+        Snackbar(
+            modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Md),
+            action = {
+                IconButton(onClick = { viewModel.clearError() }) {
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.content_desc_close), tint = Color.White)
+                }
+            }
+        ) {
+            Text(errorMessage ?: "")
+        }
+    }
+
     // BLE Status Bottom Sheet
     if (showBleSheet) {
         BleStatusBottomSheet(

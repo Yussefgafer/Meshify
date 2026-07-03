@@ -567,6 +567,8 @@ fun PermissionResultCard(
         PermissionRequestResult.Granted -> Triple(Icons.Default.Check, StatusOnline, R.string.ob_perm_granted)
         PermissionRequestResult.Denied -> Triple(Icons.Default.Close, MaterialTheme.colorScheme.error, R.string.ob_perm_denied)
         PermissionRequestResult.DeniedPermanently -> Triple(Icons.Default.Warning, MaterialTheme.colorScheme.error, R.string.ob_perm_denied_permanent)
+        PermissionRequestResult.Skipped -> Triple(Icons.Default.Close, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), R.string.ob_perm_skipped)
+        PermissionRequestResult.AlreadyGranted -> Triple(Icons.Default.Check, StatusOnline, R.string.ob_perm_already_granted)
     }
 
     AnimatedVisibility(
@@ -767,6 +769,8 @@ fun PermissionSummaryDialog(
                                     PermissionRequestResult.Granted -> R.string.ob_perm_granted to StatusOnline
                                     PermissionRequestResult.Denied -> R.string.ob_perm_denied to MaterialTheme.colorScheme.error
                                     PermissionRequestResult.DeniedPermanently -> R.string.ob_perm_denied_permanent to MaterialTheme.colorScheme.error
+                                    PermissionRequestResult.Skipped -> R.string.ob_perm_skipped to MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                    PermissionRequestResult.AlreadyGranted -> R.string.ob_perm_already_granted to StatusOnline
                                 }
                                 Text(
                                     text = stringResource(statusText),

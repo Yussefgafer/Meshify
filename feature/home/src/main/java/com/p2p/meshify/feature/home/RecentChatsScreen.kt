@@ -112,7 +112,12 @@ fun RecentChatsScreen(
             }
             // Content state - show search bar + chat list
             else -> {
-                Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .imePadding()
+                ) {
                     SearchBarSection(
                         query = searchQuery,
                         onQueryChange = { viewModel.updateSearchQuery(it) }

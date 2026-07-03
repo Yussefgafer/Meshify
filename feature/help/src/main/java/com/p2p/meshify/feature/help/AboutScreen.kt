@@ -8,20 +8,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.p2p.meshify.core.common.R
@@ -143,29 +139,7 @@ fun AboutScreen(
                 }
             )
             
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            AboutLink(
-                title = stringResource(R.string.about_privacy),
-                subtitle = stringResource(R.string.about_privacy_desc),
-                icon = Icons.Default.Security,
-                onClick = {
-                    // Navigate to privacy policy
-                }
-            )
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            AboutLink(
-                title = stringResource(R.string.about_license),
-                subtitle = stringResource(R.string.about_license_desc),
-                icon = Icons.Default.Description,
-                onClick = {
-                    // Show license
-                }
-            )
-            
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             
             // Built with ❤️
             Text(

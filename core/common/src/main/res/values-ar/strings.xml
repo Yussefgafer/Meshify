@@ -213,6 +213,7 @@
     <string name="forward_dialog_btn_forward">إعادة توجيه (%d)</string>
     <string name="forward_dialog_btn_forward_retry">إعادة محاولة</string>
     <string name="error_forward_partial">تعذر استقبال الرسالة من %1$d من %2$d أجهزة</string>
+    <string name="forward_success">تم إعادة توجيه %1$d رسالة إلى %2$d جهاز</string>
 
     <!-- Forward Message Context -->
     <string name="forward_context_text">مُعاد الإرسال من %1$s:\n%2$s</string>

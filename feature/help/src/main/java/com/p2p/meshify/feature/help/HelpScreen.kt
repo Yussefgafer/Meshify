@@ -26,7 +26,8 @@ import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HelpScreen(
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToAbout: () -> Unit = {}
 ) {
     val uriHandler = LocalUriHandler.current
     
@@ -132,7 +133,7 @@ fun HelpScreen(
                         Spacer(modifier = Modifier.height(16.dp))
                         
                         Button(
-                            onClick = { /* Navigate to About Screen */ },
+                            onClick = onNavigateToAbout,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary
                             )

@@ -62,7 +62,7 @@ interface IChatRepository {
     suspend fun addReaction(messageId: String, reaction: String?): Result<Unit>
 
     // System
-    suspend fun sendSystemCommand(peerId: String, command: String)
+    suspend fun sendSystemCommand(peerId: String, command: String): Result<Unit>
     suspend fun handleIncomingPayload(peerId: String, payload: Payload)
     suspend fun retryPendingMessages(peerId: String): Result<Unit>
 }
