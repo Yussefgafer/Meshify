@@ -125,12 +125,21 @@ jobs:
           name: Meshify-Builds
           path: .
 
+      - name: Extract Changelog
+        id: changelog
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v ver="V$VERSION" \
+            '/^V[0-9]/ { if (flag) exit; if ($0 == ver) flag=1; next } \
+             flag' CHANGELOG.md > release_body.md
+          echo "Written $(wc -l < release_body.md) lines"
+
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           draft: true
           prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'alpha') }}
-          generate_release_notes: true
+          body_path: release_body.md
           files: |
             *.apk
         env:
