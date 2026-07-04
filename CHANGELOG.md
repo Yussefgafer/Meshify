@@ -13,3 +13,14 @@ V1.1.2
 - [Fix] RecentChatsScreen search bar no longer hidden by keyboard
 - [Fix] DeveloperScreen hardcoded strings replaced with localized resources
 - [Fix] sendSystemCommand no longer crashes app when transport unavailable
+- [Fix] sendImage/sendVideo now check Result.isFailure and show error on failure
+- [Fix] retryLoad() no longer a no-op — correctly re-triggers flow on error
+- [Fix] Blank peerId now shows error state instead of infinite loading
+- [Fix] DiscoveryViewModel isSearching correctly reflects scanning state, not peer count
+- [Fix] ChatViewModel deleteMessage/addReaction now show error on failure
+- [Fix] ChatInputViewModel sendMessage no longer clears input text on Result failure
+- [Fix] ChatInputViewModel forwardMessages now shows user-visible feedback
+- [Fix] ChatViewModel copySelectedMessages removed (dead code with misleading placeholder)
+- [Fix] ChatViewModel deleteSelectedMessages now reports partial deletion failures
+- [Fix] SettingsViewModel 7 remaining mutators now have try-catch error handling
+- [Fix] ChatScreen copy button race condition fixed (double clearSelection)

@@ -123,7 +123,12 @@ class ChatInputViewModel(
 
             try {
                 // Send text message
-                chatRepository.sendMessage(peerId, peerName, state.inputText, state.replyTo?.id)
+                val result = chatRepository.sendMessage(peerId, peerName, state.inputText, state.replyTo?.id)
+                if (result.isFailure) {
+                    val errorMessage = context.getString(R.string.error_message_send_failed, result.exceptionOrNull()?.message ?: context.getString(R.string.error_unknown))
+                    _uiState.update { it.copy(isSending = false, sendError = errorMessage, inputText = state.inputText) }
+                    return@launch
+                }
                 _uiState.update { it.copy(inputText = "", draftText = "", replyTo = null, isSending = false) }
             } catch (e: Exception) {
                 Logger.e("ChatInputViewModel -> Failed to send message", e)
@@ -242,6 +247,7 @@ class ChatInputViewModel(
             val peerIds = currentState.selectedPeerIds.toList()
             var successCount = 0
             var failedCount = 0
+            val failedPeerIds = mutableSetOf<String>()
 
             // Forward each message to each peer
             messagesToForward.forEach { message ->
@@ -252,10 +258,12 @@ class ChatInputViewModel(
                             successCount++
                         } else {
                             failedCount++
+                            failedPeerIds.add(targetPeerId)
                             Logger.e("ChatInputViewModel -> Failed to forward message ${message.id} to $targetPeerId: ${result.exceptionOrNull()?.message}")
                         }
                     } catch (e: Exception) {
                         failedCount++
+                        failedPeerIds.add(targetPeerId)
                         Logger.e("ChatInputViewModel -> Exception forwarding message ${message.id} to $targetPeerId", e)
                     }
 
@@ -266,11 +274,21 @@ class ChatInputViewModel(
                 }
             }
 
-            // Show result
-            if (failedCount == 0) {
-                Logger.d("ChatInputViewModel -> Successfully forwarded $successCount messages to ${peerIds.size} peers")
+            // Show result to user
+            if (failedCount > 0) {
+                _uiState.update {
+                    it.copy(
+                        sendError = context.getString(R.string.error_forward_partial, failedPeerIds.size, peerIds.size)
+                    )
+                }
+                Logger.w("ChatInputViewModel -> Forwarded $successCount messages, $failedCount failed across ${failedPeerIds.size} peer(s)")
             } else {
-                Logger.w("ChatInputViewModel -> Forwarded $successCount messages, $failedCount failed")
+                _uiState.update {
+                    it.copy(
+                        sendError = context.getString(R.string.forward_success, successCount, peerIds.size)
+                    )
+                }
+                Logger.d("ChatInputViewModel -> Successfully forwarded $successCount messages to ${peerIds.size} peers")
             }
 
             // Reset state after delay
