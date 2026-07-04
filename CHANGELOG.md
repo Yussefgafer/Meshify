@@ -24,3 +24,12 @@ V1.1.2
 - [Fix] ChatViewModel deleteSelectedMessages now reports partial deletion failures
 - [Fix] SettingsViewModel 7 remaining mutators now have try-catch error handling
 - [Fix] ChatScreen copy button race condition fixed (double clearSelection)
+- [Fix] ImageCompressor rotation failure now logged instead of silent catch
+- [Fix] RecentChatsViewModel deleteChat now logged on failure
+- [Fix] SettingsRepository generic catch blocks now log before fallback
+- [Fix] parseName() no longer uses fragile contains("name") heuristic
+- [Fix] SimpleDateFormat → DateTimeFormatter for thread-safety across 7 files
+- [Fix] cancelUpload now actually cancels the upload coroutine job
+- [Fix] DiscoveryScreen shows Snackbar for transient transport errors
+- [Fix] BleGattClient rejects payload exceeding MTU instead of silent truncation
+- [Fix] ParallelFileTransfer catch blocks now include chunk details in errors
