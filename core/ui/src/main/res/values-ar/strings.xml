@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Accessibility Content Descriptions -->
+    <string name="forward_dialog_search_desc">بحث</string>
+    <string name="forward_dialog_error">خطأ</string>
+    <string name="forward_dialog_error_outline">خطأ</string>
+    <string name="forward_dialog_message_type">رسالة</string>
+    <string name="forward_dialog_image_type">صورة</string>
+    <string name="forward_dialog_video_type">فيديو</string>
+    <string name="forward_dialog_file_type">ملف</string>
+    <string name="forward_dialog_section_icon">قسم</string>
+
+    <string name="avatar_desc">الصورة الرمزية</string>
+
+    <string name="settings_icon_desc">إعدادات</string>
+    <string name="settings_navigate_desc">تنقل</string>
+    <string name="settings_avatar">الصورة الرمزية</string>
+
+    <string name="dialog_option_desc">خيار</string>
+    <string name="dialog_selected">محدد</string>
+
+    <string name="permission_icon_desc">أيقونة الصلاحية</string>
+    <string name="permission_check">موافق</string>
+    <string name="permission_all_set">كل شيء جاهز</string>
+
+    <string name="message_image">صورة الرسالة</string>
+    <string name="message_status">حالة الرسالة</string>
+    <string name="message_reaction">تفاعل</string>
+
+    <!-- Dialog Buttons -->
+    <string name="dialog_btn_delete">حذف</string>
+    <string name="dialog_btn_save">حفظ</string>
+    <string name="dialog_btn_cancel">إلغاء</string>
+
+    <!-- Settings Backup & Restore -->
+    <string name="settings_backup_title">النسخ الاحتياطي والاستعادة</string>
+    <string name="settings_backup_desc">قم بتصدير إعداداتك إلى ملف أو استيرادها من ملف نسخ احتياطي.</string>
+    <string name="settings_backup_export">تصدير النسخ الاحتياطي</string>
+    <string name="settings_backup_import">استيراد النسخ الاحتياطي</string>
+    <string name="settings_backup_export_success">تم تصدير النسخ الاحتياطي بنجاح!</string>
+    <string name="settings_backup_export_error">فشل التصدير: %1$s</string>
+    <string name="settings_backup_import_soon">ميزة الاستيراد قادمة قريباً</string>
+
+    <!-- Chat Input -->
+    <string name="chat_input_caption_placeholder">أضف تعليقاً…</string>
+    <string name="chat_input_gallery">المعرض</string>
+    <string name="chat_input_video">فيديو</string>
+    <string name="chat_input_file">ملف</string>
+    <string name="chat_input_send">إرسال</string>
+</resources>
