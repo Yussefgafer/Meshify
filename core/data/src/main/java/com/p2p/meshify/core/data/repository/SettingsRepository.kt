@@ -73,6 +73,7 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
         try {
             ThemeMode.valueOf(preferences[KEY_THEME_MODE] ?: "SYSTEM")
         } catch (e: Exception) {
+            Logger.e("SettingsRepository -> Failed to read themeMode", e)
             ThemeMode.SYSTEM
         }
     }
@@ -98,6 +99,7 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
         try {
             ShapeStyle.valueOf(preferences[KEY_SHAPE_STYLE] ?: "CIRCLE")
         } catch (e: Exception) {
+            Logger.e("SettingsRepository -> Failed to read shapeStyle", e)
             ShapeStyle.CIRCLE
         }
     }
@@ -106,6 +108,7 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
         try {
             MotionPreset.valueOf(preferences[KEY_MOTION_PRESET] ?: "STANDARD")
         } catch (e: Exception) {
+            Logger.e("SettingsRepository -> Failed to read motionPreset", e)
             MotionPreset.STANDARD
         }
     }
@@ -118,6 +121,7 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
         try {
             FontFamilyPreset.valueOf(preferences[KEY_FONT_FAMILY] ?: "ROBOTO")
         } catch (e: Exception) {
+            Logger.e("SettingsRepository -> Failed to read fontFamilyPreset", e)
             FontFamilyPreset.ROBOTO
         }
     }
@@ -130,6 +134,7 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
         try {
             BubbleStyle.valueOf(preferences[KEY_BUBBLE_STYLE] ?: "ROUNDED")
         } catch (e: Exception) {
+            Logger.e("SettingsRepository -> Failed to read bubbleStyle", e)
             BubbleStyle.ROUNDED
         }
     }
@@ -151,6 +156,7 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
         try {
             TransportMode.valueOf(preferences[KEY_TRANSPORT_MODE] ?: "MULTI_PATH")
         } catch (e: Exception) {
+            Logger.e("SettingsRepository -> Failed to read transportMode", e)
             TransportMode.MULTI_PATH
         }
     }
@@ -191,6 +197,7 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
             }
             newId
         } catch (e: Exception) {
+            Logger.e("SettingsRepository -> Failed to read deviceId", e)
             UUID.randomUUID().toString()
         }
     }
@@ -477,6 +484,7 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
             val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
             packageInfo.versionName ?: "1.0"
         } catch (e: Exception) {
+            Logger.e("SettingsRepository -> Failed to read app version", e)
             "1.0"
         }
     }

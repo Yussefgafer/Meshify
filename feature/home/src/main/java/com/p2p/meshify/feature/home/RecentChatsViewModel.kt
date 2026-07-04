@@ -108,7 +108,11 @@ class RecentChatsViewModel @Inject constructor(
      */
     fun deleteChat(peerId: String) {
         viewModelScope.launch {
-            chatRepository.deleteChat(peerId)
+            try {
+                chatRepository.deleteChat(peerId)
+            } catch (e: Exception) {
+                Logger.e("RecentChatsViewModel -> Failed to delete chat", e)
+            }
         }
     }
 
