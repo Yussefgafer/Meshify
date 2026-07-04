@@ -30,8 +30,6 @@ interface IChatRepository {
 
     // Message sending
     suspend fun sendMessage(peerId: String, peerName: String, text: String, replyToId: String? = null): Result<Unit>
-    suspend fun sendImage(peerId: String, peerName: String, imageBytes: ByteArray, extension: String, replyToId: String? = null): Result<Unit>
-    suspend fun sendVideo(peerId: String, peerName: String, videoBytes: ByteArray, extension: String, replyToId: String? = null): Result<Unit>
     suspend fun sendGroupedMessage(
         peerId: String,
         peerName: String,

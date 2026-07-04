@@ -21,11 +21,13 @@ import androidx.compose.ui.text.input.TextFieldValue
 import com.p2p.meshify.core.ui.components.MediaStagingChatInput
 import com.p2p.meshify.core.ui.components.StagedMediaRow
 import com.p2p.meshify.core.ui.model.StagedAttachment
+import com.p2p.meshify.core.util.Logger
+import com.p2p.meshify.domain.model.AppConstants
 import com.p2p.meshify.domain.model.MessageType
 
 /**
  * Chat input bar with media staging, attachment buttons, and text input.
- * Handles image/video picker launchers and staged media display.
+ * Handles image/video/file picker launchers and staged media display.
  */
 @Composable
 fun ChatInputBar(
@@ -40,10 +42,38 @@ fun ChatInputBar(
 ) {
     val context = LocalContext.current
 
+    /** Reads bytes from a content URI safely: try/catch, size check, stream closed. */
+    fun readUriBytes(uri: Uri): ByteArray? {
+        return try {
+            context.contentResolver.openInputStream(uri)?.use { stream ->
+                val size = stream.available().toLong()
+                if (size > AppConstants.MAX_FILE_SIZE_BYTES) {
+                    Logger.e("ChatInputBar -> File too large: $size bytes (max ${AppConstants.MAX_FILE_SIZE_BYTES})")
+                    return null
+                }
+                stream.readBytes().also { bytes ->
+                    if (bytes.size.toLong() > AppConstants.MAX_FILE_SIZE_BYTES) {
+                        Logger.e("ChatInputBar -> File too large after read: ${bytes.size} bytes")
+                        return null
+                    }
+                }
+            }
+        } catch (e: SecurityException) {
+            Logger.e("ChatInputBar -> SecurityException reading URI: $uri", e)
+            null
+        } catch (e: java.io.FileNotFoundException) {
+            Logger.e("ChatInputBar -> File not found: $uri", e)
+            null
+        } catch (e: Exception) {
+            Logger.e("ChatInputBar -> Failed to read URI: $uri", e)
+            null
+        }
+    }
+
     // Image picker launcher
     val imageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let {
-            val bytes = context.contentResolver.openInputStream(it)?.readBytes()
+            val bytes = readUriBytes(it)
             if (bytes != null) {
                 onStageAttachment(it, bytes, MessageType.IMAGE)
             }
@@ -53,9 +83,19 @@ fun ChatInputBar(
     // Video picker launcher
     val videoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let {
-            val bytes = context.contentResolver.openInputStream(it)?.readBytes()
+            val bytes = readUriBytes(it)
             if (bytes != null) {
                 onStageAttachment(it, bytes, MessageType.VIDEO)
+            }
+        }
+    }
+
+    // Generic file picker launcher
+    val fileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let {
+            val bytes = readUriBytes(it)
+            if (bytes != null) {
+                onStageAttachment(it, bytes, MessageType.FILE)
             }
         }
     }
@@ -82,6 +122,7 @@ fun ChatInputBar(
             onSendClick = onSendClick,
             onGalleryClick = { imageLauncher.launch("image/*") },
             onVideoClick = { videoLauncher.launch("video/*") },
+            onFileClick = { fileLauncher.launch("*/*") },
             hasAttachments = stagedAttachments.isNotEmpty(),
             isSending = isSending
         )

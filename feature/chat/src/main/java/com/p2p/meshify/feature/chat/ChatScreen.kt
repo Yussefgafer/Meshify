@@ -1,9 +1,6 @@
 package com.p2p.meshify.feature.chat
 
-import android.net.Uri
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,8 +28,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -70,7 +69,6 @@ import com.p2p.meshify.core.ui.hooks.HapticPattern
 import com.p2p.meshify.core.ui.hooks.LocalPremiumHaptics
 import com.p2p.meshify.core.ui.theme.LocalMeshifyThemeConfig
 import com.p2p.meshify.domain.model.DeleteType
-import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.feature.chat.components.BackConfirmationDialog
 import com.p2p.meshify.feature.chat.components.ChatContextMenu
 import com.p2p.meshify.feature.chat.components.ChatInputBar
@@ -185,10 +183,18 @@ fun ChatScreen(
     // Error snackbars
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val retryLabel = stringResource(R.string.notification_action_retry)
 
     LaunchedEffect(uiState.sendError) {
         uiState.sendError?.let { error ->
-            snackbarHostState.showSnackbar(error)
+            val result = snackbarHostState.showSnackbar(
+                message = error,
+                actionLabel = retryLabel,
+                duration = SnackbarDuration.Indefinite
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.sendMessage()
+            }
             viewModel.clearError()
         }
     }
@@ -197,25 +203,6 @@ fun ChatScreen(
         uiState.uploadError?.let { error ->
             snackbarHostState.showSnackbar(error)
             viewModel.clearUploadError()
-        }
-    }
-
-    // Media pickers
-    val imageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let {
-            val bytes = context.contentResolver.openInputStream(it)?.readBytes()
-            if (bytes != null) {
-                viewModel.stageAttachment(it, bytes, MessageType.IMAGE)
-            }
-        }
-    }
-
-    val videoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let {
-            val bytes = context.contentResolver.openInputStream(it)?.readBytes()
-            if (bytes != null) {
-                viewModel.stageAttachment(it, bytes, MessageType.VIDEO)
-            }
         }
     }
 

@@ -32,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Videocam
+import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
@@ -85,6 +86,7 @@ fun MediaStagingChatInput(
     onSendClick: () -> Unit,
     onGalleryClick: () -> Unit,
     onVideoClick: () -> Unit,
+    onFileClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     hasAttachments: Boolean = false,
     isSending: Boolean = false
@@ -172,6 +174,40 @@ fun MediaStagingChatInput(
                 Icon(
                     imageVector = Icons.Outlined.Videocam,
                     contentDescription = stringResource(R.string.chat_input_video),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            // File Button
+            val fileInteraction = remember { MutableInteractionSource() }
+            val isFilePressed by fileInteraction.collectIsPressedAsState()
+            val fileScale by animateFloatAsState(
+                targetValue = if (isFilePressed) 0.92f else 1f,
+                animationSpec = spring(dampingRatio = 0.6f),
+                label = "file_scale"
+            )
+
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable(
+                        interactionSource = fileInteraction,
+                        indication = null
+                    ) {
+                        haptics.perform(HapticPattern.Pop)
+                        onFileClick()
+                    }
+                    .background(
+                        MaterialTheme.colorScheme.surfaceContainerHighest,
+                        RoundedCornerShape(12.dp)
+                    )
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.AttachFile,
+                    contentDescription = stringResource(R.string.chat_input_file),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(24.dp)
                 )

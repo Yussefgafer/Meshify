@@ -62,9 +62,8 @@ class MessageRepository(
      * 1. Use transport that already has this peer online
      * 2. Fall back to LAN as default
      */
-    private fun selectBestTransport(peerId: String): IMeshTransport {
+    private fun selectBestTransport(peerId: String): IMeshTransport? {
         return transportManager.selectBestTransport(peerId).firstOrNull()
-            ?: throw IllegalStateException("No available transport for peer: $peerId")
     }
 
     // ==================== Public API: Send Messages ====================
@@ -367,6 +366,18 @@ class MessageRepository(
             } else {
                 Logger.d("MessageRepository -> sendPayload succeeded, updating status to SENT")
                 messageDao.updateMessageStatus(message.id, MessageStatus.SENT)
+
+                // Save file locally so sender can view their own sent file
+                val extension = file.extension.ifBlank { "bin" }
+                val localFileName = "sent_${message.id}.$extension"
+                val savedPath = fileManager.saveMedia(localFileName, fileBytes)
+                if (savedPath != null) {
+                    messageDao.insertMessage(message.copy(mediaPath = savedPath, status = MessageStatus.SENT))
+                    Logger.d("MessageRepository -> Saved sent file locally: $savedPath")
+                } else {
+                    Logger.w("MessageRepository -> Failed to save sent file locally: $localFileName")
+                }
+
                 Logger.d("MessageRepository -> sendFileWithProgress COMPLETE: messageId=$messageId")
                 return@withContext Result.success(Unit)
             }
@@ -449,6 +460,20 @@ class MessageRepository(
 
             Logger.d("MessageRepository -> Sending payload via selected transport")
             val transport = selectBestTransport(peerId)
+            if (transport == null) {
+                Logger.e("MessageRepository -> No available transport for peer: $peerId")
+                messageDao.updateMessageStatus(message.id, MessageStatus.FAILED)
+                pendingMessageDao.insert(
+                    PendingMessageEntity(
+                        id = message.id,
+                        recipientId = peerId,
+                        recipientName = cleanName,
+                        content = message.text ?: "[${message.type.name}]",
+                        type = message.type
+                    )
+                )
+                return@withContext Result.failure(Exception("No available transport for peer: $peerId"))
+            }
             val result = withTimeout(SEND_TIMEOUT_MS) {
                 transport.sendPayload(peerId, payload)
             }

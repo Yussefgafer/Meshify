@@ -366,30 +366,6 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    fun sendImage(bytes: ByteArray, extension: String) {
-        viewModelScope.launch {
-            val result = repository.sendImage(peerId, peerName, bytes, extension, _uiState.value.replyTo?.id)
-            if (result.isFailure) {
-                val errorMessage = context.getString(R.string.error_message_send_failed, result.exceptionOrNull()?.message ?: context.getString(R.string.error_unknown))
-                _uiState.update { it.copy(sendError = errorMessage) }
-                return@launch
-            }
-            _uiState.update { it.copy(replyTo = null) }
-        }
-    }
-
-    fun sendVideo(bytes: ByteArray, extension: String) {
-        viewModelScope.launch {
-            val result = repository.sendVideo(peerId, peerName, bytes, extension, _uiState.value.replyTo?.id)
-            if (result.isFailure) {
-                val errorMessage = context.getString(R.string.error_message_send_failed, result.exceptionOrNull()?.message ?: context.getString(R.string.error_unknown))
-                _uiState.update { it.copy(sendError = errorMessage) }
-                return@launch
-            }
-            _uiState.update { it.copy(replyTo = null) }
-        }
-    }
-
     /**
      * Sends a file with progress tracking.
      * Used for large files where upload progress should be shown to the user.
