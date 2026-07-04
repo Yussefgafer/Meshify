@@ -20,6 +20,7 @@ import com.p2p.meshify.domain.security.model.SecurityEvent
 import com.p2p.meshify.core.ui.model.StagedAttachment
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
@@ -30,6 +31,7 @@ import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.milliseconds
 import java.io.File
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
 /** Debounce interval for search input to avoid excessive DB queries */
@@ -114,6 +116,10 @@ class ChatViewModel @Inject constructor(
     private val pageSize = 50
     private var isAllMessagesLoaded = false
     private val allMessages = ArrayDeque<MessageEntity>(initialCapacity = 100)
+
+    // Tracks active upload jobs so cancelUpload() can cancel them
+    // ConcurrentHashMap for thread safety — invokeOnCompletion may run on a different dispatcher
+    private val uploadJobs = ConcurrentHashMap<String, kotlinx.coroutines.Job>()
 
     // ✅ PERF-01: Maximum messages to keep in memory (reduced from 500 to 200)
     // Reduces memory usage by 5-8MB in long conversations
@@ -394,7 +400,7 @@ class ChatViewModel @Inject constructor(
      * @param caption Optional caption for the file
      */
     fun sendFileWithProgress(messageId: String, file: File, fileType: MessageType, caption: String = "") {
-        viewModelScope.launch {
+        val job = viewModelScope.launch {
             try {
                 // Initialize progress to 0
                 _uploadProgress.update { current ->
@@ -433,6 +439,12 @@ class ChatViewModel @Inject constructor(
                         it.copy(uploadError = context.getString(R.string.error_file_send_failed, error.message ?: context.getString(R.string.error_unknown)))
                     }
                 }
+            } catch (e: CancellationException) {
+                // Intentional cancellation via cancelUpload() — no error shown
+                Logger.d("ChatViewModel -> File upload cancelled for messageId: $messageId")
+                _uploadProgress.update { current ->
+                    current - messageId
+                }
             } catch (e: Exception) {
                 Logger.e("ChatViewModel -> File upload exception", e)
                 _uploadProgress.update { current ->
@@ -444,6 +456,8 @@ class ChatViewModel @Inject constructor(
                 }
             }
         }
+        uploadJobs[messageId] = job
+        job.invokeOnCompletion { uploadJobs.remove(messageId) }
     }
 
     /**
@@ -451,10 +465,10 @@ class ChatViewModel @Inject constructor(
      * Removes the progress indicator from the UI.
      */
     fun cancelUpload(messageId: String) {
+        uploadJobs[messageId]?.cancel()
         _uploadProgress.update { current ->
             current - messageId
         }
-        // Note: Actual cancellation logic would need to be implemented in repository
         Logger.d("ChatViewModel -> Upload cancelled for messageId: $messageId")
     }
 
