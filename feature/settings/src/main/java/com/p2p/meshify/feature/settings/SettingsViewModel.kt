@@ -40,7 +40,7 @@ data class SettingsUiState(
     val motionScale: Float = 1.0f,
     val fontFamilyPreset: FontFamilyPreset = FontFamilyPreset.ROBOTO,
     val customFontUri: String? = null,
-    val bubbleStyle: BubbleStyle = BubbleStyle.ROUNDED,
+    val bubbleStyle: BubbleStyle = BubbleStyle.TAILED,
     val visualDensity: Float = 1.0f,
     val seedColor: Int = 0xFF006D68.toInt(),
     val appLanguage: String = "en",

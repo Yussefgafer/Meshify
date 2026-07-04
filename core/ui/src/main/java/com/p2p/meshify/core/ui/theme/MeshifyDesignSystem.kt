@@ -28,8 +28,6 @@ object MeshifyDesignSystem {
         val CardLarge = RoundedCornerShape(28.dp)
         val CardMedium = RoundedCornerShape(20.dp)
         val CardSmall = RoundedCornerShape(16.dp)
-        val BubbleMe = RoundedCornerShape(topStart = 20.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
-        val BubblePeer = RoundedCornerShape(topStart = 4.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
         val Button = RoundedCornerShape(20.dp)
         val Input = RoundedCornerShape(24.dp)
         val Pill = RoundedCornerShape(50)

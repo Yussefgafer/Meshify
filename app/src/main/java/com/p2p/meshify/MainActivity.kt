@@ -153,7 +153,7 @@ class MainActivity : ComponentActivity() {
             val motionScale by settingsRepo.motionScale.collectAsState(initial = 1.0f)
             val fontFamilyPreset by settingsRepo.fontFamilyPreset.collectAsState(initial = FontFamilyPreset.ROBOTO)
             val shapeStyle by settingsRepo.shapeStyle.collectAsState(initial = com.p2p.meshify.domain.model.ShapeStyle.CIRCLE)
-            val bubbleStyle by settingsRepo.bubbleStyle.collectAsState(initial = com.p2p.meshify.domain.model.BubbleStyle.ROUNDED)
+            val bubbleStyle by settingsRepo.bubbleStyle.collectAsState(initial = com.p2p.meshify.domain.model.BubbleStyle.TAILED)
             val visualDensity by settingsRepo.visualDensity.collectAsState(initial = 1.0f)
             val seedColorInt by settingsRepo.seedColor.collectAsState(initial = 0xFF006D68.toInt())
 

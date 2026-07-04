@@ -37,7 +37,7 @@ data class MeshifyThemeConfig(
     val motionScale: Float = 1.0f,
     val fontFamily: FontFamily = MD3EFontFamilies.Roboto,
     val customFontUri: String? = null,
-    val bubbleStyle: com.p2p.meshify.domain.model.BubbleStyle = com.p2p.meshify.domain.model.BubbleStyle.ROUNDED,
+    val bubbleStyle: com.p2p.meshify.domain.model.BubbleStyle = com.p2p.meshify.domain.model.BubbleStyle.TAILED,
     val visualDensity: Float = 1.0f,
     val seedColor: Color = Color(0xFF006D68) // Default teal
 )
@@ -183,7 +183,7 @@ fun MeshifyTheme(
     motionScale: Float = 1.0f,
     fontFamily: FontFamily = MD3EFontFamilies.Roboto,
     shapeStyle: com.p2p.meshify.domain.model.ShapeStyle = com.p2p.meshify.domain.model.ShapeStyle.CIRCLE,
-    bubbleStyle: com.p2p.meshify.domain.model.BubbleStyle = com.p2p.meshify.domain.model.BubbleStyle.ROUNDED,
+    bubbleStyle: com.p2p.meshify.domain.model.BubbleStyle = com.p2p.meshify.domain.model.BubbleStyle.TAILED,
     visualDensity: Float = 1.0f,
     seedColor: Color = Color(0xFF006D68),
     content: @Composable () -> Unit
