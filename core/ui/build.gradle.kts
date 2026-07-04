@@ -39,16 +39,11 @@ android {
     buildFeatures {
         compose = true
     }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = "2.3.10"
-    }
 }
 
 dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:domain"))
-    implementation(project(":core:data"))
     
     // Compose BOM
     implementation(platform(libs.androidx.compose.bom))

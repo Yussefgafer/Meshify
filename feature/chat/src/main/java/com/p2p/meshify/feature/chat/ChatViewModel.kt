@@ -7,16 +7,17 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.p2p.meshify.core.common.R
-import com.p2p.meshify.core.data.local.entity.ChatEntity
 import com.p2p.meshify.core.data.local.entity.MessageAttachmentEntity
 import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
+import com.p2p.meshify.domain.repository.IChatRepository
 import com.p2p.meshify.core.ui.components.ForwardDialogState
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.DeleteType
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.model.TransportType
 import com.p2p.meshify.domain.security.model.SecurityEvent
+import com.p2p.meshify.core.ui.model.MessageUiModel
 import com.p2p.meshify.core.ui.model.StagedAttachment
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -39,20 +40,21 @@ private const val SEARCH_DEBOUNCE_MS = 300L
 
 private const val ATTACHMENT_CACHE_MAX_SIZE = 200
 
+/** Maximum number of transport type entries to keep in state map */
+private const val TRANSPORT_HISTORY_MAX_SIZE = 100
+
 data class ChatUiState(
     val isLoading: Boolean = true,
     val messages: List<MessageEntity> = emptyList(),
     val isOnline: Boolean = false,
-    val isPeerTyping: Boolean = false,
     val inputText: String = "",
-    val draftText: String = "", // P2-11: Persisted draft text survives config changes
+    val draftText: String = "",
     val replyTo: MessageEntity? = null,
     val stagedAttachments: List<StagedAttachment> = emptyList(),
-    val hasMoreMessages: Boolean = false,
-    val isLoadingMore: Boolean = false,
     val isSending: Boolean = false,
     val sendError: String? = null,
     val uploadError: String? = null,
+    val hasMoreMessages: Boolean = true,
     val transportUsed: Map<String, TransportType> = emptyMap()
 )
 
@@ -61,12 +63,12 @@ data class ChatUiState(
 class ChatViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val savedStateHandle: SavedStateHandle,
-    private val repository: ChatRepositoryImpl
+    private val repository: IChatRepository
 ) : ViewModel() {
 
     // Peer ID and name from navigation arguments via SavedStateHandle
     val peerId: String = savedStateHandle.get<String>("peerId") ?: ""
-    val peerName: String = savedStateHandle.get<String>("peerName") ?: "Peer"
+    val peerName: String = savedStateHandle.get<String>("peerName") ?: context.getString(R.string.default_peer_name)
 
     // Resolves current transport type from app-level state for outgoing messages
     private var _transportTypeProvider: (() -> TransportType)? = null
@@ -75,11 +77,14 @@ class ChatViewModel @Inject constructor(
         _transportTypeProvider = provider
     }
 
+    // Helper to access repository methods that are only available on ChatRepositoryImpl
+    // (query methods are not part of IChatRepository interface to avoid data-type coupling in domain layer)
+    private val chatRepo: ChatRepositoryImpl get() = repository as ChatRepositoryImpl
+
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     private val stageMutex = Mutex()
-    private val paginationMutex = Mutex()
     
     // Forward dialog state
     private val _forwardDialogState = MutableStateFlow(ForwardDialogState())
@@ -142,13 +147,10 @@ class ChatViewModel @Inject constructor(
             // ✅ FIX: Collect messages flow with distinctUntilChanged to reduce recompositions
             // This ensures real-time updates when messages are received from the network
             viewModelScope.launch {
-                repository.getMessages(peerId)
-                    .distinctUntilChanged() // ✅ PF03: Prevent excessive recompositions
+                chatRepo.getMessages(peerId)
+                    .distinctUntilChanged()
                     .collect { messages ->
                         Logger.d("ChatViewModel -> Messages updated: ${messages.size} messages for peer $peerId")
-
-                        // ✅ FIX: Only update UI state, don't manipulate allMessages here
-                        // allMessages is only for pagination (loadMoreMessages)
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
@@ -184,56 +186,23 @@ class ChatViewModel @Inject constructor(
     }
 
     /**
-     * Loads more messages for pagination.
-     * Called initially and when user scrolls to top.
+     * Load the next page of messages for pagination.
+     * Appends older messages to the allMessages deque.
      */
-    fun loadMoreMessages() {
+    private fun loadMoreMessages() {
         viewModelScope.launch {
-            // Use tryLock to avoid waiting if already loading
-            if (!paginationMutex.tryLock()) return@launch
-
             try {
-                if (isAllMessagesLoaded || _uiState.value.isLoadingMore) return@launch
-
-                _uiState.update { it.copy(isLoadingMore = true) }
-
-                try {
-                    // ✅ PF04: FIX blocking .first() by using take(1).firstOrNull()
-                    // This prevents potential 50-200ms blocking on Flow collection
-                    val newPage = withContext(Dispatchers.IO) {
-                        repository.getMessagesPaged(peerId, pageSize, currentPage * pageSize)
-                            .take(1)
-                            .firstOrNull()
-                            ?: emptyList()
-                    }
-
-                    if (newPage.isEmpty()) {
-                        isAllMessagesLoaded = true
-                    } else {
-                        // Prepend new messages efficiently using ArrayDeque
-                        allMessages.addAll(0, newPage)
-
-                        // Remove oldest messages if exceeding max to prevent memory leaks
-                        while (allMessages.size > MAX_MESSAGES_IN_MEMORY) {
-                            allMessages.removeLast()
-                        }
-
-                        currentPage++
-                    }
-
-                    _uiState.update {
-                        it.copy(
-                            messages = allMessages.toList(),
-                            hasMoreMessages = !isAllMessagesLoaded,
-                            isLoadingMore = false
-                        )
-                    }
-                } catch (e: Exception) {
-                    Logger.e("ChatViewModel -> Failed to load messages", e)
-                    _uiState.update { it.copy(isLoadingMore = false) }
+                val offset = currentPage * pageSize
+                val pagedMessages = chatRepo.getMessagesPaged(peerId, pageSize, offset).first()
+                if (pagedMessages.isEmpty()) {
+                    isAllMessagesLoaded = true
+                } else {
+                    allMessages.addAll(pagedMessages)
+                    currentPage++
                 }
-            } finally {
-                paginationMutex.unlock()
+            } catch (e: Exception) {
+                Logger.e("ChatViewModel -> Failed to load more messages", e)
+                isAllMessagesLoaded = true
             }
         }
     }
@@ -302,13 +271,17 @@ class ChatViewModel @Inject constructor(
                 // Record transport type for the newly sent message.
                 // The repository insert is synchronous (suspend), so the message is already in the DB.
                 // We read the current state via .first() — no arbitrary delay needed.
-                val currentMessages = repository.getMessages(peerId).first()
+                val currentMessages = chatRepo.getMessages(peerId).first()
                 val lastSentMessage = currentMessages.lastOrNull { it.isFromMe }
                 if (lastSentMessage != null) {
                     _uiState.update { currentState ->
-                        currentState.copy(
-                            transportUsed = currentState.transportUsed + (lastSentMessage.id to transportType)
-                        )
+                        val updated = currentState.transportUsed + (lastSentMessage.id to transportType)
+                        // Cap map size to prevent unbounded growth
+                        val capped = if (updated.size > TRANSPORT_HISTORY_MAX_SIZE) {
+                            // Keep only the most recent entries by dropping oldest
+                            updated.toList().takeLast(TRANSPORT_HISTORY_MAX_SIZE).toMap()
+                        } else updated
+                        currentState.copy(transportUsed = capped)
                     }
                 }
             } catch (e: Exception) {
@@ -454,6 +427,8 @@ class ChatViewModel @Inject constructor(
             if (result.isFailure) {
                 _uiState.update { it.copy(sendError = context.getString(R.string.error_message_send_failed, result.exceptionOrNull()?.message ?: context.getString(R.string.error_unknown))) }
             }
+            // Clean up transport history for deleted messages
+            _uiState.update { it.copy(transportUsed = it.transportUsed - messageId) }
         }
     }
 
@@ -487,7 +462,7 @@ class ChatViewModel @Inject constructor(
         }
         // Not cached — fetch from DB
         val result = withContext(Dispatchers.IO) {
-            repository.getMessageAttachments(groupId)
+            chatRepo.getMessageAttachments(groupId)
         }
         // Store in cache
         synchronized(attachmentsCache) {
@@ -507,7 +482,7 @@ class ChatViewModel @Inject constructor(
                 ?: return@launch
             
             _forwardDialogState.value = ForwardDialogState(
-                messages = listOf(message),
+                messages = listOf(message.toUiModel()),
                 selectedPeerIds = emptySet(),
                 searchQuery = "",
                 isForwarding = false,
@@ -527,7 +502,7 @@ class ChatViewModel @Inject constructor(
             val selectedMessages = uiState.value.messages.filter { it.id in selectedIds }
             
             _forwardDialogState.value = ForwardDialogState(
-                messages = selectedMessages,
+                messages = selectedMessages.map { it.toUiModel() },
                 selectedPeerIds = emptySet(),
                 searchQuery = "",
                 isForwarding = false,
@@ -678,6 +653,9 @@ class ChatViewModel @Inject constructor(
             if (failedCount > 0) {
                 _uiState.update { it.copy(sendError = context.getString(R.string.error_message_send_failed, "Failed to delete $failedCount messages")) }
             }
+            // Clean up transport history for all deleted messages
+            val idsToRemove = selectedIds.toSet()
+            _uiState.update { it.copy(transportUsed = it.transportUsed.filterKeys { it !in idsToRemove }) }
             clearSelection()
         }
     }
@@ -739,7 +717,7 @@ class ChatViewModel @Inject constructor(
                     if (query.isBlank()) {
                         _searchResults.value = emptyList()
                     } else {
-                        repository.searchMessagesInChat(peerId, query.trim())
+                        chatRepo.searchMessagesInChat(peerId, query.trim())
                             .catch { e ->
                                 Logger.e("ChatViewModel -> Search failed", e)
                                 _searchResults.value = emptyList()
@@ -781,3 +759,14 @@ class ChatViewModel @Inject constructor(
         TransportType.LAN -> "" // LAN is default — no badge needed
     }
 }
+
+/**
+ * Maps a [MessageEntity] to a [MessageUiModel] for use in UI components
+ * that should not depend on data-layer entities directly.
+ */
+private fun MessageEntity.toUiModel() = MessageUiModel(
+    id = id,
+    text = text,
+    type = type,
+    timestamp = timestamp
+)

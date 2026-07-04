@@ -39,8 +39,16 @@ class BleGattServer(
     private var txCharacteristic: BluetoothGattCharacteristic? = null
 
     // Track connected devices: device address -> BluetoothDevice
+    // WARNING: On Android 10+, MAC addresses are randomized per connection.
+    // The same physical device may appear under a different `device.address` each time.
+    // This map uses device.address as key — if the same peer reconnects with a new
+    // randomized MAC, it will be added as a new entry and the old entry becomes stale.
+    // A production fix would require BLE bonding or a custom pairing flow to assign
+    // stable peer identifiers. For now, stale entries are cleaned up on disconnect
+    // (but only for the address that disconnected). Periodic garbage collection
+    // of orphaned entries is handled via cleanup interval in BleTransportImpl.
     private val connectedDevices = ConcurrentHashMap<String, BluetoothDevice>()
-    // Track which devices have enabled notifications
+    // Track which devices have enabled notifications: device address -> subscribed
     private val subscribedDevices = ConcurrentHashMap<String, Boolean>()
 
     /**
@@ -171,9 +179,18 @@ class BleGattServer(
             
             when (newState) {
                 BluetoothProfile.STATE_CONNECTED -> {
+                    // Android 10+ randomizes MAC per connection. The same physical device
+                    // may arrive with a different address. Try to clean up any stale entry
+                    // that shares the same device name (inexact but helps in common cases).
+                    val deviceName = device.name
+                    if (deviceName != null) {
+                        connectedDevices.entries.removeAll { (_, existingDevice) ->
+                            existingDevice.address != peerAddress && existingDevice.name == deviceName
+                        }
+                    }
                     connectedDevices[peerAddress] = device
                     onClientConnected(peerAddress)
-                    Logger.d("BLE Client connected: $peerAddress", tag = TAG)
+                    Logger.d("BLE Client connected: $peerAddress (name: ${device.name ?: "unknown"})", tag = TAG)
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
                     connectedDevices.remove(peerAddress)

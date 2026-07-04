@@ -38,7 +38,10 @@ class ProgressFileReader(
         }
 
         val buffer = ByteArray(BUFFER_SIZE)
-        val outputStream = java.io.ByteArrayOutputStream(fileSize.toInt())
+        // Cap initial capacity at Int.MAX_VALUE to prevent silent Long-to-Int
+        // overflow for files larger than 2 GB.
+        val initialCapacity = if (fileSize <= Int.MAX_VALUE) fileSize.toInt() else Int.MAX_VALUE
+        val outputStream = java.io.ByteArrayOutputStream(initialCapacity)
         var uploaded: Long = 0
         var lastEmittedProgress = -1
 

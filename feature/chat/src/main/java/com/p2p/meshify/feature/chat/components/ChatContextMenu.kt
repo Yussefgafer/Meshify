@@ -24,6 +24,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.common.R
+import androidx.compose.ui.res.stringResource
 
 /**
  * Context menu shown as a bottom sheet when a message is long-pressed.
@@ -51,7 +52,7 @@ fun ChatContextMenu(
         ) {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.chat_action_reply)) },
-                leadingContent = { Icon(Icons.Default.Reply, null) },
+                leadingContent = { Icon(Icons.Default.Reply, stringResource(R.string.chat_action_reply)) },
                 modifier = Modifier.clickable {
                     onReply(message)
                     onDismiss()
@@ -59,7 +60,7 @@ fun ChatContextMenu(
             )
             ListItem(
                 headlineContent = { Text(stringResource(R.string.chat_action_forward)) },
-                leadingContent = { Icon(Icons.Default.Forward, null) },
+                leadingContent = { Icon(Icons.Default.Forward, stringResource(R.string.chat_action_forward)) },
                 modifier = Modifier.clickable {
                     onForward(message.id)
                     onDismiss()
@@ -67,7 +68,7 @@ fun ChatContextMenu(
             )
             ListItem(
                 headlineContent = { Text(stringResource(R.string.chat_action_copy)) },
-                leadingContent = { Icon(Icons.Default.ContentCopy, null) },
+                leadingContent = { Icon(Icons.Default.ContentCopy, stringResource(R.string.chat_action_copy)) },
                 modifier = Modifier.clickable {
                     clipboardManager.setText(AnnotatedString(message.text ?: ""))
                     onDismiss()
@@ -75,7 +76,7 @@ fun ChatContextMenu(
             )
             ListItem(
                 headlineContent = { Text(stringResource(R.string.chat_action_delete_for_me)) },
-                leadingContent = { Icon(Icons.Default.Delete, null) },
+                leadingContent = { Icon(Icons.Default.Delete, stringResource(R.string.content_desc_delete)) },
                 modifier = Modifier.clickable {
                     onDeleteForMe(message.id)
                     onDismiss()
@@ -86,7 +87,7 @@ fun ChatContextMenu(
                 leadingContent = {
                     Icon(
                         Icons.Default.DeleteForever,
-                        null,
+                        stringResource(R.string.chat_action_delete_for_everyone),
                         tint = MaterialTheme.colorScheme.error
                     )
                 },

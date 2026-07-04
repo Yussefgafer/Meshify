@@ -8,6 +8,9 @@
     <!-- App Name -->
     <string name="app_name">Meshify</string>
 
+    <!-- Default peer name fallback -->
+    <string name="default_peer_name">Peer</string>
+
     <!-- Home / Recent Chats Screen -->
     <string name="screen_home_title">Meshify</string>
     <string name="chats_recent_header">Recent Chats</string>
@@ -183,12 +186,6 @@
     <string name="home_error_title">Failed to load</string>
     <string name="home_error_retry">Retry</string>
 
-    <!-- MD3E Settings - Shape Morphing -->
-    <string name="settings_shape_style">Shape Morphing</string>
-    <string name="settings_shape_style_desc">Select the active shape for morphing animations</string>
-    <string name="settings_shape_active">Active</string>
-    <string name="settings_shape_tap_to_select">Tap to select</string>
-
     <!-- Forward Message Dialog -->
     <string name="forward_dialog_title">Forward</string>
     <string name="forward_dialog_close_desc">Close</string>
@@ -225,34 +222,7 @@
     <string name="forward_dialog_empty_search">No conversations found</string>
     <string name="forward_dialog_empty_search_desc">Try searching for \"%s\" or use different keywords</string>
 
-    <!-- MD3E Settings - Motion System -->
-    <string name="settings_motion_system">Motion System</string>
-    <string name="settings_motion_system_desc">Configure spring physics and animation speed</string>
-    <string name="settings_motion_scale">Motion Scale</string>
-    <string name="settings_motion_gentle">Calm, subtle animations</string>
-    <string name="settings_motion_standard">Balanced MD3E default</string>
-    <string name="settings_motion_snappy">Quick, responsive</string>
-    <string name="settings_motion_bouncy">Playful, elastic</string>
-
-    <!-- MD3E Settings - Typography -->
-    <string name="settings_typography">Typography</string>
-    <string name="settings_typography_desc">Choose your preferred font family</string>
-    <string name="settings_font_roboto">Default system font</string>
-    <string name="settings_font_poppins">Modern geometric</string>
-    <string name="settings_font_lora">Elegant serif</string>
-    <string name="settings_font_montserrat">Urban contemporary</string>
-    <string name="settings_font_playfair">Display serif</string>
-    <string name="settings_font_inter">Clean UI font</string>
-
-    <!-- MD3E Settings - Chat Bubbles -->
-    <string name="settings_chat_bubbles">Chat Bubbles</string>
-    <string name="settings_chat_bubbles_desc">Select chat bubble shape style</string>
     <string name="about_version_format">Version %s</string>
-
-    <!-- MD3E Settings - Visual Density -->
-    <string name="settings_visual_density">Visual Density</string>
-    <string name="settings_visual_density_desc">Adjust UI element sizing and spacing</string>
-    <string name="settings_density_label">Density</string>
 
     <!-- About Screen -->
     <string name="about_screen_title">About</string>
@@ -283,14 +253,6 @@
     <string name="settings_seed_color">Accent Color</string>
     <string name="settings_seed_color_desc">Choose your brand color when dynamic colors are off</string>
     <string name="color_selection_content_description">Select color</string>
-
-    <!-- MD3E Settings - Font Picker -->
-    <string name="settings_custom_font">Custom Font</string>
-    <string name="settings_custom_font_desc">Upload a .ttf or .otf font file from your device</string>
-    <string name="btn_upload_font">Upload Font</string>
-    <string name="btn_clear_font">Clear Custom Font</string>
-    <string name="font_file_selected">Font file selected: %s</string>
-    <string name="no_custom_font">No custom font uploaded</string>
 
     <!-- Accessibility Content Descriptions -->
     <string name="content_desc_back">Back</string>
@@ -324,6 +286,13 @@
 
     <string name="message_image">Message Image</string>
     <string name="message_status">Message Status</string>
+    <string name="message_status_queued">Message queued to send</string>
+    <string name="message_status_sending">Message sending</string>
+    <string name="message_status_sent">Message sent</string>
+    <string name="message_status_delivered">Message delivered</string>
+    <string name="message_status_received">Message received</string>
+    <string name="message_status_read">Message read</string>
+    <string name="message_status_failed">Message failed to send</string>
     <string name="message_reaction">Message Reaction</string>
 
     <!-- Dialog Buttons -->
@@ -504,14 +473,6 @@
         <item quantity="other">+%d more</item>
     </plurals>
 
-    <!-- Forward Message Types (for buildForwardContext in MessageSendingServiceImpl) -->
-    <string name="forward_image_label">📷 Image</string>
-    <string name="forward_video_label">🎥 Video</string>
-    <string name="forward_audio_label">🎵 Audio</string>
-    <string name="forward_file_label">📄 File</string>
-    <string name="forward_document_label">📄 Document</string>
-    <string name="forward_archive_label">📦 Archive</string>
-    <string name="forward_apk_label">📱 APK</string>
     <string name="label_forwarded">Forwarded:</string>
     <string name="label_timestamp_format">" (%s)"</string>
 
@@ -594,7 +555,11 @@
     <string name="settings_shape_label_clover">Clover</string>
     <string name="settings_shape_label_circle">Circle</string>
 
+    <string name="settings_shape_style">Shape Morphing</string>
+
     <string name="settings_section_md3e_expressive">MD3E Expressive</string>
+    <string name="settings_motion_system">Motion System</string>
+    <string name="settings_motion_scale">Motion Scale</string>
     <string name="settings_motion_scale_desc">Animation intensity</string>
 
     <string name="settings_font_family">Font Family</string>
@@ -606,6 +571,7 @@
     <string name="setting_haptic_feedback_desc">Tactile feedback on interactions</string>
 
     <!-- Settings — Font Family Dialog Labels -->
+    <string name="settings_font_roboto">Default system font</string>
     <string name="settings_font_label_poppins">Poppins</string>
     <string name="settings_font_label_lora">Lora</string>
     <string name="settings_font_label_montserrat">Montserrat</string>
@@ -631,4 +597,15 @@
     <!-- Settings — Backup Import -->
     <string name="settings_backup_import_success">Backup imported successfully</string>
     <string name="settings_backup_import_error">Failed to import backup</string>
+
+    <!-- Accessibility — Content Descriptions -->
+    <string name="content_desc_staged_media">Staged media attachment</string>
+    <string name="content_desc_video_icon">Video play icon</string>
+    <string name="content_desc_remove_attachment">Remove attachment</string>
+    <string name="content_desc_no_devices">No devices discovered</string>
+    <string name="content_desc_open_wifi_settings">Open Wi-Fi settings</string>
+    <string name="content_desc_image">Image attachment</string>
+    <string name="content_desc_error_icon">Error</string>
+    <string name="content_desc_retry">Retry</string>
+    <string name="content_desc_qr_code">QR Code for verification</string>
 </resources>

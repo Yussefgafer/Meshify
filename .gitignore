@@ -18,12 +18,15 @@ skills/
 
 **/build/
 /captures
-/agent
+agents
+agent
+AGENT.md
 /.gemini/
 .externalNativeBuild
 .cxx
 local.properties
 
+*.salive
 *.apk
 *.aab
 *.jks
@@ -44,6 +47,11 @@ Rev.md
 .DS_Store
 Thumbs.db
 MESHIFY_KEYSTORE_BASE64.txt
+.agents
+AGENT.md
+AGENTS.md
+GEMINI.md
+*.salive
 
 gha-creds-*.json
 .kotlin

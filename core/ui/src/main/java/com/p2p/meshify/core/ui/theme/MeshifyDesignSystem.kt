@@ -1,17 +1,10 @@
 package com.p2p.meshify.core.ui.theme
 
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/**
- * Meshify Unified Design System.
- * Single Source of Truth for Spacing, Shapes, and Elevation.
- */
 object MeshifyDesignSystem {
 
     object Spacing {
@@ -25,15 +18,17 @@ object MeshifyDesignSystem {
     }
 
     object Shapes {
-        val CardLarge = RoundedCornerShape(28.dp)
-        val CardMedium = RoundedCornerShape(20.dp)
-        val CardSmall = RoundedCornerShape(16.dp)
-        val Button = RoundedCornerShape(20.dp)
-        val Input = RoundedCornerShape(24.dp)
-        val Pill = RoundedCornerShape(50)
+        val Card = RoundedCornerShape(12.dp)
+        val CardLarge = RoundedCornerShape(16.dp)
+        val CardSmall = RoundedCornerShape(8.dp)
+        val Button = RoundedCornerShape(10.dp)
+        val Input = RoundedCornerShape(8.dp)
+        val Pill = RoundedCornerShape(8.dp)
+        val Avatar = RoundedCornerShape(8.dp)
+        val IconContainer = RoundedCornerShape(12.dp)
+        val Dialog = RoundedCornerShape(16.dp)
     }
 
-    // ✅ FIX: Icon Sizes - use this instead of hardcoded values
     object IconSizes {
         val Small = 18.dp
         val Medium = 22.dp
@@ -42,7 +37,6 @@ object MeshifyDesignSystem {
         val XXL = 40.dp
     }
 
-    // ✅ FIX: Avatar Sizes - use this instead of hardcoded values
     object AvatarSizes {
         val Small = 40.dp
         val Medium = 48.dp
@@ -51,16 +45,8 @@ object MeshifyDesignSystem {
         val XXL = 120.dp
     }
 
-    // ✅ FIX: Dialog Shapes - use this instead of hardcoded values
-    object DialogShapes {
-        val Default = RoundedCornerShape(28.dp)
-        val Small = RoundedCornerShape(16.dp)
-        val Medium = RoundedCornerShape(20.dp)
-    }
-
-    // ✅ FIX: Seed Color Presets - use this instead of hardcoded values
     object SeedColorPresets {
-        val Teal = Color(0xFF008080)
+        val Teal = Color(0xFF006D68)
         val Blue = Color(0xFF0000FF)
         val Purple = Color(0xFF800080)
         val Pink = Color(0xFFFFC0CB)
@@ -79,12 +65,5 @@ object MeshifyDesignSystem {
         val Level3 = 4.dp
         val Level4 = 6.dp
         val Level5 = 8.dp
-    }
-
-    object Motion {
-        fun <T> expressiveSpring() = spring<T>(
-            dampingRatio = 0.75f,
-            stiffness = 350f
-        )
     }
 }

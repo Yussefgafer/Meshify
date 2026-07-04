@@ -5,6 +5,7 @@ import com.p2p.meshify.core.data.local.entity.MessageAttachmentEntity
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.repository.IFileManager
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.UUID
@@ -21,7 +22,8 @@ import java.util.UUID
  */
 class MessageAttachmentRepository(
     private val messageDao: MessageDao,
-    private val fileManager: IFileManager
+    private val fileManager: IFileManager,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
 
     /**
@@ -30,7 +32,7 @@ class MessageAttachmentRepository(
     suspend fun saveAttachments(
         messageId: String,
         attachments: List<Pair<ByteArray, MessageType>>
-    ): Result<List<MessageAttachmentEntity>> = withContext(Dispatchers.IO) {
+    ): Result<List<MessageAttachmentEntity>> = withContext(ioDispatcher) {
         try {
             if (attachments.isEmpty()) {
                 return@withContext Result.failure(Exception("No attachments provided"))
@@ -75,7 +77,7 @@ class MessageAttachmentRepository(
      * Get all attachments for a specific message.
      */
     suspend fun getAttachmentsForMessage(messageId: String): List<MessageAttachmentEntity> =
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             messageDao.getAttachmentsForMessage(messageId)
         }
 
@@ -83,7 +85,7 @@ class MessageAttachmentRepository(
      * Get all attachments in the database (for debugging).
      */
     suspend fun getAllAttachments(): List<MessageAttachmentEntity> =
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             // ✅ FIX: Now uses the new DAO query
             messageDao.getAllAttachments()
         }

@@ -2,9 +2,9 @@ package com.p2p.meshify
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
-import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -25,13 +25,10 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
 import com.p2p.meshify.core.util.Logger
-import com.p2p.meshify.domain.model.FontFamilyPreset
-import com.p2p.meshify.domain.model.MotionPreset
+
 import com.p2p.meshify.service.MeshForegroundService
-import com.p2p.meshify.core.ui.components.PremiumNoiseTexture
 import com.p2p.meshify.core.ui.navigation.MeshifyNavHost
 import com.p2p.meshify.core.ui.navigation.Screen
-import com.p2p.meshify.core.ui.theme.MD3EFontFamilies
 import com.p2p.meshify.core.ui.theme.MeshifyTheme
 import com.p2p.meshify.core.ui.hooks.rememberPremiumHaptics
 import com.p2p.meshify.core.ui.hooks.LocalPremiumHaptics
@@ -48,12 +45,13 @@ import com.p2p.meshify.feature.settings.DeveloperViewModel
 import com.p2p.meshify.feature.realdevicetesting.ui.RealDeviceTestingViewModel
 import com.p2p.meshify.feature.realdevicetesting.ui.RealDeviceTestScreen
 import com.p2p.meshify.feature.onboarding.WelcomeScreen
+import com.p2p.meshify.feature.onboarding.PermissionStatus
+import com.p2p.meshify.feature.onboarding.PermissionRequestResult
 import com.p2p.meshify.feature.onboarding.WelcomeViewModel
 import com.p2p.meshify.feature.onboarding.PermissionSummaryDialog
 import com.p2p.meshify.feature.onboarding.PermissionRequestCard
 import com.p2p.meshify.feature.onboarding.SkipConfirmationDialog
 import com.p2p.meshify.feature.onboarding.PermissionDefinitions
-import com.p2p.meshify.feature.onboarding.PermissionRequestResult
 import com.p2p.meshify.core.domain.interfaces.WifiStateChecker
 import com.p2p.meshify.core.data.local.MeshifyDatabase
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -120,11 +118,31 @@ class MainActivity : ComponentActivity() {
         onboardingPermissionLauncher.launch(permissions.toTypedArray())
     }
 
+    private fun applyLocale(language: String) {
+        val locale = java.util.Locale.forLanguageTag(language)
+        java.util.Locale.setDefault(locale)
+        val config = Configuration(resources.configuration)
+        config.setLocale(locale)
+        resources.updateConfiguration(config, resources.displayMetrics)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         val app = application as MeshifyApp
+
+        // Apply stored locale before setContent so strings render in the right language.
+        // Use lifecycleScope.launch instead of runBlocking to avoid blocking the main thread.
+        lifecycleScope.launch {
+            try {
+                val lang = app.settingsRepository.appLanguage.first()
+                applyLocale(lang)
+            } catch (e: Exception) {
+                Logger.e("MainActivity -> Failed to load language", e)
+                // Default locale will be used as fallback
+            }
+        }
 
         // Only request permissions immediately if onboarding was already completed.
         // Otherwise, permissions will be requested after the onboarding flow.
@@ -139,19 +157,12 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Prevent screenshots and screen recording of sensitive chat data
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_SECURE,
-            WindowManager.LayoutParams.FLAG_SECURE
-        )
-
         setContent {
             val settingsRepo = app.settingsRepository
             val themeMode by settingsRepo.themeMode.collectAsState(initial = com.p2p.meshify.domain.repository.ThemeMode.SYSTEM)
             val dynamicColor by settingsRepo.dynamicColorEnabled.collectAsState(initial = true)
-            val motionPreset by settingsRepo.motionPreset.collectAsState(initial = MotionPreset.STANDARD)
+            val motionPreset by settingsRepo.motionPreset.collectAsState(initial = com.p2p.meshify.domain.model.MotionPreset.STANDARD)
             val motionScale by settingsRepo.motionScale.collectAsState(initial = 1.0f)
-            val fontFamilyPreset by settingsRepo.fontFamilyPreset.collectAsState(initial = FontFamilyPreset.ROBOTO)
             val shapeStyle by settingsRepo.shapeStyle.collectAsState(initial = com.p2p.meshify.domain.model.ShapeStyle.CIRCLE)
             val bubbleStyle by settingsRepo.bubbleStyle.collectAsState(initial = com.p2p.meshify.domain.model.BubbleStyle.TAILED)
             val visualDensity by settingsRepo.visualDensity.collectAsState(initial = 1.0f)
@@ -186,7 +197,6 @@ class MainActivity : ComponentActivity() {
                 dynamicColor = dynamicColor,
                 motionPreset = motionPreset,
                 motionScale = motionScale,
-                fontFamily = MD3EFontFamilies.getFontFamily(fontFamilyPreset),
                 shapeStyle = shapeStyle,
                 bubbleStyle = bubbleStyle,
                 visualDensity = visualDensity,
@@ -212,9 +222,6 @@ class MainActivity : ComponentActivity() {
                         Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
                     } else {
                         Box(modifier = Modifier.fillMaxSize()) {
-                            // High-end tactile feel
-                            PremiumNoiseTexture(alpha = 0.03f)
-
                             Surface(
                                 modifier = Modifier.fillMaxSize(),
                                 color = Color.Transparent
@@ -252,7 +259,7 @@ class MainActivity : ComponentActivity() {
                                         DiscoveryScreen(
                                             viewModel = discoveryViewModel,
                                             onPeerClick = { peer -> navController.navigate(Screen.Chat(peer.id, peer.name)) },
-                                            onSettingsClick = { navController.navigate(Screen.Settings) }
+                                            onBackClick = { navController.popBackStack() }
                                         )
                                     },
                                     onChatRoute = { peerId, peerName ->
@@ -413,7 +420,7 @@ private fun OnboardingRoute(
     val context = LocalContext.current
 
     // Language: "en" or "ar"
-    var currentLang by remember { mutableStateOf("en") }
+    val currentLang by settingsRepository.appLanguage.collectAsState(initial = "en")
 
     // Permission flow state
     var isPermissionFlowActive by remember { mutableStateOf(false) }
@@ -450,71 +457,90 @@ private fun OnboardingRoute(
         }
     }
 
-    // WelcomeScreen
-    WelcomeScreen(
-        viewModel = onboardingViewModel,
-        currentLang = currentLang,
-        onLangChange = { newLang ->
-            currentLang = newLang
-        },
-        onNextClick = {
-            // Page 3 "Get Started" → start permission flow
-            isPermissionFlowActive = true
-            currentPermissionIndex = 0
-            onboardingViewModel.startPermissionFlow()
-        },
-        onSkipClick = {
-            if (isPermissionFlowActive) {
-                showSkipConfirm = true
-            } else {
+    Box(modifier = Modifier.fillMaxSize()) {
+        WelcomeScreen(
+            viewModel = onboardingViewModel,
+            currentLang = currentLang,
+            onLangChange = { newLang ->
                 scope.launch {
-                    settingsRepository.setOnboardingCompleted()
+                    settingsRepository.setAppLanguage(newLang)
+                    activity.recreate()
                 }
-                onNavigateToHome()
+            },
+            permissionStatuses = permissions.associate { 
+                val res = permissionResults[it.id]
+                it.id to when (res) {
+                    PermissionRequestResult.Granted -> PermissionStatus.Granted
+                    PermissionRequestResult.Denied -> PermissionStatus.Denied
+                    PermissionRequestResult.DeniedPermanently -> PermissionStatus.DeniedPermanently
+                    else -> PermissionStatus.NotAsked
+                }
+            },
+            onNextClick = {
+                // Page 3 "Get Started" → start permission flow
+                isPermissionFlowActive = true
+                currentPermissionIndex = 0
+            },
+            onSkipClick = {
+                if (isPermissionFlowActive) {
+                    showSkipConfirm = true
+                } else {
+                    scope.launch {
+                        settingsRepository.setOnboardingCompleted()
+                    }
+                    onNavigateToHome()
+                }
             }
-        }
-    )
+        )
 
-    // Auto-advance after permission result
-    LaunchedEffect(advanceTrigger) {
-        if (advanceTrigger > 0) {
-            kotlinx.coroutines.delay(PERMISSION_EXIT_ANIMATION_DELAY_MS)
-            currentPermissionIndex++
-        }
-    }
+        // Permission flow: show cards one by one
+        if (isPermissionFlowActive && currentPermissionIndex < permissions.size) {
+            val perm = permissions[currentPermissionIndex]
 
-    // Permission flow: show cards one by one
-    if (isPermissionFlowActive && currentPermissionIndex < permissions.size) {
-        val perm = permissions[currentPermissionIndex]
-
-        // Check if already granted
-        val alreadyGranted = perm.androidPermissions.all { pid ->
-            android.content.pm.PackageManager.PERMISSION_GRANTED ==
-                context.checkSelfPermission(pid)
-        }
-
-        if (alreadyGranted) {
-            LaunchedEffect(perm.id) {
-                permissionResults[perm.id] = PermissionRequestResult.AlreadyGranted
-                advanceTrigger++
-                kotlinx.coroutines.delay(PERMISSION_ALREADY_GRANTED_DISPLAY_DELAY_MS)
-                currentPermissionIndex++
+            // Check if already granted
+            val alreadyGranted = perm.androidPermissions.all { pid ->
+                android.content.pm.PackageManager.PERMISSION_GRANTED ==
+                    context.checkSelfPermission(pid)
             }
-        } else {
-            PermissionRequestCard(
-                permission = perm,
-                onAllowClick = {
-                    onRequestPermissions(perm.androidPermissions)
-                },
-                onDenyClick = {
-                    permissionResults[perm.id] = PermissionRequestResult.Denied
+
+            if (alreadyGranted) {
+                LaunchedEffect(perm.id) {
+                    permissionResults[perm.id] = PermissionRequestResult.AlreadyGranted
+                    advanceTrigger++
+                    kotlinx.coroutines.delay(PERMISSION_ALREADY_GRANTED_DISPLAY_DELAY_MS)
                     currentPermissionIndex++
-                },
-                onRequestDismiss = {
+                }
+            } else {
+                PermissionRequestCard(
+                    permission = perm,
+                    onAllowClick = {
+                        onRequestPermissions(perm.androidPermissions)
+                    },
+                    onDenyClick = {
+                        permissionResults[perm.id] = PermissionRequestResult.Denied
+                        advanceTrigger++
+                    },
+                    onRequestDismiss = {
+                        isPermissionFlowActive = false
+                        showSummaryDialog = true
+                    }
+                )
+            }
+        }
+
+        // Auto-advance after permission result
+        LaunchedEffect(advanceTrigger) {
+            if (advanceTrigger > 0) {
+                kotlinx.coroutines.delay(PERMISSION_EXIT_ANIMATION_DELAY_MS)
+                if (currentPermissionIndex < permissions.size) {
+                    currentPermissionIndex++
+                }
+                // If we reached the end, show summary
+                if (currentPermissionIndex >= permissions.size) {
                     isPermissionFlowActive = false
                     showSummaryDialog = true
                 }
-            )
+            }
         }
     }
 

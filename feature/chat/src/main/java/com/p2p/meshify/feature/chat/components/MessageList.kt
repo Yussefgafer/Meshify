@@ -22,7 +22,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChatBubbleOutline
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -57,7 +56,6 @@ private const val MessageStaggerDelay = 50
  *
  * @param messages List of messages to display
  * @param isLoading Whether initial load is in progress (controls empty state visibility)
- * @param isLoadingMore Whether pagination is loading (shows top spinner)
  * @param selectedMessages Set of currently selected message IDs (for multi-select mode)
  * @param uploadProgressMap Map of message ID → upload progress percentage (0-100)
  * @param transportUsed Map of message ID → transport type used for sending
@@ -74,12 +72,10 @@ private const val MessageStaggerDelay = 50
 fun MessageList(
     messages: List<MessageEntity>,
     isLoading: Boolean,
-    isLoadingMore: Boolean,
     selectedMessages: Set<String>,
     uploadProgressMap: Map<String, Int>,
     transportUsed: Map<String, TransportType>,
     peerName: String,
-    bubbleStyle: com.p2p.meshify.domain.model.BubbleStyle,
     listState: LazyListState = rememberLazyListState(),
     getAttachmentsForGroupId: suspend (String) -> List<MessageAttachmentEntity>,
     onLongClick: (MessageEntity) -> Unit,
@@ -120,18 +116,6 @@ fun MessageList(
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
                     }
-                }
-            }
-        }
-
-        // Loading indicator at top when loading more messages
-        if (isLoadingMore) {
-            item(key = "loading_more") {
-                Box(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                 }
             }
         }
@@ -183,7 +167,6 @@ fun MessageList(
                     message = message,
                     attachments = attachments,
                     peerName = peerName,
-                    bubbleStyle = bubbleStyle,
                     isSelected = isSelected,
                     uploadProgress = progressValue,
                     transportType = messageTransportType,
