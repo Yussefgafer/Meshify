@@ -38,6 +38,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
@@ -344,11 +346,16 @@ fun StatusIcon(status: MessageStatus, tint: Color) {
             modifier = Modifier.size(StatusIconSize),
             tint = tint.copy(StatusAlphaQueued)
         )
-        MessageStatus.SENDING -> CircularProgressIndicator(
-            modifier = Modifier.size(StatusIconSizeSmall),
-            strokeWidth = StatusIconStrokeWidth,
-            color = tint
-        )
+        MessageStatus.SENDING -> {
+            val sendingDesc = stringResource(R.string.message_status_sending)
+            CircularProgressIndicator(
+                modifier = Modifier
+                    .size(StatusIconSizeSmall)
+                    .semantics { contentDescription = sendingDesc },
+                strokeWidth = StatusIconStrokeWidth,
+                color = tint
+            )
+        }
         MessageStatus.SENT -> Icon(
             Icons.Default.Check,
             stringResource(R.string.message_status_sent),
