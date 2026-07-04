@@ -288,7 +288,6 @@ fun ChatScreen(
                     },
                     onCopyClick = {
                         viewModel.copySelectedMessagesToClipboard(clipboard)
-                        viewModel.clearSelection()
                     }
                 )
             } else if (isSearching) {

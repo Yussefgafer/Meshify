@@ -107,8 +107,7 @@ class DiscoveryViewModel @Inject constructor(
 
         _uiState.update {
             it.copy(
-                discoveredPeers = peerMap.values.toList(),
-                isSearching = peerMap.isNotEmpty()
+                discoveredPeers = peerMap.values.toList()
             )
         }
     }
@@ -138,8 +137,7 @@ class DiscoveryViewModel @Inject constructor(
         peerMap.remove(event.deviceId)
         _uiState.update {
             it.copy(
-                discoveredPeers = peerMap.values.toList(),
-                isSearching = peerMap.isNotEmpty()
+                discoveredPeers = peerMap.values.toList()
             )
         }
     }

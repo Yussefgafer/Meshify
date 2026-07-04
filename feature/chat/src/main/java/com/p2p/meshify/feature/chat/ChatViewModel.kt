@@ -460,13 +460,19 @@ class ChatViewModel @Inject constructor(
 
     fun deleteMessage(messageId: String, deleteType: DeleteType) {
         viewModelScope.launch {
-            repository.deleteMessage(messageId, deleteType)
+            val result = repository.deleteMessage(messageId, deleteType)
+            if (result.isFailure) {
+                _uiState.update { it.copy(sendError = context.getString(R.string.error_message_send_failed, result.exceptionOrNull()?.message ?: context.getString(R.string.error_unknown))) }
+            }
         }
     }
 
     fun addReaction(messageId: String, reaction: String?) {
         viewModelScope.launch {
-            repository.addReaction(messageId, reaction)
+            val result = repository.addReaction(messageId, reaction)
+            if (result.isFailure) {
+                _uiState.update { it.copy(sendError = context.getString(R.string.error_message_send_failed, result.exceptionOrNull()?.message ?: context.getString(R.string.error_unknown))) }
+            }
         }
     }
 
@@ -674,33 +680,18 @@ class ChatViewModel @Inject constructor(
     fun deleteSelectedMessages(deleteType: DeleteType) {
         viewModelScope.launch {
             val selectedIds = _selectedMessages.value.toList()
+            var failedCount = 0
             selectedIds.forEach { messageId ->
-                repository.deleteMessage(messageId, deleteType)
+                val result = repository.deleteMessage(messageId, deleteType)
+                if (result.isFailure) failedCount++
+            }
+            if (failedCount > 0) {
+                _uiState.update { it.copy(sendError = context.getString(R.string.error_message_send_failed, "Failed to delete $failedCount messages")) }
             }
             clearSelection()
         }
     }
     
-    /**
-     * Copy all selected messages to clipboard.
-     */
-    fun copySelectedMessages() {
-        viewModelScope.launch {
-            val selectedIds = _selectedMessages.value
-            if (selectedIds.isEmpty()) return@launch
-
-            val messages = uiState.value.messages.filter { it.id in selectedIds && it.text != null }
-            val textToCopy = messages.joinToString("\n\n") { it.text ?: "" }
-
-            if (textToCopy.isNotBlank()) {
-                // Use clipboard manager
-                Logger.d("ChatViewModel -> Copied ${messages.size} messages to clipboard")
-            }
-
-            clearSelection()
-        }
-    }
-
     /**
      * Copy all selected messages to clipboard with ClipboardManager.
      */

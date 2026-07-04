@@ -193,43 +193,71 @@ class SettingsViewModel @Inject constructor(
 
     fun setMotionPreset(preset: MotionPreset) {
         viewModelScope.launch {
-            settingsRepository.setMotionPreset(preset)
+            try {
+                settingsRepository.setMotionPreset(preset)
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Failed to save motion preset"
+            }
         }
     }
 
     fun setShapeStyle(style: ShapeStyle) {
         viewModelScope.launch {
-            settingsRepository.setShapeStyle(style)
+            try {
+                settingsRepository.setShapeStyle(style)
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Failed to save shape style"
+            }
         }
     }
 
     fun setMotionScale(scale: Float) {
         viewModelScope.launch {
-            settingsRepository.setMotionScale(scale)
+            try {
+                settingsRepository.setMotionScale(scale)
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Failed to save motion scale"
+            }
         }
     }
 
     fun setFontFamilyPreset(family: FontFamilyPreset) {
         viewModelScope.launch {
-            settingsRepository.setFontFamilyPreset(family)
+            try {
+                settingsRepository.setFontFamilyPreset(family)
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Failed to save font family preset"
+            }
         }
     }
 
     fun setCustomFontUri(uri: String?) {
         viewModelScope.launch {
-            settingsRepository.setCustomFontUri(uri)
+            try {
+                settingsRepository.setCustomFontUri(uri)
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Failed to save custom font URI"
+            }
         }
     }
 
     fun setBubbleStyle(style: BubbleStyle) {
         viewModelScope.launch {
-            settingsRepository.setBubbleStyle(style)
+            try {
+                settingsRepository.setBubbleStyle(style)
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Failed to save bubble style"
+            }
         }
     }
 
     fun setVisualDensity(density: Float) {
         viewModelScope.launch {
-            settingsRepository.setVisualDensity(density)
+            try {
+                settingsRepository.setVisualDensity(density)
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Failed to save visual density"
+            }
         }
     }
 
