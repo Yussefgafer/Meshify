@@ -11,6 +11,7 @@ import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.core.ui.model.StagedAttachment
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.feature.chat.state.ChatAttachmentsUiState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +26,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val ATTACHMENT_CACHE_MAX_SIZE = 200
@@ -59,6 +61,10 @@ class ChatAttachmentsViewModel(
     // ==================== Attachment Staging ====================
 
     private val stageMutex = Mutex()
+
+    // Tracks active upload jobs so cancelUpload() can cancel them
+    // ConcurrentHashMap for thread safety — invokeOnCompletion may run on a different dispatcher
+    private val uploadJobs = ConcurrentHashMap<String, kotlinx.coroutines.Job>()
 
     /**
      * Stages an attachment for sending.
@@ -170,7 +176,7 @@ class ChatAttachmentsViewModel(
         caption: String = "",
         replyToId: String? = null
     ) {
-        viewModelScope.launch {
+        val job = viewModelScope.launch {
             try {
                 // Initialize progress to 0
                 _uploadProgress.update { current ->
@@ -214,6 +220,12 @@ class ChatAttachmentsViewModel(
                         )
                     }
                 }
+            } catch (e: CancellationException) {
+                // Intentional cancellation via cancelUpload() — no error shown
+                Logger.d("ChatAttachmentsViewModel -> File upload cancelled for messageId: $messageId")
+                _uploadProgress.update { current ->
+                    current - messageId
+                }
             } catch (e: Exception) {
                 Logger.e("ChatAttachmentsViewModel -> File upload exception", e)
                 _uploadProgress.update { current ->
@@ -230,6 +242,8 @@ class ChatAttachmentsViewModel(
                 }
             }
         }
+        uploadJobs[messageId] = job
+        job.invokeOnCompletion { uploadJobs.remove(messageId) }
     }
 
     /**
@@ -239,10 +253,10 @@ class ChatAttachmentsViewModel(
      * @param messageId The ID of the message whose upload to cancel.
      */
     fun cancelUpload(messageId: String) {
+        uploadJobs[messageId]?.cancel()
         _uploadProgress.update { current ->
             current - messageId
         }
-        // Note: Actual cancellation logic would need to be implemented in repository
         Logger.d("ChatAttachmentsViewModel -> Upload cancelled for messageId: $messageId")
     }
 
