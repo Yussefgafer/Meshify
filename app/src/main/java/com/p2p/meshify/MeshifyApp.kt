@@ -9,7 +9,6 @@ import coil3.disk.directory
 import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
-import com.p2p.meshify.core.common.security.SimplePeerIdProvider
 import com.p2p.meshify.core.data.local.MeshifyDatabase
 import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
 import com.p2p.meshify.core.domain.interfaces.WifiStateChecker
@@ -17,6 +16,7 @@ import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.core.network.base.TransportEvent
 import com.p2p.meshify.core.network.ble.BleTransportImpl
 import com.p2p.meshify.core.util.Logger
+import javax.inject.Provider
 import com.p2p.meshify.receivers.ReplyReceiver
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import dagger.hilt.android.HiltAndroidApp
@@ -38,9 +38,9 @@ class MeshifyApp : Application(), SingletonImageLoader.Factory {
     @Inject lateinit var chatRepository: ChatRepositoryImpl
     @Inject lateinit var transportManager: TransportManager
     @Inject lateinit var settingsRepository: ISettingsRepository
-    @Inject lateinit var peerIdProvider: SimplePeerIdProvider
     @Inject lateinit var wifiStateChecker: WifiStateChecker
     @Inject lateinit var database: MeshifyDatabase
+    @Inject lateinit var bleTransportProvider: Provider<BleTransportImpl>
 
     private val applicationScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -104,9 +104,7 @@ class MeshifyApp : Application(), SingletonImageLoader.Factory {
             settingsRepository.bleEnabled.collect { enabled ->
                 if (enabled) {
                     if (bleTransport == null) {
-                        val peerId = peerIdProvider.getPeerId()
-                        val deviceName = settingsRepository.displayName.first()
-                        val newBleTransport = BleTransportImpl(this@MeshifyApp, settingsRepository, peerId, deviceName)
+                        val newBleTransport = bleTransportProvider.get()
                         bleTransport = newBleTransport
                         transportManager.registerTransport("ble", newBleTransport)
                         newBleTransport.start()

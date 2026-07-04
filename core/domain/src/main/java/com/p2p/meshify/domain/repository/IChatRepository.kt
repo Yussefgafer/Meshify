@@ -25,6 +25,10 @@ interface IChatRepository {
     /**
      * Flow of security events that should be shown to the user.
      * Currently only emits MessageSendFailed events.
+     *
+     * TODO: Remove if unused after 2026-07
+     *       Consumed by ChatMessagesViewModel and ChatViewModel.
+     *       If both consumers migrate to direct error handling, this can be removed.
      */
     val securityEvents: SharedFlow<SecurityEvent>
 

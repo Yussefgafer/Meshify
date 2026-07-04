@@ -19,7 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.p2p.meshify.core.ui.components.MorphingAvatar
+import com.p2p.meshify.core.ui.components.MeshifyAvatar
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
 import com.p2p.meshify.core.common.R
 
@@ -43,9 +43,8 @@ fun ChatTopBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                MorphingAvatar(
-                    initials = peerName.take(1),
-                    isOnline = isOnline,
+                MeshifyAvatar(
+                    initials = peerName.take(2),
                     size = 40.dp
                 )
                 Column(verticalArrangement = Arrangement.Center) {

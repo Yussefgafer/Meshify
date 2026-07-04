@@ -21,6 +21,7 @@ import com.p2p.meshify.domain.repository.IChatRepository
 import com.p2p.meshify.domain.repository.IFileManager
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.core.network.TransportManager
+import com.p2p.meshify.core.common.util.PeerNameParser
 import com.p2p.meshify.core.common.util.StringResourceProvider
 import com.p2p.meshify.domain.security.model.MessageEnvelope
 import com.p2p.meshify.domain.security.model.SecurityEvent
@@ -112,6 +113,7 @@ class ChatRepositoryImpl(
     private val repositoryJob = SupervisorJob()
     private val scope = CoroutineScope(Dispatchers.IO + repositoryJob)
 
+    // TODO: Remove if unused after 2026-07 — consumed by ChatMessagesViewModel and ChatViewModel
     private val _securityEvents = MutableSharedFlow<SecurityEvent>(replay = 0)
     override val securityEvents: SharedFlow<SecurityEvent> = _securityEvents.asSharedFlow()
 
@@ -418,7 +420,17 @@ class ChatRepositoryImpl(
             }
 
             val mediaBytes = withContext(Dispatchers.IO) {
-                mediaFile.readBytes()
+                // Use streaming read with 8KB buffer instead of file.readBytes()
+                // to avoid loading the entire file into memory at once.
+                val outputStream = java.io.ByteArrayOutputStream(mediaFile.length().coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
+                java.io.BufferedInputStream(java.io.FileInputStream(mediaFile)).use { inputStream ->
+                    val buffer = ByteArray(8192)
+                    var bytesRead: Int
+                    while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                        outputStream.write(buffer, 0, bytesRead)
+                    }
+                }
+                outputStream.toByteArray()
             }
 
             val myId = settingsRepository.getDeviceId()
@@ -883,13 +895,7 @@ class ChatRepositoryImpl(
         )
     }
 
-    private fun parseName(raw: String): String {
-        return try {
-            Json.decodeFromString<Handshake>(raw).name
-        } catch (e: Exception) {
-            raw.removePrefix("HELO_").take(20)
-        }
-    }
+    private fun parseName(raw: String): String = PeerNameParser.parseName(raw)
 
     // ==================== Cleanup ====================
 

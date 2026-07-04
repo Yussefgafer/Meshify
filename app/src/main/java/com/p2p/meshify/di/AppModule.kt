@@ -36,7 +36,7 @@ object AppModule {
 
         return Room.databaseBuilder(context, MeshifyDatabase::class.java, "meshify.db")
             .addMigrations(migration5to6, MeshifyDatabase.MIGRATION_6_7)
-            .fallbackToDestructiveMigration(dropAllTables = true)
+            .fallbackToDestructiveMigration()
             .build()
     }
 

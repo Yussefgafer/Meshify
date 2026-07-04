@@ -10,7 +10,6 @@ kotlin {
 dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.androidx.graphics.shapes)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

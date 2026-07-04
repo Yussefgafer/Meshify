@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.CircularProgressIndicator
@@ -36,7 +35,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,7 +65,6 @@ import com.p2p.meshify.core.ui.components.FullImageViewer
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
 import com.p2p.meshify.core.ui.hooks.HapticPattern
 import com.p2p.meshify.core.ui.hooks.LocalPremiumHaptics
-import com.p2p.meshify.core.ui.theme.LocalMeshifyThemeConfig
 import com.p2p.meshify.domain.model.DeleteType
 import com.p2p.meshify.feature.chat.components.BackConfirmationDialog
 import com.p2p.meshify.feature.chat.components.ChatContextMenu
@@ -81,10 +78,8 @@ import com.p2p.meshify.feature.chat.components.ScrollToFAB
 import com.p2p.meshify.feature.chat.components.SelectionModeTopBar
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
+
+
 
 // ── Search UI constants ──────────────────────────────────────────────
 private const val SEARCH_RESULT_BG_ALPHA_FROM_ME = 0.3f
@@ -124,14 +119,13 @@ fun ChatScreen(
 ) {
     val context = LocalContext.current
     val haptics = LocalPremiumHaptics.current
-    val uiState by viewModel.uiState.collectAsState()
-    val selectedMessages by viewModel.selectedMessages.collectAsState()
-    val forwardDialogState by viewModel.forwardDialogState.collectAsState()
-    val isSearching by viewModel.isSearching.collectAsState()
-    val searchQuery by viewModel.searchQuery.collectAsState()
-    val searchResults by viewModel.searchResults.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val selectedMessages by viewModel.selectedMessages.collectAsStateWithLifecycle()
+    val forwardDialogState by viewModel.forwardDialogState.collectAsStateWithLifecycle()
+    val isSearching by viewModel.isSearching.collectAsStateWithLifecycle()
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
-    val themeConfig = LocalMeshifyThemeConfig.current
     val clipboard = LocalClipboardManager.current
     var menuMessage by remember { mutableStateOf<MessageEntity?>(null) }
     var selectedFullImage by remember { mutableStateOf<String?>(null) }
@@ -230,16 +224,6 @@ fun ChatScreen(
         snapshotFlow { listState.firstVisibleItemIndex }
             .collect { firstVisibleIndex ->
                 hasScrolledToBottom = (firstVisibleIndex >= uiState.messages.size - 5)
-            }
-    }
-
-    // Lazy loading: load more when user scrolls to top
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex }
-            .collect { firstVisibleIndex ->
-                if (firstVisibleIndex < 5 && uiState.hasMoreMessages && !uiState.isLoadingMore) {
-                    viewModel.loadMoreMessages()
-                }
             }
     }
 
@@ -372,7 +356,7 @@ fun ChatScreen(
                         modifier = Modifier
                             .size(48.dp)
                             .semantics { contentDescription = loadingDesc },
-                        shape = CircleShape,
+                        shape = MeshifyDesignSystem.Shapes.IconContainer,
                         color = MaterialTheme.colorScheme.surfaceContainerHighest
                     ) {
                         CircularProgressIndicator(
@@ -396,12 +380,10 @@ fun ChatScreen(
                 MessageList(
                 messages = uiState.messages,
                 isLoading = uiState.isLoading,
-                isLoadingMore = uiState.isLoadingMore,
                 selectedMessages = selectedMessages,
                 uploadProgressMap = uploadProgressMap,
                 transportUsed = uiState.transportUsed,
                 peerName = peerName,
-                bubbleStyle = themeConfig.bubbleStyle,
                 listState = listState,
                 getAttachmentsForGroupId = viewModel::getAttachmentsForMessage,
                 onLongClick = { message ->
@@ -643,7 +625,5 @@ private fun SearchResultItem(
 }
 
 private fun formatChatTime(timestamp: Long): String {
-    return Instant.ofEpochMilli(timestamp)
-        .atZone(ZoneId.systemDefault())
-        .format(DateTimeFormatter.ofPattern("hh:mm a", Locale.US))
+    return com.p2p.meshify.core.common.util.formatMessageTime(timestamp)
 }

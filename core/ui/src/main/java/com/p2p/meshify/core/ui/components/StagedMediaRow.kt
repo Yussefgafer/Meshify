@@ -28,11 +28,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import com.p2p.meshify.core.common.R
 import com.p2p.meshify.core.ui.model.StagedAttachment
 import com.p2p.meshify.domain.model.MessageType
 import java.io.File
@@ -91,7 +93,7 @@ private fun StagedMediaThumbnail(
                 .data(attachment.uri)
                 .crossfade(true)
                 .build(),
-            contentDescription = "Staged media",
+            contentDescription = stringResource(R.string.content_desc_staged_media),
             modifier = Modifier
                 .size(80.dp)
                 .clip(RoundedCornerShape(12.dp)),
@@ -109,7 +111,7 @@ private fun StagedMediaThumbnail(
             ) {
                 Icon(
                     imageVector = Icons.Filled.PlayArrow,
-                    contentDescription = "Video",
+                    contentDescription = stringResource(R.string.content_desc_video_icon),
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(32.dp)
                 )
@@ -129,7 +131,7 @@ private fun StagedMediaThumbnail(
         ) {
             Icon(
                 imageVector = Icons.Filled.Close,
-                contentDescription = "Remove",
+                contentDescription = stringResource(R.string.content_desc_remove_attachment),
                 tint = MaterialTheme.colorScheme.onError,
                 modifier = Modifier.size(14.dp)
             )
