@@ -24,7 +24,6 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.common.R
-import androidx.compose.ui.res.stringResource
 
 /**
  * Context menu shown as a bottom sheet when a message is long-pressed.

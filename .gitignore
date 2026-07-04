@@ -52,6 +52,7 @@ AGENT.md
 AGENTS.md
 GEMINI.md
 *.salive
+.ignored
 
 gha-creds-*.json
 .kotlin

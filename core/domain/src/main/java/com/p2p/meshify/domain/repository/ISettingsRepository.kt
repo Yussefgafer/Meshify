@@ -1,5 +1,9 @@
 package com.p2p.meshify.domain.repository
 
+import com.p2p.meshify.domain.model.BubbleStyle
+import com.p2p.meshify.domain.model.FontFamilyPreset
+import com.p2p.meshify.domain.model.MotionPreset
+import com.p2p.meshify.domain.model.ShapeStyle
 import com.p2p.meshify.domain.model.TransportMode
 import kotlinx.coroutines.flow.Flow
 
@@ -13,6 +17,15 @@ interface ISettingsRepository {
     val isNetworkVisible: Flow<Boolean>
     val avatarHash: Flow<String?>
     val seedColor: Flow<Int>
+
+    // MD3E design configuration flows
+    val shapeStyle: Flow<ShapeStyle>
+    val motionPreset: Flow<MotionPreset>
+    val motionScale: Flow<Float>
+    val fontFamilyPreset: Flow<FontFamilyPreset>
+    val customFontUri: Flow<String?>
+    val bubbleStyle: Flow<BubbleStyle>
+    val visualDensity: Flow<Float>
 
     val bleEnabled: Flow<Boolean>
     val transportMode: Flow<TransportMode>
@@ -33,6 +46,15 @@ interface ISettingsRepository {
     suspend fun setNetworkVisibility(visible: Boolean)
     suspend fun updateAvatarHash(hash: String?)
     suspend fun setSeedColor(color: Int)
+
+    // MD3E design configuration setters
+    suspend fun setShapeStyle(style: ShapeStyle)
+    suspend fun setMotionPreset(preset: MotionPreset)
+    suspend fun setMotionScale(scale: Float)
+    suspend fun setFontFamilyPreset(family: FontFamilyPreset)
+    suspend fun setCustomFontUri(uri: String?)
+    suspend fun setBubbleStyle(style: BubbleStyle)
+    suspend fun setVisualDensity(density: Float)
 
     suspend fun setBleEnabled(enabled: Boolean)
     suspend fun setTransportMode(mode: TransportMode)
