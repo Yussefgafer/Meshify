@@ -132,10 +132,10 @@ class SettingsRepository(private val context: Context) : ISettingsRepository {
 
     override val bubbleStyle: Flow<BubbleStyle> = context.dataStore.data.map { preferences ->
         try {
-            BubbleStyle.valueOf(preferences[KEY_BUBBLE_STYLE] ?: "ROUNDED")
+            BubbleStyle.valueOf(preferences[KEY_BUBBLE_STYLE] ?: "TAILED")
         } catch (e: Exception) {
             Logger.e("SettingsRepository -> Failed to read bubbleStyle", e)
-            BubbleStyle.ROUNDED
+            BubbleStyle.TAILED
         }
     }
 

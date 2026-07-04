@@ -52,6 +52,7 @@ import com.p2p.meshify.core.data.local.entity.MessageStatus
 import com.p2p.meshify.core.ui.components.AlbumMediaGrid
 import com.p2p.meshify.core.ui.components.VideoPlayer
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
+import com.p2p.meshify.core.ui.theme.getBubbleShape
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.model.TransportType
 import com.p2p.meshify.core.common.R
@@ -125,8 +126,8 @@ fun MessageBubble(
     val containerColor = if (message.isFromMe) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer
     val contentColor = if (message.isFromMe) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
 
-    // Professional Chat Bubble Shape from Design System
-    val bubbleShape = if (message.isFromMe) MeshifyDesignSystem.Shapes.BubbleMe else MeshifyDesignSystem.Shapes.BubblePeer
+    // ponytail: grouping params false — grouped shapes when grouping logic added
+    val bubbleShape = getBubbleShape(bubbleStyle, message.isFromMe, isGroupedWithPrevious = false, isGroupedWithNext = false)
 
     Column(
         modifier = Modifier
