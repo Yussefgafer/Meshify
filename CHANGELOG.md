@@ -1,6 +1,8 @@
 V1.1.2
 - [Chore] Adding CHANGELOG.md to project
 - [Chore] Add more bugs to fix later like any version on this app
+- [Chore] Discovery delay constants extracted for maintainability
+- [Chore] Dead code (requestClearAllData, copySelectedMessages no-op) removed
 - [Fix] Messages no longer silently lost on send failure — error shown, input text preserved
 - [Fix] Settings changes (theme, BLE, notifications, etc.) now show error snackbar on DataStore failure
 - [Fix] Copy-to-clipboard shows success confirmation snackbar
@@ -11,5 +13,3 @@ V1.1.2
 - [Fix] RecentChatsScreen search bar no longer hidden by keyboard
 - [Fix] DeveloperScreen hardcoded strings replaced with localized resources
 - [Fix] sendSystemCommand no longer crashes app when transport unavailable
-- [Chore] Discovery delay constants extracted for maintainability
-- [Chore] Dead code (requestClearAllData, copySelectedMessages no-op) removed
