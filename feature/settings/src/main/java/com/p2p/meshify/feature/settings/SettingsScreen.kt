@@ -102,7 +102,11 @@ fun SettingsScreen(
         uri?.let { viewModel.updateAvatar(context, it) }
     }
 
+    // Single SnackbarHostState for all snackbar messages
+    val snackbarHostState = remember { SnackbarHostState() }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             LargeTopAppBar(
                 title = {
@@ -630,61 +634,40 @@ fun SettingsScreen(
         )
     }
 
-    // Cache Status Message
-    if (cacheStatus != null) {
-        LaunchedEffect(cacheStatus) {
-            kotlinx.coroutines.delay(3000)
+    // Cache Status Message via SnackbarHost
+    LaunchedEffect(cacheStatus) {
+        if (cacheStatus != null) {
+            snackbarHostState.showSnackbar(
+                message = cacheStatus!!,
+                withDismissAction = true,
+                duration = SnackbarDuration.Short
+            )
             cacheStatus = null
         }
-
-        Snackbar(
-            modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Md),
-            action = {
-                IconButton(onClick = { cacheStatus = null }) {
-                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.content_desc_close), tint = Color.White)
-                }
-            }
-        ) {
-            Text(cacheStatus ?: "")
-        }
     }
 
-    // Backup Status Message
-    if (backupStatus != null) {
-        LaunchedEffect(backupStatus) {
-            kotlinx.coroutines.delay(3000)
+    // Backup Status Message via SnackbarHost
+    LaunchedEffect(backupStatus) {
+        if (backupStatus != null) {
+            snackbarHostState.showSnackbar(
+                message = backupStatus!!,
+                withDismissAction = true,
+                duration = SnackbarDuration.Short
+            )
             backupStatus = null
         }
-
-        Snackbar(
-            modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Md),
-            action = {
-                IconButton(onClick = { backupStatus = null }) {
-                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.content_desc_close), tint = Color.White)
-                }
-            }
-        ) {
-            Text(backupStatus ?: "")
-        }
     }
 
-    // Error Message from ViewModel
+    // Error Message from ViewModel via SnackbarHost
     val errorMessage by viewModel.errorMessage.collectAsState()
-    if (errorMessage != null) {
-        LaunchedEffect(errorMessage) {
-            kotlinx.coroutines.delay(3000)
+    LaunchedEffect(errorMessage) {
+        if (errorMessage != null) {
+            snackbarHostState.showSnackbar(
+                message = errorMessage!!,
+                withDismissAction = true,
+                duration = SnackbarDuration.Short
+            )
             viewModel.clearError()
-        }
-
-        Snackbar(
-            modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Md),
-            action = {
-                IconButton(onClick = { viewModel.clearError() }) {
-                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.content_desc_close), tint = Color.White)
-                }
-            }
-        ) {
-            Text(errorMessage ?: "")
         }
     }
 
