@@ -44,6 +44,10 @@ import kotlinx.serialization.json.Json
 import java.io.Closeable
 import java.io.File
 import java.nio.ByteBuffer
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import java.util.UUID
 
 /**
@@ -511,8 +515,9 @@ class ChatRepositoryImpl(
     }
 
     private fun buildForwardContext(original: MessageEntity): String {
-        val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault())
-            .format(java.util.Date(original.timestamp))
+        val timestamp = Instant.ofEpochMilli(original.timestamp)
+            .atZone(ZoneId.systemDefault())
+            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.getDefault()))
         val unknown = stringProvider.getString(R.string.forward_context_unknown)
 
         return when (original.type) {
