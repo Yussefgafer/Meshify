@@ -127,47 +127,51 @@ class ChatViewModel @Inject constructor(
     private val sendDebounceMs = 500L // 500ms debounce
 
     init {
-        // Load initial page of messages
-        loadMoreMessages()
+        if (peerId.isBlank()) {
+            _uiState.update { it.copy(isLoading = false, sendError = context.getString(R.string.error_unknown)) }
+        } else {
+            // Load initial page of messages
+            loadMoreMessages()
 
-        // ✅ FIX: Collect messages flow with distinctUntilChanged to reduce recompositions
-        // This ensures real-time updates when messages are received from the network
-        viewModelScope.launch {
-            repository.getMessages(peerId)
-                .distinctUntilChanged() // ✅ PF03: Prevent excessive recompositions
-                .collect { messages ->
-                    Logger.d("ChatViewModel -> Messages updated: ${messages.size} messages for peer $peerId")
+            // ✅ FIX: Collect messages flow with distinctUntilChanged to reduce recompositions
+            // This ensures real-time updates when messages are received from the network
+            viewModelScope.launch {
+                repository.getMessages(peerId)
+                    .distinctUntilChanged() // ✅ PF03: Prevent excessive recompositions
+                    .collect { messages ->
+                        Logger.d("ChatViewModel -> Messages updated: ${messages.size} messages for peer $peerId")
 
-                    // ✅ FIX: Only update UI state, don't manipulate allMessages here
-                    // allMessages is only for pagination (loadMoreMessages)
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            messages = messages,
-                            hasMoreMessages = !isAllMessagesLoaded
-                        )
+                        // ✅ FIX: Only update UI state, don't manipulate allMessages here
+                        // allMessages is only for pagination (loadMoreMessages)
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                messages = messages,
+                                hasMoreMessages = !isAllMessagesLoaded
+                            )
+                        }
                     }
-                }
-        }
-
-        // Collect online status
-        viewModelScope.launch {
-            repository.onlinePeers.collect { online ->
-                _uiState.update { it.copy(isOnline = online.contains(peerId)) }
             }
-        }
 
-        // Collect security events from repository
-        // SharedFlow is hot and never terminates — errors are handled in repository before emit
-        viewModelScope.launch {
-            repository.securityEvents.collect { event ->
-                if (event.type == SecurityEvent.EventType.MESSAGE_SEND_FAILED) {
-                    _uiState.update {
-                        it.copy(
-                            sendError = context.getString(R.string.error_message_send_failed, event.reason)
-                        )
+            // Collect online status
+            viewModelScope.launch {
+                repository.onlinePeers.collect { online ->
+                    _uiState.update { it.copy(isOnline = online.contains(peerId)) }
+                }
+            }
+
+            // Collect security events from repository
+            // SharedFlow is hot and never terminates — errors are handled in repository before emit
+            viewModelScope.launch {
+                repository.securityEvents.collect { event ->
+                    if (event.type == SecurityEvent.EventType.MESSAGE_SEND_FAILED) {
+                        _uiState.update {
+                            it.copy(
+                                sendError = context.getString(R.string.error_message_send_failed, event.reason)
+                            )
+                        }
+                        Logger.e("ChatViewModel -> Message send failed: ${event.messageId}")
                     }
-                    Logger.e("ChatViewModel -> Message send failed: ${event.messageId}")
                 }
             }
         }
@@ -358,14 +362,24 @@ class ChatViewModel @Inject constructor(
 
     fun sendImage(bytes: ByteArray, extension: String) {
         viewModelScope.launch {
-            repository.sendImage(peerId, peerName, bytes, extension, _uiState.value.replyTo?.id)
+            val result = repository.sendImage(peerId, peerName, bytes, extension, _uiState.value.replyTo?.id)
+            if (result.isFailure) {
+                val errorMessage = context.getString(R.string.error_message_send_failed, result.exceptionOrNull()?.message ?: context.getString(R.string.error_unknown))
+                _uiState.update { it.copy(sendError = errorMessage) }
+                return@launch
+            }
             _uiState.update { it.copy(replyTo = null) }
         }
     }
 
     fun sendVideo(bytes: ByteArray, extension: String) {
         viewModelScope.launch {
-            repository.sendVideo(peerId, peerName, bytes, extension, _uiState.value.replyTo?.id)
+            val result = repository.sendVideo(peerId, peerName, bytes, extension, _uiState.value.replyTo?.id)
+            if (result.isFailure) {
+                val errorMessage = context.getString(R.string.error_message_send_failed, result.exceptionOrNull()?.message ?: context.getString(R.string.error_unknown))
+                _uiState.update { it.copy(sendError = errorMessage) }
+                return@launch
+            }
             _uiState.update { it.copy(replyTo = null) }
         }
     }
