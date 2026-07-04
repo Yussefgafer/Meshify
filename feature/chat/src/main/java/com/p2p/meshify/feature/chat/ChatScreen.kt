@@ -246,6 +246,7 @@ fun ChatScreen(
         modifier = Modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.ime),
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             if (selectedMessages.isNotEmpty()) {
                 SelectionModeTopBar(
@@ -427,12 +428,6 @@ fun ChatScreen(
             }
         }
     }
-
-    // Snackbar Host
-    SnackbarHost(
-        hostState = snackbarHostState,
-        modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Md)
-    )
 
     // Context menu for long-pressed message
     ChatContextMenu(
