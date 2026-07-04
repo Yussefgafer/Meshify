@@ -159,26 +159,6 @@ class ChatRepositoryImpl(
         return sendPlaintextPayload(text, peerId, peerName, envelopeBytes, replyToId)
     }
 
-    override suspend fun sendImage(
-        peerId: String,
-        peerName: String,
-        imageBytes: ByteArray,
-        extension: String,
-        replyToId: String?
-    ): Result<Unit> {
-        return messageRepository.sendImageMessage(peerId, peerName, imageBytes, extension, replyToId)
-    }
-
-    override suspend fun sendVideo(
-        peerId: String,
-        peerName: String,
-        videoBytes: ByteArray,
-        extension: String,
-        replyToId: String?
-    ): Result<Unit> {
-        return messageRepository.sendVideoMessage(peerId, peerName, videoBytes, extension, replyToId)
-    }
-
     override suspend fun sendFileWithProgress(
         messageId: String,
         peerId: String,
@@ -237,17 +217,26 @@ class ChatRepositoryImpl(
             return Result.failure(saveResult.exceptionOrNull() ?: Exception("Failed to save attachments"))
         }
 
-        val firstAttachmentBytes = attachments.firstOrNull()?.first
-            ?: return Result.failure(Exception("No attachments to send"))
-
-        return messageRepository.sendFileMessage(
-            peerId = peerId,
-            peerName = peerName,
-            fileBytes = firstAttachmentBytes,
-            fileName = "Album: $caption",
-            fileType = message.type,
-            replyToId = replyToId
-        )
+        var hasFailure = false
+        attachments.forEach { (bytes, type) ->
+            val result = messageRepository.sendFileMessage(
+                peerId = peerId,
+                peerName = peerName,
+                fileBytes = bytes,
+                fileName = "Album: $caption",
+                fileType = if (type == MessageType.VIDEO) MessageType.VIDEO else MessageType.FILE,
+                replyToId = replyToId
+            )
+            if (result.isFailure) {
+                hasFailure = true
+                Logger.e("ChatRepository -> Failed to send album attachment: ${result.exceptionOrNull()?.message}")
+            }
+        }
+        return if (hasFailure) {
+            Result.failure(Exception("Some album attachments failed to send"))
+        } else {
+            Result.success(Unit)
+        }
     }
 
     // ==================== Chat Management ====================
@@ -403,7 +392,16 @@ class ChatRepositoryImpl(
         return try {
             val mediaPath = message.mediaPath
             if (mediaPath == null) {
-                Logger.e("ChatRepository -> Cannot forward media: mediaPath is null")
+                // Album messages have null mediaPath but may have attachments
+                val groupId = message.groupId
+                if (groupId != null) {
+                    val attachments = messageAttachmentRepository.getAttachmentsForMessage(groupId)
+                    if (attachments.isNotEmpty()) {
+                        Logger.w("ChatRepository -> Forwarding album message as text context (${attachments.size} attachments)")
+                        return forwardTextMessage(message, peerId, forwardContext)
+                    }
+                }
+                Logger.e("ChatRepository -> Cannot forward media: mediaPath is null and no attachments found")
                 return false
             }
 

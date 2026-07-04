@@ -3,6 +3,8 @@ V1.1.2
 - [Chore] Add more bugs to fix later like any version on this app
 - [Chore] Discovery delay constants extracted for maintainability
 - [Chore] Dead code (requestClearAllData, copySelectedMessages no-op) removed
+- [Chore] Dead code (ChatAttachmentsViewModel, ChatInputViewModel, ChatMessagesViewModel, associated Uistate, test files, sendImage/sendVideo) removed
+- [Chore] forwardMediaContext now handles album messages with no mediaPath
 - [Fix] Messages no longer silently lost on send failure — error shown, input text preserved
 - [Fix] Settings changes (theme, BLE, notifications, etc.) now show error snackbar on DataStore failure
 - [Fix] Copy-to-clipboard shows success confirmation snackbar
@@ -33,3 +35,11 @@ V1.1.2
 - [Fix] DiscoveryScreen shows Snackbar for transient transport errors
 - [Fix] BleGattClient rejects payload exceeding MTU instead of silent truncation
 - [Fix] ParallelFileTransfer catch blocks now include chunk details in errors
+- [Fix] ChatInputBar URI reading now wrapped in try/catch with size check against MAX_FILE_SIZE_BYTES
+- [Fix] sendGroupedMessage now sends ALL attachments instead of only the first one
+- [Fix] sendFileWithProgress now saves mediaPath locally after successful send so sender can view their own file
+- [Fix] sendFileWithProgress mediaPath save no longer reverts message status from SENT to QUEUED
+- [Fix] MessageRepository.selectBestTransport returns null instead of throwing IllegalStateException; callers handle null gracefully
+- [Fix] ChatScreen dead imageLauncher/videoLauncher removed (launchers live in ChatInputBar)
+- [Fix] Send error snackbar now includes Retry action via SnackbarDuration.Indefinite
+- [Feat] Added generic file picker (*/*) to ChatInputBar with AttachFile icon in MediaStagingChatInput
