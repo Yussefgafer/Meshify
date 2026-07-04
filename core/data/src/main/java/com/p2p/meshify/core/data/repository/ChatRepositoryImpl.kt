@@ -881,9 +881,11 @@ class ChatRepositoryImpl(
     }
 
     private fun parseName(raw: String): String {
-        return if (raw.contains("name")) {
-            try { Json.decodeFromString<Handshake>(raw).name } catch(e: Exception) { raw.take(20) }
-        } else raw.removePrefix("HELO_")
+        return try {
+            Json.decodeFromString<Handshake>(raw).name
+        } catch (e: Exception) {
+            raw.removePrefix("HELO_").take(20)
+        }
     }
 
     // ==================== Cleanup ====================
