@@ -292,7 +292,8 @@ class BleGattConnection(
             // Safety check: ensure data doesn't exceed current MTU
             val maxPayloadSize = currentMtu - 3
             if (data.size > maxPayloadSize) {
-                Logger.w("BLE Payload size (${data.size}) exceeds max allowed ($maxPayloadSize). Truncating.", tag = TAG)
+                Logger.e("BLE Payload size (${data.size}) exceeds max allowed ($maxPayloadSize). Rejecting.", tag = TAG)
+                return Result.failure(IllegalArgumentException("Payload size ${data.size} exceeds MTU ($maxPayloadSize)"))
             }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
