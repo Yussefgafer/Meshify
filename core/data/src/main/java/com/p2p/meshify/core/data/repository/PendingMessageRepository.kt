@@ -8,7 +8,6 @@ import com.p2p.meshify.core.data.local.entity.PendingMessageEntity
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.model.Payload
-import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.core.network.base.IMeshTransport
 import kotlinx.coroutines.Dispatchers
@@ -19,7 +18,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.math.pow
-import kotlin.random.Random
 
 /**
  * PendingMessageRepository - Responsible for managing pending messages.
@@ -34,8 +32,7 @@ import kotlin.random.Random
 class PendingMessageRepository(
     private val pendingMessageDao: PendingMessageDao,
     private val messageDao: MessageDao,
-    private val transportManager: TransportManager,
-    private val settingsRepository: ISettingsRepository
+    private val transportManager: TransportManager
 ) {
 
     companion object {
@@ -63,39 +60,6 @@ class PendingMessageRepository(
             Logger.w("PendingMessageRepository -> ${all.size} pending message(s) waiting for delivery")
         }
     }
-
-    /**
-     * Queue a message for later delivery.
-     */
-    suspend fun queueMessage(
-        messageId: String,
-        recipientId: String,
-        recipientName: String,
-        content: String,
-        type: MessageType
-    ) {
-        val pendingMessage = PendingMessageEntity(
-            id = messageId,
-            recipientId = recipientId,
-            recipientName = recipientName,
-            content = content,
-            type = type,
-            status = MessageStatus.QUEUED,
-            retryCount = 0,
-            maxRetries = RETRY_MAX_ATTEMPTS
-        )
-        pendingMessageDao.insert(pendingMessage)
-        refreshPendingState()
-        Logger.w("PendingMessageRepository -> Message queued: $messageId for $recipientId")
-    }
-
-    /**
-     * Get all pending messages for a recipient.
-     */
-    suspend fun getPendingMessages(recipientId: String): List<PendingMessageEntity> =
-        withContext(Dispatchers.IO) {
-            pendingMessageDao.getByRecipient(recipientId)
-        }
 
     /**
      * Retry all pending messages for a peer with exponential backoff.
@@ -256,50 +220,4 @@ class PendingMessageRepository(
         return (cappedDelay + jitter).coerceAtLeast(RETRY_BASE_DELAY_MS)
     }
 
-    /**
-     * Delete a pending message by ID.
-     */
-    suspend fun deletePendingMessage(messageId: String) {
-        pendingMessageDao.deleteById(messageId)
-        refreshPendingState()
-    }
-
-    /**
-     * Get all pending messages (for debugging/inspection).
-     */
-    suspend fun getAllPendingMessages(): List<PendingMessageEntity> =
-        withContext(Dispatchers.IO) {
-            pendingMessageDao.getAll()
-        }
-
-    /**
-     * Auto-retry pending messages for a peer who just came online.
-     * Call this from transport event handlers when a peer transitions to connected.
-     * Only retries if there are actually queued messages for this peer.
-     */
-    suspend fun retryForOnlinePeer(peerId: String) {
-        val pending = withContext(Dispatchers.IO) { pendingMessageDao.getByRecipient(peerId) }
-        if (pending.isNotEmpty()) {
-            Logger.i("PendingMessageRepository -> Peer $peerId came online, retrying ${pending.size} pending message(s)")
-            retryPendingMessages(peerId)
-        }
-    }
-
-    /**
-     * Get count of pending messages for a specific recipient.
-     */
-    suspend fun getPendingCountForRecipient(recipientId: String): Int =
-        withContext(Dispatchers.IO) {
-            pendingMessageDao.getByRecipient(recipientId).size
-        }
-
-    /**
-     * Clear all pending messages (for testing / admin).
-     */
-    suspend fun clearAllPending() {
-        withContext(Dispatchers.IO) {
-            pendingMessageDao.deleteByStatus(MessageStatus.QUEUED)
-        }
-        refreshPendingState()
-    }
 }
