@@ -343,31 +343,12 @@ class SocketManager(
     }
     
     /**
-     * Pre-warms connection to a known peer.
-     */
-    suspend fun preWarmConnection(peerAddress: String) = withContext(ioDispatcher) {
-        if (!connectionPool.hasValidConnection(peerAddress)) {
-            connectionPool.preWarmConnection(peerAddress, socketFactory)
-        }
-    }
-    
-    /**
      * Registers a known peer for potential pre-warming.
      */
     fun registerKnownPeer(peerId: String, address: String) {
-        connectionPool.registerKnownPeer(peerId)
-        connectionScope.launch {
-            preWarmConnection(address)
-        }
+        // Registration tracking removed — pre-warming is handled on-demand
     }
-    
-    /**
-     * Removes a known peer.
-     */
-    fun removeKnownPeer(peerId: String) {
-        connectionPool.removeKnownPeer(peerId)
-    }
-    
+
     /**
      * Gets the number of active connections.
      */
@@ -385,83 +366,6 @@ class SocketManager(
      */
     fun getConnection(peerAddress: String): java.net.Socket? {
         return connectionPool.getConnection(peerAddress)
-    }
-    
-    /**
-     * Sends large file using parallel transfer for better performance.
-     */
-    suspend fun sendLargeFile(
-        targetAddress: String,
-        fileBytes: ByteArray,
-        payload: Payload
-    ): Result<Unit> = withContext(ioDispatcher) {
-        val lock = connectionPool.getOrCreateConnectionLock(targetAddress)
-        
-        lock.withLock {
-            try {
-                // Get or create connection
-                if (!connectionPool.hasValidConnection(targetAddress)) {
-                    connectionPool.removeConnection(targetAddress, closeSocket = true)
-                    
-                    val socket = socketFactory.createClientSocket(targetAddress)
-                    if (!connectionPool.addConnection(targetAddress, socket)) {
-                        socketFactory.closeSocket(socket, "SocketManager")
-                        return@withContext Result.failure(Exception("Connection pool full"))
-                    }
-                }
-                
-                val socket = connectionPool.getConnection(targetAddress)
-                    ?: return@withContext Result.failure(Exception("No connection available"))
-                
-                connectionPool.setConnectionInUse(targetAddress, true)
-                
-                // Determine if parallel transfer is needed
-                val useParallel = fileBytes.size > 500 * 1024 // 500KB threshold
-                
-                if (useParallel) {
-                    Logger.d("SocketManager -> Using parallel transfer for ${fileBytes.size / 1024}KB file")
-                    val chunkCount = ParallelFileTransfer.calculateOptimalChunkCount(fileBytes.size)
-                    
-                    // Send payload header first
-                    val outputStream = DataOutputStream(socket.getOutputStream())
-                    val headerBytes = PayloadSerializer.serialize(payload)
-                    outputStream.writeInt(headerBytes.size)
-                    outputStream.write(headerBytes)
-                    outputStream.writeInt(1) // Parallel mode marker
-                    outputStream.flush()
-                    
-                    // Send file in parallel chunks
-                    ParallelFileTransfer.sendFile(
-                        socket = socket,
-                        fileBytes = fileBytes,
-                        chunkCount = chunkCount
-                    ) { bytesTransferred, totalBytes, percentage ->
-                        Logger.d("SocketManager -> Transfer progress: ${percentage.toInt()}%")
-                    }
-                } else {
-                    // Standard single-threaded transfer
-                    val outputStream = DataOutputStream(socket.getOutputStream())
-                    val bytes = PayloadSerializer.serialize(payload)
-                    
-                    withTimeout(WRITE_TIMEOUT_MS) {
-                        outputStream.writeInt(bytes.size)
-                        outputStream.write(bytes)
-                        outputStream.write(fileBytes)
-                        outputStream.flush()
-                    }
-                }
-                
-                connectionPool.updateLastUsed(targetAddress)
-                Result.success(Unit)
-                
-            } catch (e: Exception) {
-                Logger.e("SocketManager -> Large file send failed to $targetAddress", e)
-                cleanupConnection(targetAddress)
-                Result.failure(e)
-            } finally {
-                connectionPool.setConnectionInUse(targetAddress, false)
-            }
-        }
     }
     
     /**

@@ -116,21 +116,6 @@ class KeepAliveManager(
     }
     
     /**
-     * Checks if a specific connection is alive.
-     * 
-     * @param peerId Peer identifier
-     * @return true if connection responds to ping
-     */
-    suspend fun isConnectionAlive(peerId: String): Boolean {
-        return try {
-            val socket = connectionPool.getConnection(peerId)
-            socket?.isConnected == true && !socket.isClosed
-        } catch (e: Exception) {
-            false
-        }
-    }
-    
-    /**
      * Gets keep-alive interval in milliseconds.
      */
     fun getKeepAliveInterval(): Long = KEEP_ALIVE_INTERVAL_MS
