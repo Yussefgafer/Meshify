@@ -1,7 +1,6 @@
 package com.p2p.meshify.core.util
 
 import com.p2p.meshify.domain.model.Payload
-import com.p2p.meshify.domain.model.toPayloadType
 import java.nio.BufferUnderflowException
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
@@ -148,7 +147,7 @@ object PayloadSerializer {
                         Logger.w("Invalid UTF-8 type name, using default charset", tag = TAG)
                         String(typeBytes) // Fallback to default charset
                     }
-                    typeName.toPayloadType() ?: Payload.PayloadType.SYSTEM_CONTROL
+                    try { Payload.PayloadType.valueOf(typeName) } catch (e: IllegalArgumentException) { Payload.PayloadType.SYSTEM_CONTROL }
                 }
                 else -> {
                     // Unknown version: fail safely
