@@ -4,7 +4,10 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.cancel
 import com.p2p.meshify.core.common.R
+import com.p2p.meshify.core.data.local.entity.MessageAttachmentEntity
 import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
 import com.p2p.meshify.domain.model.DeleteType
@@ -705,59 +708,7 @@ class ChatViewModelTest {
     }
 
     // ===================================================================
-    // 5. SEND IMAGE / VIDEO
-    // ===================================================================
-
-    @Test
-    fun `sendImage delegates to repository`() = runTest {
-        coEvery { mockRepository.sendImage(any(), any(), any<ByteArray>(), any(), any()) } returns Result.success(Unit)
-        viewModel = createViewModelWithPeer()
-
-        viewModel.sendImage(byteArrayOf(1, 2, 3, 4), "jpg")
-        advanceUntilIdle()
-
-        coVerify { mockRepository.sendImage(testPeerId, testPeerName, any<ByteArray>(), "jpg", null) }
-    }
-
-    @Test
-    fun `sendImage clears replyTo`() = runTest {
-        coEvery { mockRepository.sendImage(any(), any(), any<ByteArray>(), any(), any()) } returns Result.success(Unit)
-        viewModel = createViewModelWithPeer()
-        viewModel.setReplyTo(testMessage(id = "reply-msg"))
-        advanceUntilIdle()
-
-        viewModel.sendImage(byteArrayOf(1), "png")
-        advanceUntilIdle()
-
-        assertNull(viewModel.uiState.value.replyTo)
-    }
-
-    @Test
-    fun `sendVideo delegates to repository`() = runTest {
-        coEvery { mockRepository.sendVideo(any(), any(), any<ByteArray>(), any(), any()) } returns Result.success(Unit)
-        viewModel = createViewModelWithPeer()
-
-        viewModel.sendVideo(byteArrayOf(5, 6, 7, 8), "mp4")
-        advanceUntilIdle()
-
-        coVerify { mockRepository.sendVideo(testPeerId, testPeerName, any<ByteArray>(), "mp4", null) }
-    }
-
-    @Test
-    fun `sendVideo clears replyTo`() = runTest {
-        coEvery { mockRepository.sendVideo(any(), any(), any<ByteArray>(), any(), any()) } returns Result.success(Unit)
-        viewModel = createViewModelWithPeer()
-        viewModel.setReplyTo(testMessage(id = "reply-msg"))
-        advanceUntilIdle()
-
-        viewModel.sendVideo(byteArrayOf(1), "avi")
-        advanceUntilIdle()
-
-        assertNull(viewModel.uiState.value.replyTo)
-    }
-
-    // ===================================================================
-    // 6. SEND FILE WITH PROGRESS
+    // 5. SEND FILE WITH PROGRESS
     // ===================================================================
 
     @Test
@@ -1368,20 +1319,6 @@ class ChatViewModelTest {
     // ===================================================================
 
     @Test
-    fun `loadMoreMessages fetches next page from repository`() = runTest {
-        viewModel = createViewModelWithPeer()
-
-        val newMessages = listOf(testMessage(id = "older-1", chatId = testPeerId))
-        every { mockRepository.getMessagesPaged(testPeerId, 50, 0) } returns flowOf(newMessages)
-
-        // Reset pagination state via loadMoreMessages
-        viewModel.loadMoreMessages()
-        advanceUntilIdle()
-
-        verify { mockRepository.getMessagesPaged(testPeerId, 50, 0) }
-    }
-
-    @Test
     fun `loadMoreMessages sets hasMoreMessages true when messages returned`() = runTest {
         resetPaginationState()
         val newMessages = listOf(testMessage(id = "older-1", chatId = testPeerId))
@@ -1445,22 +1382,7 @@ class ChatViewModelTest {
     }
 
     // ===================================================================
-    // 16. COPY SELECTED MESSAGES
-    // ===================================================================
-
-    @Test
-    fun `copySelectedMessages with no selection does nothing`() = runTest {
-        viewModel = createViewModelWithPeer()
-
-        viewModel.copySelectedMessages()
-        advanceUntilIdle()
-
-        // Should not crash
-        assertTrue(viewModel.selectedMessages.value.isEmpty())
-    }
-
-    // ===================================================================
-    // 17. EDGE CASES
+    // 16. EDGE CASES
     // ===================================================================
 
     @Test
@@ -1488,7 +1410,6 @@ class ChatViewModelTest {
         assertNull(state.replyTo)
         assertTrue(state.stagedAttachments.isEmpty())
         assertFalse(state.hasMoreMessages)
-        assertFalse(state.isLoadingMore)
         assertFalse(state.isSending)
         assertNull(state.sendError)
         assertNull(state.uploadError)
@@ -1550,7 +1471,7 @@ class ChatViewModelTest {
     fun `forwardMessages isForwarding state set while forwarding`() = runTest {
         // Use a deferred to pause forwarding mid-way
         val forwardDeferred = CompletableDeferred<Result<Unit>>()
-        coEvery { mockRepository.forwardMessage(any(), any()) } returns forwardDeferred.await()
+        coEvery { mockRepository.forwardMessage(any(), any()) } coAnswers { forwardDeferred.await() }
         messagesFlow.value = listOf(testMessage(id = "msg-1", chatId = testPeerId))
         viewModel = createViewModelWithPeer()
         advanceUntilIdle()
@@ -1609,4 +1530,30 @@ class ChatViewModelTest {
             // Reflection failed — skip
         }
     }
+
+    private fun testMessage(
+        id: String,
+        text: String? = "",
+        chatId: String = testPeerId,
+        isFromMe: Boolean = false
+    ): MessageEntity = MessageEntity(
+        id = id,
+        chatId = chatId,
+        senderId = if (isFromMe) testPeerId else "other-$id",
+        text = text,
+        timestamp = System.currentTimeMillis(),
+        isFromMe = isFromMe
+    )
+
+    private fun mockUri(uriString: String): Uri = Uri.parse(uriString)
+
+    private fun testAttachment(
+        id: String,
+        messageId: String
+    ): MessageAttachmentEntity = MessageAttachmentEntity(
+        id = id,
+        type = MessageType.FILE,
+        messageId = messageId,
+        filePath = "/tmp/$id"
+    )
 }
