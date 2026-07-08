@@ -1,4 +1,7 @@
 V1.1.2
+- [Refactor] Remove dead code across core/ui/: AvatarSizes, SeedColorPresets, Elevation.Level4/5, Shapes.CardLarge, StatusOffline, StatusTyping, SwipeState/LocalSwipeState, galleryScale/videoScale/fileScale animations, selectedFullImage state from AlbumMediaGrid
+- [Refactor] Delete MeshifyThemeConfig and all unused parameters (motionPreset, shapeStyle, bubbleStyle, visualDensity, seedColor) from MeshifyTheme()
+- [Refactor] Update MainActivity.kt and README.md to match simplified MeshifyTheme signature
 - [Fix] Add missing English string resources to fix 24 ExtraTranslation lint errors in core:ui module
 - [Chore] Adding CHANGELOG.md to project
 - [Chore] Add more bugs to fix later like any version on this app
