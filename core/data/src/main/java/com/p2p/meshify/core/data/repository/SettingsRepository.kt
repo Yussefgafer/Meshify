@@ -97,7 +97,7 @@ class SettingsRepository(
     }
 
     // MD3E Settings Flows
-    override val shapeStyle: Flow<ShapeStyle> = context.dataStore.data.map { preferences ->
+    override val shapeStyle: Flow<ShapeStyle> = prefsStore.data.map { preferences ->
         try {
             ShapeStyle.valueOf(preferences[KEY_SHAPE_STYLE] ?: "CIRCLE")
         } catch (e: Exception) {
@@ -106,7 +106,7 @@ class SettingsRepository(
         }
     }
 
-    override val motionPreset: Flow<MotionPreset> = context.dataStore.data.map { preferences ->
+    override val motionPreset: Flow<MotionPreset> = prefsStore.data.map { preferences ->
         try {
             MotionPreset.valueOf(preferences[KEY_MOTION_PRESET] ?: "STANDARD")
         } catch (e: Exception) {
@@ -115,11 +115,11 @@ class SettingsRepository(
         }
     }
 
-    override val motionScale: Flow<Float> = context.dataStore.data.map { preferences ->
+    override val motionScale: Flow<Float> = prefsStore.data.map { preferences ->
         preferences[KEY_MOTION_SCALE] ?: 1.0f
     }
 
-    override val fontFamilyPreset: Flow<FontFamilyPreset> = context.dataStore.data.map { preferences ->
+    override val fontFamilyPreset: Flow<FontFamilyPreset> = prefsStore.data.map { preferences ->
         try {
             FontFamilyPreset.valueOf(preferences[KEY_FONT_FAMILY] ?: "ROBOTO")
         } catch (e: Exception) {
@@ -128,28 +128,28 @@ class SettingsRepository(
         }
     }
 
-    override val customFontUri: Flow<String?> = context.dataStore.data.map { preferences ->
+    override val customFontUri: Flow<String?> = prefsStore.data.map { preferences ->
         preferences[KEY_CUSTOM_FONT_URI]
     }
 
-    override val bubbleStyle: Flow<BubbleStyle> = context.dataStore.data.map { preferences ->
+    override val bubbleStyle: Flow<BubbleStyle> = prefsStore.data.map { preferences ->
         try {
-            BubbleStyle.valueOf(preferences[KEY_BUBBLE_STYLE] ?: "TAILED")
+            BubbleStyle.valueOf(preferences[KEY_BUBBLE_STYLE] ?: "ROUNDED")
         } catch (e: Exception) {
             Logger.e("SettingsRepository -> Failed to read bubbleStyle", e)
-            BubbleStyle.TAILED
+            BubbleStyle.ROUNDED
         }
     }
 
-    override val visualDensity: Flow<Float> = context.dataStore.data.map { preferences ->
+    override val visualDensity: Flow<Float> = prefsStore.data.map { preferences ->
         preferences[KEY_VISUAL_DENSITY] ?: 1.0f
     }
 
-    override val seedColor: Flow<Int> = context.dataStore.data.map { preferences ->
+    override val seedColor: Flow<Int> = prefsStore.data.map { preferences ->
         preferences[KEY_SEED_COLOR] ?: 0xFF006D68.toInt()
     }
 
-    override val bleEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+    override val bleEnabled: Flow<Boolean> = prefsStore.data.map { preferences ->
         preferences[KEY_BLE_ENABLED] ?: false
     }
 
@@ -162,11 +162,11 @@ class SettingsRepository(
         }
     }
 
-    override val hasCompletedOnboarding: Flow<Boolean> = context.dataStore.data.map { preferences ->
+    override val hasCompletedOnboarding: Flow<Boolean> = prefsStore.data.map { preferences ->
         preferences[KEY_ONBOARDING_COMPLETED] ?: false
     }
 
-    override val appLanguage: Flow<String> = context.dataStore.data.map { preferences ->
+    override val appLanguage: Flow<String> = prefsStore.data.map { preferences ->
         preferences[KEY_APP_LANGUAGE] ?: "en"
     }
 
@@ -265,7 +265,7 @@ class SettingsRepository(
     }
 
     override suspend fun setMotionScale(scale: Float) {
-        safeEdit { it[KEY_MOTION_SCALE] = scale }.onFailure { e ->
+        safeEdit { it[KEY_MOTION_SCALE] = scale.coerceIn(0.5f, 2.0f) }.onFailure { e ->
             Logger.e("SettingsRepository -> Failed to set motion scale", e)
         }
     }
@@ -295,7 +295,7 @@ class SettingsRepository(
     }
 
     override suspend fun setVisualDensity(density: Float) {
-        safeEdit { it[KEY_VISUAL_DENSITY] = density }.onFailure { e ->
+        safeEdit { it[KEY_VISUAL_DENSITY] = density.coerceIn(0.8f, 1.5f) }.onFailure { e ->
             Logger.e("SettingsRepository -> Failed to set visual density", e)
         }
     }
@@ -404,6 +404,35 @@ class SettingsRepository(
             ).filterValues { it != null }.mapValues { it.value.toString() }
             val json = Json.encodeToString(backupData)
             Result.success(json)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun importBackup(json: String): Result<Unit> {
+        return try {
+            val backupData: Map<String, String> = Json.decodeFromString(json)
+            prefsStore.edit { prefs ->
+                backupData.forEach { (key, value) ->
+                    when (key) {
+                        "display_name" -> prefs[KEY_DISPLAY_NAME] = value
+                        "theme_mode" -> prefs[KEY_THEME_MODE] = value
+                        "dynamic_color" -> prefs[KEY_DYNAMIC_COLOR] = value.toBoolean()
+                        "haptic_feedback" -> prefs[KEY_HAPTIC_FEEDBACK] = value.toBoolean()
+                        "network_visible" -> prefs[KEY_NETWORK_VISIBLE] = value.toBoolean()
+                        "avatar_hash" -> prefs[KEY_AVATAR_HASH] = value
+                        "seed_color" -> prefs[KEY_SEED_COLOR] = value.toInt()
+                        "app_language" -> prefs[KEY_APP_LANGUAGE] = value
+                        "font_size_scale" -> prefs[KEY_FONT_SIZE_SCALE] = value.toFloat()
+                        "notifications_enabled" -> prefs[KEY_NOTIFICATIONS_ENABLED] = value.toBoolean()
+                        "notification_sound" -> prefs[KEY_NOTIFICATION_SOUND] = value.toBoolean()
+                        "notification_vibrate" -> prefs[KEY_NOTIFICATION_VIBRATE] = value.toBoolean()
+                        "ble_enabled" -> prefs[KEY_BLE_ENABLED] = value.toBoolean()
+                        "transport_mode" -> prefs[KEY_TRANSPORT_MODE] = value
+                    }
+                }
+            }
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }

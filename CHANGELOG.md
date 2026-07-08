@@ -1,4 +1,5 @@
 V1.1.2
+- [Fix] Add missing English string resources to fix 24 ExtraTranslation lint errors in core:ui module
 - [Chore] Adding CHANGELOG.md to project
 - [Chore] Add more bugs to fix later like any version on this app
 - [Chore] Discovery delay constants extracted for maintainability
