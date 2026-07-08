@@ -31,8 +31,6 @@ val SurfaceContainerHighDark = Color(0xFF2B2930)
 
 // MD3E Additional Colors - Moved from hardcoded UI values
 val StatusOnline = Color(0xFF4CAF50)
-val StatusOffline = Color(0xFF9E9E9E)
-val StatusTyping = Color(0xFF4CAF50)
 
 // Color Picker Presets
 val ColorPresetTeal = Color(0xFF006D68)

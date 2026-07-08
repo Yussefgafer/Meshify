@@ -161,12 +161,6 @@ class MainActivity : ComponentActivity() {
             val settingsRepo = app.settingsRepository
             val themeMode by settingsRepo.themeMode.collectAsState(initial = com.p2p.meshify.domain.repository.ThemeMode.SYSTEM)
             val dynamicColor by settingsRepo.dynamicColorEnabled.collectAsState(initial = true)
-            val motionPreset by settingsRepo.motionPreset.collectAsState(initial = com.p2p.meshify.domain.model.MotionPreset.STANDARD)
-            val motionScale by settingsRepo.motionScale.collectAsState(initial = 1.0f)
-            val shapeStyle by settingsRepo.shapeStyle.collectAsState(initial = com.p2p.meshify.domain.model.ShapeStyle.CIRCLE)
-            val bubbleStyle by settingsRepo.bubbleStyle.collectAsState(initial = com.p2p.meshify.domain.model.BubbleStyle.TAILED)
-            val visualDensity by settingsRepo.visualDensity.collectAsState(initial = 1.0f)
-            val seedColorInt by settingsRepo.seedColor.collectAsState(initial = 0xFF006D68.toInt())
 
             var isReady by remember { mutableStateOf(false) }
             var startDestination by remember { mutableStateOf<Screen?>(null) }
@@ -189,18 +183,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            val seedColor = remember(seedColorInt) { Color(seedColorInt) }
             val premiumHaptics = rememberPremiumHaptics(settingsRepo)
 
             MeshifyTheme(
                 themeMode = themeMode.name,
-                dynamicColor = dynamicColor,
-                motionPreset = motionPreset,
-                motionScale = motionScale,
-                shapeStyle = shapeStyle,
-                bubbleStyle = bubbleStyle,
-                visualDensity = visualDensity,
-                seedColor = seedColor
+                dynamicColor = dynamicColor
             ) {
                 CompositionLocalProvider(LocalPremiumHaptics provides premiumHaptics) {
                     val context = LocalContext.current
