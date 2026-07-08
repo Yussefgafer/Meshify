@@ -31,8 +31,6 @@
     <string name="help_about_title">About Meshify</string>
     <string name="help_about_desc">Meshify is a decentralized P2P messaging app built with privacy in mind.</string>
     <string name="help_btn_about">Learn More</string>
-    <string name="help_btn_report">Report Issue</string>
-    
     <!-- About Screen -->
     <string name="about_screen_title">About</string>
     <string name="about_back_desc">Back</string>
@@ -45,10 +43,6 @@
     <string name="about_tech_desc">Kotlin, Jetpack Compose, Material 3, Room Database, Coroutines &amp; Flow.</string>
     <string name="about_github">GitHub Repository</string>
     <string name="about_github_desc">View source code, report issues, and contribute</string>
-    <string name="about_privacy">Privacy Policy</string>
-    <string name="about_privacy_desc">Learn how we protect your data</string>
-    <string name="about_license">License</string>
-    <string name="about_license_desc">MIT License - Open Source</string>
     <string name="about_made_with">Built with ❤️ for privacy</string>
     <string name="about_copyright">© 2026 Meshify. All rights reserved.</string>
 </resources>

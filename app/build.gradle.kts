@@ -1,6 +1,3 @@
-import com.android.build.api.dsl.ApplicationExtension
-import java.util.Properties
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -141,7 +138,6 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation(libs.google.material)
     implementation(libs.androidx.material.icons.extended)
     
     // Navigation

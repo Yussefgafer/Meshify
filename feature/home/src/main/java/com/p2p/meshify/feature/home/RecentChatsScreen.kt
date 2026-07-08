@@ -1,15 +1,12 @@
 package com.p2p.meshify.feature.home
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -196,7 +193,7 @@ fun RecentChatsScreen(
                                                 trailingContent = {
                                                     Column(horizontalAlignment = Alignment.End) {
                                                         Text(
-                                                            text = formatRecentTime(chat.lastTimestamp),
+                                                            text = com.p2p.meshify.core.common.util.formatMessageTime(chat.lastTimestamp),
                                                             style = MaterialTheme.typography.labelSmall,
                                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                                         )
@@ -237,41 +234,6 @@ fun RecentChatsScreen(
                 onDismiss = { chatToDelete = null }
             )
         }
-    }
-}
-
-@Composable
-fun ChatListItem(chat: ChatEntity, isOnline: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        MeshifyAvatarWithOnline(
-            initials = (chat.peerName.takeIf { it.isNotEmpty() } ?: "?"),
-            isOnline = isOnline,
-            size = 52.dp
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = chat.peerName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                val isImage = chat.lastMessage == stringResource(R.string.last_msg_image)
-                if (isImage) {
-                    Icon(Icons.Default.Image, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.width(4.dp))
-                }
-                Text(
-                    text = chat.lastMessage ?: stringResource(R.string.last_msg_none),
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-        Text(text = formatRecentTime(chat.lastTimestamp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -417,8 +379,4 @@ private fun UnreadBadge(displayCount: String) {
             fontWeight = FontWeight.Bold
         )
     }
-}
-
-fun formatRecentTime(timestamp: Long): String {
-    return com.p2p.meshify.core.common.util.formatMessageTime(timestamp)
 }
