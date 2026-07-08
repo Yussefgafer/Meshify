@@ -1,7 +1,6 @@
 package com.p2p.meshify.core.data.repository
 
 import android.content.Context
-import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.repository.IFileManager
 import java.io.File
@@ -34,12 +33,4 @@ class FileManagerImpl(private val context: Context) : IFileManager {
         }
     }
 
-    override fun getAppVersion(): String {
-        return try {
-            val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            packageInfo.versionName ?: "1.0"
-        } catch (e: Exception) {
-            "1.0"
-        }
-    }
 }

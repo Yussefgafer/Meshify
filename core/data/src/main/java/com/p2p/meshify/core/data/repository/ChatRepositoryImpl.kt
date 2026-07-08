@@ -95,8 +95,7 @@ class ChatRepositoryImpl(
     private val pendingMessageRepository: PendingMessageRepository = PendingMessageRepository(
         pendingMessageDao = pendingMessageDao,
         messageDao = messageDao,
-        transportManager = transportManager,
-        settingsRepository = settingsRepository
+        transportManager = transportManager
     )
 
     private val messageAttachmentRepository: MessageAttachmentRepository = MessageAttachmentRepository(

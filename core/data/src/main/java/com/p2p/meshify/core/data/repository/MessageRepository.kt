@@ -10,7 +10,6 @@ import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.data.local.entity.MessageStatus
 import com.p2p.meshify.core.data.local.entity.PendingMessageEntity
 import com.p2p.meshify.core.common.util.PeerNameParser
-import com.p2p.meshify.core.util.ImageCompressor
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.model.Payload
@@ -30,9 +29,6 @@ import java.util.UUID
  * MessageRepository - Responsible for sending and receiving messages.
  *
  * Handles:
- * - Text messages
- * - Image messages (with smart compression)
- * - Video messages
  * - File messages
  * - Status updates (QUEUED -> SENDING -> SENT -> DELIVERED -> READ)
  * - Offline message queuing
@@ -68,138 +64,6 @@ class MessageRepository(
     }
 
     // ==================== Public API: Send Messages ====================
-
-    /**
-     * Sends a text message.
-     */
-    suspend fun sendTextMessage(
-        peerId: String,
-        peerName: String,
-        text: String,
-        replyToId: String?
-    ): Result<Unit> {
-        val messageId = UUID.randomUUID().toString()
-        val myId = settingsRepository.getDeviceId()
-
-        val message = MessageEntity(
-            id = messageId,
-            chatId = peerId,
-            senderId = myId,
-            text = text,
-            timestamp = System.currentTimeMillis(),
-            isFromMe = true,
-            type = MessageType.TEXT,
-            status = MessageStatus.QUEUED,
-            replyToId = replyToId
-        )
-
-        return saveAndSend(peerId, peerName, message, Payload.PayloadType.TEXT, text.toByteArray())
-    }
-
-    /**
-     * Sends an image message with smart compression.
-     */
-    suspend fun sendImageMessage(
-        peerId: String,
-        peerName: String,
-        imageBytes: ByteArray,
-        extension: String,
-        replyToId: String?
-    ): Result<Unit> {
-        // Compress image before sending (smart compression)
-        val compressionResult = ImageCompressor.compress(imageBytes, maxSize = 1920, targetSizeKB = 500)
-        Logger.d("MessageRepository -> Image compressed: ${compressionResult.originalSize / 1024}KB → ${compressionResult.compressedSize / 1024}KB (${compressionResult.compressionRatio.toInt()}% reduction)")
-
-        val messageId = UUID.randomUUID().toString()
-        val myId = settingsRepository.getDeviceId()
-        val fileName = "sent_$messageId.$extension"
-        val savedPath = fileManager.saveMedia(fileName, compressionResult.bytes)
-
-        // Verify file was saved successfully before proceeding
-        if (savedPath == null) {
-            Logger.e("MessageRepository -> Failed to save image to disk")
-            return Result.failure(Exception("Failed to save image"))
-        }
-
-        // Verify file exists before sending
-        val file = File(savedPath)
-        if (!file.exists()) {
-            Logger.e("MessageRepository -> Saved file does not exist: $savedPath")
-            return Result.failure(Exception("Saved file not found"))
-        }
-
-        Logger.d("MessageRepository -> Image saved successfully: $savedPath (${file.length()} bytes)")
-
-        val message = MessageEntity(
-            id = messageId,
-            chatId = peerId,
-            senderId = myId,
-            text = null,
-            mediaPath = savedPath,
-            type = MessageType.IMAGE,
-            timestamp = System.currentTimeMillis(),
-            isFromMe = true,
-            status = MessageStatus.QUEUED,
-            replyToId = replyToId
-        )
-
-        return saveAndSend(peerId, peerName, message, Payload.PayloadType.FILE, compressionResult.bytes)
-    }
-
-    /**
-     * Sends a video message.
-     */
-    suspend fun sendVideoMessage(
-        peerId: String,
-        peerName: String,
-        videoBytes: ByteArray,
-        extension: String,
-        replyToId: String?
-    ): Result<Unit> {
-        // Validate video size before processing (50MB limit)
-        val videoSize = videoBytes.size
-        val maxVideoSize = 50 * 1024 * 1024 // 50MB
-        if (videoSize > maxVideoSize) {
-            val sizeMB = videoSize / 1024 / 1024
-            Logger.e("MessageRepository -> Video too large: ${sizeMB}MB (max ${maxVideoSize / 1024 / 1024}MB)")
-            return Result.failure(Exception("Video too large (max 50MB)"))
-        }
-
-        val messageId = UUID.randomUUID().toString()
-        val myId = settingsRepository.getDeviceId()
-        val fileName = "sent_vid_$messageId.$extension"
-        val savedPath = fileManager.saveMedia(fileName, videoBytes)
-
-        // Verify file was saved successfully before proceeding
-        if (savedPath == null) {
-            Logger.e("MessageRepository -> Failed to save video to disk")
-            return Result.failure(Exception("Failed to save video"))
-        }
-
-        // Verify file exists before sending
-        val file = File(savedPath)
-        if (!file.exists()) {
-            Logger.e("MessageRepository -> Saved video file does not exist: $savedPath")
-            return Result.failure(Exception("Saved video file not found"))
-        }
-
-        Logger.d("MessageRepository -> Video saved successfully: $savedPath (${file.length()} bytes)")
-
-        val message = MessageEntity(
-            id = messageId,
-            chatId = peerId,
-            senderId = myId,
-            text = null,
-            mediaPath = savedPath,
-            type = MessageType.VIDEO,
-            timestamp = System.currentTimeMillis(),
-            isFromMe = true,
-            status = MessageStatus.QUEUED,
-            replyToId = replyToId
-        )
-
-        return saveAndSend(peerId, peerName, message, Payload.PayloadType.VIDEO, videoBytes)
-    }
 
     /**
      * Sends a file message (generic file).
