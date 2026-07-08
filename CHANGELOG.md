@@ -1,8 +1,10 @@
 V1.1.2
+- [Refactor] Remove dead code across core/ui/: AvatarSizes, SeedColorPresets, Elevation.Level4/5, Shapes.CardLarge, StatusOffline, StatusTyping, SwipeState/LocalSwipeState, galleryScale/videoScale/fileScale animations, selectedFullImage state from AlbumMediaGrid
+- [Refactor] Delete MeshifyThemeConfig and all unused parameters from MeshifyTheme()
+- [Refactor] Update MainActivity.kt and README.md to match simplified MeshifyTheme signature
 - [Chore] Dead code removal in core/data: removed 22 dead methods across DAO, repositories, and utilities
-- [Chore] Removed Paging 3 dependencies from core/data (dead code - no callers for getMessagesPaging)
-- [Chore] Removed getAppVersion() from IFileManager interface + FileManagerImpl (production uses SettingsRepository)
-- [Chore] Removed unused import (MessageEntity) from FileManagerImpl
+- [Chore] Removed Paging 3 dependencies from core/data (dead code)
+- [Chore] Removed getAppVersion() from IFileManager interface + FileManagerImpl
 - [Fix] Add missing English string resources to fix 24 ExtraTranslation lint errors in core:ui module
 - [Chore] Adding CHANGELOG.md to project
 - [Chore] Add more bugs to fix later like any version on this app
