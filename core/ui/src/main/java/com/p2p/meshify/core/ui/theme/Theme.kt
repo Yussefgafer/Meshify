@@ -4,23 +4,8 @@ import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-
-@Immutable
-data class MeshifyThemeConfig(
-    val shapeStyle: com.p2p.meshify.domain.model.ShapeStyle = com.p2p.meshify.domain.model.ShapeStyle.CIRCLE,
-    val motionPreset: com.p2p.meshify.domain.model.MotionPreset = com.p2p.meshify.domain.model.MotionPreset.STANDARD,
-    val motionScale: Float = 1.0f,
-    val bubbleStyle: com.p2p.meshify.domain.model.BubbleStyle = com.p2p.meshify.domain.model.BubbleStyle.TAILED,
-    val visualDensity: Float = 1.0f,
-    val seedColor: Color = Color(0xFF006D68) // Default teal
-)
-
-val LocalMeshifyThemeConfig = staticCompositionLocalOf { MeshifyThemeConfig() }
 
 private val DarkColorScheme = darkColorScheme(
     primary = PrimaryDark,
@@ -50,12 +35,6 @@ private val LightColorScheme = lightColorScheme(
 fun MeshifyTheme(
     themeMode: String = "SYSTEM",
     dynamicColor: Boolean = true,
-    motionPreset: com.p2p.meshify.domain.model.MotionPreset = com.p2p.meshify.domain.model.MotionPreset.STANDARD,
-    motionScale: Float = 1.0f,
-    shapeStyle: com.p2p.meshify.domain.model.ShapeStyle = com.p2p.meshify.domain.model.ShapeStyle.CIRCLE,
-    bubbleStyle: com.p2p.meshify.domain.model.BubbleStyle = com.p2p.meshify.domain.model.BubbleStyle.TAILED,
-    visualDensity: Float = 1.0f,
-    seedColor: Color = Color(0xFF006D68),
     content: @Composable () -> Unit
 ) {
     val darkTheme = when (themeMode) {
@@ -73,19 +52,8 @@ fun MeshifyTheme(
         else -> LightColorScheme
     }
 
-    CompositionLocalProvider(
-        LocalMeshifyThemeConfig provides MeshifyThemeConfig(
-            shapeStyle = shapeStyle,
-            motionPreset = motionPreset,
-            motionScale = motionScale,
-            bubbleStyle = bubbleStyle,
-            visualDensity = visualDensity,
-            seedColor = seedColor
-        )
-    ) {
-        MaterialTheme(
-            colorScheme = colorScheme,
-            content = content
-        )
-    }
+    MaterialTheme(
+        colorScheme = colorScheme,
+        content = content
+    )
 }

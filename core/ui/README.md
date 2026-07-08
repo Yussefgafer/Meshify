@@ -64,10 +64,7 @@ core/ui/src/main/java/com/p2p/meshify/core/ui/
 ```kotlin
 MeshifyTheme(
     themeMode = "SYSTEM", // "LIGHT", "DARK", "SYSTEM"
-    dynamicColor = true,
-    motionPreset = MotionPreset.STANDARD,
-    shapeStyle = ShapeStyle.CIRCLE,
-    bubbleStyle = BubbleStyle.ROUNDED
+    dynamicColor = true
 ) {
     // Your app content
 }

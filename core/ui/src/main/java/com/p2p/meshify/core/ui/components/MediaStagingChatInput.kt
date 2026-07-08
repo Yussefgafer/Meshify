@@ -113,12 +113,6 @@ fun MediaStagingChatInput(
         ) {
             // Gallery Button
             val galleryInteraction = remember { MutableInteractionSource() }
-            val isGalleryPressed by galleryInteraction.collectIsPressedAsState()
-            val galleryScale by animateFloatAsState(
-                targetValue = if (isGalleryPressed) 0.92f else 1f,
-                animationSpec = spring(dampingRatio = 0.6f),
-                label = "gallery_scale"
-            )
 
             Box(
                 contentAlignment = Alignment.Center,
@@ -147,12 +141,6 @@ fun MediaStagingChatInput(
 
             // Video Button
             val videoInteraction = remember { MutableInteractionSource() }
-            val isVideoPressed by videoInteraction.collectIsPressedAsState()
-            val videoScale by animateFloatAsState(
-                targetValue = if (isVideoPressed) 0.92f else 1f,
-                animationSpec = spring(dampingRatio = 0.6f),
-                label = "video_scale"
-            )
 
             Box(
                 contentAlignment = Alignment.Center,
@@ -181,12 +169,6 @@ fun MediaStagingChatInput(
 
             // File Button
             val fileInteraction = remember { MutableInteractionSource() }
-            val isFilePressed by fileInteraction.collectIsPressedAsState()
-            val fileScale by animateFloatAsState(
-                targetValue = if (isFilePressed) 0.92f else 1f,
-                animationSpec = spring(dampingRatio = 0.6f),
-                label = "file_scale"
-            )
 
             Box(
                 contentAlignment = Alignment.Center,
