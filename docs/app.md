@@ -3,7 +3,7 @@
 **الغرض:** وحدة التطبيق التي تربط كل `:feature:*` عبر التنقل وتُهيّئ البيئة (Hilt، الشبكة، الخدمات، الاستقبال).
 
 **البناء (`build.gradle.kts`):** `android.application` + `kotlin.compose` + `ksp` + `androidx.room` + `kotlin.serialization` + `hilt`.
-- **compileSdk/targetSdk = 36**، **minSdk = 26**، `applicationId = "com.p2p.meshify"`.
+- **compileSdk = 37، targetSdk = 36**، **minSdk = 26**، `applicationId = "com.p2p.meshify"`.
 - **versionCode = 12**، **versionName = `1.1.1`** (ملاحظة: `QWEN.md` يذكر v1.1.2).
 - **abiFilters = `arm64-v8a` فقط**.
 - **resConfigs = `["en", "ar"]`**.

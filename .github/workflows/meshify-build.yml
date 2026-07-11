@@ -8,6 +8,11 @@ on:
   pull_request:
     branches: [ "master", "main" ]
 
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validation:
     name: Lint
@@ -16,10 +21,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Set up JDK 26
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: '26'
           distribution: 'temurin'
 
       - name: Grant execute permission for gradlew
@@ -33,20 +38,20 @@ jobs:
           gradle-home-cache-cleanup: true
 
       - name: Run Lint
-        run: ./gradlew lintDebug --continue
-
+        run: ./gradlew lintDebug --build-cache --continue
 
   build:
     name: Build APK
-    needs: validation
+    # Runs in parallel with `validation` so the APK is not blocked by lint.
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Set up JDK 26
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: '26'
           distribution: 'temurin'
 
       - name: Grant execute permission for gradlew
@@ -71,12 +76,12 @@ jobs:
           fi
 
       - name: Build Debug APK
-        run: ./gradlew :app:assembleDebug
+        run: ./gradlew :app:assembleDebug --build-cache
 
       - name: Build Release APK
         run: |
           if [ -f meshify.jks ]; then
-            ./gradlew :app:assembleRelease
+            ./gradlew :app:assembleRelease --build-cache
           else
             echo "Keystore file is missing. Skipping release build."
           fi

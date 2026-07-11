@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.p2p.meshify.feature.help"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 26
