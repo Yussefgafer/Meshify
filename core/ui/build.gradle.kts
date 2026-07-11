@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.p2p.meshify.core.ui"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 26
@@ -52,8 +52,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
-    implementation(libs.google.material)
-    
+
     // MD3E - Graphics Shapes for morphing
     implementation(libs.androidx.graphics.shapes)
     
@@ -75,9 +74,6 @@ dependencies {
     // Lifecycle
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
-    
-    // Accompanist
-    implementation(libs.accompanist.permissions)
     
     // Testing
     testImplementation(libs.junit)

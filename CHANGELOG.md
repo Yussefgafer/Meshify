@@ -1,4 +1,12 @@
 V1.1.2
+- [Chore] Bump every dependency to its latest release (alpha or stable) in gradle/libs.versions.toml — AGP 9.2.1, Gradle 9.4.1, Kotlin 2.4.0, KSP 2.3.10, Hilt 2.60.1, Compose BOM 2026.06.01 / Material 3 1.5.0-alpha23, Navigation 2.9.8, Room 2.8.4, Coil 3.5.0, Media3 1.10.1, DataStore 1.2.1, Lifecycle 2.11.0, Core-KTX 1.19.0, Paging 3.5.0, Coroutines 1.11.0, kotlinx-serialization 1.11.0, graphics-shapes 1.1.0
+- [Chore] compileSdk 37 across all 12 modules — required by latest AndroidX (core-ktx 1.19.0, Compose UI 1.12.0-alpha03, material3 1.5.0-alpha23, lifecycle 2.11.0, hilt-navigation-compose 1.4.0)
+- [Chore] Drop dead accompanist-permissions dependency (zero imports; project uses registerForActivityResult)
+- [Chore] Drop Views Material (com.google.android.material); app theme now uses platform android:Theme.Material.Light.NoActionBar (Compose-first)
+- [Chore] mockito-inline → mockito-core 5.18.0 in :core:network tests
+- [Chore] Gradle wrapper → 9.4.1 (AGP 9.2.1 requires Gradle ≥ 9.4.1)
+- [CI] Speed up meshify-build.yml: JDK 21 → 26 (temurin); run Lint and Build APK in parallel (dropped needs: validation); add concurrency cancel-in-progress; enable --build-cache so task outputs are reused across CI runs
+- [Fix] Provide Android SDK platform 37 + build-tools 37.0.0 (Debian SDK repo stops at 36); fetched via curl + unzip into the local SDK
 - [Fix] Message bubble now shows the actual quoted text for replies (text, media label, or "unavailable" if the original was deleted) instead of a static "Replying to…" placeholder
 - [Fix] Search results no longer render a trailing "You: " — the sender label is now "You"/"أنت"
 - [Fix] Copying a single message from the context menu now shows a success snackbar (consistent with multi-select copy)

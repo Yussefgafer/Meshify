@@ -9,7 +9,7 @@ plugins {
 
 android {
     namespace = "com.p2p.meshify"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.p2p.meshify"
@@ -157,9 +157,6 @@ dependencies {
     implementation(libs.media3.ui)
     implementation(libs.media3.session)
     
-    // Accompanist
-    implementation(libs.accompanist.permissions)
-
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

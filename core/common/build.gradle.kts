@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.p2p.meshify.core.common"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 26
@@ -19,8 +19,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
     }
-
-    sourceSets["main"].res.srcDirs("src/main/res")
 }
 
 kotlin {

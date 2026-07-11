@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.p2p.meshify.core.network"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 26
@@ -37,5 +37,5 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
-    testImplementation("org.mockito:mockito-inline:5.2.0")
+    testImplementation(libs.mockito.core)
 }
