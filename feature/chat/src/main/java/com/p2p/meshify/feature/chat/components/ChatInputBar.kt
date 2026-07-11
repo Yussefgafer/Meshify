@@ -42,21 +42,24 @@ fun ChatInputBar(
 ) {
     val context = LocalContext.current
 
-    /** Reads bytes from a content URI safely: try/catch, size check, stream closed. */
+    /** Reads bytes from a content URI safely via streaming copy that aborts over the size limit. */
     fun readUriBytes(uri: Uri): ByteArray? {
         return try {
+            val maxBytes = AppConstants.MAX_FILE_SIZE_BYTES
             context.contentResolver.openInputStream(uri)?.use { stream ->
-                val size = stream.available().toLong()
-                if (size > AppConstants.MAX_FILE_SIZE_BYTES) {
-                    Logger.e("ChatInputBar -> File too large: $size bytes (max ${AppConstants.MAX_FILE_SIZE_BYTES})")
-                    return null
-                }
-                stream.readBytes().also { bytes ->
-                    if (bytes.size.toLong() > AppConstants.MAX_FILE_SIZE_BYTES) {
-                        Logger.e("ChatInputBar -> File too large after read: ${bytes.size} bytes")
+                val buffer = ByteArray(8 * 1024)
+                var total = 0L
+                val out = java.io.ByteArrayOutputStream()
+                var read: Int
+                while (stream.read(buffer).also { read = it } != -1) {
+                    total += read
+                    if (total > maxBytes) {
+                        Logger.e("ChatInputBar -> File too large: > $maxBytes bytes")
                         return null
                     }
+                    out.write(buffer, 0, read)
                 }
+                out.toByteArray()
             }
         } catch (e: SecurityException) {
             Logger.e("ChatInputBar -> SecurityException reading URI: $uri", e)

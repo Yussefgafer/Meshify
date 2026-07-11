@@ -200,13 +200,21 @@ fun ChatScreen(
         }
     }
 
+    // Success snackbars (no retry action)
+    LaunchedEffect(uiState.successMessage) {
+        uiState.successMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearSuccessMessage()
+        }
+    }
+
     // Smart scroll to bottom on new messages
     LaunchedEffect(uiState.messages.size) {
         if (uiState.messages.isNotEmpty()) {
             snapshotFlow { listState.layoutInfo.totalItemsCount }
                 .first { it >= uiState.messages.size }
 
-            if (hasScrolledToBottom) {
+            if (isAtBottom) {
                 val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
                 val lastIndex = uiState.messages.size - 1
                 if (lastVisibleIndex >= lastIndex - 3) {
@@ -219,14 +227,6 @@ fun ChatScreen(
         }
     }
 
-    // Track user scroll position
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex }
-            .collect { firstVisibleIndex ->
-                hasScrolledToBottom = (firstVisibleIndex >= uiState.messages.size - 5)
-            }
-    }
-
     // BackHandler: exit search mode first
     BackHandler(enabled = isSearching) {
         viewModel.stopSearch()
@@ -235,7 +235,7 @@ fun ChatScreen(
 
     // BackHandler for unsaved message drafts
     BackHandler(enabled = uiState.inputText.isNotBlank()) {
-        if (uiState.inputText.length > 50) {
+        if (uiState.inputText.length > 1024) {
             showBackConfirmationDialog = true
         } else {
             onBackClick()
@@ -373,8 +373,7 @@ fun ChatScreen(
                 // Show search results instead of message list
                 SearchResultsList(
                     results = searchResults,
-                    query = searchQuery,
-                    listState = listState
+                    query = searchQuery
                 )
             } else {
                 // Message list
@@ -499,9 +498,9 @@ fun ChatScreen(
 @Composable
 private fun SearchResultsList(
     results: List<MessageEntity>,
-    query: String,
-    listState: androidx.compose.foundation.lazy.LazyListState
+    query: String
 ) {
+    val listState = rememberLazyListState()
     if (results.isEmpty() && query.isNotBlank()) {
         Box(
             modifier = Modifier.fillMaxSize(),
