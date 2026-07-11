@@ -1,4 +1,6 @@
 V1.1.2
+- [Docs]: Add real codebase documentation under docs/ (architecture, core:*, feature:*, app) extracted from actual source
+- [Chore]: Clean up .gitignore — dedupe entries, collapse .idea/* into .idea/, normalize OS/secret ignore rules
 - [Refactor] Remove dead code across core/ui/: AvatarSizes, SeedColorPresets, Elevation.Level4/5, Shapes.CardLarge, StatusOffline, StatusTyping, SwipeState/LocalSwipeState, galleryScale/videoScale/fileScale animations, selectedFullImage state from AlbumMediaGrid
 - [Refactor] Delete MeshifyThemeConfig and all unused parameters from MeshifyTheme()
 - [Refactor] Update MainActivity.kt and README.md to match simplified MeshifyTheme signature

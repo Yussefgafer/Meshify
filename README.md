@@ -107,6 +107,12 @@ Built with **Clean Architecture**, **Jetpack Compose**, and **Material 3**, Mesh
 
 ---
 
+## 📖 Documentation
+
+Full, source-accurate documentation lives in [`docs/`](docs/README.md) — covering the architecture, every `core:*` module, each `feature:*` module, and the `:app` aggregator.
+
+---
+
 ## 🛠️ Tech Stack
 
 | Category | Technology | Version |
