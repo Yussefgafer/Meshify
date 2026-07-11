@@ -55,7 +55,8 @@ data class ChatUiState(
     val sendError: String? = null,
     val uploadError: String? = null,
     val hasMoreMessages: Boolean = true,
-    val transportUsed: Map<String, TransportType> = emptyMap()
+    val transportUsed: Map<String, TransportType> = emptyMap(),
+    val successMessage: String? = null
 )
 
 @OptIn(FlowPreview::class)
@@ -594,7 +595,7 @@ class ChatViewModel @Inject constructor(
             } else {
                 _uiState.update {
                     it.copy(
-                        sendError = context.getString(R.string.forward_success, successCount, peerIds.size)
+                        successMessage = context.getString(R.string.forward_success, successCount, peerIds.size)
                     )
                 }
                 Logger.d("ChatViewModel -> Successfully forwarded $successCount messages to ${peerIds.size} peers")
@@ -675,7 +676,7 @@ class ChatViewModel @Inject constructor(
                 clipboard.setText(androidx.compose.ui.text.AnnotatedString(textToCopy))
                 Logger.d("ChatViewModel -> Copied ${messages.size} messages to clipboard")
                 _uiState.update {
-                    it.copy(sendError = context.getString(R.string.chat_messages_copied, messages.size))
+                    it.copy(successMessage = context.getString(R.string.chat_messages_copied, messages.size))
                 }
             }
 
@@ -695,6 +696,13 @@ class ChatViewModel @Inject constructor(
      */
     fun clearUploadError() {
         _uiState.update { it.copy(uploadError = null) }
+    }
+
+    /**
+     * Clear the success message after it has been shown.
+     */
+    fun clearSuccessMessage() {
+        _uiState.update { it.copy(successMessage = null) }
     }
 
     // ==================== Search Functions ====================

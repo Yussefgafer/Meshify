@@ -1,4 +1,9 @@
 V1.1.2
+- [Fix] ChatInputBar readUriBytes now streams in 8KB chunks and aborts over MAX_FILE_SIZE_BYTES instead of reading the whole file into memory (prevents OOM on large attachments)
+- [Fix] ChatScreen scroll-to-bottom state now driven solely by isAtBottom; removed conflicting LaunchedEffect(listState) that fought the FAB visibility
+- [Fix] Search results list now uses its own LazyListState so results start at the top instead of inheriting the message list scroll position
+- [Fix] BackHandler draft-discard confirmation threshold raised from 50 to 1024 characters
+- [Fix] Copy/forward success messages now shown via a dedicated successMessage snackbar instead of being misrouted through sendError (which showed an error-style snackbar with a Retry action)
 - [Docs]: Add real codebase documentation under docs/ (architecture, core:*, feature:*, app) extracted from actual source
 - [Chore]: Clean up .gitignore — dedupe entries, collapse .idea/* into .idea/, normalize OS/secret ignore rules
 - [Refactor] Remove dead code across core/ui/: AvatarSizes, SeedColorPresets, Elevation.Level4/5, Shapes.CardLarge, StatusOffline, StatusTyping, SwipeState/LocalSwipeState, galleryScale/videoScale/fileScale animations, selectedFullImage state from AlbumMediaGrid
