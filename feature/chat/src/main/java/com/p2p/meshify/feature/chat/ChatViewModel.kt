@@ -102,7 +102,7 @@ class ChatViewModel @Inject constructor(
     private val _uploadProgress = MutableStateFlow<Map<String, Int>>(emptyMap())
     val uploadProgress: StateFlow<Map<String, Int>> = _uploadProgress
         .sample(100.milliseconds)
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     // ==================== Search State ====================
     private val _searchQuery = MutableStateFlow("")

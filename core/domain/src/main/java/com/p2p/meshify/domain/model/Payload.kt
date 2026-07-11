@@ -13,6 +13,15 @@ data class Payload(
     val type: PayloadType,
     val data: ByteArray
 ) {
+    // ByteArray forces manual equals/hashCode — data class would use reference equality
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Payload) return false
+        return id == other.id
+    }
+
+    override fun hashCode(): Int = id.hashCode()
+
     enum class PayloadType {
         TEXT,
         FILE,
