@@ -54,7 +54,6 @@ data class ChatUiState(
     val isSending: Boolean = false,
     val sendError: String? = null,
     val uploadError: String? = null,
-    val hasMoreMessages: Boolean = true,
     val transportUsed: Map<String, TransportType> = emptyMap(),
     val successMessage: String? = null
 )
@@ -117,22 +116,9 @@ class ChatViewModel @Inject constructor(
 
     private var searchCollectionJob: kotlinx.coroutines.Job? = null
 
-    // Pagination state - using ArrayDeque for O(1) prepend operations
-    private var currentPage = 0
-    private val pageSize = 50
-    private var isAllMessagesLoaded = false
-    private val allMessages = ArrayDeque<MessageEntity>(initialCapacity = 100)
-
     // Tracks active upload jobs so cancelUpload() can cancel them
     // ConcurrentHashMap for thread safety — invokeOnCompletion may run on a different dispatcher
     private val uploadJobs = ConcurrentHashMap<String, kotlinx.coroutines.Job>()
-
-    // ✅ PERF-01: Maximum messages to keep in memory (reduced from 500 to 200)
-    // Reduces memory usage by 5-8MB in long conversations
-    // 200 messages = ~4MB vs 500 messages = ~10MB
-    companion object {
-        private const val MAX_MESSAGES_IN_MEMORY = 200 // Reduced from 500 for better memory efficiency
-    }
 
     // ✅ Double tap protection - prevent sending same message twice
     private var lastSendTime = 0L
@@ -142,9 +128,6 @@ class ChatViewModel @Inject constructor(
         if (peerId.isBlank()) {
             _uiState.update { it.copy(isLoading = false, sendError = context.getString(R.string.error_unknown)) }
         } else {
-            // Load initial page of messages
-            loadMoreMessages()
-
             // ✅ FIX: Collect messages flow with distinctUntilChanged to reduce recompositions
             // This ensures real-time updates when messages are received from the network
             viewModelScope.launch {
@@ -155,8 +138,7 @@ class ChatViewModel @Inject constructor(
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
-                                messages = messages,
-                                hasMoreMessages = !isAllMessagesLoaded
+                                messages = messages
                             )
                         }
                     }
@@ -182,28 +164,6 @@ class ChatViewModel @Inject constructor(
                         Logger.e("ChatViewModel -> Message send failed: ${event.messageId}")
                     }
                 }
-            }
-        }
-    }
-
-    /**
-     * Load the next page of messages for pagination.
-     * Appends older messages to the allMessages deque.
-     */
-    private fun loadMoreMessages() {
-        viewModelScope.launch {
-            try {
-                val offset = currentPage * pageSize
-                val pagedMessages = chatRepo.getMessagesPaged(peerId, pageSize, offset).first()
-                if (pagedMessages.isEmpty()) {
-                    isAllMessagesLoaded = true
-                } else {
-                    allMessages.addAll(pagedMessages)
-                    currentPage++
-                }
-            } catch (e: Exception) {
-                Logger.e("ChatViewModel -> Failed to load more messages", e)
-                isAllMessagesLoaded = true
             }
         }
     }
@@ -681,6 +641,18 @@ class ChatViewModel @Inject constructor(
             }
 
             clearSelection()
+        }
+    }
+
+    /**
+     * Copy a single message to the clipboard and show a success snackbar.
+     */
+    fun copyMessageToClipboard(clipboard: ClipboardManager, messageId: String) {
+        viewModelScope.launch {
+            val message = uiState.value.messages.find { it.id == messageId } ?: return@launch
+            val text = message.text ?: return@launch
+            clipboard.setText(androidx.compose.ui.text.AnnotatedString(text))
+            _uiState.update { it.copy(successMessage = context.getString(R.string.chat_messages_copied, 1)) }
         }
     }
 

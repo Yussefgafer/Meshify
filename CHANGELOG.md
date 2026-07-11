@@ -1,4 +1,11 @@
 V1.1.2
+- [Fix] Message bubble now shows the actual quoted text for replies (text, media label, or "unavailable" if the original was deleted) instead of a static "Replying to…" placeholder
+- [Fix] Search results no longer render a trailing "You: " — the sender label is now "You"/"أنت"
+- [Fix] Copying a single message from the context menu now shows a success snackbar (consistent with multi-select copy)
+- [Chore] Remove dead pagination machinery in ChatViewModel (loadMoreMessages, allMessages deque, currentPage, pageSize, isAllMessagesLoaded, hasMoreMessages, MAX_MESSAGES_IN_MEMORY) — getMessages already returns the full conversation so it was never used
+- [Fix] ChatScreen BackHandler draft-discard confirmation now uses the live input text so it triggers while typing (was dead because inputText only updated on send)
+- [Fix] Sent message text no longer reappears in the input box — removed the bidirectional draftText→textState LaunchedEffect that repopulated the field after send
+- [Fix] Typed text is preserved on send failure (input box no longer cleared unconditionally in onSendClick)
 - [Fix] ChatInputBar readUriBytes now streams in 8KB chunks and aborts over MAX_FILE_SIZE_BYTES instead of reading the whole file into memory (prevents OOM on large attachments)
 - [Fix] ChatScreen scroll-to-bottom state now driven solely by isAtBottom; removed conflicting LaunchedEffect(listState) that fought the FAB visibility
 - [Fix] Search results list now uses its own LazyListState so results start at the top instead of inheriting the message list scroll position

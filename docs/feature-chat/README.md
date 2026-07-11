@@ -4,7 +4,7 @@
 
 **الاعتماديات (`build.gradle.kts`):** `:core:domain`, `:core:data`, `:core:ui`, `:core:common` + Compose BOM، material3، icons-extended، Coil 3، lifecycle، Hilt، navigation-compose.
 
-> ملاحظة: `build.gradle.kts` يعلن `androidx.paging.compose` لكن الكود يستخدم pagination يدوي (`getMessagesPaged` بحجم 50) — بقايا دين متخلِّفة.
+> ملاحظة: `build.gradle.kts` يعلن `androidx.paging.compose` لكنه غير مستخدم فعلياً — لا توجد شاشة تستهلك Paging 3. ترقيم المحادثة اليدوي (`getMessagesPaged` بحجم 50) كان موجوداً سابقاً في `ChatViewModel` وحُذف لأنه كان ميتاً (`getMessages` يُرجع المحادثة كاملة).
 
 ## الملفات الرئيسية
 
@@ -22,7 +22,7 @@
 | `components/ChatContextMenu.kt` | Bottom Sheet عند الضغط المطول: رد/إعادة توجيه/نسخ/حذف. |
 | `components/ReplyIndicator.kt` | مؤشر الرد فوق شريط الإدخال. |
 | `components/ScrollToFAB.kt` | زر عائم للتمرير للأسفل عند الابتعاد. |
-| `components/BackConfirmationDialog.kt` | تأكيد الرجوع عند وجود مسودة (>50 حرف). |
+| `components/BackConfirmationDialog.kt` | تأكيد الرجوع عند وجود مسودة (>1024 حرف). |
 | `components/DeleteConfirmationDialog.kt` | تأكيد حذف رسالة (مع `DELETE_FOR_EVERYONE`). |
 
 ## الشاشات
@@ -32,14 +32,14 @@
 ## `ChatViewModel`
 
 - الحقن: `@HiltViewModel` + `@ApplicationContext`, `SavedStateHandle`, `IChatRepository`. `peerId`/`peerName` من وسائط التنقل.
-- **StateFlows:** `uiState` (رسائل، حالة اتصال، نص، draft، replyTo، مرفقات، isSending، أخطاء، hasMoreMessages، `transportUsed: Map<String,TransportType>`)، `forwardDialogState`, `selectedMessages: Set<String>`, `uploadProgress: Map<String,Int>` (مع `sample(100ms)` + `WhileSubscribed(5000)`)، `searchQuery`, `searchResults`, `isSearching`.
-- **أفعال:** `sendMessage()` (حماية double-tap 500ms)، `stageAttachment()` (حد 10)، `sendFileWithProgress()`/`cancelUpload()`، `deleteMessage()`، `addReaction()`، `openForwardDialog*()`/`forwardMessages()`، `toggleMessageSelection()`، `copySelectedMessagesToClipboard()`، `startSearch()`/`stopSearch()`/`updateSearchQuery()`.
+- **StateFlows:** `uiState` (رسائل، حالة اتصال، نص، draft، replyTo، مرفقات، isSending، أخطاء، `transportUsed: Map<String,TransportType>`)، `forwardDialogState`, `selectedMessages: Set<String>`, `uploadProgress: Map<String,Int>` (مع `sample(100ms)` + `WhileSubscribed(5000)`)، `searchQuery`, `searchResults`, `isSearching`.
+- **أفعال:** `sendMessage()` (حماية double-tap 500ms)، `stageAttachment()` (حد 10)، `sendFileWithProgress()`/`cancelUpload()`، `deleteMessage()`، `addReaction()`، `openForwardDialog*()`/`forwardMessages()`، `toggleMessageSelection()`، `copySelectedMessagesToClipboard()`، `copyMessageToClipboard()`، `startSearch()`/`stopSearch()`/`updateSearchQuery()`.
 
 ## قرارات تقنية
 
 - يصل إلى `ChatRepositoryImpl` عبر `as ChatRepositoryImpl` لدوال غير موجودة بالواجهة (`getMessages`, `searchMessagesInChat`, `getMessageAttachments`).
 - تحديث فوري: جمع `chatRepo.getMessages(peerId)` مع `distinctUntilChanged()`.
-- Pagination يدوي: صفحات 50، أقصى 200 رسالة في الذاكرة.
+- لا يوجد ترقيم صفحات في الواجهة: `getMessages` يُرجع المحادثة كاملة ويتعامل `LazyColumn` مع التمرير افتراضياً. ماكينة الترقيم اليدوي (صفحات 50، حد 200 رسالة) حُذفت لأنها كانت ميتة.
 - LRU cache للمرفقات `LinkedHashMap` (200 إدخال).
 - تتبع النقل: حفظ `TransportType` لكل رسالة؛ أيقونة Bluetooth لـ BLE و GridView لـ BOTH.
 - رفع الملفات: `ConcurrentHashMap<String, Job>` للإلغاء الآمن.
