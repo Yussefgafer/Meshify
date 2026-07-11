@@ -120,10 +120,14 @@ fun MessageList(
             }
         }
 
+        val messageById = messages.associateBy { it.id }
+
         itemsIndexed(
             messages,
             key = { _, m -> m.id }
         ) { index, message ->
+            val replyMessage = message.replyToId?.let { messageById[it] }
+
             val attachments by produceState<List<MessageAttachmentEntity>>(
                 initialValue = emptyList(),
                 key1 = message.id,
@@ -165,6 +169,7 @@ fun MessageList(
             ) {
                 MessageBubble(
                     message = message,
+                    replyMessage = replyMessage,
                     attachments = attachments,
                     peerName = peerName,
                     isSelected = isSelected,

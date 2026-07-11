@@ -67,7 +67,7 @@
     <string name="chat_status_online">متصل</string>
     <string name="chat_status_offline">غير متصل</string>
     <string name="chat_message_deleted">تم حذف هذه الرسالة</string>
-    <string name="chat_message_you">أنت: %s</string>
+    <string name="chat_message_you">أنت</string>
     <string name="chat_message_media_not_found">ملف الوسائط غير موجود</string>
     <string name="chat_message_file_prefix">ملف: </string>
 
@@ -103,6 +103,8 @@
     <!-- Chat Screen - Reply -->
     <string name="chat_reply_label">جارٍ الرد على</string>
     <string name="chat_reply_placeholder">جارٍ الرد على…</string>
+    <string name="chat_reply_media">وسائط</string>
+    <string name="chat_reply_unavailable">الرسالة غير متوفرة</string>
 
     <!-- Chat Screen - Actions -->
     <string name="chat_action_reply">رد</string>

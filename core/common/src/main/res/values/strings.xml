@@ -64,7 +64,7 @@
     <string name="chat_status_online">Online</string>
     <string name="chat_status_offline">Offline</string>
     <string name="chat_message_deleted">This message was deleted</string>
-    <string name="chat_message_you">You: %s</string>
+    <string name="chat_message_you">You</string>
     
     <!-- Developer Screen -->
     <string name="developer_clear_data_title">Clear All Data?</string>
@@ -96,6 +96,8 @@
     <!-- Chat Screen - Reply -->
     <string name="chat_reply_label">Replying to</string>
     <string name="chat_reply_placeholder">Replying to…</string>
+    <string name="chat_reply_media">Media</string>
+    <string name="chat_reply_unavailable">Message unavailable</string>
     
     <!-- Chat Screen - Actions -->
     <string name="chat_action_reply">Reply</string>

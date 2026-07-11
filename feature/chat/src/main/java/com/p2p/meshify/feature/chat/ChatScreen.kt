@@ -138,14 +138,16 @@ fun ChatScreen(
         mutableStateOf(TextFieldValue(uiState.draftText))
     }
 
-    // P2-11: Sync draftText from ViewModel → Composable only when draftText changes externally
-    LaunchedEffect(uiState.draftText) {
-        val draft = uiState.draftText
-        if (textState.text.isEmpty() && draft.isNotEmpty()) {
-            textState = TextFieldValue(draft)
-        } else if (textState.text.isNotEmpty() && draft.isEmpty() && textState.text != draft) {
-            textState = TextFieldValue("")
+    // P2-11: امسح حقل الإدخال المحلي فقط بعد إرسال ناجح.
+    // ViewModel يضبط inputText إلى "" عند النجاح ويُبقيه كما هو عند الفشل،
+    // لذا نتبع هذه الإشارة باتجاه واحد — دون إعادة ملء الحقل من الحالة،
+    // وهو ما كان يتسبب بظهور المسودة المُرسلة مجدداً في حقل الإدخال.
+    var lastInputText by remember { mutableStateOf(uiState.inputText) }
+    LaunchedEffect(uiState.inputText) {
+        if (lastInputText.isNotEmpty() && uiState.inputText.isEmpty()) {
+            textState = TextFieldValue()
         }
+        lastInputText = uiState.inputText
     }
 
     // Delete confirmation state
@@ -234,8 +236,8 @@ fun ChatScreen(
     }
 
     // BackHandler for unsaved message drafts
-    BackHandler(enabled = uiState.inputText.isNotBlank()) {
-        if (uiState.inputText.length > 1024) {
+    BackHandler(enabled = textState.text.isNotBlank()) {
+        if (textState.text.length > 1024) {
             showBackConfirmationDialog = true
         } else {
             onBackClick()
@@ -335,7 +337,6 @@ fun ChatScreen(
                     onSendClick = {
                         viewModel.onInputChanged(textState.text)
                         viewModel.sendMessage()
-                        textState = TextFieldValue()
                     },
                     stagedAttachments = uiState.stagedAttachments,
                     onRemoveAttachment = viewModel::removeStagedAttachment,
@@ -431,7 +432,7 @@ fun ChatScreen(
     // Context menu for long-pressed message
     ChatContextMenu(
         message = menuMessage,
-        clipboardManager = clipboard,
+        onCopy = { viewModel.copyMessageToClipboard(clipboard, it) },
         onDismiss = { menuMessage = null },
         onReply = { msg -> viewModel.setReplyTo(msg) },
         onForward = { msgId -> viewModel.openForwardDialog(msgId) },
@@ -550,7 +551,7 @@ private fun SearchResultItem(
             horizontalArrangement = if (isFromMe) Arrangement.End else Arrangement.Start
         ) {
             Text(
-                text = if (isFromMe) stringResource(R.string.chat_message_you, "") else "",
+                text = if (isFromMe) stringResource(R.string.chat_message_you) else "",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold

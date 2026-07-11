@@ -18,9 +18,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.ClipboardManager
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.common.R
@@ -33,7 +31,7 @@ import com.p2p.meshify.core.common.R
 @Composable
 fun ChatContextMenu(
     message: MessageEntity?,
-    clipboardManager: ClipboardManager,
+    onCopy: (String) -> Unit,
     onDismiss: () -> Unit,
     onReply: (MessageEntity) -> Unit,
     onForward: (String) -> Unit,
@@ -69,7 +67,7 @@ fun ChatContextMenu(
                 headlineContent = { Text(stringResource(R.string.chat_action_copy)) },
                 leadingContent = { Icon(Icons.Default.ContentCopy, stringResource(R.string.chat_action_copy)) },
                 modifier = Modifier.clickable {
-                    clipboardManager.setText(AnnotatedString(message.text ?: ""))
+                    onCopy(message.id)
                     onDismiss()
                 }
             )

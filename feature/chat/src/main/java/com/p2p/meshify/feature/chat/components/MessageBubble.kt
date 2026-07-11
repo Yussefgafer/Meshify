@@ -42,6 +42,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
@@ -104,6 +105,7 @@ private const val StatusAlphaDefault = 0.7f
 @Composable
 fun MessageBubble(
     message: MessageEntity,
+    replyMessage: MessageEntity? = null,
     attachments: List<MessageAttachmentEntity>,
     peerName: String,
     isSelected: Boolean = false,
@@ -156,14 +158,21 @@ fun MessageBubble(
                         )
                     } else {
                         if (message.replyToId != null) {
+                            val quoteText = when {
+                                replyMessage?.text != null -> replyMessage.text ?: ""
+                                replyMessage != null -> stringResource(R.string.chat_reply_media)
+                                else -> stringResource(R.string.chat_reply_unavailable)
+                            }
                             Surface(
                                 color = contentColor.copy(alpha = 0.08f),
                                 shape = MeshifyDesignSystem.Shapes.CardSmall,
                                 modifier = Modifier.padding(bottom = 6.dp)
                             ) {
                                 Text(
-                                    text = stringResource(R.string.chat_reply_placeholder),
+                                    text = quoteText,
                                     style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                     color = MaterialTheme.colorScheme.primary
                                 )
