@@ -2,16 +2,23 @@ V1.1.2
 - [Refactor] Remove dead code across core/ui/: AvatarSizes, SeedColorPresets, Elevation.Level4/5, Shapes.CardLarge, StatusOffline, StatusTyping, SwipeState/LocalSwipeState, galleryScale/videoScale/fileScale animations, selectedFullImage state from AlbumMediaGrid
 - [Refactor] Delete MeshifyThemeConfig and all unused parameters from MeshifyTheme()
 - [Refactor] Update MainActivity.kt and README.md to match simplified MeshifyTheme signature
+- [Refactor] Remove dead code in core/domain: UploadProgress.kt, FileTypeData.kt, SendMessageValidation.kt, PayloadTypeFromString/DELIVERY_ACK/toPayloadType, checkWifiState()
+- [Refactor] Remove dead code in core/network: sendLargeFile(), preWarmConnection(), isConnectionAlive(), knownPeers, getConnectionType(), getAvailablePermits()
+- [Refactor] Remove dead code in feature/discovery: OobVerificationDialog.kt, OobVerificationViewModel.kt
+- [Refactor] Remove dead code in feature/home: ChatListItem, formatRecentTime wrapper
+- [Refactor] Remove dead code in app/: colors.xml, font_certs.xml, 60+ unused BLE strings, ACCESS_COARSE_LOCATION, unused imports, google.material dep
+- [Refactor] Remove dead code in feature/help: unused about_privacy, about_license, help_btn_report strings
 - [Chore] Dead code removal in core/data: removed 22 dead methods across DAO, repositories, and utilities
 - [Chore] Removed Paging 3 dependencies from core/data (dead code)
 - [Chore] Removed getAppVersion() from IFileManager interface + FileManagerImpl
-- [Fix] Add missing English string resources to fix 24 ExtraTranslation lint errors in core:ui module
 - [Chore] Adding CHANGELOG.md to project
 - [Chore] Add more bugs to fix later like any version on this app
 - [Chore] Discovery delay constants extracted for maintainability
 - [Chore] Dead code (requestClearAllData, copySelectedMessages no-op) removed
 - [Chore] Dead code (ChatAttachmentsViewModel, ChatInputViewModel, ChatMessagesViewModel, associated Uistate, test files, sendImage/sendVideo) removed
 - [Chore] forwardMediaContext now handles album messages with no mediaPath
+- [Feat] Added generic file picker (*/*) to ChatInputBar with AttachFile icon in MediaStagingChatInput
+- [Fix] Add missing English string resources to fix 24 ExtraTranslation lint errors in core:ui module
 - [Fix] Messages no longer silently lost on send failure — error shown, input text preserved
 - [Fix] Settings changes (theme, BLE, notifications, etc.) now show error snackbar on DataStore failure
 - [Fix] Copy-to-clipboard shows success confirmation snackbar
@@ -49,4 +56,5 @@ V1.1.2
 - [Fix] MessageRepository.selectBestTransport returns null instead of throwing IllegalStateException; callers handle null gracefully
 - [Fix] ChatScreen dead imageLauncher/videoLauncher removed (launchers live in ChatInputBar)
 - [Fix] Send error snackbar now includes Retry action via SnackbarDuration.Indefinite
-- [Feat] Added generic file picker (*/*) to ChatInputBar with AttachFile icon in MediaStagingChatInput
+- [Test] Removed all unit tests across the project (intentional — tests will be rewritten from scratch in a later pass)
+- [Perf] ChatViewModel.uploadProgress now uses SharingStarted.WhileSubscribed(5000) so the sample ticker stops when no UI is observing
