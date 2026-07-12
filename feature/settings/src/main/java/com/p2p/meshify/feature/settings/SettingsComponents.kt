@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -35,8 +36,46 @@ import com.p2p.meshify.core.ui.hooks.HapticPattern
 import com.p2p.meshify.core.ui.hooks.LocalPremiumHaptics
 
 /**
+ * Subsection header — labelMedium text in primary color, no icon.
+ * Use to label groups within a section if needed.
+ */
+@Composable
+fun SettingsSubsectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 4.dp)
+    )
+}
+
+/**
+ * Rounded container with 2.dp spacing between items — matches PixelPlayer's
+ * SettingsSubsection pattern. Items inside render with 10.dp corners + 16.dp padding
+ * via SettingsItem / SwitchSettingItem.
+ */
+@Composable
+fun SettingsSubsection(
+    addBottomSpace: Boolean = false,
+    content: @Composable () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp)),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        content()
+        if (addBottomSpace) {
+            Spacer(modifier = Modifier.height(10.dp))
+        }
+    }
+}
+
+/**
  * Expressive MD3E settings section header with a leading tinted icon + colored label.
- * Mirrors the PixelPlayer SettingsSection structure adapted to Meshify imports.
+ * The content is wrapped in a [SettingsSubsection] to apply tight 2.dp spacing and
+ * unified rounded corners.
  */
 @Composable
 fun SettingsSection(
@@ -44,10 +83,10 @@ fun SettingsSection(
     icon: @Composable () -> Unit,
     content: @Composable () -> Unit
 ) {
-    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+    Column {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(vertical = 8.dp)
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
         ) {
             Box(
                 modifier = Modifier.size(24.dp),
@@ -61,7 +100,7 @@ fun SettingsSection(
                 color = MaterialTheme.colorScheme.primary
             )
         }
-        content()
+        SettingsSubsection(content = content)
     }
 }
 
@@ -106,7 +145,7 @@ fun SettingsItem(
                 modifier = Modifier
                     .weight(1f)
                     .padding(end = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
                     text = title,

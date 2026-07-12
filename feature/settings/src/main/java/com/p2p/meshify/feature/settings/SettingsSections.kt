@@ -41,6 +41,10 @@ fun IdentitySection(
     haptics: PremiumHaptics,
     onEditName: () -> Unit
 ) {
+    val context = LocalContext.current
+    val deviceTitle = stringResource(R.string.setting_device_id)
+    val deviceSuffix = stringResource(R.string.settings_label_device_id_suffix)
+
     SettingsSection(
         title = stringResource(R.string.settings_section_identity),
         icon = {
@@ -51,58 +55,50 @@ fun IdentitySection(
             )
         }
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Xs)
-        ) {
-            SettingsItem(
-                title = stringResource(R.string.setting_display_name),
-                subtitle = state.displayName,
-                leadingIcon = {
-                    Icon(
-                        Icons.Filled.Person,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                trailingIcon = {
-                    Icon(
-                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                onClick = onEditName
-            )
+        SettingsItem(
+            title = stringResource(R.string.setting_display_name),
+            subtitle = state.displayName,
+            leadingIcon = {
+                Icon(
+                    Icons.Filled.Person,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingIcon = {
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            onClick = onEditName
+        )
 
-            val context = LocalContext.current
-            val deviceTitle = stringResource(R.string.setting_device_id)
-            val deviceSuffix = stringResource(R.string.settings_label_device_id_suffix)
-            SettingsItem(
-                title = deviceTitle,
-                subtitle = state.deviceId.take(8).uppercase() + deviceSuffix,
-                leadingIcon = {
-                    Icon(
-                        Icons.Filled.Fingerprint,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                trailingIcon = {
-                    Icon(
-                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                onClick = {
-                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    val clip = ClipData.newPlainText(deviceTitle, state.deviceId)
-                    clipboard.setPrimaryClip(clip)
-                    haptics.perform(HapticPattern.Success)
-                }
-            )
-        }
+        SettingsItem(
+            title = deviceTitle,
+            subtitle = state.deviceId.take(8).uppercase() + deviceSuffix,
+            leadingIcon = {
+                Icon(
+                    Icons.Filled.Fingerprint,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingIcon = {
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            onClick = {
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val clip = ClipData.newPlainText(deviceTitle, state.deviceId)
+                clipboard.setPrimaryClip(clip)
+                haptics.perform(HapticPattern.Success)
+            }
+        )
     }
 }
 
@@ -125,73 +121,68 @@ fun AppearanceSection(
             )
         }
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Xs)
-        ) {
-            SettingsItem(
-                title = stringResource(R.string.settings_theme_mode),
-                subtitle = when (state.themeMode) {
-                    ThemeMode.LIGHT -> stringResource(R.string.settings_theme_light)
-                    ThemeMode.DARK -> stringResource(R.string.settings_theme_dark)
-                    ThemeMode.SYSTEM -> stringResource(R.string.settings_theme_system)
-                },
-                leadingIcon = {
-                    Icon(
-                        Icons.Filled.Palette,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                trailingIcon = {
-                    Icon(
-                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                onClick = onOpenThemeSheet
-            )
+        SettingsItem(
+            title = stringResource(R.string.settings_theme_mode),
+            subtitle = when (state.themeMode) {
+                ThemeMode.LIGHT -> stringResource(R.string.settings_theme_light)
+                ThemeMode.DARK -> stringResource(R.string.settings_theme_dark)
+                ThemeMode.SYSTEM -> stringResource(R.string.settings_theme_system)
+            },
+            leadingIcon = {
+                Icon(
+                    Icons.Filled.Palette,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingIcon = {
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            onClick = onOpenThemeSheet
+        )
 
-            SwitchSettingItem(
-                title = stringResource(R.string.settings_dynamic_colors),
-                subtitle = stringResource(R.string.settings_dynamic_colors_desc),
-                checked = state.dynamicColorEnabled,
-                onCheckedChange = { viewModel.setDynamicColor(it) },
-                leadingIcon = {
-                    Icon(
-                        Icons.Filled.ColorLens,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            )
+        SwitchSettingItem(
+            title = stringResource(R.string.settings_dynamic_colors),
+            subtitle = stringResource(R.string.settings_dynamic_colors_desc),
+            checked = state.dynamicColorEnabled,
+            onCheckedChange = { viewModel.setDynamicColor(it) },
+            leadingIcon = {
+                Icon(
+                    Icons.Filled.ColorLens,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        )
 
-            if (!state.dynamicColorEnabled) {
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.fillMaxWidth()
+        if (!state.dynamicColorEnabled) {
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(MeshifyDesignSystem.Spacing.Md),
+                    verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Sm)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(MeshifyDesignSystem.Spacing.Md),
-                        verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Sm)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.settings_label_accent_color),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        SeedColorPickerGrid(
-                            selectedColor = seedColor,
-                            onColorSelected = { color ->
-                                haptics.perform(HapticPattern.Pop)
-                                viewModel.setSeedColor(color)
-                            }
-                        )
-                    }
+                    Text(
+                        text = stringResource(R.string.settings_label_accent_color),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    SeedColorPickerGrid(
+                        selectedColor = seedColor,
+                        onColorSelected = { color ->
+                            haptics.perform(HapticPattern.Pop)
+                            viewModel.setSeedColor(color)
+                        }
+                    )
                 }
             }
         }
@@ -214,24 +205,19 @@ fun PrivacySection(
             )
         }
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Xs)
-        ) {
-            SwitchSettingItem(
-                title = stringResource(R.string.settings_visibility),
-                subtitle = stringResource(R.string.settings_visibility_desc),
-                checked = state.isNetworkVisible,
-                onCheckedChange = { viewModel.setNetworkVisibility(it) },
-                leadingIcon = {
-                    Icon(
-                        Icons.Filled.Visibility,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            )
-        }
+        SwitchSettingItem(
+            title = stringResource(R.string.settings_visibility),
+            subtitle = stringResource(R.string.settings_visibility_desc),
+            checked = state.isNetworkVisible,
+            onCheckedChange = { viewModel.setNetworkVisibility(it) },
+            leadingIcon = {
+                Icon(
+                    Icons.Filled.Visibility,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        )
     }
 }
 
@@ -252,44 +238,39 @@ fun NetworkSection(
             )
         }
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Xs)
-        ) {
-            SwitchSettingItem(
-                title = stringResource(R.string.setting_bluetooth),
-                subtitle = stringResource(R.string.setting_bluetooth_desc),
-                checked = state.bleEnabled,
-                onCheckedChange = { viewModel.setBleEnabled(it) },
-                leadingIcon = {
-                    Icon(
-                        Icons.Filled.Bluetooth,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            )
+        SwitchSettingItem(
+            title = stringResource(R.string.setting_bluetooth),
+            subtitle = stringResource(R.string.setting_bluetooth_desc),
+            checked = state.bleEnabled,
+            onCheckedChange = { viewModel.setBleEnabled(it) },
+            leadingIcon = {
+                Icon(
+                    Icons.Filled.Bluetooth,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        )
 
-            SettingsItem(
-                title = stringResource(R.string.setting_bluetooth_status_title),
-                subtitle = if (state.bleEnabled) stringResource(R.string.setting_bluetooth_status_active) else stringResource(R.string.setting_bluetooth_status_inactive),
-                leadingIcon = {
-                    Icon(
-                        Icons.AutoMirrored.Filled.BluetoothSearching,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                trailingIcon = {
-                    Icon(
-                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                onClick = onOpenBleSheet
-            )
-        }
+        SettingsItem(
+            title = stringResource(R.string.setting_bluetooth_status_title),
+            subtitle = if (state.bleEnabled) stringResource(R.string.setting_bluetooth_status_active) else stringResource(R.string.setting_bluetooth_status_inactive),
+            leadingIcon = {
+                Icon(
+                    Icons.AutoMirrored.Filled.BluetoothSearching,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingIcon = {
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            onClick = onOpenBleSheet
+        )
     }
 }
 
@@ -313,148 +294,143 @@ fun AppSettingsSection(
             )
         }
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Xs)
-        ) {
-            SettingsItem(
-                title = stringResource(R.string.setting_language),
-                subtitle = if (state.appLanguage == "ar") stringResource(R.string.settings_language_arabic) else stringResource(R.string.settings_language_english),
-                leadingIcon = {
-                    Icon(
-                        Icons.Filled.Language,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                trailingIcon = {
-                    Icon(
-                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                onClick = onOpenLanguage
-            )
+        SettingsItem(
+            title = stringResource(R.string.setting_language),
+            subtitle = if (state.appLanguage == "ar") stringResource(R.string.settings_language_arabic) else stringResource(R.string.settings_language_english),
+            leadingIcon = {
+                Icon(
+                    Icons.Filled.Language,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingIcon = {
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            onClick = onOpenLanguage
+        )
 
-            SettingsItem(
-                title = stringResource(R.string.setting_font_size),
-                subtitle = "${(state.fontSizeScale * 100).toInt()}%",
-                leadingIcon = {
-                    Icon(
-                        Icons.Filled.TextFields,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                trailingIcon = {
-                    Icon(
-                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                onClick = onOpenFontSize
-            )
+        SettingsItem(
+            title = stringResource(R.string.setting_font_size),
+            subtitle = "${(state.fontSizeScale * 100).toInt()}%",
+            leadingIcon = {
+                Icon(
+                    Icons.Filled.TextFields,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingIcon = {
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            onClick = onOpenFontSize
+        )
 
-            SwitchSettingItem(
-                title = stringResource(R.string.setting_notifications),
-                subtitle = if (state.notificationsEnabled) stringResource(R.string.settings_status_enabled) else stringResource(R.string.settings_status_disabled),
-                checked = state.notificationsEnabled,
-                onCheckedChange = { viewModel.setNotificationsEnabled(it) },
-                leadingIcon = {
-                    Icon(
-                        Icons.Filled.Notifications,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            )
+        SwitchSettingItem(
+            title = stringResource(R.string.setting_notifications),
+            subtitle = if (state.notificationsEnabled) stringResource(R.string.settings_status_enabled) else stringResource(R.string.settings_status_disabled),
+            checked = state.notificationsEnabled,
+            onCheckedChange = { viewModel.setNotificationsEnabled(it) },
+            leadingIcon = {
+                Icon(
+                    Icons.Filled.Notifications,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        )
 
-            SwitchSettingItem(
-                title = stringResource(R.string.setting_haptic_feedback),
-                subtitle = stringResource(R.string.setting_haptic_feedback_desc),
-                checked = state.hapticFeedbackEnabled,
-                onCheckedChange = { viewModel.setHapticFeedback(it) },
-                leadingIcon = {
-                    Icon(
-                        Icons.Filled.Vibration,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            )
+        SwitchSettingItem(
+            title = stringResource(R.string.setting_haptic_feedback),
+            subtitle = stringResource(R.string.setting_haptic_feedback_desc),
+            checked = state.hapticFeedbackEnabled,
+            onCheckedChange = { viewModel.setHapticFeedback(it) },
+            leadingIcon = {
+                Icon(
+                    Icons.Filled.Vibration,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        )
 
-            SwitchSettingItem(
-                title = stringResource(R.string.setting_notification_sound),
-                subtitle = stringResource(R.string.setting_notification_sound_desc),
-                checked = state.notificationSound,
-                enabled = state.notificationsEnabled,
-                onCheckedChange = { viewModel.setNotificationSound(it) },
-                leadingIcon = {
-                    Icon(
-                        Icons.AutoMirrored.Filled.VolumeUp,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            )
+        SwitchSettingItem(
+            title = stringResource(R.string.setting_notification_sound),
+            subtitle = stringResource(R.string.setting_notification_sound_desc),
+            checked = state.notificationSound,
+            enabled = state.notificationsEnabled,
+            onCheckedChange = { viewModel.setNotificationSound(it) },
+            leadingIcon = {
+                Icon(
+                    Icons.AutoMirrored.Filled.VolumeUp,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        )
 
-            SwitchSettingItem(
-                title = stringResource(R.string.setting_vibration),
-                subtitle = stringResource(R.string.setting_vibration_desc),
-                checked = state.notificationVibrate,
-                enabled = state.notificationsEnabled,
-                onCheckedChange = { viewModel.setNotificationVibrate(it) },
-                leadingIcon = {
-                    Icon(
-                        Icons.Filled.Vibration,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            )
+        SwitchSettingItem(
+            title = stringResource(R.string.setting_vibration),
+            subtitle = stringResource(R.string.setting_vibration_desc),
+            checked = state.notificationVibrate,
+            enabled = state.notificationsEnabled,
+            onCheckedChange = { viewModel.setNotificationVibrate(it) },
+            leadingIcon = {
+                Icon(
+                    Icons.Filled.Vibration,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        )
 
-            SettingsItem(
-                title = stringResource(R.string.setting_clear_cache),
-                subtitle = stringResource(R.string.setting_clear_cache_desc),
-                leadingIcon = {
-                    Icon(
-                        Icons.Filled.DeleteSweep,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                trailingIcon = {
-                    Icon(
-                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                onClick = onClearCache
-            )
+        SettingsItem(
+            title = stringResource(R.string.setting_clear_cache),
+            subtitle = stringResource(R.string.setting_clear_cache_desc),
+            leadingIcon = {
+                Icon(
+                    Icons.Filled.DeleteSweep,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingIcon = {
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            onClick = onClearCache
+        )
 
-            SettingsItem(
-                title = stringResource(R.string.settings_backup_title),
-                subtitle = stringResource(R.string.settings_backup_desc),
-                leadingIcon = {
-                    Icon(
-                        Icons.Filled.CloudUpload,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                trailingIcon = {
-                    Icon(
-                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                onClick = onOpenBackup
-            )
-        }
+        SettingsItem(
+            title = stringResource(R.string.settings_backup_title),
+            subtitle = stringResource(R.string.settings_backup_desc),
+            leadingIcon = {
+                Icon(
+                    Icons.Filled.CloudUpload,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingIcon = {
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            onClick = onOpenBackup
+        )
     }
 }
 
@@ -479,84 +455,79 @@ fun AboutSection(
             )
         }
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Xs)
-        ) {
-            SettingsItem(
-                title = stringResource(R.string.setting_app_version),
-                subtitle = appVersion,
-                leadingIcon = {
-                    Icon(
-                        Icons.Filled.Info,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                trailingIcon = {
-                    Icon(
-                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                onClick = {
-                    val now = System.currentTimeMillis()
-                    if (now - lastTapTime.longValue > 2000) {
-                        versionTapCount.intValue = 1
-                    } else {
-                        versionTapCount.intValue++
-                    }
-                    lastTapTime.longValue = now
-                    haptics.perform(HapticPattern.Tick)
-
-                    if (versionTapCount.intValue >= 7) {
-                        versionTapCount.intValue = 0
-                        haptics.perform(HapticPattern.Success)
-                        onDeveloperModeClick()
-                    }
+        SettingsItem(
+            title = stringResource(R.string.setting_app_version),
+            subtitle = appVersion,
+            leadingIcon = {
+                Icon(
+                    Icons.Filled.Info,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingIcon = {
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            onClick = {
+                val now = System.currentTimeMillis()
+                if (now - lastTapTime.longValue > 2000) {
+                    versionTapCount.intValue = 1
+                } else {
+                    versionTapCount.intValue++
                 }
-            )
+                lastTapTime.longValue = now
+                haptics.perform(HapticPattern.Tick)
 
-            SettingsItem(
-                title = stringResource(R.string.settings_label_github_repo),
-                subtitle = stringResource(R.string.settings_label_github_desc),
-                leadingIcon = {
-                    Icon(
-                        Icons.Filled.Code,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                trailingIcon = {
-                    Icon(
-                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                onClick = onOpenGithub
-            )
+                if (versionTapCount.intValue >= 7) {
+                    versionTapCount.intValue = 0
+                    haptics.perform(HapticPattern.Success)
+                    onDeveloperModeClick()
+                }
+            }
+        )
 
-            SettingsItem(
-                title = stringResource(R.string.settings_label_credits),
-                subtitle = stringResource(R.string.settings_label_credits_desc),
-                leadingIcon = {
-                    Icon(
-                        Icons.Filled.Favorite,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                trailingIcon = {
-                    Icon(
-                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                onClick = onOpenCredits
-            )
-        }
+        SettingsItem(
+            title = stringResource(R.string.settings_label_github_repo),
+            subtitle = stringResource(R.string.settings_label_github_desc),
+            leadingIcon = {
+                Icon(
+                    Icons.Filled.Code,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingIcon = {
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            onClick = onOpenGithub
+        )
+
+        SettingsItem(
+            title = stringResource(R.string.settings_label_credits),
+            subtitle = stringResource(R.string.settings_label_credits_desc),
+            leadingIcon = {
+                Icon(
+                    Icons.Filled.Favorite,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingIcon = {
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            onClick = onOpenCredits
+        )
     }
 }
