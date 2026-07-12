@@ -6,10 +6,6 @@ import androidx.lifecycle.viewModelScope
 import android.content.Context
 import android.net.Uri
 import com.p2p.meshify.core.util.FileUtils
-import com.p2p.meshify.domain.model.BubbleStyle
-import com.p2p.meshify.domain.model.FontFamilyPreset
-import com.p2p.meshify.domain.model.MotionPreset
-import com.p2p.meshify.domain.model.ShapeStyle
 import com.p2p.meshify.domain.model.TransportMode
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.domain.repository.ThemeMode
@@ -33,12 +29,6 @@ data class SettingsUiState(
     val deviceId: String = "",
     val deviceIdLoaded: Boolean = false,
     val appVersion: String = "",
-    val motionPreset: MotionPreset = MotionPreset.STANDARD,
-    val motionScale: Float = 1.0f,
-    val fontFamilyPreset: FontFamilyPreset = FontFamilyPreset.ROBOTO,
-    val customFontUri: String? = null,
-    val bubbleStyle: BubbleStyle = BubbleStyle.TAILED,
-    val visualDensity: Float = 1.0f,
     val seedColor: Int = 0xFF006D68.toInt(),
     val appLanguage: String = "en",
     val fontSizeScale: Float = 1.0f,
@@ -154,76 +144,6 @@ class SettingsViewModel @Inject constructor(
                 if (savedPath != null) {
                     settingsRepository.updateAvatarHash(hash)
                 }
-            }
-        }
-    }
-
-    fun setMotionPreset(preset: MotionPreset) {
-        viewModelScope.launch {
-            try {
-                settingsRepository.setMotionPreset(preset)
-            } catch (e: Exception) {
-                _errorMessage.value = e.message ?: "Failed to save motion preset"
-            }
-        }
-    }
-
-    fun setShapeStyle(style: ShapeStyle) {
-        viewModelScope.launch {
-            try {
-                settingsRepository.setShapeStyle(style)
-            } catch (e: Exception) {
-                _errorMessage.value = e.message ?: "Failed to save shape style"
-            }
-        }
-    }
-
-    fun setMotionScale(scale: Float) {
-        viewModelScope.launch {
-            try {
-                settingsRepository.setMotionScale(scale)
-            } catch (e: Exception) {
-                _errorMessage.value = e.message ?: "Failed to save motion scale"
-            }
-        }
-    }
-
-    fun setFontFamilyPreset(family: FontFamilyPreset) {
-        viewModelScope.launch {
-            try {
-                settingsRepository.setFontFamilyPreset(family)
-            } catch (e: Exception) {
-                _errorMessage.value = e.message ?: "Failed to save font family preset"
-            }
-        }
-    }
-
-    fun setCustomFontUri(uri: String?) {
-        viewModelScope.launch {
-            try {
-                settingsRepository.setCustomFontUri(uri)
-            } catch (e: Exception) {
-                _errorMessage.value = e.message ?: "Failed to save custom font URI"
-            }
-        }
-    }
-
-    fun setBubbleStyle(style: BubbleStyle) {
-        viewModelScope.launch {
-            try {
-                settingsRepository.setBubbleStyle(style)
-            } catch (e: Exception) {
-                _errorMessage.value = e.message ?: "Failed to save bubble style"
-            }
-        }
-    }
-
-    fun setVisualDensity(density: Float) {
-        viewModelScope.launch {
-            try {
-                settingsRepository.setVisualDensity(density)
-            } catch (e: Exception) {
-                _errorMessage.value = e.message ?: "Failed to save visual density"
             }
         }
     }
