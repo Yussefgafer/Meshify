@@ -10,9 +10,19 @@
 
 | الملف | المحتوى |
 |---|---|
-| `SettingsScreen.kt` | الشاشة الرئيسية (~807 سطر): avatar، الهوية، المظهر، الخصوصية، الشبكة، إعدادات التطبيق، about، كل الحوارات/الأوراق السفلية. |
-| `SettingsViewModel.kt` | يقرأ 15+ Flow من `ISettingsRepository` ويكتبها. |
-| `DeveloperScreen.kt` | شاشة المطور (مخفية): `DeveloperViewModel` داخلي + Composables لإدراج/مسح بيانات وهمية. |
+| `SettingsScreen.kt` | الشاشة الرئيسية: `LargeTopAppBar` + `Scaffold` + `Column` (verticalScroll) + header (avatar/name/deviceId). يستضيف حالات ظهور الحوارات/الأوراق السفلية والـ snackbars، وينادي المقاطع والأغلفة أدناه. |
+| `SettingsSections.kt` | مقاطع الشاشة كـ composables مستقلة: `IdentitySection`, `AppearanceSection`, `PrivacySection`, `NetworkSection`, `AppSettingsSection`, `AboutSection` (مع منطق الـ easter-egg للنقر 7 مرات). تستخدم مكوّنات MD3E المحلية من `SettingsComponents.kt`. |
+| `SettingsComponents.kt` | مكوّنات MD3E معبّرة محلية (مستوحاة من لغة PixelPlayer): `SettingsSection` (ترويسة بأيقونة بارزة ملوّنة)، `SettingsItem` (صف بطاقة `surfaceContainer`)، `SwitchSettingItem` (مفتاح متحرك بأيقونة Check/Close عبر `AnimatedContent`). |
+| `SettingsViewModel.kt` | يقرأ الـ Flows من `ISettingsRepository` ويكتبها في `SettingsUiState`. |
+| `BleStatusBottomSheet.kt` | `BleStatusBottomSheet`: حالة BLE + `FilterChip` لـ `TransportMode` (AUTO/LAN_ONLY/BLE_ONLY/MULTI_PATH)، بأسلوب MD3E. |
+| `SettingsNameDialog.kt` | غلاف حول `MeshifyTextInputDialog` لتعديل الاسم. |
+| `SettingsThemeSheet.kt` | غلاف حول `ThemeSelectionBottomSheet` لاختيار الثيم. |
+| `SettingsLanguageDialog.kt` | غلاف حول `MeshifySelectionDialog` (en/ar) — يُعيد إنشاء الـ Activity عند التغيير. |
+| `SettingsFontSizeDialog.kt` | غلاف حول `MeshifySelectionDialog` لمقياس الخط (0.8/1.0/1.2/1.5). |
+| `SettingsBackupDialog.kt` | `AlertDialog` النسخ الاحتياطي/الاستعادة (MD3E: FilledTonalButton للتأكيد). |
+| `SettingsCreditsDialog.kt` | `AlertDialog` الاعتمادات (MD3E). |
+| `DeveloperScreen.kt` | شاشة المطور (مخفية): composable فقط. |
+| `DeveloperViewModel.kt` | `DeveloperViewModel` (منفصل عن الشاشة): إدراج/مسح بيانات وهمية. |
 
 ## الشاشات والمكونات
 
@@ -23,9 +33,9 @@
 
 ## `SettingsViewModel`
 
-- `settingsUiState: StateFlow<SettingsUiState>` (~25 حقلاً): `displayName`, `themeMode`, `dynamicColorEnabled`, `hapticFeedbackEnabled`, `isNetworkVisible`, `avatarHash`, `deviceId`, `motionPreset`, `motionScale`, `fontFamilyPreset`, `customFontUri`, `bubbleStyle`, `visualDensity`, `seedColor`, `appLanguage`, `fontSizeScale`, `notificationsEnabled`, `notificationSound`, `notificationVibrate`, `bleEnabled`, `transportMode`, `displayNameError`.
+- `settingsUiState: StateFlow<SettingsUiState>`: `displayName`, `themeMode`, `dynamicColorEnabled`, `hapticFeedbackEnabled`, `isNetworkVisible`, `avatarHash`, `deviceId`, `deviceIdLoaded`, `seedColor`, `appLanguage`, `fontSizeScale`, `notificationsEnabled`, `notificationSound`, `notificationVibrate`, `bleEnabled`, `transportMode`, `displayNameError`.
 - `errorMessage: StateFlow<String?>`، `deviceId: StateFlow<String>`، `appVersion: String`.
-- أفعال: `updateDisplayName`, `setThemeMode`, `setHapticFeedback`, `setDynamicColor`, `setNetworkVisibility`, `updateAvatar`، `setSeedColor`, `setAppLanguage`, `setFontSizeScale`, `setNotificationsEnabled/Sound/Vibrate`, `setBleEnabled`, `setTransportMode`, `setMotionPreset`, `setShapeStyle`, `setMotionScale`, `setFontFamilyPreset`, `setCustomFontUri`, `setBubbleStyle`, `setVisualDensity`, `clearCache`, `exportBackup`, `clearError`.
+- أفعال: `updateDisplayName`, `setThemeMode`, `setHapticFeedback`, `setDynamicColor`, `setNetworkVisibility`, `updateAvatar`، `setSeedColor`, `setAppLanguage`, `setFontSizeScale`, `setNotificationsEnabled/Sound/Vibrate`, `setBleEnabled`, `setTransportMode`, `clearCache`, `exportBackup`, `clearError`.
 
 ## `DeveloperViewModel`
 
