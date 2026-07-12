@@ -124,11 +124,11 @@ fun SettingsScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
-            LargeTopAppBar(
+            CenterAlignedTopAppBar(
                 title = {
                     Text(
                         text = stringResource(R.string.screen_settings_title),
-                        fontWeight = FontWeight.Black
+                        fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
@@ -139,7 +139,7 @@ fun SettingsScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.largeTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                     scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
                 )
@@ -208,7 +208,7 @@ fun SettingsScreen(
                 )
             }
 
-            Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xl))
+            Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Lg))
 
             IdentitySection(
                 state = state,
