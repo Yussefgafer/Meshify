@@ -218,30 +218,6 @@ private fun InfoSection(titleRes: Int, pointsRes: List<Int>, iconTint: Color, mo
 }
 
 @Composable
-fun PermissionResultCard(permission: PermissionInfo, result: PermissionRequestResult, modifier: Modifier = Modifier) {
-    val (icon, iconTint, statusText) = when (result) {
-        PermissionRequestResult.Granted -> Triple(Icons.Default.Check, StatusOnline, R.string.ob_perm_granted)
-        PermissionRequestResult.Denied -> Triple(Icons.Default.Close, MaterialTheme.colorScheme.error, R.string.ob_perm_denied)
-        PermissionRequestResult.DeniedPermanently -> Triple(Icons.Default.Warning, MaterialTheme.colorScheme.error, R.string.ob_perm_denied_permanent)
-        PermissionRequestResult.Skipped -> Triple(Icons.Default.Close, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), R.string.ob_perm_skipped)
-        PermissionRequestResult.AlreadyGranted -> Triple(Icons.Default.Check, StatusOnline, R.string.ob_perm_already_granted)
-    }
-
-    Surface(modifier = modifier.fillMaxWidth(0.92f), shape = MeshifyDesignSystem.Shapes.Dialog, color = MaterialTheme.colorScheme.surfaceContainerHigh, tonalElevation = 4.dp) {
-        Row(modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Lg), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Lg)) {
-            Box(modifier = Modifier.size(64.dp).background(iconTint.copy(alpha = 0.1f), shape = MeshifyDesignSystem.Shapes.IconContainer), contentAlignment = Alignment.Center) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(MeshifyDesignSystem.IconSizes.XXL), tint = iconTint)
-            }
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = stringResource(permission.labelRes), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                Text(text = stringResource(statusText), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = iconTint)
-            }
-        }
-    }
-}
-
-@Composable
 fun PermissionSummaryDialog(grantedCount: Int, totalCount: Int, permissionResults: Map<String, PermissionRequestResult>, onStartClick: () -> Unit, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
     val haptics = LocalPremiumHaptics.current
     val allGranted = grantedCount == totalCount
