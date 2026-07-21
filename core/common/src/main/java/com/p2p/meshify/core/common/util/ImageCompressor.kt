@@ -177,6 +177,7 @@ object ImageCompressor {
             
             Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
         } catch (e: Exception) {
+            Logger.e("ImageCompressor -> Rotation failed", e)
             bitmap
         }
     }

@@ -1,0 +1,96 @@
+V1.1.3
+- [Refactor] Update MeshifySettingsGroup/SettingsItem typography tokens: labelLarge→labelMedium, ExtraBold→Bold, surfaceContainerLow→surfaceContainer, bodySmall→bodyMedium
+- [Chore] Bump version to 1.1.3 (versionCode 13)
+
+
+V1.1.2
+- [Refactor] Remove dead composables from core:ui: MeshifyCard, MeshifyListItem, MeshifySectionHeader, MeshifyPill, QrCodeDisplay (all unused)
+- [Refactor] Remove dead SettingsSubsectionHeader from feature/settings (unused)
+- [Refactor] Remove dead PermissionResultCard from feature/onboarding (unused)
+- [Refactor] Delete entire feature:help module (HelpScreen + AboutScreen) — dead code with no navigation route
+- [Style] Replace MD3 theme system with PixelPlayer-inspired MD3E design language: vibrant purple/pink/orange palette, GoogleSansRounded variable font (gflex_variable.ttf) across all typography, 8/16/24dp rounded shapes, status bar styling via MeshifyStatusBarStyle, and merged PixelPlayer's theme logic while preserving MeshifyTheme's public API
+- [Refactor] Split monolithic SettingsScreen.kt (~807 lines) into single-responsibility composables: SettingsSections.kt (Identity/Appearance/Privacy/Network/AppSettings/About sections) plus one file per dialog/sheet (BleStatusBottomSheet, SettingsNameDialog, SettingsThemeSheet, SettingsLanguageDialog, SettingsFontSizeDialog, SettingsBackupDialog, SettingsCreditsDialog)
+- [Refactor] Remove dead settings from SettingsUiState + SettingsViewModel (motionPreset, motionScale, fontFamilyPreset, customFontUri, bubbleStyle, visualDensity, shapeStyle) — defined but never surfaced in the UI nor applied to any theme/behavior
+- [Refactor] Split DeveloperViewModel out of DeveloperScreen.kt into its own file (DeveloperViewModel.kt); DeveloperScreen.kt now holds only the composable
+- [Refactor] Visible MD3E makeover of the settings screen, mirroring PixelPlayer's component language: animated Check/Close Switch (AnimatedContent thumb), surfaceContainer card rows, section headers with leading icons, expressive avatar hero + device-id pill, pill-shaped transport chips. Keeps Meshify's teal brand palette (no PixelPlayer colors/font imported; core:ui untouched)
+- [Chore] Bump every dependency to its latest release (alpha or stable) in gradle/libs.versions.toml — AGP 9.2.1, Gradle 9.4.1, Kotlin 2.4.0, KSP 2.3.10, Hilt 2.60.1, Compose BOM 2026.06.01 / Material 3 1.5.0-alpha23, Navigation 2.9.8, Room 2.8.4, Coil 3.5.0, Media3 1.10.1, DataStore 1.2.1, Lifecycle 2.11.0, Core-KTX 1.19.0, Paging 3.5.0, Coroutines 1.11.0, kotlinx-serialization 1.11.0, graphics-shapes 1.1.0
+- [Chore] compileSdk 37 across all 12 modules — required by latest AndroidX (core-ktx 1.19.0, Compose UI 1.12.0-alpha03, material3 1.5.0-alpha23, lifecycle 2.11.0, hilt-navigation-compose 1.4.0)
+- [Chore] Drop dead accompanist-permissions dependency (zero imports; project uses registerForActivityResult)
+- [Chore] Drop Views Material (com.google.android.material); app theme now uses platform android:Theme.Material.Light.NoActionBar (Compose-first)
+- [Chore] mockito-inline → mockito-core 5.18.0 in :core:network tests
+- [Chore] Gradle wrapper → 9.4.1 (AGP 9.2.1 requires Gradle ≥ 9.4.1)
+- [CI] Speed up meshify-build.yml: JDK 21 → 26 (temurin); run Lint and Build APK in parallel (dropped needs: validation); add concurrency cancel-in-progress; enable --build-cache so task outputs are reused across CI runs
+- [Fix] Provide Android SDK platform 37 + build-tools 37.0.0 (Debian SDK repo stops at 36); fetched via curl + unzip into the local SDK
+- [Fix] Message bubble now shows the actual quoted text for replies (text, media label, or "unavailable" if the original was deleted) instead of a static "Replying to…" placeholder
+- [Fix] Search results no longer render a trailing "You: " — the sender label is now "You"/"أنت"
+- [Fix] Copying a single message from the context menu now shows a success snackbar (consistent with multi-select copy)
+- [Chore] Remove dead pagination machinery in ChatViewModel (loadMoreMessages, allMessages deque, currentPage, pageSize, isAllMessagesLoaded, hasMoreMessages, MAX_MESSAGES_IN_MEMORY) — getMessages already returns the full conversation so it was never used
+- [Fix] ChatScreen BackHandler draft-discard confirmation now uses the live input text so it triggers while typing (was dead because inputText only updated on send)
+- [Fix] Sent message text no longer reappears in the input box — removed the bidirectional draftText→textState LaunchedEffect that repopulated the field after send
+- [Fix] Typed text is preserved on send failure (input box no longer cleared unconditionally in onSendClick)
+- [Fix] ChatInputBar readUriBytes now streams in 8KB chunks and aborts over MAX_FILE_SIZE_BYTES instead of reading the whole file into memory (prevents OOM on large attachments)
+- [Fix] ChatScreen scroll-to-bottom state now driven solely by isAtBottom; removed conflicting LaunchedEffect(listState) that fought the FAB visibility
+- [Fix] Search results list now uses its own LazyListState so results start at the top instead of inheriting the message list scroll position
+- [Fix] BackHandler draft-discard confirmation threshold raised from 50 to 1024 characters
+- [Fix] Copy/forward success messages now shown via a dedicated successMessage snackbar instead of being misrouted through sendError (which showed an error-style snackbar with a Retry action)
+- [Docs]: Add real codebase documentation under docs/ (architecture, core:*, feature:*, app) extracted from actual source
+- [Chore]: Clean up .gitignore — dedupe entries, collapse .idea/* into .idea/, normalize OS/secret ignore rules
+- [Refactor] Remove dead code across core/ui/: AvatarSizes, SeedColorPresets, Elevation.Level4/5, Shapes.CardLarge, StatusOffline, StatusTyping, SwipeState/LocalSwipeState, galleryScale/videoScale/fileScale animations, selectedFullImage state from AlbumMediaGrid
+- [Refactor] Delete MeshifyThemeConfig and all unused parameters from MeshifyTheme()
+- [Refactor] Update MainActivity.kt and README.md to match simplified MeshifyTheme signature
+- [Refactor] Remove dead code in core/domain: UploadProgress.kt, FileTypeData.kt, SendMessageValidation.kt, PayloadTypeFromString/DELIVERY_ACK/toPayloadType, checkWifiState()
+- [Refactor] Remove dead code in core/network: sendLargeFile(), preWarmConnection(), isConnectionAlive(), knownPeers, getConnectionType(), getAvailablePermits()
+- [Refactor] Remove dead code in feature/discovery: OobVerificationDialog.kt, OobVerificationViewModel.kt
+- [Refactor] Remove dead code in feature/home: ChatListItem, formatRecentTime wrapper
+- [Refactor] Remove dead code in app/: colors.xml, font_certs.xml, 60+ unused BLE strings, ACCESS_COARSE_LOCATION, unused imports, google.material dep
+- [Refactor] Remove dead code in feature/help: unused about_privacy, about_license, help_btn_report strings
+- [Chore] Dead code removal in core/data: removed 22 dead methods across DAO, repositories, and utilities
+- [Chore] Removed Paging 3 dependencies from core/data (dead code)
+- [Chore] Removed getAppVersion() from IFileManager interface + FileManagerImpl
+- [Chore] Adding CHANGELOG.md to project
+- [Chore] Add more bugs to fix later like any version on this app
+- [Chore] Discovery delay constants extracted for maintainability
+- [Chore] Dead code (requestClearAllData, copySelectedMessages no-op) removed
+- [Chore] Dead code (ChatAttachmentsViewModel, ChatInputViewModel, ChatMessagesViewModel, associated Uistate, test files, sendImage/sendVideo) removed
+- [Chore] forwardMediaContext now handles album messages with no mediaPath
+- [Feat] Added generic file picker (*/*) to ChatInputBar with AttachFile icon in MediaStagingChatInput
+- [Fix] Add missing English string resources to fix 24 ExtraTranslation lint errors in core:ui module
+- [Fix] Messages no longer silently lost on send failure — error shown, input text preserved
+- [Fix] Settings changes (theme, BLE, notifications, etc.) now show error snackbar on DataStore failure
+- [Fix] Copy-to-clipboard shows success confirmation snackbar
+- [Fix] Forward messages now shows per-peer failure details + success confirmation
+- [Fix] AboutScreen dead Privacy Policy / License links removed
+- [Fix] HelpScreen "About" button now navigates correctly
+- [Fix] Permission flow properly tracks Skipped / AlreadyGranted states
+- [Fix] RecentChatsScreen search bar no longer hidden by keyboard
+- [Fix] DeveloperScreen hardcoded strings replaced with localized resources
+- [Fix] sendSystemCommand no longer crashes app when transport unavailable
+- [Fix] sendImage/sendVideo now check Result.isFailure and show error on failure
+- [Fix] retryLoad() no longer a no-op — correctly re-triggers flow on error
+- [Fix] Blank peerId now shows error state instead of infinite loading
+- [Fix] DiscoveryViewModel isSearching correctly reflects scanning state, not peer count
+- [Fix] ChatViewModel deleteMessage/addReaction now show error on failure
+- [Fix] ChatInputViewModel sendMessage no longer clears input text on Result failure
+- [Fix] ChatInputViewModel forwardMessages now shows user-visible feedback
+- [Fix] ChatViewModel copySelectedMessages removed (dead code with misleading placeholder)
+- [Fix] ChatViewModel deleteSelectedMessages now reports partial deletion failures
+- [Fix] SettingsViewModel 7 remaining mutators now have try-catch error handling
+- [Fix] ChatScreen copy button race condition fixed (double clearSelection)
+- [Fix] ImageCompressor rotation failure now logged instead of silent catch
+- [Fix] RecentChatsViewModel deleteChat now logged on failure
+- [Fix] SettingsRepository generic catch blocks now log before fallback
+- [Fix] parseName() no longer uses fragile contains("name") heuristic
+- [Fix] SimpleDateFormat → DateTimeFormatter for thread-safety across 7 files
+- [Fix] cancelUpload now actually cancels the upload coroutine job
+- [Fix] DiscoveryScreen shows Snackbar for transient transport errors
+- [Fix] BleGattClient rejects payload exceeding MTU instead of silent truncation
+- [Fix] ParallelFileTransfer catch blocks now include chunk details in errors
+- [Fix] ChatInputBar URI reading now wrapped in try/catch with size check against MAX_FILE_SIZE_BYTES
+- [Fix] sendGroupedMessage now sends ALL attachments instead of only the first one
+- [Fix] sendFileWithProgress now saves mediaPath locally after successful send so sender can view their own file
+- [Fix] sendFileWithProgress mediaPath save no longer reverts message status from SENT to QUEUED
+- [Fix] MessageRepository.selectBestTransport returns null instead of throwing IllegalStateException; callers handle null gracefully
+- [Fix] ChatScreen dead imageLauncher/videoLauncher removed (launchers live in ChatInputBar)
+- [Fix] Send error snackbar now includes Retry action via SnackbarDuration.Indefinite
+- [Test] Removed all unit tests across the project (intentional — tests will be rewritten from scratch in a later pass)
+- [Perf] ChatViewModel.uploadProgress now uses SharingStarted.WhileSubscribed(5000) so the sample ticker stops when no UI is observing

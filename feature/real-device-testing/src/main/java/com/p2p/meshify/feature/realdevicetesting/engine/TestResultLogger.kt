@@ -7,8 +7,9 @@ import com.p2p.meshify.feature.realdevicetesting.model.TestResult
 import com.p2p.meshify.feature.realdevicetesting.model.TestStatus
 import com.p2p.meshify.domain.model.TransportType
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 private const val TAG = "TestResultLogger"
@@ -188,8 +189,9 @@ class TestResultLogger(
     }
 
     private fun formatTimestamp(epochMs: Long): String {
-        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
-        return sdf.format(Date(epochMs))
+        return Instant.ofEpochMilli(epochMs)
+            .atZone(ZoneId.systemDefault())
+            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.US))
     }
 
     private fun formatDuration(durationMs: Long): String {

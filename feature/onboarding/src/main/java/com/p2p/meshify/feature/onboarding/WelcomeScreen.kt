@@ -2,6 +2,7 @@ package com.p2p.meshify.feature.onboarding
 
 import android.Manifest
 import android.os.Build
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -217,31 +218,10 @@ private fun InfoSection(titleRes: Int, pointsRes: List<Int>, iconTint: Color, mo
 }
 
 @Composable
-fun PermissionResultCard(permission: PermissionInfo, result: PermissionRequestResult, modifier: Modifier = Modifier) {
-    val (icon, iconTint, statusText) = when (result) {
-        PermissionRequestResult.Granted -> Triple(Icons.Default.Check, StatusOnline, R.string.ob_perm_granted)
-        PermissionRequestResult.Denied -> Triple(Icons.Default.Close, MaterialTheme.colorScheme.error, R.string.ob_perm_denied)
-        PermissionRequestResult.DeniedPermanently -> Triple(Icons.Default.Warning, MaterialTheme.colorScheme.error, R.string.ob_perm_denied_permanent)
-    }
-
-    Surface(modifier = modifier.fillMaxWidth(0.92f), shape = MeshifyDesignSystem.Shapes.Dialog, color = MaterialTheme.colorScheme.surfaceContainerHigh, tonalElevation = 4.dp) {
-        Row(modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Lg), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Lg)) {
-            Box(modifier = Modifier.size(64.dp).background(iconTint.copy(alpha = 0.1f), shape = MeshifyDesignSystem.Shapes.IconContainer), contentAlignment = Alignment.Center) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(MeshifyDesignSystem.IconSizes.XXL), tint = iconTint)
-            }
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = stringResource(permission.labelRes), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                Text(text = stringResource(statusText), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = iconTint)
-            }
-        }
-    }
-}
-
-@Composable
 fun PermissionSummaryDialog(grantedCount: Int, totalCount: Int, permissionResults: Map<String, PermissionRequestResult>, onStartClick: () -> Unit, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
     val haptics = LocalPremiumHaptics.current
     val allGranted = grantedCount == totalCount
+    var showDetails by remember { mutableStateOf(false) }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false, usePlatformDefaultWidth = false)) {
         Surface(modifier = modifier.fillMaxWidth(0.92f), shape = MeshifyDesignSystem.Shapes.Dialog, color = MaterialTheme.colorScheme.surfaceContainerHigh, tonalElevation = 12.dp) {
@@ -266,6 +246,64 @@ fun PermissionSummaryDialog(grantedCount: Int, totalCount: Int, permissionResult
                             Text(text = stringResource(R.string.ob_summary_all_granted), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = StatusOnline)
                         }
                     }
+                }
+
+                // Expandable details
+                AnimatedVisibility(
+                    visible = showDetails,
+                    enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.expandVertically(),
+                    exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.shrinkVertically()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = MeshifyDesignSystem.Spacing.Md),
+                        verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Xs)
+                    ) {
+                        permissionResults.forEach { (id, result) ->
+                            val perm = PermissionDefinitions.getPermissions().find { it.id == id } ?: return@forEach
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = stringResource(perm.labelRes),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                val (statusText, color) = when (result) {
+                                    PermissionRequestResult.Granted -> R.string.ob_perm_granted to StatusOnline
+                                    PermissionRequestResult.Denied -> R.string.ob_perm_denied to MaterialTheme.colorScheme.error
+                                    PermissionRequestResult.DeniedPermanently -> R.string.ob_perm_denied_permanent to MaterialTheme.colorScheme.error
+                                    PermissionRequestResult.Skipped -> R.string.ob_perm_skipped to MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                    PermissionRequestResult.AlreadyGranted -> R.string.ob_perm_already_granted to StatusOnline
+                                }
+                                Text(
+                                    text = stringResource(statusText),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Black,
+                                    color = color
+                                )
+                            }
+                        }
+                    }
+                }
+
+                TextButton(
+                    onClick = {
+                        showDetails = !showDetails
+                        haptics.perform(HapticPattern.Tick)
+                    },
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                ) {
+                    Text(
+                        text = if (showDetails) stringResource(R.string.ob_summary_hide_details) else stringResource(R.string.ob_summary_view_details),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(MeshifyDesignSystem.Spacing.Lg))

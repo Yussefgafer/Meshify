@@ -18,6 +18,4 @@ class WifiStateCheckerImpl(
     
     override val isWifiEnabled: Boolean
         get() = wifiManager.isWifiEnabled
-    
-    override fun checkWifiState(): Boolean = isWifiEnabled
 }

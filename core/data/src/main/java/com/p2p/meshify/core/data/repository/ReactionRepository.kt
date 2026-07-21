@@ -61,18 +61,4 @@ class ReactionRepository(
         }
     }
 
-    /**
-     * Remove reaction from a message.
-     */
-    suspend fun removeReaction(messageId: String): Result<Unit> {
-        return addReaction(messageId, null)
-    }
-
-    /**
-     * Get reaction for a specific message.
-     */
-    suspend fun getReaction(messageId: String): String? = withContext(Dispatchers.IO) {
-        val message = messageDao.getMessageById(messageId)
-        message?.reaction
-    }
 }

@@ -10,6 +10,10 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import com.p2p.meshify.core.util.Logger
+import com.p2p.meshify.domain.model.BubbleStyle
+import com.p2p.meshify.domain.model.FontFamilyPreset
+import com.p2p.meshify.domain.model.MotionPreset
+import com.p2p.meshify.domain.model.ShapeStyle
 import com.p2p.meshify.domain.model.TransportMode
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.domain.repository.ThemeMode
@@ -52,6 +56,15 @@ class SettingsRepository(
         val KEY_NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
         val KEY_NOTIFICATION_SOUND = booleanPreferencesKey("notification_sound")
         val KEY_NOTIFICATION_VIBRATE = booleanPreferencesKey("notification_vibrate")
+
+        // MD3E design configuration keys
+        val KEY_SHAPE_STYLE = stringPreferencesKey("shape_style")
+        val KEY_MOTION_PRESET = stringPreferencesKey("motion_preset")
+        val KEY_MOTION_SCALE = floatPreferencesKey("motion_scale")
+        val KEY_FONT_FAMILY = stringPreferencesKey("font_family")
+        val KEY_CUSTOM_FONT_URI = stringPreferencesKey("custom_font_uri")
+        val KEY_BUBBLE_STYLE = stringPreferencesKey("bubble_style")
+        val KEY_VISUAL_DENSITY = floatPreferencesKey("visual_density")
     }
 
     override val displayName: Flow<String> = prefsStore.data.map { preferences ->
@@ -62,6 +75,7 @@ class SettingsRepository(
         try {
             ThemeMode.valueOf(preferences[KEY_THEME_MODE] ?: "SYSTEM")
         } catch (e: Exception) {
+            Logger.e("SettingsRepository -> Failed to read themeMode", e)
             ThemeMode.SYSTEM
         }
     }
@@ -82,11 +96,60 @@ class SettingsRepository(
         preferences[KEY_AVATAR_HASH]
     }
 
-    override val seedColor: Flow<Int> = context.dataStore.data.map { preferences ->
+    // MD3E Settings Flows
+    override val shapeStyle: Flow<ShapeStyle> = prefsStore.data.map { preferences ->
+        try {
+            ShapeStyle.valueOf(preferences[KEY_SHAPE_STYLE] ?: "CIRCLE")
+        } catch (e: Exception) {
+            Logger.e("SettingsRepository -> Failed to read shapeStyle", e)
+            ShapeStyle.CIRCLE
+        }
+    }
+
+    override val motionPreset: Flow<MotionPreset> = prefsStore.data.map { preferences ->
+        try {
+            MotionPreset.valueOf(preferences[KEY_MOTION_PRESET] ?: "STANDARD")
+        } catch (e: Exception) {
+            Logger.e("SettingsRepository -> Failed to read motionPreset", e)
+            MotionPreset.STANDARD
+        }
+    }
+
+    override val motionScale: Flow<Float> = prefsStore.data.map { preferences ->
+        preferences[KEY_MOTION_SCALE] ?: 1.0f
+    }
+
+    override val fontFamilyPreset: Flow<FontFamilyPreset> = prefsStore.data.map { preferences ->
+        try {
+            FontFamilyPreset.valueOf(preferences[KEY_FONT_FAMILY] ?: "ROBOTO")
+        } catch (e: Exception) {
+            Logger.e("SettingsRepository -> Failed to read fontFamilyPreset", e)
+            FontFamilyPreset.ROBOTO
+        }
+    }
+
+    override val customFontUri: Flow<String?> = prefsStore.data.map { preferences ->
+        preferences[KEY_CUSTOM_FONT_URI]
+    }
+
+    override val bubbleStyle: Flow<BubbleStyle> = prefsStore.data.map { preferences ->
+        try {
+            BubbleStyle.valueOf(preferences[KEY_BUBBLE_STYLE] ?: "ROUNDED")
+        } catch (e: Exception) {
+            Logger.e("SettingsRepository -> Failed to read bubbleStyle", e)
+            BubbleStyle.ROUNDED
+        }
+    }
+
+    override val visualDensity: Flow<Float> = prefsStore.data.map { preferences ->
+        preferences[KEY_VISUAL_DENSITY] ?: 1.0f
+    }
+
+    override val seedColor: Flow<Int> = prefsStore.data.map { preferences ->
         preferences[KEY_SEED_COLOR] ?: 0xFF006D68.toInt()
     }
 
-    override val bleEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+    override val bleEnabled: Flow<Boolean> = prefsStore.data.map { preferences ->
         preferences[KEY_BLE_ENABLED] ?: false
     }
 
@@ -94,15 +157,16 @@ class SettingsRepository(
         try {
             TransportMode.valueOf(preferences[KEY_TRANSPORT_MODE] ?: "MULTI_PATH")
         } catch (e: Exception) {
+            Logger.e("SettingsRepository -> Failed to read transportMode", e)
             TransportMode.MULTI_PATH
         }
     }
 
-    override val hasCompletedOnboarding: Flow<Boolean> = context.dataStore.data.map { preferences ->
+    override val hasCompletedOnboarding: Flow<Boolean> = prefsStore.data.map { preferences ->
         preferences[KEY_ONBOARDING_COMPLETED] ?: false
     }
 
-    override val appLanguage: Flow<String> = context.dataStore.data.map { preferences ->
+    override val appLanguage: Flow<String> = prefsStore.data.map { preferences ->
         preferences[KEY_APP_LANGUAGE] ?: "en"
     }
 
@@ -132,6 +196,7 @@ class SettingsRepository(
             }
             newId
         } catch (e: Exception) {
+            Logger.e("SettingsRepository -> Failed to read deviceId", e)
             UUID.randomUUID().toString()
         }
     }
@@ -184,6 +249,54 @@ class SettingsRepository(
     override suspend fun setSeedColor(color: Int) {
         safeEdit { it[KEY_SEED_COLOR] = color }.onFailure { e ->
             Logger.e("SettingsRepository -> Failed to set seed color", e)
+        }
+    }
+
+    override suspend fun setShapeStyle(style: ShapeStyle) {
+        safeEdit { it[KEY_SHAPE_STYLE] = style.name }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set shape style", e)
+        }
+    }
+
+    override suspend fun setMotionPreset(preset: MotionPreset) {
+        safeEdit { it[KEY_MOTION_PRESET] = preset.name }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set motion preset", e)
+        }
+    }
+
+    override suspend fun setMotionScale(scale: Float) {
+        safeEdit { it[KEY_MOTION_SCALE] = scale.coerceIn(0.5f, 2.0f) }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set motion scale", e)
+        }
+    }
+
+    override suspend fun setFontFamilyPreset(family: FontFamilyPreset) {
+        safeEdit { it[KEY_FONT_FAMILY] = family.name }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set font family preset", e)
+        }
+    }
+
+    override suspend fun setCustomFontUri(uri: String?) {
+        if (uri != null) {
+            safeEdit { it[KEY_CUSTOM_FONT_URI] = uri }.onFailure { e ->
+                Logger.e("SettingsRepository -> Failed to set custom font URI", e)
+            }
+        } else {
+            safeEdit { it.remove(KEY_CUSTOM_FONT_URI) }.onFailure { e ->
+                Logger.e("SettingsRepository -> Failed to remove custom font URI", e)
+            }
+        }
+    }
+
+    override suspend fun setBubbleStyle(style: BubbleStyle) {
+        safeEdit { it[KEY_BUBBLE_STYLE] = style.name }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set bubble style", e)
+        }
+    }
+
+    override suspend fun setVisualDensity(density: Float) {
+        safeEdit { it[KEY_VISUAL_DENSITY] = density.coerceIn(0.8f, 1.5f) }.onFailure { e ->
+            Logger.e("SettingsRepository -> Failed to set visual density", e)
         }
     }
 
@@ -296,11 +409,41 @@ class SettingsRepository(
         }
     }
 
+    override suspend fun importBackup(json: String): Result<Unit> {
+        return try {
+            val backupData: Map<String, String> = Json.decodeFromString(json)
+            prefsStore.edit { prefs ->
+                backupData.forEach { (key, value) ->
+                    when (key) {
+                        "display_name" -> prefs[KEY_DISPLAY_NAME] = value
+                        "theme_mode" -> prefs[KEY_THEME_MODE] = value
+                        "dynamic_color" -> prefs[KEY_DYNAMIC_COLOR] = value.toBoolean()
+                        "haptic_feedback" -> prefs[KEY_HAPTIC_FEEDBACK] = value.toBoolean()
+                        "network_visible" -> prefs[KEY_NETWORK_VISIBLE] = value.toBoolean()
+                        "avatar_hash" -> prefs[KEY_AVATAR_HASH] = value
+                        "seed_color" -> prefs[KEY_SEED_COLOR] = value.toInt()
+                        "app_language" -> prefs[KEY_APP_LANGUAGE] = value
+                        "font_size_scale" -> prefs[KEY_FONT_SIZE_SCALE] = value.toFloat()
+                        "notifications_enabled" -> prefs[KEY_NOTIFICATIONS_ENABLED] = value.toBoolean()
+                        "notification_sound" -> prefs[KEY_NOTIFICATION_SOUND] = value.toBoolean()
+                        "notification_vibrate" -> prefs[KEY_NOTIFICATION_VIBRATE] = value.toBoolean()
+                        "ble_enabled" -> prefs[KEY_BLE_ENABLED] = value.toBoolean()
+                        "transport_mode" -> prefs[KEY_TRANSPORT_MODE] = value
+                    }
+                }
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     override fun getAppVersion(): String {
         return try {
             val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
             packageInfo.versionName ?: "1.0"
         } catch (e: Exception) {
+            Logger.e("SettingsRepository -> Failed to read app version", e)
             "1.0"
         }
     }

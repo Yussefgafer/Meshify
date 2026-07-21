@@ -41,6 +41,8 @@ class RecentChatsViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
+    private var loadJob: kotlinx.coroutines.Job? = null
+
     init {
         loadChatsWithSearch()
 
@@ -60,7 +62,8 @@ class RecentChatsViewModel @Inject constructor(
      * Debounced at 300ms to avoid excessive DB queries.
      */
     private fun loadChatsWithSearch() {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _searchQuery
                 .debounce(SEARCH_DEBOUNCE_MS.milliseconds)
                 .flatMapLatest { query ->
@@ -105,7 +108,11 @@ class RecentChatsViewModel @Inject constructor(
      */
     fun deleteChat(peerId: String) {
         viewModelScope.launch {
-            chatRepository.deleteChat(peerId)
+            try {
+                chatRepository.deleteChat(peerId)
+            } catch (e: Exception) {
+                Logger.e("RecentChatsViewModel -> Failed to delete chat", e)
+            }
         }
     }
 
@@ -114,7 +121,8 @@ class RecentChatsViewModel @Inject constructor(
      * This is called when the user taps "Retry" after an error.
      */
     fun retryLoad() {
-        _uiState.update { it.copy(error = null, isLoading = false) }
+        _uiState.update { it.copy(error = null, isLoading = true) }
+        loadChatsWithSearch()
     }
 
     /**

@@ -34,17 +34,6 @@ import kotlin.math.roundToInt
 enum class ItemPosition { ONLY, FIRST, MIDDLE, LAST }
 
 /**
- * CompositionLocal to track global swipe state across all items in a list.
- * When one item is being swiped, adjacent items can react to it.
- */
-data class SwipeState(
-    val swipingIndex: Int = -1,
-    val swipeProgress: Float = 0f
-)
-
-val LocalSwipeState = compositionLocalOf { SwipeState() }
-
-/**
  * Enhanced PhysicsSwipeToDelete with magnetic neighbor effect.
  * When swiping, adjacent items subtly shift and scale to create a magnetic pull effect.
  */

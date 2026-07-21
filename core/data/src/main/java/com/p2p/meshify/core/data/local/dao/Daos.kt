@@ -1,6 +1,5 @@
 package com.p2p.meshify.core.data.local.dao
 
-import androidx.paging.PagingSource
 import androidx.room.*
 import com.p2p.meshify.core.data.local.entity.*
 import kotlinx.coroutines.flow.Flow
@@ -26,18 +25,12 @@ interface ChatDao {
     """)
     fun searchChats(query: String): Flow<List<ChatEntity>>
 
-    @Query("UPDATE chats SET unreadCount = :count WHERE peerId = :peerId")
-    suspend fun updateUnreadCount(peerId: String, count: Int)
-
     @Query("UPDATE chats SET unreadCount = 0 WHERE peerId = :peerId")
     suspend fun resetUnreadCount(peerId: String)
 }
 
 @Dao
 interface MessageDao {
-    @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp ASC")
-    fun getMessagesPaging(chatId: String): PagingSource<Int, MessageEntity>
-
     @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp ASC LIMIT :limit OFFSET :offset")
     fun getMessagesPaged(chatId: String, limit: Int, offset: Int): Flow<List<MessageEntity>>
 
@@ -58,9 +51,6 @@ interface MessageDao {
 
     @Query("SELECT * FROM message_attachments WHERE messageId = :messageId ORDER BY id")
     suspend fun getAttachmentsForMessage(messageId: String): List<MessageAttachmentEntity>
-
-    @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp ASC")
-    suspend fun getAllMessagesForChatWithAttachments(chatId: String): List<MessageEntity>
 
     @Query("UPDATE messages SET status = :status WHERE id = :messageId")
     suspend fun updateMessageStatus(messageId: String, status: MessageStatus)
@@ -94,9 +84,9 @@ interface MessageDao {
     suspend fun getAllAttachments(): List<MessageAttachmentEntity>
 
     @Query("""
-        SELECT * FROM messages 
-        WHERE chatId = :chatId 
-          AND text LIKE '%' || :query || '%' 
+        SELECT * FROM messages
+        WHERE chatId = :chatId
+          AND text LIKE '%' || :query || '%'
           AND isDeletedForMe = 0
         ORDER BY timestamp DESC
     """)
@@ -106,9 +96,6 @@ interface MessageDao {
 
 @Dao
 interface PendingMessageDao {
-    @Query("SELECT * FROM pending_messages WHERE status = :status")
-    suspend fun getByStatus(status: MessageStatus): List<PendingMessageEntity>
-
     @Query("SELECT * FROM pending_messages WHERE recipientId = :recipientId")
     suspend fun getByRecipient(recipientId: String): List<PendingMessageEntity>
 

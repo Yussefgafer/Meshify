@@ -5,5 +5,4 @@ package com.p2p.meshify.domain.repository
  */
 interface IFileManager {
     suspend fun saveMedia(fileName: String, data: ByteArray): String?
-    fun getAppVersion(): String
 }

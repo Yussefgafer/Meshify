@@ -1,6 +1,3 @@
-import com.android.build.api.dsl.ApplicationExtension
-import java.util.Properties
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -12,20 +9,22 @@ plugins {
 
 android {
     namespace = "com.p2p.meshify"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.p2p.meshify"
         minSdk = 26
         targetSdk = 36
-        versionCode = 12
-        versionName = "1.1.1"
+        versionCode = 13
+        versionName = "1.1.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
             abiFilters += listOf("arm64-v8a")
         }
+
+        resConfigs("en", "ar")
     }
 
     signingConfigs {
@@ -139,7 +138,6 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation(libs.google.material)
     implementation(libs.androidx.material.icons.extended)
     
     // Navigation
@@ -159,9 +157,6 @@ dependencies {
     implementation(libs.media3.ui)
     implementation(libs.media3.session)
     
-    // Accompanist
-    implementation(libs.accompanist.permissions)
-
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

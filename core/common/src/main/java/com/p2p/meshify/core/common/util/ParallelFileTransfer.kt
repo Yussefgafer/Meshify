@@ -1,5 +1,6 @@
 package com.p2p.meshify.core.util
 
+import com.p2p.meshify.core.util.Logger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -92,7 +93,7 @@ object ParallelFileTransfer {
                             listener?.onProgress(totalSent, fileSize.toLong(), (totalSent.toDouble() / fileSize) * 100)
                             Result.success<Unit>(Unit)
                         } catch (e: Exception) {
-                            Logger.e("ParallelFileTransfer -> Chunk $index failed", e)
+                            Logger.e("ParallelFileTransfer -> Chunk $index failed: ${e.message}", e)
                             failedChunks.add(index) // Track for retry
                             Result.failure<Unit>(e)
                         }
@@ -127,7 +128,7 @@ object ParallelFileTransfer {
                                 listener?.onProgress(totalSent, fileSize.toLong(), (totalSent.toDouble() / fileSize) * 100)
                                 Result.success<Unit>(Unit)
                             } catch (e: Exception) {
-                                Logger.e("ParallelFileTransfer -> Retry chunk $index failed", e)
+                                Logger.e("ParallelFileTransfer -> Retry chunk $index failed after retry: ${e.message}", e)
                                 Result.failure<Unit>(e)
                             }
                         }
@@ -144,7 +145,8 @@ object ParallelFileTransfer {
             // التحقق من نجاح جميع chunks بعد retry
             val failedCount = sendResults.count { it.isFailure }
             if (failedCount > 0) {
-                return@withContext Result.failure(Exception("$failedCount chunks failed after retry"))
+                val failedIndices = sendResults.indices.filter { sendResults[it].isFailure }
+                return@withContext Result.failure(Exception("$failedCount chunks failed after retry: indices $failedIndices"))
             }
 
             // Send completion marker
@@ -153,6 +155,7 @@ object ParallelFileTransfer {
 
             Result.success(Unit)
         } catch (e: Exception) {
+            Logger.e("ParallelFileTransfer -> sendFile failed: ${e.message}", e)
             return@withContext Result.failure(e)
         }
     }
@@ -218,6 +221,7 @@ object ParallelFileTransfer {
             
             Result.success(fileBytes)
         } catch (e: Exception) {
+            Logger.e("ParallelFileTransfer -> receiveFile failed: ${e.message}", e)
             Result.failure(e)
         }
     }

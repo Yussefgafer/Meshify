@@ -10,10 +10,4 @@ interface WifiStateChecker {
      * @return true if Wi-Fi is enabled, false otherwise
      */
     val isWifiEnabled: Boolean
-    
-    /**
-     * Explicit method to check Wi-Fi state.
-     * @return current Wi-Fi state (same as isWifiEnabled)
-     */
-    fun checkWifiState(): Boolean
 }

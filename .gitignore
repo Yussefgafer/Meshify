@@ -1,54 +1,55 @@
+# ===== IDE / Editor =====
 .idea/
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-/docs/analysis
-/docs/Examples
-.DS_Store/
-.qwen/
-docs/
-skills/
-.windsurf/
+.gradle/
 
-**/build/
-/captures
-agents
-agent
-AGENT.md
-/.gemini/
-.externalNativeBuild
-.cxx
+# ===== Gradle / local config (may contain secrets) =====
 local.properties
 
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== Build output =====
+**/build/
+/captures
+.externalNativeBuild
+.cxx
+.kotlin
+
+# ===== Agents / tooling / sessions =====
+.qwen/
+.qwen-session
+skills/
+.windsurf/
+.ignored/
+.agents/
+.agent
+agents/
+agent
+.gemini/
+
+# ===== Generated / temp / logs =====
 *.salive
 *.apk
 *.aab
-*.jks
-*.keystore
 *.log
 *.old
 *.backup
 *~
-qwen-code-export-*.md
 log_device1.txt
-GEMINI.md
+qwen-code-export-*.md
+
+# ===== Secrets / keystores / credentials =====
+*.jks
+*.keystore
+MESHIFY_KEYSTORE_BASE64.txt
+gha-creds-*.json
+
+# ===== Agent instruction / notes (untracked by design) =====
 QWEN.md
 TODO.md
-Rev.md
-
-.DS_Store
-Thumbs.db
-MESHIFY_KEYSTORE_BASE64.txt
-.agents
 AGENT.md
 AGENTS.md
 GEMINI.md
-*.salive
-
-gha-creds-*.json
+Rev.md

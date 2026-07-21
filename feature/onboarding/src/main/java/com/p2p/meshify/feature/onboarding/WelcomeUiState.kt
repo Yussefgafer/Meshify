@@ -30,4 +30,17 @@ sealed class PermissionRequestResult {
     object Granted : PermissionRequestResult()
     object Denied : PermissionRequestResult()
     object DeniedPermanently : PermissionRequestResult()
+    object Skipped : PermissionRequestResult()
+    object AlreadyGranted : PermissionRequestResult()
+}
+
+/**
+ * Convert a [PermissionRequestResult] to the corresponding [PermissionStatus].
+ */
+fun PermissionRequestResult.toPermissionStatus(): PermissionStatus = when (this) {
+    PermissionRequestResult.Granted -> PermissionStatus.Granted
+    PermissionRequestResult.Denied -> PermissionStatus.Denied
+    PermissionRequestResult.DeniedPermanently -> PermissionStatus.DeniedPermanently
+    PermissionRequestResult.Skipped -> PermissionStatus.Skipped
+    PermissionRequestResult.AlreadyGranted -> PermissionStatus.AlreadyGranted
 }

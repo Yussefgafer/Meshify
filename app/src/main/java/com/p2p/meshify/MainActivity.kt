@@ -161,7 +161,6 @@ class MainActivity : ComponentActivity() {
             val settingsRepo = app.settingsRepository
             val themeMode by settingsRepo.themeMode.collectAsState(initial = com.p2p.meshify.domain.repository.ThemeMode.SYSTEM)
             val dynamicColor by settingsRepo.dynamicColorEnabled.collectAsState(initial = true)
-            val seedColorInt by settingsRepo.seedColor.collectAsState(initial = 0xFF006D68.toInt())
 
             var isReady by remember { mutableStateOf(false) }
             var startDestination by remember { mutableStateOf<Screen?>(null) }
@@ -184,13 +183,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            val seedColor = remember(seedColorInt) { Color(seedColorInt) }
             val premiumHaptics = rememberPremiumHaptics(settingsRepo)
 
             MeshifyTheme(
                 themeMode = themeMode.name,
-                dynamicColor = dynamicColor,
-                seedColor = seedColor
+                dynamicColor = dynamicColor
             ) {
                 CompositionLocalProvider(LocalPremiumHaptics provides premiumHaptics) {
                     val context = LocalContext.current
@@ -495,8 +492,10 @@ private fun OnboardingRoute(
 
             if (alreadyGranted) {
                 LaunchedEffect(perm.id) {
-                    permissionResults[perm.id] = PermissionRequestResult.Granted
+                    permissionResults[perm.id] = PermissionRequestResult.AlreadyGranted
                     advanceTrigger++
+                    kotlinx.coroutines.delay(PERMISSION_ALREADY_GRANTED_DISPLAY_DELAY_MS)
+                    currentPermissionIndex++
                 }
             } else {
                 PermissionRequestCard(
@@ -534,7 +533,9 @@ private fun OnboardingRoute(
 
     // Show summary when all permissions processed
     if (showSummaryDialog) {
-        val grantedCount = permissionResults.count { it.value == PermissionRequestResult.Granted }
+        val grantedCount = permissionResults.count {
+            it.value == PermissionRequestResult.Granted || it.value == PermissionRequestResult.AlreadyGranted
+        }
         PermissionSummaryDialog(
             grantedCount = grantedCount,
             totalCount = permissions.size,
@@ -558,6 +559,13 @@ private fun OnboardingRoute(
             onLeaveClick = {
                 showSkipConfirm = false
                 isPermissionFlowActive = false
+                // Mark all remaining unprocessed permissions as Skipped
+                for (i in currentPermissionIndex until permissions.size) {
+                    val perm = permissions[i]
+                    if (perm.id !in permissionResults) {
+                        permissionResults[perm.id] = PermissionRequestResult.Skipped
+                    }
+                }
                 scope.launch {
                     settingsRepository.setOnboardingCompleted()
                 }

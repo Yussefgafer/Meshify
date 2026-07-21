@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.p2p.meshify.feature.chat"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 26
@@ -59,10 +59,17 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
-    
+
     // Coil
     implementation(libs.coil3.compose)
     implementation(libs.coil3.network)
 
     debugImplementation(libs.androidx.ui.tooling)
+
+    // Testing
+    testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.androidx.core.testing)
+    testImplementation(libs.robolectric)
 }

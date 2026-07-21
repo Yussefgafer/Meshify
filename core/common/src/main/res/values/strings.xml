@@ -64,7 +64,7 @@
     <string name="chat_status_online">Online</string>
     <string name="chat_status_offline">Offline</string>
     <string name="chat_message_deleted">This message was deleted</string>
-    <string name="chat_message_you">You: %s</string>
+    <string name="chat_message_you">You</string>
     
     <!-- Developer Screen -->
     <string name="developer_clear_data_title">Clear All Data?</string>
@@ -96,6 +96,8 @@
     <!-- Chat Screen - Reply -->
     <string name="chat_reply_label">Replying to</string>
     <string name="chat_reply_placeholder">Replying to…</string>
+    <string name="chat_reply_media">Media</string>
+    <string name="chat_reply_unavailable">Message unavailable</string>
     
     <!-- Chat Screen - Actions -->
     <string name="chat_action_reply">Reply</string>
@@ -110,6 +112,7 @@
         <item quantity="one">%d selected</item>
         <item quantity="other">%d selected</item>
     </plurals>
+    <string name="chat_messages_copied">Copied %d message(s)</string>
     <string name="chat_selection_subtitle">Select more or take action</string>
     <string name="chat_selection_exit_desc">Exit selection mode</string>
     <string name="chat_selection_copy_desc">Copy</string>
@@ -199,6 +202,7 @@
     <string name="forward_dialog_btn_forward">Forward (%d)</string>
     <string name="forward_dialog_btn_forward_retry">Retry</string>
     <string name="error_forward_partial">%1$d of %2$d peers could not receive the message</string>
+    <string name="forward_success">Forwarded %1$d message(s) to %2$d peer(s)</string>
 
     <!-- Forward Message Context -->
     <string name="forward_context_text">Forwarded from %1$s:\n%2$s</string>

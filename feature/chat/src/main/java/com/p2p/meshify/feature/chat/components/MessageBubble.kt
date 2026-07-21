@@ -38,8 +38,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
@@ -56,6 +59,8 @@ import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.model.TransportType
 import com.p2p.meshify.core.common.R
 import java.io.File
+
+
 
 /**
  * Status indicator icon size for standard states */
@@ -100,6 +105,7 @@ private const val StatusAlphaDefault = 0.7f
 @Composable
 fun MessageBubble(
     message: MessageEntity,
+    replyMessage: MessageEntity? = null,
     attachments: List<MessageAttachmentEntity>,
     peerName: String,
     isSelected: Boolean = false,
@@ -114,7 +120,6 @@ fun MessageBubble(
     val containerColor = if (message.isFromMe) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer
     val contentColor = if (message.isFromMe) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
 
-    // Square chat bubble shape
     val bubbleShape = MeshifyDesignSystem.Shapes.Card
 
     Column(
@@ -153,14 +158,21 @@ fun MessageBubble(
                         )
                     } else {
                         if (message.replyToId != null) {
+                            val quoteText = when {
+                                replyMessage?.text != null -> replyMessage.text ?: ""
+                                replyMessage != null -> stringResource(R.string.chat_reply_media)
+                                else -> stringResource(R.string.chat_reply_unavailable)
+                            }
                             Surface(
                                 color = contentColor.copy(alpha = 0.08f),
                                 shape = MeshifyDesignSystem.Shapes.CardSmall,
                                 modifier = Modifier.padding(bottom = 6.dp)
                             ) {
                                 Text(
-                                    text = stringResource(R.string.chat_reply_placeholder),
+                                    text = quoteText,
                                     style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                     color = MaterialTheme.colorScheme.primary
                                 )
@@ -343,11 +355,16 @@ fun StatusIcon(status: MessageStatus, tint: Color) {
             modifier = Modifier.size(StatusIconSize),
             tint = tint.copy(StatusAlphaQueued)
         )
-        MessageStatus.SENDING -> CircularProgressIndicator(
-            modifier = Modifier.size(StatusIconSizeSmall),
-            strokeWidth = StatusIconStrokeWidth,
-            color = tint
-        )
+        MessageStatus.SENDING -> {
+            val sendingDesc = stringResource(R.string.message_status_sending)
+            CircularProgressIndicator(
+                modifier = Modifier
+                    .size(StatusIconSizeSmall)
+                    .semantics { contentDescription = sendingDesc },
+                strokeWidth = StatusIconStrokeWidth,
+                color = tint
+            )
+        }
         MessageStatus.SENT -> Icon(
             Icons.Default.Check,
             stringResource(R.string.message_status_sent),

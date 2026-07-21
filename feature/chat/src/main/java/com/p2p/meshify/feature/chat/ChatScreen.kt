@@ -1,9 +1,6 @@
 package com.p2p.meshify.feature.chat
 
-import android.net.Uri
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,8 +27,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -67,7 +66,6 @@ import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
 import com.p2p.meshify.core.ui.hooks.HapticPattern
 import com.p2p.meshify.core.ui.hooks.LocalPremiumHaptics
 import com.p2p.meshify.domain.model.DeleteType
-import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.feature.chat.components.BackConfirmationDialog
 import com.p2p.meshify.feature.chat.components.ChatContextMenu
 import com.p2p.meshify.feature.chat.components.ChatInputBar
@@ -80,6 +78,7 @@ import com.p2p.meshify.feature.chat.components.ScrollToFAB
 import com.p2p.meshify.feature.chat.components.SelectionModeTopBar
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+
 
 
 // ── Search UI constants ──────────────────────────────────────────────
@@ -139,14 +138,16 @@ fun ChatScreen(
         mutableStateOf(TextFieldValue(uiState.draftText))
     }
 
-    // P2-11: Sync draftText from ViewModel → Composable only when draftText changes externally
-    LaunchedEffect(uiState.draftText) {
-        val draft = uiState.draftText
-        if (textState.text.isEmpty() && draft.isNotEmpty()) {
-            textState = TextFieldValue(draft)
-        } else if (textState.text.isNotEmpty() && draft.isEmpty() && textState.text != draft) {
-            textState = TextFieldValue("")
+    // P2-11: امسح حقل الإدخال المحلي فقط بعد إرسال ناجح.
+    // ViewModel يضبط inputText إلى "" عند النجاح ويُبقيه كما هو عند الفشل،
+    // لذا نتبع هذه الإشارة باتجاه واحد — دون إعادة ملء الحقل من الحالة،
+    // وهو ما كان يتسبب بظهور المسودة المُرسلة مجدداً في حقل الإدخال.
+    var lastInputText by remember { mutableStateOf(uiState.inputText) }
+    LaunchedEffect(uiState.inputText) {
+        if (lastInputText.isNotEmpty() && uiState.inputText.isEmpty()) {
+            textState = TextFieldValue()
         }
+        lastInputText = uiState.inputText
     }
 
     // Delete confirmation state
@@ -178,10 +179,18 @@ fun ChatScreen(
     // Error snackbars
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val retryLabel = stringResource(R.string.notification_action_retry)
 
     LaunchedEffect(uiState.sendError) {
         uiState.sendError?.let { error ->
-            snackbarHostState.showSnackbar(error)
+            val result = snackbarHostState.showSnackbar(
+                message = error,
+                actionLabel = retryLabel,
+                duration = SnackbarDuration.Indefinite
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.sendMessage()
+            }
             viewModel.clearError()
         }
     }
@@ -193,22 +202,11 @@ fun ChatScreen(
         }
     }
 
-    // Media pickers
-    val imageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let {
-            val bytes = context.contentResolver.openInputStream(it)?.readBytes()
-            if (bytes != null) {
-                viewModel.stageAttachment(it, bytes, MessageType.IMAGE)
-            }
-        }
-    }
-
-    val videoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let {
-            val bytes = context.contentResolver.openInputStream(it)?.readBytes()
-            if (bytes != null) {
-                viewModel.stageAttachment(it, bytes, MessageType.VIDEO)
-            }
+    // Success snackbars (no retry action)
+    LaunchedEffect(uiState.successMessage) {
+        uiState.successMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearSuccessMessage()
         }
     }
 
@@ -218,7 +216,7 @@ fun ChatScreen(
             snapshotFlow { listState.layoutInfo.totalItemsCount }
                 .first { it >= uiState.messages.size }
 
-            if (hasScrolledToBottom) {
+            if (isAtBottom) {
                 val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
                 val lastIndex = uiState.messages.size - 1
                 if (lastVisibleIndex >= lastIndex - 3) {
@@ -231,14 +229,6 @@ fun ChatScreen(
         }
     }
 
-    // Track user scroll position
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex }
-            .collect { firstVisibleIndex ->
-                hasScrolledToBottom = (firstVisibleIndex >= uiState.messages.size - 5)
-            }
-    }
-
     // BackHandler: exit search mode first
     BackHandler(enabled = isSearching) {
         viewModel.stopSearch()
@@ -246,8 +236,8 @@ fun ChatScreen(
     }
 
     // BackHandler for unsaved message drafts
-    BackHandler(enabled = uiState.inputText.isNotBlank()) {
-        if (uiState.inputText.length > 50) {
+    BackHandler(enabled = textState.text.isNotBlank()) {
+        if (textState.text.length > 1024) {
             showBackConfirmationDialog = true
         } else {
             onBackClick()
@@ -258,6 +248,7 @@ fun ChatScreen(
         modifier = Modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.ime),
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             if (selectedMessages.isNotEmpty()) {
                 SelectionModeTopBar(
@@ -272,7 +263,6 @@ fun ChatScreen(
                     },
                     onCopyClick = {
                         viewModel.copySelectedMessagesToClipboard(clipboard)
-                        viewModel.clearSelection()
                     }
                 )
             } else if (isSearching) {
@@ -347,7 +337,6 @@ fun ChatScreen(
                     onSendClick = {
                         viewModel.onInputChanged(textState.text)
                         viewModel.sendMessage()
-                        textState = TextFieldValue()
                     },
                     stagedAttachments = uiState.stagedAttachments,
                     onRemoveAttachment = viewModel::removeStagedAttachment,
@@ -385,8 +374,7 @@ fun ChatScreen(
                 // Show search results instead of message list
                 SearchResultsList(
                     results = searchResults,
-                    query = searchQuery,
-                    listState = listState
+                    query = searchQuery
                 )
             } else {
                 // Message list
@@ -441,16 +429,10 @@ fun ChatScreen(
         }
     }
 
-    // Snackbar Host
-    SnackbarHost(
-        hostState = snackbarHostState,
-        modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Md)
-    )
-
     // Context menu for long-pressed message
     ChatContextMenu(
         message = menuMessage,
-        clipboardManager = clipboard,
+        onCopy = { viewModel.copyMessageToClipboard(clipboard, it) },
         onDismiss = { menuMessage = null },
         onReply = { msg -> viewModel.setReplyTo(msg) },
         onForward = { msgId -> viewModel.openForwardDialog(msgId) },
@@ -517,9 +499,9 @@ fun ChatScreen(
 @Composable
 private fun SearchResultsList(
     results: List<MessageEntity>,
-    query: String,
-    listState: androidx.compose.foundation.lazy.LazyListState
+    query: String
 ) {
+    val listState = rememberLazyListState()
     if (results.isEmpty() && query.isNotBlank()) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -569,7 +551,7 @@ private fun SearchResultItem(
             horizontalArrangement = if (isFromMe) Arrangement.End else Arrangement.Start
         ) {
             Text(
-                text = if (isFromMe) stringResource(R.string.chat_message_you, "") else "",
+                text = if (isFromMe) stringResource(R.string.chat_message_you) else "",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold

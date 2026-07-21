@@ -45,8 +45,6 @@ import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.model.PeerDevice
 import com.p2p.meshify.domain.model.SignalStrength
-import java.text.SimpleDateFormat
-import java.util.*
 
 /**
  * State holder for Forward Message Dialog.

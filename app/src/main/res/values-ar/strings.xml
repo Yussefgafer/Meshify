@@ -113,15 +113,6 @@
     <string name="font_file_selected">تم اختيار ملف الخط: %s</string>
     <string name="no_custom_font">لم يتم رفع خط مخصص</string>
 
-    <!-- أوصاف المحتوى للوصول -->
-    <string name="content_desc_back">رجوع</string>
-    <string name="content_desc_cancel">إلغاء</string>
-    <string name="content_desc_delete">حذف</string>
-    <string name="content_desc_send">إرسال</string>
-    <string name="content_desc_attach">إرفاق ملف</string>
-    <string name="content_desc_settings">الإعدادات</string>
-    <string name="content_desc_discovery">الاكتشاف</string>
-
     <!-- Forward Dialog -->
     <string name="forward_dialog_btn_forward_retry">إعادة محاولة</string>
 
@@ -145,60 +136,4 @@
     <string name="error_decryption_failed">[⚠️ فشل فك التشفير — خطأ أمني]</string>
     <string name="error_message_processing_failed">[⚠️ فشل معالجة الرسالة]</string>
 
-    <!-- BLE Transport — Settings Section -->
-    <string name="setting_bluetooth_status_peers_connected">%d متصل</string>
-    <string name="setting_bluetooth_status_bt_off">شغّل البلوتوث من إعدادات النظام</string>
-    <string name="setting_bluetooth_status_permission_denied">تم رفض الإذن</string>
-    <string name="setting_bluetooth_fix_bt">إصلاح</string>
-    <string name="setting_bluetooth_grant_permission">منح</string>
-    <string name="setting_bluetooth_not_supported">البلوتوث غير مدعوم على هذا الجهاز</string>
-
-    <!-- BLE Detail Bottom Sheet -->
-    <string name="ble_sheet_peers_connected">%d متصل</string>
-    <string name="ble_sheet_advertising">الإعلان: %s</string>
-    <string name="ble_sheet_scanning">المسح: %s</string>
-    <string name="ble_sheet_mtu">MTU: %d بايت</string>
-    <string name="ble_sheet_no_peers">لم يتم العثور على أجهزة قريبة عبر البلوتوث. قرب الأجهزة ضمن نطاق 10 أمتار وحاول مرة أخرى.</string>
-    <string name="ble_sheet_connected_peers">الأجهزة المتصلة</string>
-    <string name="ble_sheet_discovered_not_connected">مكتشفة (غير متصلة)</string>
-    <string name="ble_sheet_yes">نعم</string>
-    <string name="ble_sheet_no">لا</string>
-
-    <!-- Transport Mode Selector -->
-    <string name="ble_transport_mode_multipath_desc">الشبكة المحلية + البلوتوث في آن واحد</string>
-    <string name="ble_transport_mode_lan_desc">واي فاي / إيثرنت فقط</string>
-    <string name="ble_transport_mode_ble_desc">بلوتوث قصير المدى فقط</string>
-    <string name="ble_transport_mode_auto_desc">يختار النظام الأفضل المتاح</string>
-
-    <!-- Discovery — Transport Badges -->
-    <string name="discovery_signal_strong">إشارة ممتازة</string>
-    <string name="discovery_signal_medium">إشارة جيدة</string>
-    <string name="discovery_signal_weak">إشارة ضعيفة</string>
-    <string name="discovery_no_signal">لا توجد إشارة</string>
-
-    <!-- Chat — Transport Indicators -->
-    <string name="chat_transport_ble_failed">فشل البلوتوث، أُرسلت عبر الواي فاي</string>
-
-    <!-- Permission / Error Dialogs -->
-    <string name="ble_permission_rationale">يتيح لك البلوتوث مراسلة الأجهزة القريبة بدون واي فاي.</string>
-    <string name="ble_permission_title">أذونات البلوتوث</string>
-    <string name="ble_permission_scan">الأجهزة القريبة (مسح)</string>
-    <string name="ble_permission_connect">الاتصال بالأجهزة المقترنة</string>
-    <string name="ble_permission_advertise">اجعل جهازك قابلاً للاكتشاف</string>
-    <string name="ble_permission_grant_all">السماح بالبلوتوث</string>
-    <string name="ble_permission_denied_rationale">تم رفض إذن البلوتوث. سيكون اكتشاف الأجهزة القريبة محدوداً.</string>
-    <string name="ble_error_advertising_blocked">تم حظر الإعلان بواسطة تطبيق آخر</string>
-    <string name="ble_error_check_apps">فحص التطبيقات</string>
-    <string name="ble_error_no_devices_nearby">لا توجد أجهزة قريبة</string>
-    <string name="ble_error_save_battery">أوقف تشغيل البلوتوث لتوفير البطارية</string>
-    <string name="ble_error_turn_off">إيقاف التشغيل</string>
-
-    <!-- Dialogs -->
-    <string name="ble_forget_peer">نسيان هذا الجهاز</string>
-    <string name="ble_forget_confirm">إيقاف الاتصال التلقائي بـ %s؟</string>
-    <string name="ble_forget_confirm_yes">نسيان</string>
-
-    <!-- Content Descriptions for BLE -->
-    <string name="content_desc_bluetooth_icon">أيقونة البلوتوث</string>
-    <string name="content_desc_signal_strength">مؤشر قوة الإشارة</string>
 </resources>

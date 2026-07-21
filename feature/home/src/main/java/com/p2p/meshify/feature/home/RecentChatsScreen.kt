@@ -1,15 +1,19 @@
 package com.p2p.meshify.feature.home
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -17,10 +21,6 @@ import androidx.compose.runtime.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -28,28 +28,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.p2p.meshify.core.common.R
 import com.p2p.meshify.core.data.local.entity.ChatEntity
-import androidx.compose.material3.HorizontalDivider
-import com.p2p.meshify.core.ui.components.MeshifyListItem
-import com.p2p.meshify.core.ui.components.MeshifySectionHeader
-import com.p2p.meshify.core.ui.components.MeshifyAvatarWithOnline
-import com.p2p.meshify.core.ui.components.MeshifyPill
 import com.p2p.meshify.core.ui.components.PhysicsSwipeToDelete
 import com.p2p.meshify.core.ui.components.MagneticChatItem
 import com.p2p.meshify.core.ui.components.DeleteConfirmationDialog
 import com.p2p.meshify.core.ui.components.ItemPosition
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
 
-import java.text.SimpleDateFormat
-import java.util.*
 
-/** Search bar border alpha — consistent with ChatScreen search styling */
-private const val SEARCH_BAR_BORDER_ALPHA = 0.5f
+
 /** Empty state text alpha */
 private const val EMPTY_STATE_TEXT_ALPHA = 0.7f
-/** Maximum unread count to display before switching to 99+ format */
-private const val MAX_UNREAD_DISPLAY = 99
-/** Display string for high unread counts */
-private const val MAX_UNREAD_DISPLAY_STR = "99+"
 
 /**
  * Enhanced Home Screen with LastChat-style Swipe-to-Delete and Grouping.
@@ -63,8 +51,6 @@ fun RecentChatsScreen(
     onSettingsClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
-    val context = LocalContext.current
 
     var chatToDelete by remember { mutableStateOf<ChatEntity?>(null) }
 
@@ -82,6 +68,9 @@ fun RecentChatsScreen(
                     )
                 },
                 actions = {
+                    IconButton(onClick = { /* placeholder — user has plans */ }) {
+                        Icon(Icons.Default.Search, contentDescription = stringResource(R.string.content_desc_search))
+                    }
                     IconButton(onClick = onSettingsClick) {
                         Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.home_content_desc_settings))
                     }
@@ -115,106 +104,62 @@ fun RecentChatsScreen(
                 )
             }
             // Empty state
-            uiState.chats.isEmpty() && searchQuery.isBlank() -> {
+            uiState.chats.isEmpty() -> {
                 EmptyChatsState(padding)
             }
-            // Content state - show search bar + chat list
+            // Content state - show chat list
             else -> {
-                Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-                    SearchBarSection(
-                        query = searchQuery,
-                        onQueryChange = { viewModel.updateSearchQuery(it) }
-                    )
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentPadding = PaddingValues(
+                        start = MeshifyDesignSystem.Spacing.Md,
+                        end = MeshifyDesignSystem.Spacing.Md,
+                        bottom = MeshifyDesignSystem.Spacing.Xxl
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    item {
+                        ExpressiveChatSectionHeader(stringResource(R.string.chats_recent_header))
+                    }
 
-                    when {
-                        uiState.chats.isEmpty() && searchQuery.isNotBlank() -> {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.search_no_results),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                    itemsIndexed(uiState.chats, key = { _, chat -> chat.peerId }) { index, chat ->
+                        val position = when {
+                            uiState.chats.size == 1 -> ItemPosition.ONLY
+                            index == 0 -> ItemPosition.FIRST
+                            index == uiState.chats.size - 1 -> ItemPosition.LAST
+                            else -> ItemPosition.MIDDLE
                         }
-                        else -> {
-                            LazyColumn(
-                                modifier = Modifier.weight(1f),
-                                contentPadding = PaddingValues(
-                                    start = MeshifyDesignSystem.Spacing.Md,
-                                    end = MeshifyDesignSystem.Spacing.Md,
-                                    bottom = MeshifyDesignSystem.Spacing.Xxl
-                                ),
-                                verticalArrangement = Arrangement.spacedBy(2.dp) // Subtle separation like SectionBlock
+
+                        MagneticChatItem(
+                            index = index,
+                            swipingIndex = swipingIndex,
+                            swipeProgress = swipeProgress
+                        ) {
+                            PhysicsSwipeToDelete(
+                                onDelete = { chatToDelete = chat },
+                                position = position,
+                                groupCornerRadius = 24.dp,
+                                itemIndex = index,
+                                onSwipeProgress = { idx, progress ->
+                                    swipingIndex = idx
+                                    swipeProgress = progress
+                                }
                             ) {
-                                item {
-                                    MeshifySectionHeader(stringResource(R.string.chats_recent_header))
-                                }
-
-                                itemsIndexed(uiState.chats, key = { _, chat -> chat.peerId }) { index, chat ->
-                                    val position = when {
-                                        uiState.chats.size == 1 -> ItemPosition.ONLY
-                                        index == 0 -> ItemPosition.FIRST
-                                        index == uiState.chats.size - 1 -> ItemPosition.LAST
-                                        else -> ItemPosition.MIDDLE
+                                val isOnline = uiState.onlinePeers.contains(chat.peerId)
+                                ExpressiveChatItem(
+                                    peerName = chat.peerName,
+                                    lastMessage = chat.lastMessage,
+                                    timestamp = chat.lastTimestamp,
+                                    unreadCount = chat.unreadCount,
+                                    isOnline = isOnline,
+                                    avatarHash = null,
+                                    onClick = {
+                                        viewModel.markChatAsRead(chat.peerId)
+                                        onChatClick(chat)
                                     }
-
-                                    MagneticChatItem(
-                                        index = index,
-                                        swipingIndex = swipingIndex,
-                                        swipeProgress = swipeProgress
-                                    ) {
-                                        PhysicsSwipeToDelete(
-                                            onDelete = { chatToDelete = chat },
-                                            position = position,
-                                            groupCornerRadius = 24.dp,
-                                            itemIndex = index,
-                                            onSwipeProgress = { idx, progress ->
-                                                swipingIndex = idx
-                                                swipeProgress = progress
-                                            }
-                                        ) {
-                                            val isOnline = uiState.onlinePeers.contains(chat.peerId)
-                                            MeshifyListItem(
-                                                headline = chat.peerName,
-                                                supporting = chat.lastMessage ?: stringResource(R.string.last_msg_none),
-                                                leadingContent = {
-                                                    MeshifyAvatarWithOnline(
-                                                        initials = (chat.peerName.takeIf { it.isNotEmpty() } ?: "?"),
-                                                        isOnline = isOnline,
-                                                        size = 56.dp
-                                                    )
-                                                },
-                                                trailingContent = {
-                                                    Column(horizontalAlignment = Alignment.End) {
-                                                        Text(
-                                                            text = formatRecentTime(chat.lastTimestamp),
-                                                            style = MaterialTheme.typography.labelSmall,
-                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                        )
-                                                        if (chat.unreadCount > 0) {
-                                                            Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xxs))
-                                                            val displayCount = if (chat.unreadCount >= MAX_UNREAD_DISPLAY) "$MAX_UNREAD_DISPLAY_STR" else chat.unreadCount.toString()
-                                                            UnreadBadge(displayCount)
-                                                        }
-                                                        if (isOnline) {
-                                                            Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xxs))
-                                                            MeshifyPill(stringResource(R.string.chat_status_online), MaterialTheme.colorScheme.primaryContainer)
-                                                        }
-                                                    }
-                                                },
-                                                onClick = {
-                                                    viewModel.markChatAsRead(chat.peerId)
-                                                    onChatClick(chat)
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
+                                )
                             }
                         }
                     }
@@ -233,41 +178,6 @@ fun RecentChatsScreen(
                 onDismiss = { chatToDelete = null }
             )
         }
-    }
-}
-
-@Composable
-fun ChatListItem(chat: ChatEntity, isOnline: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        MeshifyAvatarWithOnline(
-            initials = (chat.peerName.takeIf { it.isNotEmpty() } ?: "?"),
-            isOnline = isOnline,
-            size = 52.dp
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = chat.peerName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                val isImage = chat.lastMessage == stringResource(R.string.last_msg_image)
-                if (isImage) {
-                    Icon(Icons.Default.Image, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.width(4.dp))
-                }
-                Text(
-                    text = chat.lastMessage ?: stringResource(R.string.last_msg_none),
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-        Text(text = formatRecentTime(chat.lastTimestamp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -362,59 +272,4 @@ private fun ErrorState(
     }
 }
 
-/**
- * Search bar composable for the home screen.
- * Uses Material3 TextField for a simple, standard search input.
- */
-@Composable
-private fun SearchBarSection(
-    query: String,
-    onQueryChange: (String) -> Unit
-) {
-    OutlinedTextField(
-        value = query,
-        onValueChange = onQueryChange,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = MeshifyDesignSystem.Spacing.Md, vertical = MeshifyDesignSystem.Spacing.Sm),
-        placeholder = { Text(stringResource(R.string.search_chats_hint)) },
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = stringResource(R.string.content_desc_search),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        },
-        singleLine = true,
-        shape = MaterialTheme.shapes.large,
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = MaterialTheme.colorScheme.primary,
-            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = SEARCH_BAR_BORDER_ALPHA)
-        )
-    )
-}
 
-/**
- * Unread badge composable showing the count of unread messages.
- * Uses a pill-shaped Surface with high-contrast text.
- */
-@Composable
-private fun UnreadBadge(displayCount: String) {
-    Surface(
-        shape = MeshifyDesignSystem.Shapes.Pill,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.height(20.dp)
-    ) {
-        Text(
-            text = displayCount,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onPrimary,
-            fontWeight = FontWeight.Bold
-        )
-    }
-}
-
-fun formatRecentTime(timestamp: Long): String {
-    return com.p2p.meshify.core.common.util.formatMessageTime(timestamp)
-}
