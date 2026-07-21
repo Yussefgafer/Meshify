@@ -36,20 +36,6 @@ import com.p2p.meshify.core.ui.hooks.HapticPattern
 import com.p2p.meshify.core.ui.hooks.LocalPremiumHaptics
 
 /**
- * Subsection header — labelMedium text in primary color, no icon.
- * Use to label groups within a section if needed.
- */
-@Composable
-fun SettingsSubsectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 4.dp)
-    )
-}
-
-/**
  * Rounded container with 2.dp spacing between items — matches PixelPlayer's
  * SettingsSubsection pattern. Items inside render with 10.dp corners + 16.dp padding
  * via SettingsItem / SwitchSettingItem.

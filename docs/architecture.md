@@ -8,7 +8,7 @@
 
 ```
 :app
-  └─> :feature:*                    (home, chat, discovery, settings, onboarding, help, real-device-testing)
+  └─> :feature:*                    (home, chat, discovery, settings, onboarding, real-device-testing)
         └─> :core:domain           (pure Kotlin/JVM — صفر اعتماديات Android)
         └─> :core:common
         └─> :core:data
@@ -35,7 +35,6 @@
 | `:feature:discovery` | `com.p2p.meshify.feature.discovery` | Android Library |
 | `:feature:settings` | `com.p2p.meshify.feature.settings` | Android Library |
 | `:feature:onboarding` | `com.p2p.meshify.feature.onboarding` | Android Library |
-| `:feature:help` | `com.p2p.meshify.feature.help` | Android Library (كود ميت — غير موصول) |
 | `:feature:real-device-testing` | `com.p2p.meshify.feature.realdevicetesting` | Android Library |
 
 ## قرارات بنيوية بارزة
@@ -69,8 +68,7 @@
 | `:feature:discovery` | ✓ | ✓ | ✓ | ✓ | ✓ | — |
 | `:feature:settings` | ✓ | ✓ | ✓ | — | ✓ | — |
 | `:feature:onboarding` | ✓ | ✓ | — | — | ✓ | — |
-| `:feature:help` | — | ✓ | — | — | ✓ | — |
 | `:feature:real-device-testing` | ✓ | ✓ | ✓ | ✓ | ✓ | — |
-| `:app` | ✓ | ✓ | ✓ | ✓ | ✓ | كل الـ features ما عدا `help` |
+| `:app` | ✓ | ✓ | ✓ | ✓ | ✓ | كل الـ features |
 
-**ملاحظة:** `:feature:help` مُعرّفة كوحدة لكنها **غير موصولة** بأي مسار تنقل (لا `Screen.Help` ولا `Screen.About`، ولا استدعاء من `MainActivity` أو `MeshifyNavHost`) — كود ميت حالياً.
+<!-- no dead feature modules -->

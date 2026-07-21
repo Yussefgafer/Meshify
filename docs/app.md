@@ -13,7 +13,7 @@
 - **opt-ins:** `ExperimentalMaterial3Api`، `ExperimentalMaterial3ExpressiveApi`.
 - **Release:** minify + shrink resources مفعّلة.
 
-**الاعتماديات:** كل `:core:*` (common, domain, data, network, ui) + كل `:feature:*` **ما عدا `:feature:help`**.
+**الاعتماديات:** كل `:core:*` (common, domain, data, network, ui) + كل `:feature:*`.
 
 ## الملفات (7)
 

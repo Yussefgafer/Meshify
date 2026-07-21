@@ -27,7 +27,6 @@
 - [feature-discovery.md](feature-discovery.md) — اكتشاف الأجهزة النظيرة (LAN/BLE).
 - [feature-settings/](feature-settings/) — الإعدادات + شاشة المطورين المخفية.
 - [feature-onboarding.md](feature-onboarding.md) — شاشة الترحيب الثلاثية + سير الأذونات.
-- [feature-help.md](feature-help.md) — ⚠️ كود ميت غير موصول بأي مسار تنقل.
 - [feature-real-device-testing.md](feature-real-device-testing.md) — اختبار الأجهزة الحقيقية (آلة حالات 8 مراحل، LAN/BLE).
 
 ### التطبيق

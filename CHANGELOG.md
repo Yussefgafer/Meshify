@@ -1,4 +1,8 @@
 V1.1.2
+- [Refactor] Remove dead composables from core:ui: MeshifyCard, MeshifyListItem, MeshifySectionHeader, MeshifyPill, QrCodeDisplay (all unused)
+- [Refactor] Remove dead SettingsSubsectionHeader from feature/settings (unused)
+- [Refactor] Remove dead PermissionResultCard from feature/onboarding (unused)
+- [Refactor] Delete entire feature:help module (HelpScreen + AboutScreen) — dead code with no navigation route
 - [Style] Replace MD3 theme system with PixelPlayer-inspired MD3E design language: vibrant purple/pink/orange palette, GoogleSansRounded variable font (gflex_variable.ttf) across all typography, 8/16/24dp rounded shapes, status bar styling via MeshifyStatusBarStyle, and merged PixelPlayer's theme logic while preserving MeshifyTheme's public API
 - [Refactor] Split monolithic SettingsScreen.kt (~807 lines) into single-responsibility composables: SettingsSections.kt (Identity/Appearance/Privacy/Network/AppSettings/About sections) plus one file per dialog/sheet (BleStatusBottomSheet, SettingsNameDialog, SettingsThemeSheet, SettingsLanguageDialog, SettingsFontSizeDialog, SettingsBackupDialog, SettingsCreditsDialog)
 - [Refactor] Remove dead settings from SettingsUiState + SettingsViewModel (motionPreset, motionScale, fontFamilyPreset, customFontUri, bubbleStyle, visualDensity, shapeStyle) — defined but never surfaced in the UI nor applied to any theme/behavior
