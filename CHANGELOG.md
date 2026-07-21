@@ -1,9 +1,6 @@
-V1.1.3
-- [Refactor] Update MeshifySettingsGroup/SettingsItem typography tokens: labelLarge→labelMedium, ExtraBold→Bold, surfaceContainerLow→surfaceContainer, bodySmall→bodyMedium
-- [Chore] Bump version to 1.1.3 (versionCode 13)
-
-
 V1.1.2
+- [Refactor] Update MeshifySettingsGroup/SettingsItem typography tokens: labelLarge→labelMedium, ExtraBold→Bold, surfaceContainerLow→surfaceContainer, bodySmall→bodyMedium
+- [Chore] Bump version to 1.1.2 (versionCode 12)
 - [Refactor] Remove dead composables from core:ui: MeshifyCard, MeshifyListItem, MeshifySectionHeader, MeshifyPill, QrCodeDisplay (all unused)
 - [Refactor] Remove dead SettingsSubsectionHeader from feature/settings (unused)
 - [Refactor] Remove dead PermissionResultCard from feature/onboarding (unused)
