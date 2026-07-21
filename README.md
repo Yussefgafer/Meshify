@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/Min%20SDK-26%20(Android%208.0)-brightgreen.svg" alt="Min SDK">
   <img src="https://img.shields.io/badge/Target%20SDK-36%20(Android%2016)-blue.svg" alt="Target SDK">
   <img src="https://img.shields.io/github/repo-size/Yussefgafer/Meshify?color=orange" alt="Repo Size">
-  <img src="https://img.shields.io/badge/Version-1.1.3-purple.svg" alt="Version">
+  <img src="https://img.shields.io/badge/Version-1.1.2-purple.svg" alt="Version">
   <img src="https://img.shields.io/badge/Status-Active-brightgreen.svg" alt="Status">
 </p>
 
