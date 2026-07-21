@@ -4,7 +4,7 @@
 
 **البناء (`build.gradle.kts`):** `android.application` + `kotlin.compose` + `ksp` + `androidx.room` + `kotlin.serialization` + `hilt`.
 - **compileSdk = 37، targetSdk = 36**، **minSdk = 26**، `applicationId = "com.p2p.meshify"`.
-- **versionCode = 12**، **versionName = `1.1.2`**.
+- **versionCode = 13**، **versionName = `1.1.3`**.
 - **abiFilters = `arm64-v8a` فقط**.
 - **resConfigs = `["en", "ar"]`**.
 - **التوقيع:** Release عبر `meshify.jks` + متغيرات البيئة `KEYSTORE_PASSWORD`/`KEY_PASSWORD`.
