@@ -36,8 +36,8 @@ fun MeshifySettingsGroup(
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.ExtraBold,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(
                 start = MeshifyDesignSystem.Spacing.Md,
@@ -87,7 +87,7 @@ fun MeshifySettingsItem(
             }
         },
         enabled = onClick != null,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        color = MaterialTheme.colorScheme.surfaceContainer,
         interactionSource = interactionSource,
         modifier = Modifier
             .fillMaxWidth()
@@ -127,7 +127,7 @@ fun MeshifySettingsItem(
                 if (subtitle != null) {
                     Text(
                         text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
