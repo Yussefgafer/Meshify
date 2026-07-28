@@ -28,6 +28,8 @@ skills/
 agents/
 agent
 .gemini/
+Material_3_expressive/
+docs/
 
 # ===== Generated / temp / logs =====
 *.salive

@@ -7,14 +7,24 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.BluetoothSearching
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.ColorLens
+import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material.icons.filled.Vibration
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -29,9 +39,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.p2p.meshify.core.common.R
 import com.p2p.meshify.core.ui.components.SeedColorPickerGrid
+import com.p2p.meshify.core.ui.designsystem.components.DxSettingsDivider
+import com.p2p.meshify.core.ui.designsystem.components.DxSettingsItem
+import com.p2p.meshify.core.ui.designsystem.components.DxSettingsSection
+import com.p2p.meshify.core.ui.designsystem.components.DxSwitchSettingItem
+import com.p2p.meshify.core.ui.designsystem.foundation.DxShape
+import com.p2p.meshify.core.ui.designsystem.foundation.DxSpacing
 import com.p2p.meshify.core.ui.hooks.HapticPattern
 import com.p2p.meshify.core.ui.hooks.PremiumHaptics
-import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
 import com.p2p.meshify.domain.repository.ThemeMode
 
 @Composable
@@ -45,59 +60,28 @@ fun IdentitySection(
     val deviceTitle = stringResource(R.string.setting_device_id)
     val deviceSuffix = stringResource(R.string.settings_label_device_id_suffix)
 
-    SettingsSection(
-        title = stringResource(R.string.settings_section_identity),
-        icon = {
-            Icon(
-                Icons.Outlined.Person,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
-    ) {
-        SettingsItem(
+    DxSettingsSection(title = stringResource(R.string.settings_section_identity)) {
+        DxSettingsItem(
+            icon = Icons.Filled.Person,
             title = stringResource(R.string.setting_display_name),
             subtitle = state.displayName,
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.Person,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            trailingIcon = {
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            onClick = onEditName
+            onClick = onEditName,
+            showChevron = true
         )
 
-        SettingsItem(
+        DxSettingsDivider()
+
+        DxSettingsItem(
+            icon = Icons.Filled.Fingerprint,
             title = deviceTitle,
             subtitle = state.deviceId.take(8).uppercase() + deviceSuffix,
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.Fingerprint,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            trailingIcon = {
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
             onClick = {
                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 val clip = ClipData.newPlainText(deviceTitle, state.deviceId)
                 clipboard.setPrimaryClip(clip)
                 haptics.perform(HapticPattern.Success)
-            }
+            },
+            showChevron = true
         )
     }
 }
@@ -111,65 +95,42 @@ fun AppearanceSection(
 ) {
     val seedColor = remember(state.seedColor) { Color(state.seedColor) }
 
-    SettingsSection(
-        title = stringResource(R.string.settings_section_appearance),
-        icon = {
-            Icon(
-                Icons.Outlined.Palette,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
-    ) {
-        SettingsItem(
+    DxSettingsSection(title = stringResource(R.string.settings_section_appearance)) {
+        DxSettingsItem(
+            icon = Icons.Filled.Palette,
             title = stringResource(R.string.settings_theme_mode),
             subtitle = when (state.themeMode) {
                 ThemeMode.LIGHT -> stringResource(R.string.settings_theme_light)
                 ThemeMode.DARK -> stringResource(R.string.settings_theme_dark)
                 ThemeMode.SYSTEM -> stringResource(R.string.settings_theme_system)
             },
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.Palette,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            trailingIcon = {
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            onClick = onOpenThemeSheet
+            onClick = onOpenThemeSheet,
+            showChevron = true
         )
 
-        SwitchSettingItem(
+        DxSettingsDivider()
+
+        DxSwitchSettingItem(
+            icon = Icons.Filled.ColorLens,
             title = stringResource(R.string.settings_dynamic_colors),
             subtitle = stringResource(R.string.settings_dynamic_colors_desc),
             checked = state.dynamicColorEnabled,
-            onCheckedChange = { viewModel.setDynamicColor(it) },
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.ColorLens,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            onCheckedChange = { viewModel.setDynamicColor(it) }
         )
 
         if (!state.dynamicColorEnabled) {
             Surface(
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.fillMaxWidth()
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                shape = DxShape.Small,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = DxSpacing.Lg, vertical = DxSpacing.Sm)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(MeshifyDesignSystem.Spacing.Md),
-                    verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Sm)
+                        .padding(DxSpacing.Lg),
+                    verticalArrangement = Arrangement.spacedBy(DxSpacing.Sm)
                 ) {
                     Text(
                         text = stringResource(R.string.settings_label_accent_color),
@@ -195,28 +156,13 @@ fun PrivacySection(
     viewModel: SettingsViewModel,
     haptics: PremiumHaptics
 ) {
-    SettingsSection(
-        title = stringResource(R.string.settings_section_privacy),
-        icon = {
-            Icon(
-                Icons.Outlined.Visibility,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
-    ) {
-        SwitchSettingItem(
+    DxSettingsSection(title = stringResource(R.string.settings_section_privacy)) {
+        DxSwitchSettingItem(
+            icon = Icons.Filled.Visibility,
             title = stringResource(R.string.settings_visibility),
             subtitle = stringResource(R.string.settings_visibility_desc),
             checked = state.isNetworkVisible,
-            onCheckedChange = { viewModel.setNetworkVisibility(it) },
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.Visibility,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            onCheckedChange = { viewModel.setNetworkVisibility(it) }
         )
     }
 }
@@ -228,48 +174,24 @@ fun NetworkSection(
     haptics: PremiumHaptics,
     onOpenBleSheet: () -> Unit
 ) {
-    SettingsSection(
-        title = stringResource(R.string.settings_section_network),
-        icon = {
-            Icon(
-                Icons.Outlined.Bluetooth,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
-    ) {
-        SwitchSettingItem(
+    DxSettingsSection(title = stringResource(R.string.settings_section_network)) {
+        DxSwitchSettingItem(
+            icon = Icons.Filled.Bluetooth,
             title = stringResource(R.string.setting_bluetooth),
             subtitle = stringResource(R.string.setting_bluetooth_desc),
             checked = state.bleEnabled,
-            onCheckedChange = { viewModel.setBleEnabled(it) },
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.Bluetooth,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            onCheckedChange = { viewModel.setBleEnabled(it) }
         )
 
-        SettingsItem(
+        DxSettingsDivider()
+
+        DxSettingsItem(
+            icon = Icons.AutoMirrored.Filled.BluetoothSearching,
             title = stringResource(R.string.setting_bluetooth_status_title),
-            subtitle = if (state.bleEnabled) stringResource(R.string.setting_bluetooth_status_active) else stringResource(R.string.setting_bluetooth_status_inactive),
-            leadingIcon = {
-                Icon(
-                    Icons.AutoMirrored.Filled.BluetoothSearching,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            trailingIcon = {
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            onClick = onOpenBleSheet
+            subtitle = if (state.bleEnabled) stringResource(R.string.setting_bluetooth_status_active)
+                else stringResource(R.string.setting_bluetooth_status_inactive),
+            onClick = onOpenBleSheet,
+            showChevron = true
         )
     }
 }
@@ -284,152 +206,87 @@ fun AppSettingsSection(
     onClearCache: () -> Unit,
     onOpenBackup: () -> Unit
 ) {
-    SettingsSection(
-        title = stringResource(R.string.settings_group_app),
-        icon = {
-            Icon(
-                Icons.Outlined.Settings,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
-    ) {
-        SettingsItem(
+    DxSettingsSection(title = stringResource(R.string.settings_group_app)) {
+        DxSettingsItem(
+            icon = Icons.Filled.Language,
             title = stringResource(R.string.setting_language),
-            subtitle = if (state.appLanguage == "ar") stringResource(R.string.settings_language_arabic) else stringResource(R.string.settings_language_english),
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.Language,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            trailingIcon = {
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            onClick = onOpenLanguage
+            subtitle = if (state.appLanguage == "ar") stringResource(R.string.settings_language_arabic)
+                else stringResource(R.string.settings_language_english),
+            onClick = onOpenLanguage,
+            showChevron = true
         )
 
-        SettingsItem(
+        DxSettingsDivider()
+
+        DxSettingsItem(
+            icon = Icons.Filled.TextFields,
             title = stringResource(R.string.setting_font_size),
             subtitle = "${(state.fontSizeScale * 100).toInt()}%",
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.TextFields,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            trailingIcon = {
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            onClick = onOpenFontSize
+            onClick = onOpenFontSize,
+            showChevron = true
         )
 
-        SwitchSettingItem(
+        DxSettingsDivider()
+
+        DxSwitchSettingItem(
+            icon = Icons.Filled.Notifications,
             title = stringResource(R.string.setting_notifications),
-            subtitle = if (state.notificationsEnabled) stringResource(R.string.settings_status_enabled) else stringResource(R.string.settings_status_disabled),
+            subtitle = if (state.notificationsEnabled) stringResource(R.string.settings_status_enabled)
+                else stringResource(R.string.settings_status_disabled),
             checked = state.notificationsEnabled,
-            onCheckedChange = { viewModel.setNotificationsEnabled(it) },
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.Notifications,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            onCheckedChange = { viewModel.setNotificationsEnabled(it) }
         )
 
-        SwitchSettingItem(
+        DxSettingsDivider()
+
+        DxSwitchSettingItem(
+            icon = Icons.Filled.Vibration,
             title = stringResource(R.string.setting_haptic_feedback),
             subtitle = stringResource(R.string.setting_haptic_feedback_desc),
             checked = state.hapticFeedbackEnabled,
-            onCheckedChange = { viewModel.setHapticFeedback(it) },
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.Vibration,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            onCheckedChange = { viewModel.setHapticFeedback(it) }
         )
 
-        SwitchSettingItem(
+        DxSettingsDivider()
+
+        DxSwitchSettingItem(
+            icon = Icons.AutoMirrored.Filled.VolumeUp,
             title = stringResource(R.string.setting_notification_sound),
             subtitle = stringResource(R.string.setting_notification_sound_desc),
             checked = state.notificationSound,
             enabled = state.notificationsEnabled,
-            onCheckedChange = { viewModel.setNotificationSound(it) },
-            leadingIcon = {
-                Icon(
-                    Icons.AutoMirrored.Filled.VolumeUp,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            onCheckedChange = { viewModel.setNotificationSound(it) }
         )
 
-        SwitchSettingItem(
+        DxSettingsDivider()
+
+        DxSwitchSettingItem(
+            icon = Icons.Filled.Vibration,
             title = stringResource(R.string.setting_vibration),
             subtitle = stringResource(R.string.setting_vibration_desc),
             checked = state.notificationVibrate,
             enabled = state.notificationsEnabled,
-            onCheckedChange = { viewModel.setNotificationVibrate(it) },
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.Vibration,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            onCheckedChange = { viewModel.setNotificationVibrate(it) }
         )
 
-        SettingsItem(
+        DxSettingsDivider()
+
+        DxSettingsItem(
+            icon = Icons.Filled.DeleteSweep,
             title = stringResource(R.string.setting_clear_cache),
             subtitle = stringResource(R.string.setting_clear_cache_desc),
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.DeleteSweep,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            trailingIcon = {
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            onClick = onClearCache
+            onClick = onClearCache,
+            showChevron = true
         )
 
-        SettingsItem(
+        DxSettingsDivider()
+
+        DxSettingsItem(
+            icon = Icons.Filled.CloudUpload,
             title = stringResource(R.string.settings_backup_title),
             subtitle = stringResource(R.string.settings_backup_desc),
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.CloudUpload,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            trailingIcon = {
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            onClick = onOpenBackup
+            onClick = onOpenBackup,
+            showChevron = true
         )
     }
 }
@@ -445,33 +302,11 @@ fun AboutSection(
     val versionTapCount = remember { mutableIntStateOf(0) }
     val lastTapTime = remember { mutableLongStateOf(0L) }
 
-    SettingsSection(
-        title = stringResource(R.string.settings_section_info),
-        icon = {
-            Icon(
-                Icons.Outlined.Info,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
-    ) {
-        SettingsItem(
+    DxSettingsSection(title = stringResource(R.string.settings_section_info)) {
+        DxSettingsItem(
+            icon = Icons.Filled.Info,
             title = stringResource(R.string.setting_app_version),
             subtitle = appVersion,
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.Info,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            trailingIcon = {
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
             onClick = {
                 val now = System.currentTimeMillis()
                 if (now - lastTapTime.longValue > 2000) {
@@ -487,47 +322,28 @@ fun AboutSection(
                     haptics.perform(HapticPattern.Success)
                     onDeveloperModeClick()
                 }
-            }
+            },
+            showChevron = true
         )
 
-        SettingsItem(
+        DxSettingsDivider()
+
+        DxSettingsItem(
+            icon = Icons.Filled.Code,
             title = stringResource(R.string.settings_label_github_repo),
             subtitle = stringResource(R.string.settings_label_github_desc),
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.Code,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            trailingIcon = {
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            onClick = onOpenGithub
+            onClick = onOpenGithub,
+            showChevron = true
         )
 
-        SettingsItem(
+        DxSettingsDivider()
+
+        DxSettingsItem(
+            icon = Icons.Filled.Favorite,
             title = stringResource(R.string.settings_label_credits),
             subtitle = stringResource(R.string.settings_label_credits_desc),
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.Favorite,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            trailingIcon = {
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            onClick = onOpenCredits
+            onClick = onOpenCredits,
+            showChevron = true
         )
     }
 }

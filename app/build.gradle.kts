@@ -87,6 +87,11 @@ android {
         checkReleaseBuilds = false
         disable += "MissingTranslation"
     }
+
+    packaging {
+        resources.excludes.add("META-INF/*.txt")
+        resources.excludes.add("META-INF/NOTICE.md")
+    }
 }
 
 room {

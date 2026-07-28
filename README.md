@@ -17,9 +17,9 @@
 
 ---
 
-## 🤖 Slop Code
+## 🤖 Full Slop Code
 
-> This codebase was designed and implemented using **LLM (Qwen Code)**.
+> This codebase was written and implemented using **LLM**.
 
 <p align="center">
   <img src="https://img.shields.io/badge/AI--ASSISTED-Qwen-7F52FF.svg?logo=openai&logoColor=white" alt="AI Assisted">
@@ -31,13 +31,13 @@
   <strong>Built with ♥ for offline-first, decentralized communication.</strong>
 </p>
 
-## 📖 Overview
+## Overview
 
 Meshify is a **decentralized peer-to-peer messaging application** that enables real-time communication between Android devices on the same local network — **without requiring internet connectivity or central servers**.
 
 Built with **Clean Architecture**, **Jetpack Compose**, and **Material 3**, Meshify delivers a modern, performant, and privacy-respecting messaging experience.
 
-### ✨ Core Philosophy
+### Core Philosophy
 
 - **Zero Infrastructure**: No servers, no cloud, no accounts. Just direct device-to-device communication.
 - **Offline-First**: Works entirely on local networks (WiFi / LAN). Internet is optional.
@@ -46,30 +46,26 @@ Built with **Clean Architecture**, **Jetpack Compose**, and **Material 3**, Mesh
 
 ---
 
-## 🚀 Key Features
+## Key Features
 
-### 💬 Rich Messaging
+### Rich Messaging
 - **1-on-1 messaging** with threaded replies
 - **File attachments** — images, videos, documents
 - **Message reactions**, delete, and forward
 - **Message status tracking** — Queued, Sending, Sent, Delivered, Read, Failed
 - **Offline storage** with Room database and pagination
 
-### 🔌 Peer Discovery & Transport
+### Peer Discovery & Transport
 - **mDNS/NSD** automatic peer discovery on local networks
 - **BLE transport (Beta)** (optional) — proximity-based messaging via Bluetooth Low Energy
 - **Real-time presence** — instant online/offline status indicators
 - **TCP-based transport** with connection pooling and keep-alive monitoring
 - **UUID-based peer identification** (no phone numbers, no accounts)
 
-### 🎨 Modern UI/UX
+### Modern UI/UX
 - **Material 3 Expressive (trying)** design system with dynamic colors
 - **Light / Dark / System** theme support + custom seed color picker
 - **Full Arabic & English localization** with RTL layout support
-
-## 📖 Documentation
-
-Full, source-accurate documentation lives in [`docs/`](docs/README.md) — covering the architecture, every `core:*` module, each `feature:*` module, and the `:app` aggregator.
 
 ---
 
@@ -77,7 +73,7 @@ Full, source-accurate documentation lives in [`docs/`](docs/README.md) — cover
 
 1. Connect two or more Android devices to the **same WiFi network**
 2. Launch Meshify on each device
-3. Grant required permissions on first launch (onboarding flow)
+3. Grant required permissions on first launch
 4. Peers appear automatically via mDNS discovery
 5. Tap a peer to start messaging
 

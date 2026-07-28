@@ -1,3 +1,16 @@
+V1.1.3
+- [Chore] Remove docs/ from git tracking (gitignored, deleted from repository)
+- [Feat] Create MD3E Expressive Design System at `core:ui/designsystem/`: foundation tokens (DxShape Koda-scale 8/12/20/28/36, DxSpacing, DxElevation, DxExpressiveShapes) + DxTheme (MaterialExpressiveTheme + MotionScheme.expressive()) + components (DxSettingsSection, DxSettingsItem, DxSwitchSettingItem, DxSettingsDivider, DxDialog with 32dp corners and MaterialShapes badges)
+- [Feat] DxSettings components follow Koda's exact MD3E patterns: 48dp icon boxes (14dp rounded, alpha tinted bg), 18dp row clip, press-scale spring animation (0.97), uppercase 12sp/1.2sp section headers, Dividers between rows, tonalElevation cards
+- [Feat] Haptic feedback (HapticPattern.Pop/Tick) restored on DxSettingsItem and DxSwitchSettingItem
+- [Feat] Animated Switch thumb (AnimatedContent Check/Close icons) on DxSwitchSettingItem
+- [Chore] Bump material3 to 1.5.0-alpha24 (enables MaterialShapes for DxExpressiveShapes)
+- [Refactor] Migrate `feature:settings/SettingsSections.kt` from old SettingsComponents to new Dx* components
+- [Refactor] `feature:real-device-testing` → `debugImplementation` (excluded from release APK)
+- [Chore] Guard DeveloperScreen and RealDeviceTesting nav behind BuildConfig.DEBUG (not accessible in release builds)
+- [Chore] Enable `buildConfig = true` in app/build.gradle.kts
+- [Docs] Update QWEN.md, CHANGELOG.md, docs/core-ui.md with design system info
+
 V1.1.2
 - [Refactor] Update MeshifySettingsGroup/SettingsItem typography tokens: labelLarge→labelMedium, ExtraBold→Bold, surfaceContainerLow→surfaceContainer, bodySmall→bodyMedium
 - [Chore] Bump version to 1.1.2 (versionCode 12)

@@ -42,8 +42,7 @@ import com.p2p.meshify.feature.settings.SettingsScreen
 import com.p2p.meshify.feature.settings.SettingsViewModel
 import com.p2p.meshify.feature.settings.DeveloperScreen
 import com.p2p.meshify.feature.settings.DeveloperViewModel
-import com.p2p.meshify.feature.realdevicetesting.ui.RealDeviceTestingViewModel
-import com.p2p.meshify.feature.realdevicetesting.ui.RealDeviceTestScreen
+import com.p2p.meshify.BuildConfig
 import com.p2p.meshify.feature.onboarding.WelcomeScreen
 import com.p2p.meshify.feature.onboarding.PermissionStatus
 import com.p2p.meshify.feature.onboarding.PermissionRequestResult
@@ -287,47 +286,56 @@ class MainActivity : ComponentActivity() {
                                         SettingsScreen(
                                             viewModel = settingsViewModel,
                                             onBackClick = { navController.popBackStack() },
-                                            onDeveloperModeClick = { navController.navigate(Screen.Developer) }
+                                            onDeveloperModeClick = {
+                                                if (BuildConfig.DEBUG) navController.navigate(Screen.Developer)
+                                            }
                                         )
                                     },
                                     onDeveloperRoute = {
-                                        val developerViewModel: DeveloperViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-                                            factory = object : androidx.lifecycle.ViewModelProvider.Factory {
-                                                override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                                                    @Suppress("UNCHECKED_CAST")
-                                                    return DeveloperViewModel(
-                                                        chatDao = database.chatDao(),
-                                                        messageDao = database.messageDao()
-                                                    ) as T
+                                        if (BuildConfig.DEBUG) {
+                                            val developerViewModel: DeveloperViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                                                factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+                                                    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                                                        @Suppress("UNCHECKED_CAST")
+                                                        return DeveloperViewModel(
+                                                            chatDao = database.chatDao(),
+                                                            messageDao = database.messageDao()
+                                                        ) as T
+                                                    }
                                                 }
-                                            }
-                                        )
-                                        DeveloperScreen(
-                                            viewModel = developerViewModel,
-                                            onBackClick = { navController.popBackStack() },
-                                            onRealDeviceTestingClick = { navController.navigate(Screen.RealDeviceTesting) },
-                                            onResetOnboardingClick = {
-                                                lifecycleScope.launch {
-                                                    app.settingsRepository.resetOnboardingCompleted()
+                                            )
+                                            DeveloperScreen(
+                                                viewModel = developerViewModel,
+                                                onBackClick = { navController.popBackStack() },
+                                                onRealDeviceTestingClick = {
+                                                    if (BuildConfig.DEBUG) navController.navigate(Screen.RealDeviceTesting)
+                                                },
+                                                onResetOnboardingClick = {
+                                                    lifecycleScope.launch {
+                                                        app.settingsRepository.resetOnboardingCompleted()
+                                                    }
+                                                    navController.navigate(Screen.Onboarding) {
+                                                        popUpTo(Screen.Home) { inclusive = true }
+                                                    }
                                                 }
-                                                navController.navigate(Screen.Onboarding) {
-                                                    popUpTo(Screen.Home) { inclusive = true }
-                                                }
-                                            }
-                                        )
+                                            )
+                                        }
                                     },
                                     onRealDeviceTestingRoute = {
-                                        val realDeviceTestViewModel: RealDeviceTestingViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-                                            factory = RealDeviceTestingViewModel.factory(
-                                                context = context,
-                                                chatRepository = app.chatRepository,
-                                                database = database
+                                        if (BuildConfig.DEBUG) {
+                                            val vm: com.p2p.meshify.feature.realdevicetesting.ui.RealDeviceTestingViewModel =
+                                                androidx.lifecycle.viewmodel.compose.viewModel(
+                                                    factory = com.p2p.meshify.feature.realdevicetesting.ui.RealDeviceTestingViewModel.factory(
+                                                        context = context,
+                                                        chatRepository = app.chatRepository,
+                                                        database = database
+                                                    )
+                                                )
+                                            com.p2p.meshify.feature.realdevicetesting.ui.RealDeviceTestScreen(
+                                                viewModel = vm,
+                                                onNavigateBack = { navController.popBackStack() }
                                             )
-                                        )
-                                        RealDeviceTestScreen(
-                                            viewModel = realDeviceTestViewModel,
-                                            onNavigateBack = { navController.popBackStack() }
-                                        )
+                                        }
                                     },
                                     onOnboardingRoute = {
                                         OnboardingRoute(
