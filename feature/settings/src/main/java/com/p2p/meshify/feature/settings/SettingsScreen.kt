@@ -35,12 +35,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.p2p.meshify.core.common.R
-import com.p2p.meshify.core.util.FileUtils
 import com.p2p.meshify.core.ui.components.MeshifyAvatar
 import com.p2p.meshify.core.ui.hooks.HapticPattern
 import com.p2p.meshify.core.ui.hooks.LocalPremiumHaptics
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
-import java.io.File
 
 /**
  * Settings screen — structured groups, interactive items, and proper ViewModel binding.
@@ -71,13 +69,6 @@ fun SettingsScreen(
     var backupStatus by remember { mutableStateOf<String?>(null) }
 
     val scrollState = rememberScrollState()
-
-    // Avatar file from hash
-    val avatarFile = remember(state.avatarHash) {
-        state.avatarHash?.let { hash ->
-            FileUtils.getFilePath(context, hash, "avatars")?.let { File(it) }
-        }
-    }
 
     // Image picker launcher
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -326,9 +317,9 @@ fun SettingsScreen(
 
     // Cache Status Message via SnackbarHost
     LaunchedEffect(cacheStatus) {
-        if (cacheStatus != null) {
+        cacheStatus?.let { msg ->
             snackbarHostState.showSnackbar(
-                message = cacheStatus!!,
+                message = msg,
                 withDismissAction = true,
                 duration = SnackbarDuration.Short
             )
@@ -338,9 +329,9 @@ fun SettingsScreen(
 
     // Backup Status Message via SnackbarHost
     LaunchedEffect(backupStatus) {
-        if (backupStatus != null) {
+        backupStatus?.let { msg ->
             snackbarHostState.showSnackbar(
-                message = backupStatus!!,
+                message = msg,
                 withDismissAction = true,
                 duration = SnackbarDuration.Short
             )
@@ -351,9 +342,9 @@ fun SettingsScreen(
     // Error Message from ViewModel via SnackbarHost
     val errorMessage by viewModel.errorMessage.collectAsState()
     LaunchedEffect(errorMessage) {
-        if (errorMessage != null) {
+        errorMessage?.let { msg ->
             snackbarHostState.showSnackbar(
-                message = errorMessage!!,
+                message = msg,
                 withDismissAction = true,
                 duration = SnackbarDuration.Short
             )

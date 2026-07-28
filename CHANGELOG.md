@@ -1,5 +1,13 @@
 V1.1.3
 - [Chore] Remove docs/ from git tracking (gitignored, deleted from repository)
+- [Refactor] Delete SettingsComponents.kt (dead code — 0 callers, duplicated Dx* components)
+- [Refactor] Delete SettingsGroup.kt (replaced by Dx*; DeveloperScreen migrated)
+- [Refactor] Migrate DeveloperScreen from MeshifySettingsGroup/Item to Dx* components
+- [Fix] Replace hardcoded "Back" string in DeveloperScreen with stringResource
+- [Fix] Replace non-standard Box+Snackbar overlay in DeveloperScreen with Scaffold snackbarHost
+- [Fix] Remove dead avatarFile variable + unused FileUtils/File imports from SettingsScreen.kt
+- [Fix] Replace unsafe !! operators in SettingsScreen.kt with safe ?.let capture
+- [Chore] Delete QWEN.md files from core/ui/src/main/java/ source directories
 - [Feat] Create MD3E Expressive Design System at `core:ui/designsystem/`: foundation tokens (DxShape Koda-scale 8/12/20/28/36, DxSpacing, DxElevation, DxExpressiveShapes) + DxTheme (MaterialExpressiveTheme + MotionScheme.expressive()) + components (DxSettingsSection, DxSettingsItem, DxSwitchSettingItem, DxSettingsDivider, DxDialog with 32dp corners and MaterialShapes badges)
 - [Feat] DxSettings components follow Koda's exact MD3E patterns: 48dp icon boxes (14dp rounded, alpha tinted bg), 18dp row clip, press-scale spring animation (0.97), uppercase 12sp/1.2sp section headers, Dividers between rows, tonalElevation cards
 - [Feat] Haptic feedback (HapticPattern.Pop/Tick) restored on DxSettingsItem and DxSwitchSettingItem

@@ -8,17 +8,15 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.p2p.meshify.core.common.R
-import com.p2p.meshify.core.ui.components.MeshifySettingsGroup
-import com.p2p.meshify.core.ui.components.MeshifySettingsItem
-import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
-import kotlinx.coroutines.delay
+import com.p2p.meshify.core.ui.designsystem.components.DxSettingsDivider
+import com.p2p.meshify.core.ui.designsystem.components.DxSettingsItem
+import com.p2p.meshify.core.ui.designsystem.components.DxSettingsSection
+import com.p2p.meshify.core.ui.designsystem.foundation.DxSpacing
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,9 +26,9 @@ fun DeveloperScreen(
     onRealDeviceTestingClick: () -> Unit = {},
     onResetOnboardingClick: () -> Unit = {}
 ) {
-    val context = LocalContext.current
     var statusMessage by remember { mutableStateOf<String?>(null) }
     var showClearDataConfirmation by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     Scaffold(
         topBar = {
@@ -50,142 +48,125 @@ fun DeveloperScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.settings_content_desc_back))
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = MeshifyDesignSystem.Spacing.Md)
+                .padding(horizontal = DxSpacing.Lg)
         ) {
-            Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Md))
+            Spacer(Modifier.height(DxSpacing.Lg))
 
             // Mock Data Section
-            MeshifySettingsGroup(title = stringResource(R.string.developer_group_mock_data)) {
-                MeshifySettingsItem(
+            DxSettingsSection(title = stringResource(R.string.developer_group_mock_data)) {
+                DxSettingsItem(
+                    icon = Icons.Default.Chat,
                     title = stringResource(R.string.developer_add_mock_conversations),
                     subtitle = stringResource(R.string.developer_mock_conversations_subtitle),
-                    icon = Icons.Default.Chat,
                     onClick = {
                         viewModel.insertMockConversations { statusMessage = it }
                     }
                 )
 
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Md),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
+                DxSettingsDivider()
 
-                MeshifySettingsItem(
+                DxSettingsItem(
+                    icon = Icons.Default.Image,
                     title = stringResource(R.string.developer_add_media_messages),
                     subtitle = stringResource(R.string.developer_mock_media_subtitle),
-                    icon = Icons.Default.Image,
                     onClick = {
                         viewModel.insertMockMediaMessages { statusMessage = it }
                     }
                 )
 
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Md),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
+                DxSettingsDivider()
 
-                MeshifySettingsItem(
+                DxSettingsItem(
+                    icon = Icons.Default.EmojiEmotions,
                     title = stringResource(R.string.developer_add_reactions_demo),
                     subtitle = stringResource(R.string.developer_mock_reactions_subtitle),
-                    icon = Icons.Default.EmojiEmotions,
                     onClick = {
                         viewModel.insertMockChatWithReactions { statusMessage = it }
                     }
                 )
 
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Md),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
+                DxSettingsDivider()
 
-                MeshifySettingsItem(
+                DxSettingsItem(
+                    icon = Icons.Default.Reply,
                     title = stringResource(R.string.developer_add_replies_demo),
                     subtitle = stringResource(R.string.developer_mock_replies_subtitle),
-                    icon = Icons.Default.Reply,
                     onClick = {
                         viewModel.insertMockChatWithReplies { statusMessage = it }
                     }
                 )
 
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Md),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
+                DxSettingsDivider()
 
-                MeshifySettingsItem(
+                DxSettingsItem(
+                    icon = Icons.Default.FormatListNumbered,
                     title = stringResource(R.string.developer_add_long_conversation),
                     subtitle = stringResource(R.string.developer_mock_long_chat_subtitle),
-                    icon = Icons.Default.FormatListNumbered,
                     onClick = {
                         viewModel.insertMockLongConversation { statusMessage = it }
                     }
                 )
             }
 
-            Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Md))
+            Spacer(Modifier.height(DxSpacing.Lg))
 
             // Testing Section
-            MeshifySettingsGroup(title = stringResource(R.string.developer_testing_section)) {
-                MeshifySettingsItem(
+            DxSettingsSection(title = stringResource(R.string.developer_testing_section)) {
+                DxSettingsItem(
+                    icon = Icons.Default.Build,
                     title = stringResource(R.string.developer_real_device_testing_title),
                     subtitle = stringResource(R.string.developer_real_device_testing_subtitle),
-                    icon = Icons.Default.Build,
                     onClick = onRealDeviceTestingClick
                 )
             }
 
-            Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Md))
+            Spacer(Modifier.height(DxSpacing.Lg))
 
             // Cleanup Section
-            MeshifySettingsGroup(title = stringResource(R.string.developer_group_cleanup)) {
-                MeshifySettingsItem(
+            DxSettingsSection(title = stringResource(R.string.developer_group_cleanup)) {
+                DxSettingsItem(
+                    icon = Icons.Default.DeleteSweep,
                     title = stringResource(R.string.developer_clear_mock_data),
                     subtitle = stringResource(R.string.developer_mock_clear_subtitle),
-                    icon = Icons.Default.DeleteSweep,
                     onClick = {
                         viewModel.clearMockData { statusMessage = it }
                     }
                 )
 
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Md),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
+                DxSettingsDivider()
 
-                MeshifySettingsItem(
+                DxSettingsItem(
+                    icon = Icons.Default.Warning,
                     title = stringResource(R.string.developer_clear_all_data),
                     subtitle = stringResource(R.string.developer_clear_all_warning),
-                    icon = Icons.Default.Warning,
                     onClick = {
                         showClearDataConfirmation = true
                     }
                 )
 
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = MeshifyDesignSystem.Spacing.Md),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
+                DxSettingsDivider()
 
-                MeshifySettingsItem(
+                DxSettingsItem(
+                    icon = Icons.Default.Info,
                     title = stringResource(R.string.developer_reset_onboarding_title),
                     subtitle = stringResource(R.string.developer_reset_onboarding_subtitle),
-                    icon = Icons.Default.Info,
                     onClick = onResetOnboardingClick
                 )
             }
 
-            Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Md))
+            Spacer(Modifier.height(DxSpacing.Lg))
         }
     }
 
@@ -228,27 +209,13 @@ fun DeveloperScreen(
         )
     }
 
-    // Status Snackbar
-    if (statusMessage != null) {
-        LaunchedEffect(statusMessage) {
-            delay(3000)
-            statusMessage = null
-        }
-
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.BottomCenter
-        ) {
-            Snackbar(
-                modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Md),
-                action = {
-                    TextButton(onClick = { statusMessage = null }) {
-                        Text(stringResource(R.string.developer_action_ok))
-                    }
-                }
-            ) {
-                Text(statusMessage ?: "")
-            }
+    // Status Snackbar via Scaffold's SnackbarHost
+    LaunchedEffect(statusMessage) {
+        statusMessage?.let { msg ->
+            snackbarHostState.showSnackbar(
+                message = msg,
+                duration = SnackbarDuration.Short
+            )
         }
     }
 }
