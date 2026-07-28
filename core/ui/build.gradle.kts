@@ -49,15 +49,11 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
 
     // MD3E - Graphics Shapes for morphing
     implementation(libs.androidx.graphics.shapes)
-    
-    // Google Fonts
-    implementation(libs.androidx.ui.text.google.fonts)
     
     // Coil for image loading
     implementation(libs.coil3.compose)

@@ -79,6 +79,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     lint {
@@ -116,7 +117,8 @@ dependencies {
     implementation(project(":feature:chat"))
     implementation(project(":feature:discovery"))
     implementation(project(":feature:settings"))
-    implementation(project(":feature:real-device-testing"))
+    debugImplementation(project(":feature:real-device-testing"))
+    compileOnly(project(":feature:real-device-testing"))
 
     // Hilt Dependency Injection
     implementation(libs.hilt.android)
@@ -136,7 +138,6 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
     
@@ -155,7 +156,6 @@ dependencies {
     // Media3
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
-    implementation(libs.media3.session)
     
     // Testing
     testImplementation(libs.junit)
