@@ -21,6 +21,7 @@ import com.p2p.meshify.domain.repository.IChatRepository
 import com.p2p.meshify.domain.repository.IFileManager
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.core.network.TransportManager
+import com.p2p.meshify.core.common.util.PeerNameParser
 import com.p2p.meshify.core.common.util.StringResourceProvider
 import com.p2p.meshify.domain.security.model.MessageEnvelope
 import com.p2p.meshify.domain.security.model.SecurityEvent
@@ -44,6 +45,10 @@ import kotlinx.serialization.json.Json
 import java.io.Closeable
 import java.io.File
 import java.nio.ByteBuffer
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import java.util.UUID
 
 /**
@@ -90,8 +95,7 @@ class ChatRepositoryImpl(
     private val pendingMessageRepository: PendingMessageRepository = PendingMessageRepository(
         pendingMessageDao = pendingMessageDao,
         messageDao = messageDao,
-        transportManager = transportManager,
-        settingsRepository = settingsRepository
+        transportManager = transportManager
     )
 
     private val messageAttachmentRepository: MessageAttachmentRepository = MessageAttachmentRepository(
@@ -108,6 +112,7 @@ class ChatRepositoryImpl(
     private val repositoryJob = SupervisorJob()
     private val scope = CoroutineScope(Dispatchers.IO + repositoryJob)
 
+    // TODO: Remove if unused after 2026-07 — consumed by ChatMessagesViewModel and ChatViewModel
     private val _securityEvents = MutableSharedFlow<SecurityEvent>(replay = 0)
     override val securityEvents: SharedFlow<SecurityEvent> = _securityEvents.asSharedFlow()
 
@@ -153,26 +158,6 @@ class ChatRepositoryImpl(
 
         val envelopeBytes = serializeEnvelope(envelope)
         return sendPlaintextPayload(text, peerId, peerName, envelopeBytes, replyToId)
-    }
-
-    override suspend fun sendImage(
-        peerId: String,
-        peerName: String,
-        imageBytes: ByteArray,
-        extension: String,
-        replyToId: String?
-    ): Result<Unit> {
-        return messageRepository.sendImageMessage(peerId, peerName, imageBytes, extension, replyToId)
-    }
-
-    override suspend fun sendVideo(
-        peerId: String,
-        peerName: String,
-        videoBytes: ByteArray,
-        extension: String,
-        replyToId: String?
-    ): Result<Unit> {
-        return messageRepository.sendVideoMessage(peerId, peerName, videoBytes, extension, replyToId)
     }
 
     override suspend fun sendFileWithProgress(
@@ -233,17 +218,26 @@ class ChatRepositoryImpl(
             return Result.failure(saveResult.exceptionOrNull() ?: Exception("Failed to save attachments"))
         }
 
-        val firstAttachmentBytes = attachments.firstOrNull()?.first
-            ?: return Result.failure(Exception("No attachments to send"))
-
-        return messageRepository.sendFileMessage(
-            peerId = peerId,
-            peerName = peerName,
-            fileBytes = firstAttachmentBytes,
-            fileName = "Album: $caption",
-            fileType = message.type,
-            replyToId = replyToId
-        )
+        var hasFailure = false
+        attachments.forEach { (bytes, type) ->
+            val result = messageRepository.sendFileMessage(
+                peerId = peerId,
+                peerName = peerName,
+                fileBytes = bytes,
+                fileName = "Album: $caption",
+                fileType = if (type == MessageType.VIDEO) MessageType.VIDEO else MessageType.FILE,
+                replyToId = replyToId
+            )
+            if (result.isFailure) {
+                hasFailure = true
+                Logger.e("ChatRepository -> Failed to send album attachment: ${result.exceptionOrNull()?.message}")
+            }
+        }
+        return if (hasFailure) {
+            Result.failure(Exception("Some album attachments failed to send"))
+        } else {
+            Result.success(Unit)
+        }
     }
 
     // ==================== Chat Management ====================
@@ -399,7 +393,16 @@ class ChatRepositoryImpl(
         return try {
             val mediaPath = message.mediaPath
             if (mediaPath == null) {
-                Logger.e("ChatRepository -> Cannot forward media: mediaPath is null")
+                // Album messages have null mediaPath but may have attachments
+                val groupId = message.groupId
+                if (groupId != null) {
+                    val attachments = messageAttachmentRepository.getAttachmentsForMessage(groupId)
+                    if (attachments.isNotEmpty()) {
+                        Logger.w("ChatRepository -> Forwarding album message as text context (${attachments.size} attachments)")
+                        return forwardTextMessage(message, peerId, forwardContext)
+                    }
+                }
+                Logger.e("ChatRepository -> Cannot forward media: mediaPath is null and no attachments found")
                 return false
             }
 
@@ -416,7 +419,17 @@ class ChatRepositoryImpl(
             }
 
             val mediaBytes = withContext(Dispatchers.IO) {
-                mediaFile.readBytes()
+                // Use streaming read with 8KB buffer instead of file.readBytes()
+                // to avoid loading the entire file into memory at once.
+                val outputStream = java.io.ByteArrayOutputStream(mediaFile.length().coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
+                java.io.BufferedInputStream(java.io.FileInputStream(mediaFile)).use { inputStream ->
+                    val buffer = ByteArray(8192)
+                    var bytesRead: Int
+                    while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                        outputStream.write(buffer, 0, bytesRead)
+                    }
+                }
+                outputStream.toByteArray()
             }
 
             val myId = settingsRepository.getDeviceId()
@@ -511,8 +524,9 @@ class ChatRepositoryImpl(
     }
 
     private fun buildForwardContext(original: MessageEntity): String {
-        val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault())
-            .format(java.util.Date(original.timestamp))
+        val timestamp = Instant.ofEpochMilli(original.timestamp)
+            .atZone(ZoneId.systemDefault())
+            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.getDefault()))
         val unknown = stringProvider.getString(R.string.forward_context_unknown)
 
         return when (original.type) {
@@ -579,6 +593,7 @@ class ChatRepositoryImpl(
 
             if (saveResult.isSuccess) {
                 sendSystemCommand(payload.senderId, "ACK_${payload.id}")
+                    .onFailure { Logger.w("ChatRepository -> Failed to send ACK for ${payload.id}: ${it.message}") }
             } else {
                 Logger.e("Failed to save incoming message from $peerId", tag = "ChatRepository")
             }
@@ -672,6 +687,7 @@ class ChatRepositoryImpl(
 
             // Send ACK to sender
             sendSystemCommand(payload.senderId, "ACK_${payload.id}")
+                .onFailure { Logger.w("ChatRepository -> Failed to send ACK for ${payload.id}: ${it.message}") }
 
             Logger.d("ChatRepository -> File payload processed successfully from $peerId")
         } catch (e: Exception) {
@@ -679,7 +695,7 @@ class ChatRepositoryImpl(
         }
     }
 
-    override suspend fun sendSystemCommand(peerId: String, command: String) {
+    override suspend fun sendSystemCommand(peerId: String, command: String): Result<Unit> {
         val myId = settingsRepository.getDeviceId()
         val payload = Payload(
             senderId = myId,
@@ -687,8 +703,8 @@ class ChatRepositoryImpl(
             data = command.toByteArray()
         )
         val transport = transportManager.selectBestTransport(peerId).firstOrNull()
-            ?: throw IllegalStateException("No available transport for peer: $peerId")
-        transport.sendPayload(peerId, payload)
+            ?: return Result.failure(Exception("No available transport for peer: $peerId"))
+        return transport.sendPayload(peerId, payload)
     }
 
     override suspend fun retryPendingMessages(peerId: String): Result<Unit> {
@@ -878,11 +894,7 @@ class ChatRepositoryImpl(
         )
     }
 
-    private fun parseName(raw: String): String {
-        return if (raw.contains("name")) {
-            try { Json.decodeFromString<Handshake>(raw).name } catch(e: Exception) { raw.take(20) }
-        } else raw.removePrefix("HELO_")
-    }
+    private fun parseName(raw: String): String = PeerNameParser.parseName(raw)
 
     // ==================== Cleanup ====================
 

@@ -38,9 +38,6 @@ class ConnectionPool {
     // Semaphore to limit max pool size
     private val poolSemaphore = Semaphore(MAX_POOL_SIZE)
     
-    // Known peers for pre-warming
-    private val knownPeers = ConcurrentHashMap<String, Long>()
-    
     /**
      * Gets or creates a per-connection Mutex.
      */
@@ -156,72 +153,18 @@ class ConnectionPool {
     }
     
     /**
-     * Pre-warms a connection to a peer.
-     * 
-     * @param peerAddress Peer IP address
-     * @param socketFactory SocketFactory for creating sockets
-     * @return true if pre-warmed successfully
-     */
-    suspend fun preWarmConnection(peerAddress: String, socketFactory: SocketFactory): Boolean {
-        // Only pre-warm if not already connected
-        if (activeConnections.containsKey(peerAddress)) {
-            Logger.d("ConnectionPool -> Already connected to $peerAddress, skipping pre-warm")
-            return true
-        }
-        
-        Logger.d("ConnectionPool -> Pre-warming connection to $peerAddress")
-        
-        try {
-            val socket = socketFactory.createClientSocket(peerAddress)
-            
-            if (!poolSemaphore.tryAcquire()) {
-                socket.close()
-                Logger.w("ConnectionPool -> Pool full, skipping pre-warm for $peerAddress")
-                return false
-            }
-            
-            val pooledSocket = PooledSocket(socket)
-            activeConnections[peerAddress] = pooledSocket
-            Logger.d("ConnectionPool -> Pre-warmed connection to $peerAddress")
-            return true
-        } catch (e: Exception) {
-            Logger.e("ConnectionPool -> Failed to pre-warm connection to $peerAddress", e)
-            return false
-        }
-    }
-    
-    /**
-     * Registers a known peer for potential pre-warming.
-     */
-    fun registerKnownPeer(peerId: String) {
-        knownPeers[peerId] = System.currentTimeMillis()
-    }
-    
-    /**
-     * Removes a known peer.
-     */
-    fun removeKnownPeer(peerId: String) {
-        knownPeers.remove(peerId)
-    }
-    
-    /**
      * Gets all active connection keys for iteration.
      * Internal use only — returns map of PooledSocket for pool management.
      */
     internal fun getActiveConnections(): Map<String, PooledSocket> {
         return activeConnections.toMap()
     }
-    
+
     /**
      * Gets the number of active connections.
      */
     fun getActiveConnectionCount(): Int = activeConnections.size
-    
-    /**
-     * Gets the number of available permits in the pool.
-     */
-    fun getAvailablePermits(): Int = poolSemaphore.availablePermits()
-    
+
     /**
      * Cleans up a connection lock to prevent memory leak.
      */
@@ -231,12 +174,11 @@ class ConnectionPool {
     
     /**
      * Clears all connections (for shutdown).
+     * Uses drainPermits() to safely reset the semaphore regardless of
+     * how many permits were already released by removeConnection().
      */
     fun clearAll() {
-        // FIX: Use toList() to create a snapshot before modifying to avoid any potential
-        // issues with iterator.remove() during concurrent access
         val entries = activeConnections.toList()
-        val activeCount = entries.size
         entries.forEach { (key, pooledSocket) ->
             try {
                 pooledSocket.socket.close()
@@ -244,14 +186,14 @@ class ConnectionPool {
                 Logger.e("ConnectionPool -> Failed to close socket: $key", e)
             }
         }
-        // FIX: Drain and release all permits to prevent permit leak on shutdown
         activeConnections.clear()
-        // Release permits for all closed connections
-        repeat(activeCount) {
-            poolSemaphore.release()
-        }
+        // drainPermits() acquires all available permits, returning the count.
+        // We then release back to MAX_POOL_SIZE to reset cleanly.
+        // This is safe even if removeConnection() already released some permits,
+        // because we drain whatever remains and restore the full amount.
+        poolSemaphore.drainPermits()
+        poolSemaphore.release(MAX_POOL_SIZE)
         connectionLocks.clear()
-        knownPeers.clear()
-        Logger.d("ConnectionPool -> Cleared all connections, released $activeCount permits")
+        Logger.d("ConnectionPool -> Cleared all connections, semaphore reset to $MAX_POOL_SIZE")
     }
 }

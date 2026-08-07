@@ -25,13 +25,15 @@ interface IChatRepository {
     /**
      * Flow of security events that should be shown to the user.
      * Currently only emits MessageSendFailed events.
+     *
+     * TODO: Remove if unused after 2026-07
+     *       Consumed by ChatMessagesViewModel and ChatViewModel.
+     *       If both consumers migrate to direct error handling, this can be removed.
      */
     val securityEvents: SharedFlow<SecurityEvent>
 
     // Message sending
     suspend fun sendMessage(peerId: String, peerName: String, text: String, replyToId: String? = null): Result<Unit>
-    suspend fun sendImage(peerId: String, peerName: String, imageBytes: ByteArray, extension: String, replyToId: String? = null): Result<Unit>
-    suspend fun sendVideo(peerId: String, peerName: String, videoBytes: ByteArray, extension: String, replyToId: String? = null): Result<Unit>
     suspend fun sendGroupedMessage(
         peerId: String,
         peerName: String,
@@ -62,7 +64,7 @@ interface IChatRepository {
     suspend fun addReaction(messageId: String, reaction: String?): Result<Unit>
 
     // System
-    suspend fun sendSystemCommand(peerId: String, command: String)
+    suspend fun sendSystemCommand(peerId: String, command: String): Result<Unit>
     suspend fun handleIncomingPayload(peerId: String, payload: Payload)
     suspend fun retryPendingMessages(peerId: String): Result<Unit>
 }

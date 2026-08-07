@@ -13,6 +13,15 @@ data class Payload(
     val type: PayloadType,
     val data: ByteArray
 ) {
+    // ByteArray forces manual equals/hashCode — data class would use reference equality
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Payload) return false
+        return id == other.id
+    }
+
+    override fun hashCode(): Int = id.hashCode()
+
     enum class PayloadType {
         TEXT,
         FILE,
@@ -20,21 +29,9 @@ data class Payload(
         SYSTEM_CONTROL,
         DELETE_REQUEST,
         REACTION,
-        DELIVERY_ACK,
         AVATAR_REQUEST,
         AVATAR_RESPONSE,
         VIDEO
-    }
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-        other as Payload
-        return id == other.id
-    }
-
-    override fun hashCode(): Int {
-        return id.hashCode()
     }
 }
 
@@ -67,20 +64,3 @@ data class ReactionUpdate(
     val senderId: String
 )
 
-/**
- * Extension function for safe enum lookup from String.
- */
-fun PayloadTypeFromString(name: String): Payload.PayloadType? {
-    return try {
-        Payload.PayloadType.valueOf(name)
-    } catch (e: IllegalArgumentException) {
-        null
-    }
-}
-
-/**
- * Extension function for safe enum lookup from String.
- */
-fun String.toPayloadType(): Payload.PayloadType? {
-    return PayloadTypeFromString(this)
-}

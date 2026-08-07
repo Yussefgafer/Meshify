@@ -8,15 +8,16 @@ import com.p2p.meshify.core.data.local.entity.PendingMessageEntity
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.model.Payload
-import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.core.network.base.IMeshTransport
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.math.pow
-import kotlin.random.Random
 
 /**
  * PendingMessageRepository - Responsible for managing pending messages.
@@ -31,8 +32,7 @@ import kotlin.random.Random
 class PendingMessageRepository(
     private val pendingMessageDao: PendingMessageDao,
     private val messageDao: MessageDao,
-    private val transportManager: TransportManager,
-    private val settingsRepository: ISettingsRepository
+    private val transportManager: TransportManager
 ) {
 
     companion object {
@@ -41,37 +41,25 @@ class PendingMessageRepository(
         private const val RETRY_MAX_DELAY_MS = 30000L // 30 seconds
     }
 
-    /**
-     * Queue a message for later delivery.
-     */
-    suspend fun queueMessage(
-        messageId: String,
-        recipientId: String,
-        recipientName: String,
-        content: String,
-        type: MessageType
-    ) {
-        val pendingMessage = PendingMessageEntity(
-            id = messageId,
-            recipientId = recipientId,
-            recipientName = recipientName,
-            content = content,
-            type = type,
-            status = MessageStatus.QUEUED,
-            retryCount = 0,
-            maxRetries = RETRY_MAX_ATTEMPTS
-        )
-        pendingMessageDao.insert(pendingMessage)
-        Logger.w("PendingMessageRepository -> Message queued: $messageId for $recipientId")
-    }
+    // Observable pending count — allows UI to show badge/notification
+    private val _pendingCount = MutableStateFlow(0)
+    val pendingCount: StateFlow<Int> = _pendingCount.asStateFlow()
+
+    // Pending message cache for notification/visibility
+    private val _pendingMessages = MutableStateFlow<List<PendingMessageEntity>>(emptyList())
+    val pendingMessages: StateFlow<List<PendingMessageEntity>> = _pendingMessages.asStateFlow()
 
     /**
-     * Get all pending messages for a recipient.
+     * Refresh pending count and list from DB.
      */
-    suspend fun getPendingMessages(recipientId: String): List<PendingMessageEntity> =
-        withContext(Dispatchers.IO) {
-            pendingMessageDao.getByRecipient(recipientId)
+    private suspend fun refreshPendingState() {
+        val all = withContext(Dispatchers.IO) { pendingMessageDao.getAll() }
+        _pendingMessages.value = all
+        _pendingCount.value = all.size
+        if (all.isNotEmpty()) {
+            Logger.w("PendingMessageRepository -> ${all.size} pending message(s) waiting for delivery")
         }
+    }
 
     /**
      * Retry all pending messages for a peer with exponential backoff.
@@ -111,6 +99,9 @@ class PendingMessageRepository(
             }
         }
 
+        // Refresh pending state after retry batch completes
+        refreshPendingState()
+
         Logger.i("PendingMessageRepository -> Retry complete for $peerId: $successCount success, $failureCount failed")
 
         if (failureCount == 0) {
@@ -144,7 +135,17 @@ class PendingMessageRepository(
                                 Logger.e("PendingMessageRepository -> Media file not found for retry: $path")
                                 return Result.failure(Exception("Media file not found: $path"))
                             }
-                            file.readBytes()
+                            // Use streaming read with 8KB buffer instead of file.readBytes()
+                            // to avoid loading the entire file into memory at once.
+                            val outputStream = java.io.ByteArrayOutputStream(file.length().coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
+                            java.io.BufferedInputStream(java.io.FileInputStream(file)).use { inputStream ->
+                                val buffer = ByteArray(8192)
+                                var bytesRead: Int
+                                while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                                    outputStream.write(buffer, 0, bytesRead)
+                                }
+                            }
+                            outputStream.toByteArray()
                         } else {
                             Logger.w("PendingMessageRepository -> No media path for message ${msg.id}")
                             byteArrayOf()
@@ -219,19 +220,4 @@ class PendingMessageRepository(
         return (cappedDelay + jitter).coerceAtLeast(RETRY_BASE_DELAY_MS)
     }
 
-    /**
-     * Delete a pending message by ID.
-     */
-    suspend fun deletePendingMessage(messageId: String) {
-        pendingMessageDao.deleteById(messageId)
-    }
-
-    /**
-     * Get all pending messages (for debugging/inspection).
-     */
-    suspend fun getAllPendingMessages(): List<PendingMessageEntity> =
-        withContext(Dispatchers.IO) {
-            // ✅ FIX: Now uses the new getAll() DAO query
-            pendingMessageDao.getAll()
-        }
 }

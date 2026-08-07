@@ -11,6 +11,10 @@ import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.DeleteType
 import com.p2p.meshify.domain.model.MessageType
 import kotlinx.coroutines.flow.Flow
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import java.util.UUID
 
 /**
@@ -194,8 +198,9 @@ class ChatManagementRepository(
      * Includes original sender, timestamp, and content preview.
      */
     private fun buildForwardContext(original: MessageEntity): String {
-        val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault())
-            .format(java.util.Date(original.timestamp))
+        val timestamp = Instant.ofEpochMilli(original.timestamp)
+            .atZone(ZoneId.systemDefault())
+            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.getDefault()))
         val unknown = context.getString(R.string.forward_context_unknown)
 
         return when (original.type) {

@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.p2p.meshify.core.ui"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 26
@@ -39,31 +39,21 @@ android {
     buildFeatures {
         compose = true
     }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = "2.3.10"
-    }
 }
 
 dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:domain"))
-    implementation(project(":core:data"))
     
     // Compose BOM
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
-    implementation(libs.google.material)
-    
+
     // MD3E - Graphics Shapes for morphing
     implementation(libs.androidx.graphics.shapes)
-    
-    // Google Fonts
-    implementation(libs.androidx.ui.text.google.fonts)
     
     // Coil for image loading
     implementation(libs.coil3.compose)
@@ -80,9 +70,6 @@ dependencies {
     // Lifecycle
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
-    
-    // Accompanist
-    implementation(libs.accompanist.permissions)
     
     // Testing
     testImplementation(libs.junit)

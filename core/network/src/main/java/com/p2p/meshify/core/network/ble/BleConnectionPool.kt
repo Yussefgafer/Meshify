@@ -86,13 +86,6 @@ class BleConnectionPool {
     }
 
     /**
-     * Gets the connection type for a peer.
-     */
-    fun getConnectionType(peerId: String): BleConnectionType? {
-        return activeConnections[peerId]?.type
-    }
-
-    /**
      * Gets all connected peer IDs.
      */
     fun getConnectedPeers(): Set<String> {

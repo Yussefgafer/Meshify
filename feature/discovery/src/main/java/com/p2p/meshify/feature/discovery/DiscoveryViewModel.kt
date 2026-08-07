@@ -17,6 +17,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/** Discovery cleanup pause before restarting scan (ms) */
+private const val DISCOVERY_CLEANUP_DELAY_MS = 200L
+
+/** Time to wait for discovery scan results (ms) */
+private const val DISCOVERY_SCAN_DELAY_MS = 2000L
+
 /**
  * UI State for the Discovery Screen.
  */
@@ -101,8 +107,7 @@ class DiscoveryViewModel @Inject constructor(
 
         _uiState.update {
             it.copy(
-                discoveredPeers = peerMap.values.toList(),
-                isSearching = peerMap.isNotEmpty()
+                discoveredPeers = peerMap.values.toList()
             )
         }
     }
@@ -132,8 +137,7 @@ class DiscoveryViewModel @Inject constructor(
         peerMap.remove(event.deviceId)
         _uiState.update {
             it.copy(
-                discoveredPeers = peerMap.values.toList(),
-                isSearching = peerMap.isNotEmpty()
+                discoveredPeers = peerMap.values.toList()
             )
         }
     }
@@ -155,10 +159,10 @@ class DiscoveryViewModel @Inject constructor(
             try {
                 // Stop and restart discovery to find fresh devices
                 transportManager.stopDiscoveryOnAll()
-                kotlinx.coroutines.delay(200) // Brief pause for cleanup
+                kotlinx.coroutines.delay(DISCOVERY_CLEANUP_DELAY_MS) // Brief pause for cleanup
                 transportManager.startDiscoveryOnAll()
                 // Give discovery some time to find devices
-                kotlinx.coroutines.delay(2000)
+                kotlinx.coroutines.delay(DISCOVERY_SCAN_DELAY_MS)
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e // Don't catch cancellation
             } catch (e: Exception) {

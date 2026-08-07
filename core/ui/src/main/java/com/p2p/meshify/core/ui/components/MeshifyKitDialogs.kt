@@ -35,8 +35,6 @@ import com.p2p.meshify.core.ui.theme.ColorPresetPurple
 import com.p2p.meshify.core.ui.theme.ColorPresetRed
 import com.p2p.meshify.core.ui.theme.ColorPresetTeal
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
-import com.p2p.meshify.domain.model.MotionPreset
-import com.p2p.meshify.domain.model.ShapeStyle
 import com.p2p.meshify.domain.repository.ThemeMode
 import java.io.File
 

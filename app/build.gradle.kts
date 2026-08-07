@@ -1,6 +1,3 @@
-import com.android.build.api.dsl.ApplicationExtension
-import java.util.Properties
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -12,20 +9,22 @@ plugins {
 
 android {
     namespace = "com.p2p.meshify"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.p2p.meshify"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 13
+        versionName = "1.1.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
             abiFilters += listOf("arm64-v8a")
         }
+
+        resConfigs("en", "ar")
     }
 
     signingConfigs {
@@ -80,12 +79,18 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     lint {
         abortOnError = false
         checkReleaseBuilds = false
         disable += "MissingTranslation"
+    }
+
+    packaging {
+        resources.excludes.add("META-INF/*.txt")
+        resources.excludes.add("META-INF/NOTICE.md")
     }
 }
 
@@ -117,7 +122,8 @@ dependencies {
     implementation(project(":feature:chat"))
     implementation(project(":feature:discovery"))
     implementation(project(":feature:settings"))
-    implementation(project(":feature:real-device-testing"))
+    debugImplementation(project(":feature:real-device-testing"))
+    compileOnly(project(":feature:real-device-testing"))
 
     // Hilt Dependency Injection
     implementation(libs.hilt.android)
@@ -137,9 +143,7 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation(libs.google.material)
     implementation(libs.androidx.material.icons.extended)
     
     // Navigation
@@ -157,11 +161,7 @@ dependencies {
     // Media3
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
-    implementation(libs.media3.session)
     
-    // Accompanist
-    implementation(libs.accompanist.permissions)
-
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

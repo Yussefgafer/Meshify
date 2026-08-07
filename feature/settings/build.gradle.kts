@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.p2p.meshify.feature.settings"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 26
@@ -32,10 +32,6 @@ android {
 
     buildFeatures {
         compose = true
-    }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = "2.3.10"
     }
 }
 

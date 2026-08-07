@@ -5,6 +5,7 @@ import com.p2p.meshify.core.data.local.entity.MessageAttachmentEntity
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.repository.IFileManager
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.UUID
@@ -21,7 +22,8 @@ import java.util.UUID
  */
 class MessageAttachmentRepository(
     private val messageDao: MessageDao,
-    private val fileManager: IFileManager
+    private val fileManager: IFileManager,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
 
     /**
@@ -30,7 +32,7 @@ class MessageAttachmentRepository(
     suspend fun saveAttachments(
         messageId: String,
         attachments: List<Pair<ByteArray, MessageType>>
-    ): Result<List<MessageAttachmentEntity>> = withContext(Dispatchers.IO) {
+    ): Result<List<MessageAttachmentEntity>> = withContext(ioDispatcher) {
         try {
             if (attachments.isEmpty()) {
                 return@withContext Result.failure(Exception("No attachments provided"))
@@ -75,7 +77,7 @@ class MessageAttachmentRepository(
      * Get all attachments for a specific message.
      */
     suspend fun getAttachmentsForMessage(messageId: String): List<MessageAttachmentEntity> =
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             messageDao.getAttachmentsForMessage(messageId)
         }
 
@@ -83,59 +85,9 @@ class MessageAttachmentRepository(
      * Get all attachments in the database (for debugging).
      */
     suspend fun getAllAttachments(): List<MessageAttachmentEntity> =
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             // ✅ FIX: Now uses the new DAO query
             messageDao.getAllAttachments()
         }
 
-    /**
-     * Delete attachments for a message.
-     */
-    suspend fun deleteAttachmentsForMessage(messageId: String) {
-        val attachments = getAttachmentsForMessage(messageId)
-        attachments.forEach { attachment ->
-            // Delete file from disk
-            val file = java.io.File(attachment.filePath)
-            if (file.exists()) {
-                file.delete()
-                Logger.d("MessageAttachmentRepository -> Deleted attachment file: ${attachment.filePath}")
-            }
-        }
-        messageDao.deleteAttachmentsForMessages(listOf(messageId))
-        Logger.d("MessageAttachmentRepository -> Deleted attachments for message: $messageId")
-    }
-
-    /**
-     * Send grouped message (album) with multiple attachments.
-     * This combines saving attachments with sending the first attachment as payload.
-     */
-    suspend fun sendGroupedMessage(
-        messageId: String,
-        peerId: String,
-        peerName: String,
-        caption: String,
-        attachments: List<Pair<ByteArray, MessageType>>,
-        messageRepository: MessageRepository
-    ): Result<Unit> {
-        if (attachments.isEmpty()) {
-            return Result.failure(Exception("No attachments provided"))
-        }
-
-        // Save attachments first
-        val saveResult = saveAttachments(messageId, attachments)
-        if (saveResult.isFailure) {
-            return Result.failure(saveResult.exceptionOrNull() ?: Exception("Failed to save attachments"))
-        }
-
-        // Send the first attachment as representative (the album will be reconstructed on receiver side)
-        val firstAttachmentBytes = attachments.first().first
-        return messageRepository.sendFileMessage(
-            peerId = peerId,
-            peerName = peerName,
-            fileBytes = firstAttachmentBytes,
-            fileName = "Album: $caption",
-            fileType = if (attachments.all { it.second == MessageType.VIDEO }) MessageType.VIDEO else MessageType.IMAGE,
-            replyToId = null
-        )
-    }
 }

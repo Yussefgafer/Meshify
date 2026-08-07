@@ -33,25 +33,6 @@ class NotificationHelper(private val context: Context) {
         private const val PREFS_NAME = "notification_helper"
     }
 
-    /**
-     * Post a notification with error handling.
-     * @param id Notification ID
-     * @param notification Notification to post
-     * @return true if notification was posted successfully, false otherwise
-     */
-    fun NotificationManagerCompat.postNotification(id: Int, notification: Notification): Boolean {
-        return try {
-            notify(id, notification)
-            true
-        } catch (e: SecurityException) {
-            Logger.e("NotificationHelper -> POST_NOTIFICATIONS permission denied", e)
-            false
-        } catch (e: Exception) {
-            Logger.e("NotificationHelper -> Failed to post notification", e)
-            false
-        }
-    }
-
     fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val messagesChannel = NotificationChannel(

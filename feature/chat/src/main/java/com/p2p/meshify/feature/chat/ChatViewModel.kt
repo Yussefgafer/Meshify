@@ -7,19 +7,21 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.p2p.meshify.core.common.R
-import com.p2p.meshify.core.data.local.entity.ChatEntity
 import com.p2p.meshify.core.data.local.entity.MessageAttachmentEntity
 import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
+import com.p2p.meshify.domain.repository.IChatRepository
 import com.p2p.meshify.core.ui.components.ForwardDialogState
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.DeleteType
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.model.TransportType
 import com.p2p.meshify.domain.security.model.SecurityEvent
+import com.p2p.meshify.core.ui.model.MessageUiModel
 import com.p2p.meshify.core.ui.model.StagedAttachment
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
@@ -30,6 +32,7 @@ import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.milliseconds
 import java.io.File
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
 /** Debounce interval for search input to avoid excessive DB queries */
@@ -37,21 +40,22 @@ private const val SEARCH_DEBOUNCE_MS = 300L
 
 private const val ATTACHMENT_CACHE_MAX_SIZE = 200
 
+/** Maximum number of transport type entries to keep in state map */
+private const val TRANSPORT_HISTORY_MAX_SIZE = 100
+
 data class ChatUiState(
     val isLoading: Boolean = true,
     val messages: List<MessageEntity> = emptyList(),
     val isOnline: Boolean = false,
-    val isPeerTyping: Boolean = false,
     val inputText: String = "",
-    val draftText: String = "", // P2-11: Persisted draft text survives config changes
+    val draftText: String = "",
     val replyTo: MessageEntity? = null,
     val stagedAttachments: List<StagedAttachment> = emptyList(),
-    val hasMoreMessages: Boolean = false,
-    val isLoadingMore: Boolean = false,
     val isSending: Boolean = false,
     val sendError: String? = null,
     val uploadError: String? = null,
-    val transportUsed: Map<String, TransportType> = emptyMap()
+    val transportUsed: Map<String, TransportType> = emptyMap(),
+    val successMessage: String? = null
 )
 
 @OptIn(FlowPreview::class)
@@ -59,12 +63,12 @@ data class ChatUiState(
 class ChatViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val savedStateHandle: SavedStateHandle,
-    private val repository: ChatRepositoryImpl
+    private val repository: IChatRepository
 ) : ViewModel() {
 
     // Peer ID and name from navigation arguments via SavedStateHandle
     val peerId: String = savedStateHandle.get<String>("peerId") ?: ""
-    val peerName: String = savedStateHandle.get<String>("peerName") ?: "Peer"
+    val peerName: String = savedStateHandle.get<String>("peerName") ?: context.getString(R.string.default_peer_name)
 
     // Resolves current transport type from app-level state for outgoing messages
     private var _transportTypeProvider: (() -> TransportType)? = null
@@ -73,11 +77,14 @@ class ChatViewModel @Inject constructor(
         _transportTypeProvider = provider
     }
 
+    // Helper to access repository methods that are only available on ChatRepositoryImpl
+    // (query methods are not part of IChatRepository interface to avoid data-type coupling in domain layer)
+    private val chatRepo: ChatRepositoryImpl get() = repository as ChatRepositoryImpl
+
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     private val stageMutex = Mutex()
-    private val paginationMutex = Mutex()
     
     // Forward dialog state
     private val _forwardDialogState = MutableStateFlow(ForwardDialogState())
@@ -95,7 +102,7 @@ class ChatViewModel @Inject constructor(
     private val _uploadProgress = MutableStateFlow<Map<String, Int>>(emptyMap())
     val uploadProgress: StateFlow<Map<String, Int>> = _uploadProgress
         .sample(100.milliseconds)
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     // ==================== Search State ====================
     private val _searchQuery = MutableStateFlow("")
@@ -109,121 +116,54 @@ class ChatViewModel @Inject constructor(
 
     private var searchCollectionJob: kotlinx.coroutines.Job? = null
 
-    // Pagination state - using ArrayDeque for O(1) prepend operations
-    private var currentPage = 0
-    private val pageSize = 50
-    private var isAllMessagesLoaded = false
-    private val allMessages = ArrayDeque<MessageEntity>(initialCapacity = 100)
-
-    // ✅ PERF-01: Maximum messages to keep in memory (reduced from 500 to 200)
-    // Reduces memory usage by 5-8MB in long conversations
-    // 200 messages = ~4MB vs 500 messages = ~10MB
-    companion object {
-        private const val MAX_MESSAGES_IN_MEMORY = 200 // Reduced from 500 for better memory efficiency
-    }
+    // Tracks active upload jobs so cancelUpload() can cancel them
+    // ConcurrentHashMap for thread safety — invokeOnCompletion may run on a different dispatcher
+    private val uploadJobs = ConcurrentHashMap<String, kotlinx.coroutines.Job>()
 
     // ✅ Double tap protection - prevent sending same message twice
     private var lastSendTime = 0L
     private val sendDebounceMs = 500L // 500ms debounce
 
     init {
-        // Load initial page of messages
-        loadMoreMessages()
-
-        // ✅ FIX: Collect messages flow with distinctUntilChanged to reduce recompositions
-        // This ensures real-time updates when messages are received from the network
-        viewModelScope.launch {
-            repository.getMessages(peerId)
-                .distinctUntilChanged() // ✅ PF03: Prevent excessive recompositions
-                .collect { messages ->
-                    Logger.d("ChatViewModel -> Messages updated: ${messages.size} messages for peer $peerId")
-
-                    // ✅ FIX: Only update UI state, don't manipulate allMessages here
-                    // allMessages is only for pagination (loadMoreMessages)
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            messages = messages,
-                            hasMoreMessages = !isAllMessagesLoaded
-                        )
-                    }
-                }
-        }
-
-        // Collect online status
-        viewModelScope.launch {
-            repository.onlinePeers.collect { online ->
-                _uiState.update { it.copy(isOnline = online.contains(peerId)) }
-            }
-        }
-
-        // Collect security events from repository
-        // SharedFlow is hot and never terminates — errors are handled in repository before emit
-        viewModelScope.launch {
-            repository.securityEvents.collect { event ->
-                if (event.type == SecurityEvent.EventType.MESSAGE_SEND_FAILED) {
-                    _uiState.update {
-                        it.copy(
-                            sendError = context.getString(R.string.error_message_send_failed, event.reason)
-                        )
-                    }
-                    Logger.e("ChatViewModel -> Message send failed: ${event.messageId}")
-                }
-            }
-        }
-    }
-
-    /**
-     * Loads more messages for pagination.
-     * Called initially and when user scrolls to top.
-     */
-    fun loadMoreMessages() {
-        viewModelScope.launch {
-            // Use tryLock to avoid waiting if already loading
-            if (!paginationMutex.tryLock()) return@launch
-
-            try {
-                if (isAllMessagesLoaded || _uiState.value.isLoadingMore) return@launch
-
-                _uiState.update { it.copy(isLoadingMore = true) }
-
-                try {
-                    // ✅ PF04: FIX blocking .first() by using take(1).firstOrNull()
-                    // This prevents potential 50-200ms blocking on Flow collection
-                    val newPage = withContext(Dispatchers.IO) {
-                        repository.getMessagesPaged(peerId, pageSize, currentPage * pageSize)
-                            .take(1)
-                            .firstOrNull()
-                            ?: emptyList()
-                    }
-
-                    if (newPage.isEmpty()) {
-                        isAllMessagesLoaded = true
-                    } else {
-                        // Prepend new messages efficiently using ArrayDeque
-                        allMessages.addAll(0, newPage)
-
-                        // Remove oldest messages if exceeding max to prevent memory leaks
-                        while (allMessages.size > MAX_MESSAGES_IN_MEMORY) {
-                            allMessages.removeLast()
+        if (peerId.isBlank()) {
+            _uiState.update { it.copy(isLoading = false, sendError = context.getString(R.string.error_unknown)) }
+        } else {
+            // ✅ FIX: Collect messages flow with distinctUntilChanged to reduce recompositions
+            // This ensures real-time updates when messages are received from the network
+            viewModelScope.launch {
+                chatRepo.getMessages(peerId)
+                    .distinctUntilChanged()
+                    .collect { messages ->
+                        Logger.d("ChatViewModel -> Messages updated: ${messages.size} messages for peer $peerId")
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                messages = messages
+                            )
                         }
-
-                        currentPage++
                     }
+            }
 
-                    _uiState.update {
-                        it.copy(
-                            messages = allMessages.toList(),
-                            hasMoreMessages = !isAllMessagesLoaded,
-                            isLoadingMore = false
-                        )
-                    }
-                } catch (e: Exception) {
-                    Logger.e("ChatViewModel -> Failed to load messages", e)
-                    _uiState.update { it.copy(isLoadingMore = false) }
+            // Collect online status
+            viewModelScope.launch {
+                repository.onlinePeers.collect { online ->
+                    _uiState.update { it.copy(isOnline = online.contains(peerId)) }
                 }
-            } finally {
-                paginationMutex.unlock()
+            }
+
+            // Collect security events from repository
+            // SharedFlow is hot and never terminates — errors are handled in repository before emit
+            viewModelScope.launch {
+                repository.securityEvents.collect { event ->
+                    if (event.type == SecurityEvent.EventType.MESSAGE_SEND_FAILED) {
+                        _uiState.update {
+                            it.copy(
+                                sendError = context.getString(R.string.error_message_send_failed, event.reason)
+                            )
+                        }
+                        Logger.e("ChatViewModel -> Message send failed: ${event.messageId}")
+                    }
+                }
             }
         }
     }
@@ -271,24 +211,38 @@ class ChatViewModel @Inject constructor(
                 if (hasAttachments) {
                     // Send grouped message with attachments
                     val attachments = state.stagedAttachments.map { it.bytes to it.type }
-                    repository.sendGroupedMessage(peerId, peerName, state.inputText, attachments, state.replyTo?.id)
+                    val result = repository.sendGroupedMessage(peerId, peerName, state.inputText, attachments, state.replyTo?.id)
+                    if (result.isFailure) {
+                        val errorMessage = context.getString(R.string.error_message_send_failed, result.exceptionOrNull()?.message ?: context.getString(R.string.error_unknown))
+                        _uiState.update { it.copy(isSending = false, sendError = errorMessage, inputText = state.inputText) }
+                        return@launch
+                    }
                     _uiState.update { it.copy(inputText = "", draftText = "", replyTo = null, stagedAttachments = emptyList()) }
                 } else {
                     // Send text message
-                    repository.sendMessage(peerId, peerName, state.inputText, state.replyTo?.id)
+                    val result = repository.sendMessage(peerId, peerName, state.inputText, state.replyTo?.id)
+                    if (result.isFailure) {
+                        val errorMessage = context.getString(R.string.error_message_send_failed, result.exceptionOrNull()?.message ?: context.getString(R.string.error_unknown))
+                        _uiState.update { it.copy(isSending = false, sendError = errorMessage, inputText = state.inputText) }
+                        return@launch
+                    }
                     _uiState.update { it.copy(inputText = "", draftText = "", replyTo = null) }
                 }
 
                 // Record transport type for the newly sent message.
                 // The repository insert is synchronous (suspend), so the message is already in the DB.
                 // We read the current state via .first() — no arbitrary delay needed.
-                val currentMessages = repository.getMessages(peerId).first()
+                val currentMessages = chatRepo.getMessages(peerId).first()
                 val lastSentMessage = currentMessages.lastOrNull { it.isFromMe }
                 if (lastSentMessage != null) {
                     _uiState.update { currentState ->
-                        currentState.copy(
-                            transportUsed = currentState.transportUsed + (lastSentMessage.id to transportType)
-                        )
+                        val updated = currentState.transportUsed + (lastSentMessage.id to transportType)
+                        // Cap map size to prevent unbounded growth
+                        val capped = if (updated.size > TRANSPORT_HISTORY_MAX_SIZE) {
+                            // Keep only the most recent entries by dropping oldest
+                            updated.toList().takeLast(TRANSPORT_HISTORY_MAX_SIZE).toMap()
+                        } else updated
+                        currentState.copy(transportUsed = capped)
                     }
                 }
             } catch (e: Exception) {
@@ -346,20 +300,6 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    fun sendImage(bytes: ByteArray, extension: String) {
-        viewModelScope.launch {
-            repository.sendImage(peerId, peerName, bytes, extension, _uiState.value.replyTo?.id)
-            _uiState.update { it.copy(replyTo = null) }
-        }
-    }
-
-    fun sendVideo(bytes: ByteArray, extension: String) {
-        viewModelScope.launch {
-            repository.sendVideo(peerId, peerName, bytes, extension, _uiState.value.replyTo?.id)
-            _uiState.update { it.copy(replyTo = null) }
-        }
-    }
-
     /**
      * Sends a file with progress tracking.
      * Used for large files where upload progress should be shown to the user.
@@ -370,7 +310,7 @@ class ChatViewModel @Inject constructor(
      * @param caption Optional caption for the file
      */
     fun sendFileWithProgress(messageId: String, file: File, fileType: MessageType, caption: String = "") {
-        viewModelScope.launch {
+        val job = viewModelScope.launch {
             try {
                 // Initialize progress to 0
                 _uploadProgress.update { current ->
@@ -409,6 +349,12 @@ class ChatViewModel @Inject constructor(
                         it.copy(uploadError = context.getString(R.string.error_file_send_failed, error.message ?: context.getString(R.string.error_unknown)))
                     }
                 }
+            } catch (e: CancellationException) {
+                // Intentional cancellation via cancelUpload() — no error shown
+                Logger.d("ChatViewModel -> File upload cancelled for messageId: $messageId")
+                _uploadProgress.update { current ->
+                    current - messageId
+                }
             } catch (e: Exception) {
                 Logger.e("ChatViewModel -> File upload exception", e)
                 _uploadProgress.update { current ->
@@ -420,6 +366,8 @@ class ChatViewModel @Inject constructor(
                 }
             }
         }
+        uploadJobs[messageId] = job
+        job.invokeOnCompletion { uploadJobs.remove(messageId) }
     }
 
     /**
@@ -427,22 +375,30 @@ class ChatViewModel @Inject constructor(
      * Removes the progress indicator from the UI.
      */
     fun cancelUpload(messageId: String) {
+        uploadJobs[messageId]?.cancel()
         _uploadProgress.update { current ->
             current - messageId
         }
-        // Note: Actual cancellation logic would need to be implemented in repository
         Logger.d("ChatViewModel -> Upload cancelled for messageId: $messageId")
     }
 
     fun deleteMessage(messageId: String, deleteType: DeleteType) {
         viewModelScope.launch {
-            repository.deleteMessage(messageId, deleteType)
+            val result = repository.deleteMessage(messageId, deleteType)
+            if (result.isFailure) {
+                _uiState.update { it.copy(sendError = context.getString(R.string.error_message_send_failed, result.exceptionOrNull()?.message ?: context.getString(R.string.error_unknown))) }
+            }
+            // Clean up transport history for deleted messages
+            _uiState.update { it.copy(transportUsed = it.transportUsed - messageId) }
         }
     }
 
     fun addReaction(messageId: String, reaction: String?) {
         viewModelScope.launch {
-            repository.addReaction(messageId, reaction)
+            val result = repository.addReaction(messageId, reaction)
+            if (result.isFailure) {
+                _uiState.update { it.copy(sendError = context.getString(R.string.error_message_send_failed, result.exceptionOrNull()?.message ?: context.getString(R.string.error_unknown))) }
+            }
         }
     }
 
@@ -467,7 +423,7 @@ class ChatViewModel @Inject constructor(
         }
         // Not cached — fetch from DB
         val result = withContext(Dispatchers.IO) {
-            repository.getMessageAttachments(groupId)
+            chatRepo.getMessageAttachments(groupId)
         }
         // Store in cache
         synchronized(attachmentsCache) {
@@ -487,7 +443,7 @@ class ChatViewModel @Inject constructor(
                 ?: return@launch
             
             _forwardDialogState.value = ForwardDialogState(
-                messages = listOf(message),
+                messages = listOf(message.toUiModel()),
                 selectedPeerIds = emptySet(),
                 searchQuery = "",
                 isForwarding = false,
@@ -507,7 +463,7 @@ class ChatViewModel @Inject constructor(
             val selectedMessages = uiState.value.messages.filter { it.id in selectedIds }
             
             _forwardDialogState.value = ForwardDialogState(
-                messages = selectedMessages,
+                messages = selectedMessages.map { it.toUiModel() },
                 selectedPeerIds = emptySet(),
                 searchQuery = "",
                 isForwarding = false,
@@ -561,6 +517,7 @@ class ChatViewModel @Inject constructor(
             val peerIds = currentState.selectedPeerIds.toList()
             var successCount = 0
             var failedCount = 0
+            val failedPeerIds = mutableSetOf<String>()
             
             // Forward each message to each peer
             messagesToForward.forEach { message ->
@@ -571,10 +528,12 @@ class ChatViewModel @Inject constructor(
                             successCount++
                         } else {
                             failedCount++
+                            failedPeerIds.add(peerId)
                             Logger.e("ChatViewModel -> Failed to forward message ${message.id} to $peerId: ${result.exceptionOrNull()?.message}")
                         }
                     } catch (e: Exception) {
                         failedCount++
+                        failedPeerIds.add(peerId)
                         Logger.e("ChatViewModel -> Exception forwarding message ${message.id} to $peerId", e)
                     }
                     
@@ -587,14 +546,18 @@ class ChatViewModel @Inject constructor(
             
             // Show result
             if (failedCount > 0) {
-                val totalAttempts = successCount + failedCount
                 _uiState.update {
                     it.copy(
-                        sendError = context.getString(R.string.error_forward_partial, failedCount, totalAttempts)
+                        sendError = context.getString(R.string.error_forward_partial, failedPeerIds.size, peerIds.size)
                     )
                 }
-                Logger.w("ChatViewModel -> Forwarded $successCount messages, $failedCount failed")
+                Logger.w("ChatViewModel -> Forwarded $successCount messages, $failedCount attempts failed across ${failedPeerIds.size} peer(s)")
             } else {
+                _uiState.update {
+                    it.copy(
+                        successMessage = context.getString(R.string.forward_success, successCount, peerIds.size)
+                    )
+                }
                 Logger.d("ChatViewModel -> Successfully forwarded $successCount messages to ${peerIds.size} peers")
             }
             
@@ -643,33 +606,21 @@ class ChatViewModel @Inject constructor(
     fun deleteSelectedMessages(deleteType: DeleteType) {
         viewModelScope.launch {
             val selectedIds = _selectedMessages.value.toList()
+            var failedCount = 0
             selectedIds.forEach { messageId ->
-                repository.deleteMessage(messageId, deleteType)
+                val result = repository.deleteMessage(messageId, deleteType)
+                if (result.isFailure) failedCount++
             }
+            if (failedCount > 0) {
+                _uiState.update { it.copy(sendError = context.getString(R.string.error_message_send_failed, "Failed to delete $failedCount messages")) }
+            }
+            // Clean up transport history for all deleted messages
+            val idsToRemove = selectedIds.toSet()
+            _uiState.update { it.copy(transportUsed = it.transportUsed.filterKeys { it !in idsToRemove }) }
             clearSelection()
         }
     }
     
-    /**
-     * Copy all selected messages to clipboard.
-     */
-    fun copySelectedMessages() {
-        viewModelScope.launch {
-            val selectedIds = _selectedMessages.value
-            if (selectedIds.isEmpty()) return@launch
-
-            val messages = uiState.value.messages.filter { it.id in selectedIds && it.text != null }
-            val textToCopy = messages.joinToString("\n\n") { it.text ?: "" }
-
-            if (textToCopy.isNotBlank()) {
-                // Use clipboard manager
-                Logger.d("ChatViewModel -> Copied ${messages.size} messages to clipboard")
-            }
-
-            clearSelection()
-        }
-    }
-
     /**
      * Copy all selected messages to clipboard with ClipboardManager.
      */
@@ -684,9 +635,24 @@ class ChatViewModel @Inject constructor(
             if (textToCopy.isNotBlank()) {
                 clipboard.setText(androidx.compose.ui.text.AnnotatedString(textToCopy))
                 Logger.d("ChatViewModel -> Copied ${messages.size} messages to clipboard")
+                _uiState.update {
+                    it.copy(successMessage = context.getString(R.string.chat_messages_copied, messages.size))
+                }
             }
 
             clearSelection()
+        }
+    }
+
+    /**
+     * Copy a single message to the clipboard and show a success snackbar.
+     */
+    fun copyMessageToClipboard(clipboard: ClipboardManager, messageId: String) {
+        viewModelScope.launch {
+            val message = uiState.value.messages.find { it.id == messageId } ?: return@launch
+            val text = message.text ?: return@launch
+            clipboard.setText(androidx.compose.ui.text.AnnotatedString(text))
+            _uiState.update { it.copy(successMessage = context.getString(R.string.chat_messages_copied, 1)) }
         }
     }
 
@@ -702,6 +668,13 @@ class ChatViewModel @Inject constructor(
      */
     fun clearUploadError() {
         _uiState.update { it.copy(uploadError = null) }
+    }
+
+    /**
+     * Clear the success message after it has been shown.
+     */
+    fun clearSuccessMessage() {
+        _uiState.update { it.copy(successMessage = null) }
     }
 
     // ==================== Search Functions ====================
@@ -724,7 +697,7 @@ class ChatViewModel @Inject constructor(
                     if (query.isBlank()) {
                         _searchResults.value = emptyList()
                     } else {
-                        repository.searchMessagesInChat(peerId, query.trim())
+                        chatRepo.searchMessagesInChat(peerId, query.trim())
                             .catch { e ->
                                 Logger.e("ChatViewModel -> Search failed", e)
                                 _searchResults.value = emptyList()
@@ -766,3 +739,14 @@ class ChatViewModel @Inject constructor(
         TransportType.LAN -> "" // LAN is default — no badge needed
     }
 }
+
+/**
+ * Maps a [MessageEntity] to a [MessageUiModel] for use in UI components
+ * that should not depend on data-layer entities directly.
+ */
+private fun MessageEntity.toUiModel() = MessageUiModel(
+    id = id,
+    text = text,
+    type = type,
+    timestamp = timestamp
+)

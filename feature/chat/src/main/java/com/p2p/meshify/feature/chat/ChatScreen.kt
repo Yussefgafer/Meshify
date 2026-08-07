@@ -1,9 +1,6 @@
 package com.p2p.meshify.feature.chat
 
-import android.net.Uri
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,7 +17,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.CircularProgressIndicator
@@ -31,13 +27,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -68,9 +65,7 @@ import com.p2p.meshify.core.ui.components.FullImageViewer
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
 import com.p2p.meshify.core.ui.hooks.HapticPattern
 import com.p2p.meshify.core.ui.hooks.LocalPremiumHaptics
-import com.p2p.meshify.core.ui.theme.LocalMeshifyThemeConfig
 import com.p2p.meshify.domain.model.DeleteType
-import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.feature.chat.components.BackConfirmationDialog
 import com.p2p.meshify.feature.chat.components.ChatContextMenu
 import com.p2p.meshify.feature.chat.components.ChatInputBar
@@ -83,9 +78,8 @@ import com.p2p.meshify.feature.chat.components.ScrollToFAB
 import com.p2p.meshify.feature.chat.components.SelectionModeTopBar
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+
+
 
 // ── Search UI constants ──────────────────────────────────────────────
 private const val SEARCH_RESULT_BG_ALPHA_FROM_ME = 0.3f
@@ -125,14 +119,13 @@ fun ChatScreen(
 ) {
     val context = LocalContext.current
     val haptics = LocalPremiumHaptics.current
-    val uiState by viewModel.uiState.collectAsState()
-    val selectedMessages by viewModel.selectedMessages.collectAsState()
-    val forwardDialogState by viewModel.forwardDialogState.collectAsState()
-    val isSearching by viewModel.isSearching.collectAsState()
-    val searchQuery by viewModel.searchQuery.collectAsState()
-    val searchResults by viewModel.searchResults.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val selectedMessages by viewModel.selectedMessages.collectAsStateWithLifecycle()
+    val forwardDialogState by viewModel.forwardDialogState.collectAsStateWithLifecycle()
+    val isSearching by viewModel.isSearching.collectAsStateWithLifecycle()
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
-    val themeConfig = LocalMeshifyThemeConfig.current
     val clipboard = LocalClipboardManager.current
     var menuMessage by remember { mutableStateOf<MessageEntity?>(null) }
     var selectedFullImage by remember { mutableStateOf<String?>(null) }
@@ -145,14 +138,16 @@ fun ChatScreen(
         mutableStateOf(TextFieldValue(uiState.draftText))
     }
 
-    // P2-11: Sync draftText from ViewModel → Composable only when draftText changes externally
-    LaunchedEffect(uiState.draftText) {
-        val draft = uiState.draftText
-        if (textState.text.isEmpty() && draft.isNotEmpty()) {
-            textState = TextFieldValue(draft)
-        } else if (textState.text.isNotEmpty() && draft.isEmpty() && textState.text != draft) {
-            textState = TextFieldValue("")
+    // P2-11: امسح حقل الإدخال المحلي فقط بعد إرسال ناجح.
+    // ViewModel يضبط inputText إلى "" عند النجاح ويُبقيه كما هو عند الفشل،
+    // لذا نتبع هذه الإشارة باتجاه واحد — دون إعادة ملء الحقل من الحالة،
+    // وهو ما كان يتسبب بظهور المسودة المُرسلة مجدداً في حقل الإدخال.
+    var lastInputText by remember { mutableStateOf(uiState.inputText) }
+    LaunchedEffect(uiState.inputText) {
+        if (lastInputText.isNotEmpty() && uiState.inputText.isEmpty()) {
+            textState = TextFieldValue()
         }
+        lastInputText = uiState.inputText
     }
 
     // Delete confirmation state
@@ -184,10 +179,18 @@ fun ChatScreen(
     // Error snackbars
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val retryLabel = stringResource(R.string.notification_action_retry)
 
     LaunchedEffect(uiState.sendError) {
         uiState.sendError?.let { error ->
-            snackbarHostState.showSnackbar(error)
+            val result = snackbarHostState.showSnackbar(
+                message = error,
+                actionLabel = retryLabel,
+                duration = SnackbarDuration.Indefinite
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.sendMessage()
+            }
             viewModel.clearError()
         }
     }
@@ -199,22 +202,11 @@ fun ChatScreen(
         }
     }
 
-    // Media pickers
-    val imageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let {
-            val bytes = context.contentResolver.openInputStream(it)?.readBytes()
-            if (bytes != null) {
-                viewModel.stageAttachment(it, bytes, MessageType.IMAGE)
-            }
-        }
-    }
-
-    val videoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let {
-            val bytes = context.contentResolver.openInputStream(it)?.readBytes()
-            if (bytes != null) {
-                viewModel.stageAttachment(it, bytes, MessageType.VIDEO)
-            }
+    // Success snackbars (no retry action)
+    LaunchedEffect(uiState.successMessage) {
+        uiState.successMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearSuccessMessage()
         }
     }
 
@@ -224,7 +216,7 @@ fun ChatScreen(
             snapshotFlow { listState.layoutInfo.totalItemsCount }
                 .first { it >= uiState.messages.size }
 
-            if (hasScrolledToBottom) {
+            if (isAtBottom) {
                 val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
                 val lastIndex = uiState.messages.size - 1
                 if (lastVisibleIndex >= lastIndex - 3) {
@@ -237,24 +229,6 @@ fun ChatScreen(
         }
     }
 
-    // Track user scroll position
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex }
-            .collect { firstVisibleIndex ->
-                hasScrolledToBottom = (firstVisibleIndex >= uiState.messages.size - 5)
-            }
-    }
-
-    // Lazy loading: load more when user scrolls to top
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex }
-            .collect { firstVisibleIndex ->
-                if (firstVisibleIndex < 5 && uiState.hasMoreMessages && !uiState.isLoadingMore) {
-                    viewModel.loadMoreMessages()
-                }
-            }
-    }
-
     // BackHandler: exit search mode first
     BackHandler(enabled = isSearching) {
         viewModel.stopSearch()
@@ -262,8 +236,8 @@ fun ChatScreen(
     }
 
     // BackHandler for unsaved message drafts
-    BackHandler(enabled = uiState.inputText.isNotBlank()) {
-        if (uiState.inputText.length > 50) {
+    BackHandler(enabled = textState.text.isNotBlank()) {
+        if (textState.text.length > 1024) {
             showBackConfirmationDialog = true
         } else {
             onBackClick()
@@ -274,6 +248,7 @@ fun ChatScreen(
         modifier = Modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.ime),
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             if (selectedMessages.isNotEmpty()) {
                 SelectionModeTopBar(
@@ -288,7 +263,6 @@ fun ChatScreen(
                     },
                     onCopyClick = {
                         viewModel.copySelectedMessagesToClipboard(clipboard)
-                        viewModel.clearSelection()
                     }
                 )
             } else if (isSearching) {
@@ -363,7 +337,6 @@ fun ChatScreen(
                     onSendClick = {
                         viewModel.onInputChanged(textState.text)
                         viewModel.sendMessage()
-                        textState = TextFieldValue()
                     },
                     stagedAttachments = uiState.stagedAttachments,
                     onRemoveAttachment = viewModel::removeStagedAttachment,
@@ -385,7 +358,7 @@ fun ChatScreen(
                         modifier = Modifier
                             .size(48.dp)
                             .semantics { contentDescription = loadingDesc },
-                        shape = CircleShape,
+                        shape = MeshifyDesignSystem.Shapes.IconContainer,
                         color = MaterialTheme.colorScheme.surfaceContainerHighest
                     ) {
                         CircularProgressIndicator(
@@ -401,20 +374,17 @@ fun ChatScreen(
                 // Show search results instead of message list
                 SearchResultsList(
                     results = searchResults,
-                    query = searchQuery,
-                    listState = listState
+                    query = searchQuery
                 )
             } else {
                 // Message list
                 MessageList(
                 messages = uiState.messages,
                 isLoading = uiState.isLoading,
-                isLoadingMore = uiState.isLoadingMore,
                 selectedMessages = selectedMessages,
                 uploadProgressMap = uploadProgressMap,
                 transportUsed = uiState.transportUsed,
                 peerName = peerName,
-                bubbleStyle = themeConfig.bubbleStyle,
                 listState = listState,
                 getAttachmentsForGroupId = viewModel::getAttachmentsForMessage,
                 onLongClick = { message ->
@@ -459,16 +429,10 @@ fun ChatScreen(
         }
     }
 
-    // Snackbar Host
-    SnackbarHost(
-        hostState = snackbarHostState,
-        modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Md)
-    )
-
     // Context menu for long-pressed message
     ChatContextMenu(
         message = menuMessage,
-        clipboardManager = clipboard,
+        onCopy = { viewModel.copyMessageToClipboard(clipboard, it) },
         onDismiss = { menuMessage = null },
         onReply = { msg -> viewModel.setReplyTo(msg) },
         onForward = { msgId -> viewModel.openForwardDialog(msgId) },
@@ -535,9 +499,9 @@ fun ChatScreen(
 @Composable
 private fun SearchResultsList(
     results: List<MessageEntity>,
-    query: String,
-    listState: androidx.compose.foundation.lazy.LazyListState
+    query: String
 ) {
+    val listState = rememberLazyListState()
     if (results.isEmpty() && query.isNotBlank()) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -587,7 +551,7 @@ private fun SearchResultItem(
             horizontalArrangement = if (isFromMe) Arrangement.End else Arrangement.Start
         ) {
             Text(
-                text = if (isFromMe) stringResource(R.string.chat_message_you, "") else "",
+                text = if (isFromMe) stringResource(R.string.chat_message_you) else "",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
@@ -656,6 +620,5 @@ private fun SearchResultItem(
 }
 
 private fun formatChatTime(timestamp: Long): String {
-    val sdf = SimpleDateFormat("hh:mm a", Locale.US)
-    return sdf.format(Date(timestamp))
+    return com.p2p.meshify.core.common.util.formatMessageTime(timestamp)
 }
