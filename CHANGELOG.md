@@ -1,3 +1,6 @@
+Unreleased
+- [Fix] Eliminate double ingestion of incoming payloads — MeshForegroundService no longer collects getAllEventsFlow() nor calls chatRepository.handleIncomingPayload (was duplicating every DB write, ACK, media save, and notification); MeshifyApp's global collector is now the single ingestion point
+
 V1.1.3
 - [Style] Make splash screen dark (#1C1B1F) on all Android versions — windowSplashScreenBackground (12+) + windowBackground fallback
 - [Feat] Replace default Android launcher icon with Meshify chat-bubble icon (from icon.svg): white adaptive-icon background + dark-stroke bubble foreground; monochrome layer makes it a dynamic themed icon on Android 13+
