@@ -2,7 +2,8 @@
 <resources>
     <!-- Base application theme. -->
     <style name="Theme.Meshify" parent="android:Theme.Material.Light.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/purple_500</item> -->
+        <!-- Dark splash screen: Android 12+ uses windowSplashScreenBackground, older versions use windowBackground -->
+        <item name="android:windowSplashScreenBackground">#1C1B1F</item>
+        <item name="android:windowBackground">#1C1B1F</item>
     </style>
 </resources>

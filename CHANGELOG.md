@@ -1,4 +1,6 @@
 V1.1.3
+- [Style] Make splash screen dark (#1C1B1F) on all Android versions — windowSplashScreenBackground (12+) + windowBackground fallback
+- [Feat] Replace default Android launcher icon with Meshify chat-bubble icon (from icon.svg): white adaptive-icon background + dark-stroke bubble foreground; monochrome layer makes it a dynamic themed icon on Android 13+
 - [Chore] Remove docs/ from git tracking (gitignored, deleted from repository)
 - [Refactor] Delete SettingsComponents.kt (dead code — 0 callers, duplicated Dx* components)
 - [Refactor] Delete SettingsGroup.kt (replaced by Dx*; DeveloperScreen migrated)
