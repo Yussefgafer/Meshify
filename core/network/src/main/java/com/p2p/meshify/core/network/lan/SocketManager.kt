@@ -2,7 +2,6 @@ package com.p2p.meshify.core.network.lan
 
 import com.p2p.meshify.core.config.AppConfig
 import com.p2p.meshify.core.util.Logger
-import com.p2p.meshify.core.util.ParallelFileTransfer
 import com.p2p.meshify.core.util.PayloadSerializer
 import com.p2p.meshify.domain.model.Payload
 import kotlinx.coroutines.*
@@ -32,7 +31,6 @@ import java.net.SocketTimeoutException
  * Features:
  * - Connection pooling with idle cleanup
  * - Keep-alive ping to maintain connections
- * - Parallel file transfer for large files
  * - Pre-warming for known peers
  * - Comprehensive error handling with Result<T>
  */
@@ -65,7 +63,7 @@ class SocketManager(
         private const val CLEANUP_INTERVAL_MS = 60_000L // 1 minute
         private const val KEEP_ALIVE_INTERVAL_MS = 60_000L // 60 seconds (was 30s) - reduce network overhead by 50%
         private const val CONNECT_TIMEOUT_MS = 5000L // 5s
-        private const val READ_TIMEOUT_MS = 30000L // 30s
+        private const val READ_TIMEOUT_MS = 120_000L // 120s — must stay above KEEP_ALIVE_INTERVAL_MS so quiet periods between pings never kill accepted sockets
         private const val WRITE_TIMEOUT_MS = 5000L // 5s
     }
     
@@ -74,6 +72,15 @@ class SocketManager(
         keepAliveManager = KeepAliveManager(connectionPool) { peerId, payload ->
             sendPayload(peerId, payload)
         }
+    }
+
+    /**
+     * Sets the device id used as senderId for keep-alive PING frames so the
+     * remote peer can route its PONG reply back to us. Must be called before
+     * startListening().
+     */
+    fun setKeepAliveSenderId(senderId: String) {
+        keepAliveManager?.senderId = senderId
     }
     
     /**
@@ -176,45 +183,8 @@ class SocketManager(
                             // Update last used timestamp
                             connectionPool.updateLastUsed(address)
 
-                            // Deserialize payload header
+                            // Deserialize payload and emit
                             val payload = PayloadSerializer.deserialize(bytes)
-
-                            // Check for parallel transfer marker (for large files)
-                            if (payload.type == Payload.PayloadType.FILE || payload.type == Payload.PayloadType.VIDEO) {
-                                // Check if there's a parallel mode marker available
-                                if (inputStream.available() >= 4) {
-                                    inputStream.mark(4)
-                                    val marker = inputStream.readInt()
-                                    if (marker == 1) {
-                                        // Parallel transfer detected - receive file using ParallelFileTransfer
-                                        Logger.d("SocketManager -> Parallel transfer detected for ${payload.id}, receiving file...")
-                                        val fileResult = ParallelFileTransfer.receiveFile(pooledSocket)
-                                        if (fileResult.isSuccess) {
-                                            // Create new payload with received file data
-                                            val fileBytes = fileResult.getOrNull()
-                                            if (fileBytes != null) {
-                                                val enrichedPayload = payload.copy(data = fileBytes)
-                                                _incomingPayloads.emit(address to enrichedPayload)
-                                                Logger.d("SocketManager -> Parallel transfer completed: ${fileBytes.size} bytes")
-                                            } else {
-                                                Logger.e("SocketManager -> Parallel transfer returned null bytes")
-                                                _incomingPayloads.emit(address to payload)
-                                            }
-                                            continue // Continue to next iteration
-                                        } else {
-                                            Logger.e("SocketManager -> Parallel transfer failed: ${fileResult.exceptionOrNull()?.message}")
-                                            // Still emit original payload but log the error
-                                            _incomingPayloads.emit(address to payload)
-                                            continue
-                                        }
-                                    } else {
-                                        // Not a parallel transfer marker, reset stream
-                                        inputStream.reset()
-                                    }
-                                }
-                            }
-
-                            // Standard payload emit (no parallel transfer)
                             _incomingPayloads.emit(address to payload)
 
                         } catch (e: EOFException) {
@@ -354,19 +324,6 @@ class SocketManager(
      */
     fun getActiveConnectionCount(): Int = connectionPool.getActiveConnectionCount()
 
-    /**
-     * Checks if a valid connection exists for a peer.
-     */
-    fun hasValidConnection(peerAddress: String): Boolean {
-        return connectionPool.hasValidConnection(peerAddress)
-    }
-
-    /**
-     * Gets a connection for a peer.
-     */
-    fun getConnection(peerAddress: String): java.net.Socket? {
-        return connectionPool.getConnection(peerAddress)
-    }
     
     /**
      * Stops listening for incoming connections.

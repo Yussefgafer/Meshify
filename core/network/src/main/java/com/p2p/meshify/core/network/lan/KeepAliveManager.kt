@@ -20,6 +20,10 @@ import java.io.DataOutputStream
  */
 class KeepAliveManager(
     private val connectionPool: ConnectionPool,
+    // Real device id used as PING senderId so the remote peer can route its
+    // PONG reply back via its peerMap. Set by LanTransportImpl at startup;
+    // a hardcoded value would poison remote peer maps with a ghost entry.
+    @Volatile internal var senderId: String = "",
     private val sendPayload: suspend (String, Payload) -> Result<Unit>
 ) {
     
@@ -52,7 +56,7 @@ class KeepAliveManager(
                 try {
                     // Send PING message directly on the pooled socket
                     val pingPayload = Payload(
-                        senderId = "system",
+                        senderId = senderId,
                         type = Payload.PayloadType.SYSTEM_CONTROL,
                         data = KEEP_ALIVE_PING.toByteArray()
                     )

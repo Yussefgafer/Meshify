@@ -1,5 +1,11 @@
 Unreleased
 - [Fix] Eliminate double ingestion of incoming payloads — MeshForegroundService no longer collects getAllEventsFlow() nor calls chatRepository.handleIncomingPayload (was duplicating every DB write, ACK, media save, and notification); MeshifyApp's global collector is now the single ingestion point
+- [Fix] Accepted LAN sockets no longer die during quiet periods — READ_TIMEOUT_MS 30s→120s so SO_TIMEOUT stays above the 60s keepalive interval (was: guaranteed reconnect churn on every idle gap)
+- [Fix] Live peers can no longer be evicted by scattered historical send failures — dead-peer detection now requires 5 failures within a rolling 60s window (any successful send resets it) instead of 5 cumulative-ever failures
+- [Fix] Ghost "system" peer removed from online lists — keepalive PING frames now carry the real device id and SYSTEM_CONTROL frames no longer insert into peerMap (also fixes first-contact handshakes being suppressed by pre-inserted control-frame ids)
+- [Fix] RSSI estimator no longer corrupts the LAN wire protocol — deleted estimateRssiFromLatency which wrote a raw unframed 0x00 byte onto pooled sockets and could kill freshly-handshaked connections; unavailable WiFi RSSI now falls back to a static -60 dBm default
+- [Fix] FILE/VIDEO marker probe removed from SocketManager read loop — it consumed the next frame's length prefix and called reset() on a stream without mark support, corrupting/killing connections after any file-or-video-then-message sequence; framing is now strictly [length:int][bytes]
+- [Chore] Delete dead ParallelFileTransfer.kt (zero callers, algorithmically broken shared-stream writes) and the now-unused SocketManager connection wrappers
 
 V1.1.3
 - [Style] Make splash screen dark (#1C1B1F) on all Android versions — windowSplashScreenBackground (12+) + windowBackground fallback
