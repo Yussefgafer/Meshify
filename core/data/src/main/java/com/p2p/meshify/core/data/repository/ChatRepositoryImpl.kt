@@ -237,7 +237,7 @@ class ChatRepositoryImpl(
                 peerId = peerId,
                 peerName = peerName,
                 fileBytes = bytes,
-                fileName = "Album: $caption",
+                fileName = caption.ifBlank { "Media" },
                 fileType = if (type == MessageType.VIDEO) MessageType.VIDEO else MessageType.FILE,
                 replyToId = replyToId
             )
@@ -246,9 +246,14 @@ class ChatRepositoryImpl(
                 Logger.e("ChatRepository -> Failed to send album attachment: ${result.exceptionOrNull()?.message}")
             }
         }
+        // Mirror the loop outcome onto the parent row so it stops showing a
+        // perpetual queued state. Offline-queued attachments report success
+        // here (their own rows carry the true pending state until delivery).
         return if (hasFailure) {
+            messageDao.updateMessageStatus(messageId, MessageStatus.FAILED)
             Result.failure(Exception("Some album attachments failed to send"))
         } else {
+            messageDao.updateMessageStatus(messageId, MessageStatus.SENT)
             Result.success(Unit)
         }
     }
@@ -650,7 +655,11 @@ class ChatRepositoryImpl(
         try {
             val handshake = Json.decodeFromString<Handshake>(String(payload.data))
             val cleanName = parseName(handshake.name)
-            chatDao.insertChat(ChatEntity(payload.senderId, cleanName, "Connected", payload.timestamp))
+            val preservedUnread = chatDao.getChatById(payload.senderId)?.unreadCount ?: 0
+            chatDao.insertChat(
+                ChatEntity(payload.senderId, cleanName, "Connected", payload.timestamp)
+                    .copy(unreadCount = preservedUnread)
+            )
 
             scope.launch {
                 try {
@@ -712,11 +721,19 @@ class ChatRepositoryImpl(
                 status = MessageStatus.SENT
             )
 
-            // Save message to database
+            // Save message to database — same unread-badge treatment as text:
+            // carry the existing count over INSERT OR REPLACE, then bump it.
             val existingChat = chatDao.getChatById(peerId)
             val finalName = if (existingChat != null) parseName(existingChat.peerName) else "${AppConstants.DEFAULT_PEER_NAME_PREFIX}${peerId.take(4)}"
-            chatDao.insertChat(ChatEntity(peerId, finalName, "[${messageType.name}]", payload.timestamp))
-            messageDao.insertMessage(message)
+            database.withTransaction {
+                val preservedUnread = chatDao.getChatById(peerId)?.unreadCount ?: 0
+                chatDao.insertChat(
+                    ChatEntity(peerId, finalName, "[${messageType.name}]", payload.timestamp)
+                        .copy(unreadCount = preservedUnread)
+                )
+                messageDao.insertMessage(message)
+                chatDao.incrementUnreadCount(peerId)
+            }
 
             // Send notification
             notificationHelper.showMessageNotification(finalName, message)
@@ -803,10 +820,18 @@ class ChatRepositoryImpl(
                 isFromMe = false,
                 status = MessageStatus.SENT
             )
-            // Chat preview + message row must land together or not at all
+            // Chat preview + message row must land together or not at all.
+            // insertChat is INSERT OR REPLACE and would zero unreadCount (the
+            // entity default), so carry the existing count over the replace,
+            // then bump it — an incoming message means one more unread.
             database.withTransaction {
-                chatDao.insertChat(ChatEntity(peerId, finalName, text ?: "[Media]", timestamp))
+                val preservedUnread = chatDao.getChatById(peerId)?.unreadCount ?: 0
+                chatDao.insertChat(
+                    ChatEntity(peerId, finalName, text ?: "[Media]", timestamp)
+                        .copy(unreadCount = preservedUnread)
+                )
                 messageDao.insertMessage(message)
+                chatDao.incrementUnreadCount(peerId)
             }
             notificationHelper.showMessageNotification(finalName, message)
             Result.success(Unit)

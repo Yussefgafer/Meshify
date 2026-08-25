@@ -110,7 +110,7 @@ class ChatViewModel @Inject constructor(
         get() = _selectedMessages.value.isNotEmpty()
 
     // Upload progress tracking - maps messageId to progress percentage (0-100)
-    // ✅ Throttled to 10 updates/second to avoid unnecessary recompositions
+    // Throttled to 10 updates/second to avoid unnecessary recompositions
     private val _uploadProgress = MutableStateFlow<Map<String, Int>>(emptyMap())
     val uploadProgress: StateFlow<Map<String, Int>> = _uploadProgress
         .sample(100.milliseconds)
@@ -136,7 +136,7 @@ class ChatViewModel @Inject constructor(
         if (peerId.isBlank()) {
             _uiState.update { it.copy(isLoading = false, sendError = context.getString(R.string.error_unknown)) }
         } else {
-            // ✅ Windowed paging: observe only the latest MESSAGE_PAGE_SIZE messages;
+            // Windowed paging: observe only the latest MESSAGE_PAGE_SIZE messages;
             // older pages are prepended on demand via loadOlderMessages().
             viewModelScope.launch {
                 combine(
@@ -153,6 +153,10 @@ class ChatViewModel @Inject constructor(
                                 messages = messages
                             )
                         }
+                        // This chat screen is actively observing the table, so
+                        // anything arriving now is being seen — keep the badge
+                        // cleared live instead of accumulating until re-entry.
+                        chatRepo.markChatAsRead(peerId)
                     }
             }
 
