@@ -26,8 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -52,8 +51,8 @@ private const val MessageStaggerDelay = 50
  * - Empty state icon when no messages exist
  * - Loading spinner at top during pagination
  * - Staggered fade+slide enter animations per message
- * - Attachment fetching via produceState keyed by message.id + groupId
- *
+ * - Attachments rendered from a batched map (groupId → attachments) fetched by the ViewModel
+ * - Reply previews resolved from the window or a batched replyById map
  * @param messages List of messages to display
  * @param isLoading Whether initial load is in progress (controls empty state visibility)
  * @param selectedMessages Set of currently selected message IDs (for multi-select mode)
@@ -62,7 +61,8 @@ private const val MessageStaggerDelay = 50
  * @param peerName Display name of the chat peer (used in empty state text)
  * @param bubbleStyle Bubble shape style from theme configuration
  * @param listState LazyListState for external scroll control
- * @param getAttachmentsForGroupId Suspend function that fetches attachments for a given groupId
+ * @param attachmentsByGroupId Batched album attachments keyed by message groupId
+ * @param replyById Reply-preview messages outside the loaded window, keyed by replyToId
  * @param onLongClick Called when a message is long-pressed (triggers context menu or selection)
  * @param onClick Called when a message is tapped (toggles selection in multi-select mode)
  * @param onImageClick Called when an image inside a message is tapped
@@ -70,6 +70,8 @@ private const val MessageStaggerDelay = 50
  */
 @Composable
 fun MessageList(
+    attachmentsByGroupId: Map<String, List<MessageAttachmentEntity>>,
+    replyById: Map<String, MessageEntity>,
     messages: List<MessageEntity>,
     isLoading: Boolean,
     selectedMessages: Set<String>,
@@ -77,13 +79,13 @@ fun MessageList(
     transportUsed: Map<String, TransportType>,
     peerName: String,
     listState: LazyListState = rememberLazyListState(),
-    getAttachmentsForGroupId: suspend (String) -> List<MessageAttachmentEntity>,
     onLongClick: (MessageEntity) -> Unit,
     onClick: (MessageEntity) -> Unit,
     onImageClick: (String) -> Unit,
     onReaction: (String, String?) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val messageById = remember(messages) { messages.associateBy { it.id } }
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxSize(),
@@ -120,26 +122,16 @@ fun MessageList(
             }
         }
 
-        val messageById = messages.associateBy { it.id }
 
         itemsIndexed(
             messages,
-            key = { _, m -> m.id }
+            key = { _, m -> m.id },
+            contentType = { _, m -> m.type }
         ) { index, message ->
-            val replyMessage = message.replyToId?.let { messageById[it] }
+            val replyMessage = message.replyToId?.let { replyById[it] }
+                ?: message.replyToId?.let { messageById[it] }
 
-            val attachments by produceState<List<MessageAttachmentEntity>>(
-                initialValue = emptyList(),
-                key1 = message.id,
-                key2 = message.groupId
-            ) {
-                val groupId = message.groupId
-                if (!groupId.isNullOrBlank()) {
-                    value = getAttachmentsForGroupId(groupId)
-                } else {
-                    value = emptyList()
-                }
-            }
+            val attachments = message.groupId?.let { attachmentsByGroupId[it] } ?: emptyList()
 
             val isSelected = message.id in selectedMessages
             val progressValue = uploadProgressMap[message.id]

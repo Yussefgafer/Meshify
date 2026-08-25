@@ -9,6 +9,7 @@ import com.p2p.meshify.core.data.local.entity.ChatEntity
 import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.data.local.entity.MessageStatus
 import com.p2p.meshify.core.data.local.entity.PendingMessageEntity
+import com.p2p.meshify.core.data.local.entity.MessageAttachmentEntity
 import com.p2p.meshify.core.common.util.PeerNameParser
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.MessageType
@@ -443,6 +444,30 @@ class MessageRepository(
         offset: Int
     ): Flow<List<MessageEntity>> =
         messageDao.getMessagesPaged(chatId, limit, offset)
+
+    /**
+     * Observe the most recent [limit] messages of a chat, newest first.
+     */
+    fun observeLatestMessages(chatId: String, limit: Int): Flow<List<MessageEntity>> =
+        messageDao.observeLatestMessages(chatId, limit)
+
+    /**
+     * Fetch up to [limit] messages strictly older than [beforeTimestamp], newest first.
+     */
+    suspend fun getMessagesBefore(chatId: String, beforeTimestamp: Long, limit: Int): List<MessageEntity> =
+        messageDao.getMessagesBefore(chatId, beforeTimestamp, limit)
+
+    /**
+     * Batched attachment fetch for album messages (groupId == attachments' messageId).
+     */
+    suspend fun getAttachmentsForGroups(groupIds: List<String>): List<MessageAttachmentEntity> =
+        messageDao.getAttachmentsForGroups(groupIds)
+
+    /**
+     * Fetch messages by id — used to resolve reply previews outside the loaded window.
+     */
+    suspend fun getMessagesByIds(ids: List<String>): List<MessageEntity> =
+        messageDao.getMessagesByIds(ids)
 
     /**
      * Search messages within a specific chat by text content.

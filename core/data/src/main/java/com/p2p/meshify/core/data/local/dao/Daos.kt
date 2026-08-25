@@ -37,6 +37,31 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp ASC")
     fun getAllMessagesForChat(chatId: String): Flow<List<MessageEntity>>
 
+    /**
+     * Observe the most recent [limit] messages of a chat, newest first.
+     * Caller reverses to display ascending.
+     */
+    @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp DESC LIMIT :limit")
+    fun observeLatestMessages(chatId: String, limit: Int): Flow<List<MessageEntity>>
+
+    /**
+     * Fetch up to [limit] messages strictly older than [beforeTimestamp], newest first.
+     * Caller reverses to display ascending.
+     */
+    @Query("""
+        SELECT * FROM messages
+        WHERE chatId = :chatId AND timestamp < :beforeTimestamp
+        ORDER BY timestamp DESC LIMIT :limit
+    """)
+    suspend fun getMessagesBefore(chatId: String, beforeTimestamp: Long, limit: Int): List<MessageEntity>
+
+    /**
+     * Batched attachment fetch for album messages: attachments rows carry
+     * messageId == album groupId, so one IN query serves every visible album.
+     */
+    @Query("SELECT * FROM message_attachments WHERE messageId IN (:groupIds)")
+    suspend fun getAttachmentsForGroups(groupIds: List<String>): List<MessageAttachmentEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: MessageEntity)
 

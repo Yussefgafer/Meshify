@@ -39,7 +39,14 @@ import javax.inject.Inject
 /** Debounce interval for search input to avoid excessive DB queries */
 private const val SEARCH_DEBOUNCE_MS = 300L
 
-private const val ATTACHMENT_CACHE_MAX_SIZE = 200
+/** Messages loaded per page: initial window and every "load older" page */
+private const val MESSAGE_PAGE_SIZE = 100
+
+/**
+ * One-shot event emitted after older history is prepended, carrying the number
+ * of inserted items so the screen can restore scroll position without a jump.
+ */
+data class HistoryPrepended(val count: Int)
 
 /** Maximum number of transport type entries to keep in state map */
 private const val TRANSPORT_HISTORY_MAX_SIZE = 100
@@ -47,6 +54,9 @@ private const val TRANSPORT_HISTORY_MAX_SIZE = 100
 data class ChatUiState(
     val isLoading: Boolean = true,
     val messages: List<MessageEntity> = emptyList(),
+    val attachmentsByGroupId: Map<String, List<MessageAttachmentEntity>> = emptyMap(),
+    val replyById: Map<String, MessageEntity> = emptyMap(),
+    val hasNoMoreHistory: Boolean = false,
     val isOnline: Boolean = false,
     val inputText: String = "",
     val draftText: String = "",
@@ -126,19 +136,60 @@ class ChatViewModel @Inject constructor(
         if (peerId.isBlank()) {
             _uiState.update { it.copy(isLoading = false, sendError = context.getString(R.string.error_unknown)) }
         } else {
-            // ✅ FIX: Collect messages flow with distinctUntilChanged to reduce recompositions
-            // This ensures real-time updates when messages are received from the network
+            // ✅ Windowed paging: observe only the latest MESSAGE_PAGE_SIZE messages;
+            // older pages are prepended on demand via loadOlderMessages().
             viewModelScope.launch {
-                chatRepo.getMessages(peerId)
-                    .distinctUntilChanged()
+                combine(
+                    olderPages,
+                    chatRepo.observeLatestMessages(peerId, MESSAGE_PAGE_SIZE)
+                ) { older, latest ->
+                    (older + latest).distinctBy { it.id }.sortedBy { it.timestamp }
+                }
                     .collect { messages ->
-                        Logger.d("ChatViewModel -> Messages updated: ${messages.size} messages for peer $peerId")
+                        Logger.d("ChatViewModel -> Window updated: ${messages.size} messages for peer $peerId")
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
                                 messages = messages
                             )
                         }
+                    }
+            }
+
+            // Batched album attachments: one IN query per change of the visible groupIds
+            // instead of one query per album bubble. Entries for groups still visible persist.
+            viewModelScope.launch {
+                _uiState
+                    .map { state -> state.messages.mapNotNull { it.groupId }.filter { it.isNotBlank() }.distinct() }
+                    .distinctUntilChanged()
+                    .collectLatest { groupIds ->
+                        if (groupIds.isEmpty()) return@collectLatest
+                        val fetched = withContext(Dispatchers.IO) {
+                            chatRepo.getAttachmentsForGroups(groupIds)
+                        }.groupBy { it.messageId.orEmpty() }
+                        _uiState.update { state ->
+                            val visible = groupIds.toSet()
+                            val merged = (state.attachmentsByGroupId + fetched).filterKeys { it in visible }
+                            state.copy(attachmentsByGroupId = merged)
+                        }
+                    }
+            }
+
+            // Reply previews that fall outside the loaded window: resolve by id once.
+            // Targets that truly do not exist stay absent — the bubble handles null.
+            viewModelScope.launch {
+                _uiState
+                    .map { state ->
+                        val inWindow = state.messages.mapTo(mutableSetOf()) { it.id }
+                        state.messages.mapNotNull { it.replyToId }.filter { it !in inWindow }.distinct()
+                    }
+                    .distinctUntilChanged()
+                    .collectLatest { missingIds ->
+                        if (missingIds.isEmpty()) return@collectLatest
+                        val resolved = withContext(Dispatchers.IO) {
+                            chatRepo.getMessagesByIds(missingIds)
+                        }.associateBy { it.id }
+                        _uiState.update { it.copy(replyById = it.replyById + resolved) }
                     }
             }
 
@@ -223,9 +274,8 @@ class ChatViewModel @Inject constructor(
 
                 // Record transport type for the newly sent message.
                 // The repository insert is synchronous (suspend), so the message is already in the DB.
-                // We read the current state via .first() — no arbitrary delay needed.
-                val currentMessages = chatRepo.getMessages(peerId).first()
-                val lastSentMessage = currentMessages.lastOrNull { it.isFromMe }
+                val currentMessages = chatRepo.observeLatestMessages(peerId, MESSAGE_PAGE_SIZE).first()
+                val lastSentMessage = currentMessages.firstOrNull { it.isFromMe } // window is DESC — newest first
                 if (lastSentMessage != null) {
                     _uiState.update { currentState ->
                         val updated = currentState.transportUsed + (lastSentMessage.id to transportType)
@@ -308,8 +358,8 @@ class ChatViewModel @Inject constructor(
      * exactly that message.
      */
     private suspend fun resolveFailedMessageId(): String? =
-        chatRepo.getMessages(peerId).first()
-            .lastOrNull { it.isFromMe && it.status == MessageStatus.FAILED }
+        chatRepo.observeLatestMessages(peerId, MESSAGE_PAGE_SIZE).first()
+            .firstOrNull { it.isFromMe && it.status == MessageStatus.FAILED } // window is DESC — newest first
             ?.id
 
     fun stageAttachment(uri: Uri, bytes: ByteArray, type: MessageType) {
@@ -444,34 +494,43 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    /**
-     * LRU cache for message attachments to avoid repeated DB queries.
-     * Capacity of [ATTACHMENT_CACHE_MAX_SIZE] entries (~all attachments in a typical conversation).
-     * Access-ordered: least recently used entries are evicted first.
-     */
-    private val attachmentsCache = object : LinkedHashMap<String, List<MessageAttachmentEntity>>(16, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<MessageAttachmentEntity>>) =
-            size > ATTACHMENT_CACHE_MAX_SIZE
-    }
+    // One-shot events for the screen to restore scroll position after a history prepend
+    private val _historyPrepends = MutableSharedFlow<HistoryPrepended>(extraBufferCapacity = 8)
+    val historyPrepends: SharedFlow<HistoryPrepended> = _historyPrepends.asSharedFlow()
+
+    // Older-than-window pages, prepended on demand by [loadOlderMessages]
+    private val olderPages = MutableStateFlow<List<MessageEntity>>(emptyList())
+    private var isLoadingOlder = false
+    private var hasNoMoreHistory = false
 
     /**
-     * Get attachments for a specific message.
-     * Uses LRU cache to avoid repeated DB queries for the same groupId.
+     * Loads one page of messages older than the oldest currently loaded message.
+     * Guards concurrent loads; emits [HistoryPrepended] so the UI can hold scroll position.
      */
-    suspend fun getAttachmentsForMessage(groupId: String): List<MessageAttachmentEntity> {
-        // Check cache first (thread-safe via synchronized)
-        synchronized(attachmentsCache) {
-            attachmentsCache[groupId]?.let { return it }
+    fun loadOlderMessages() {
+        if (isLoadingOlder || hasNoMoreHistory) return
+        val oldestTimestamp = _uiState.value.messages.firstOrNull()?.timestamp ?: return
+        isLoadingOlder = true
+        viewModelScope.launch {
+            try {
+                val page = withContext(Dispatchers.IO) {
+                    chatRepo.getMessagesBefore(peerId, oldestTimestamp, MESSAGE_PAGE_SIZE)
+                }.reversed() // DAO returns DESC — display order is ascending
+                if (page.isEmpty()) {
+                    hasNoMoreHistory = true
+                    _uiState.update { it.copy(hasNoMoreHistory = true) }
+                } else {
+                    olderPages.value = page + olderPages.value
+                    _historyPrepends.emit(HistoryPrepended(page.size))
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.e("ChatViewModel -> Failed to load older messages", e)
+            } finally {
+                isLoadingOlder = false
+            }
         }
-        // Not cached — fetch from DB
-        val result = withContext(Dispatchers.IO) {
-            chatRepo.getMessageAttachments(groupId)
-        }
-        // Store in cache
-        synchronized(attachmentsCache) {
-            attachmentsCache[groupId] = result
-        }
-        return result
     }
     
     // ==================== Forward Message Functions ====================

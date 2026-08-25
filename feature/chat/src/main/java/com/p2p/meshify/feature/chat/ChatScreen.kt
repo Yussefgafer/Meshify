@@ -76,6 +76,7 @@ import com.p2p.meshify.feature.chat.components.MessageList
 import com.p2p.meshify.feature.chat.components.ReplyIndicator
 import com.p2p.meshify.feature.chat.components.ScrollToFAB
 import com.p2p.meshify.feature.chat.components.SelectionModeTopBar
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -211,8 +212,9 @@ fun ChatScreen(
         }
     }
 
-    // Smart scroll to bottom on new messages
-    LaunchedEffect(uiState.messages.size) {
+    // Smart scroll to bottom only when the NEWEST message's ID changes — not on size,
+    // so prepending older history pages never yanks the list to the bottom.
+    LaunchedEffect(uiState.messages.lastOrNull()?.id) {
         if (uiState.messages.isNotEmpty()) {
             snapshotFlow { listState.layoutInfo.totalItemsCount }
                 .first { it >= uiState.messages.size }
@@ -228,6 +230,29 @@ fun ChatScreen(
                 listState.animateScrollToItem(uiState.messages.size - 1)
             }
         }
+    }
+
+    // Scroll preservation on history prepend: capture current position BEFORE the
+    // prepended items are composed, wait until the layout includes them, then jump.
+    LaunchedEffect(Unit) {
+        viewModel.historyPrepends.collect { event ->
+            val index = listState.firstVisibleItemIndex
+            val offset = listState.firstVisibleItemScrollOffset
+            snapshotFlow { listState.layoutInfo.totalItemsCount }
+                .first { it >= index + event.count }
+            listState.scrollToItem(index + event.count, offset)
+        }
+    }
+
+    // Pagination trigger: near the top of the loaded window, fetch the next older page.
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex }
+            .distinctUntilChanged()
+            .collect { index ->
+                if (!uiState.hasNoMoreHistory && index <= 10) {
+                    viewModel.loadOlderMessages()
+                }
+            }
     }
 
     // BackHandler: exit search mode first
@@ -387,7 +412,8 @@ fun ChatScreen(
                 transportUsed = uiState.transportUsed,
                 peerName = peerName,
                 listState = listState,
-                getAttachmentsForGroupId = viewModel::getAttachmentsForMessage,
+                attachmentsByGroupId = uiState.attachmentsByGroupId,
+                replyById = uiState.replyById,
                 onLongClick = { message ->
                     haptics.perform(HapticPattern.Pop)
                     if (selectedMessages.isEmpty()) {

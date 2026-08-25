@@ -1,4 +1,8 @@
-Unreleased
+Unreleased — Performance
+- [Perf] Windowed message paging replaces unbounded conversation loading — UI observes only the newest 100 messages via observeLatestMessages; scrolling near the top fetches 100-message pages through getMessagesBefore and prepends them with scroll-position restoration (no Paging3 dependency added)
+- [Perf] Album attachment N+1 eliminated — one batched IN-query per change of visible groupIds feeds attachmentsByGroupId instead of one produceState query per bubble; superseded LRU cache deleted
+- [Perf] Reply previews resolve across the page window boundary via one getMessagesByIds batch; messageById lookup wrapped in remember(messages); LazyColumn rows gained contentType
+- [Fix] Auto-scroll-to-bottom effect now keys on the newest message id instead of list size so loading history pages never yanks the view
 - [Fix] Eliminate double ingestion of incoming payloads — MeshForegroundService no longer collects getAllEventsFlow() nor calls chatRepository.handleIncomingPayload (was duplicating every DB write, ACK, media save, and notification); MeshifyApp's global collector is now the single ingestion point
 - [Fix] Accepted LAN sockets no longer die during quiet periods — READ_TIMEOUT_MS 30s→120s so SO_TIMEOUT stays above the 60s keepalive interval (was: guaranteed reconnect churn on every idle gap)
 - [Fix] Live peers can no longer be evicted by scattered historical send failures — dead-peer detection now requires 5 failures within a rolling 60s window (any successful send resets it) instead of 5 cumulative-ever failures

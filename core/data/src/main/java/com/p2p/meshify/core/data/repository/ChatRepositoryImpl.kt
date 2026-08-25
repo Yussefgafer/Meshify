@@ -129,6 +129,18 @@ class ChatRepositoryImpl(
     suspend fun getMessageAttachments(groupId: String): List<com.p2p.meshify.core.data.local.entity.MessageAttachmentEntity> =
         messageAttachmentRepository.getAttachmentsForMessage(groupId)
 
+    fun observeLatestMessages(chatId: String, limit: Int): Flow<List<MessageEntity>> =
+        messageRepository.observeLatestMessages(chatId, limit)
+
+    suspend fun getMessagesBefore(chatId: String, beforeTimestamp: Long, limit: Int): List<MessageEntity> =
+        messageRepository.getMessagesBefore(chatId, beforeTimestamp, limit)
+
+    suspend fun getAttachmentsForGroups(groupIds: List<String>): List<com.p2p.meshify.core.data.local.entity.MessageAttachmentEntity> =
+        messageRepository.getAttachmentsForGroups(groupIds)
+
+    suspend fun getMessagesByIds(ids: List<String>): List<MessageEntity> =
+        messageRepository.getMessagesByIds(ids)
+
     override val onlinePeers: Flow<Set<String>> = transportManager.getAllEventsFlow()
         .map { event ->
             transportManager.getAllTransports().flatMap { it.onlinePeers.value }.toSet()
