@@ -447,6 +447,7 @@
     <string name="notification_channel_messages_no_vibrate">Messages (no vibration)</string>
     <string name="notification_channel_messages_silent">Messages (silent)</string>
     <string name="notification_channel_messages_desc">Incoming message notifications</string>
+    <string name="content_desc_play_video">Play video</string>
 
     <!-- Settings Screen - App Settings Section -->
     <string name="settings_group_app">App Settings</string>

@@ -3,6 +3,10 @@ package com.p2p.meshify.core.network.lan
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.os.Build
@@ -130,6 +134,8 @@ class LanTransportImpl(
     private val nsdManager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
     private var registrationListener: NsdManager.RegistrationListener? = null
     private var discoveryListener: NsdManager.DiscoveryListener? = null
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private var nsdRefreshJob: Job? = null
 
     // Recreated on every start(): a cancelled scope silently no-ops every
     // launch{}, so a stopped transport must get a fresh one to restart
@@ -213,6 +219,8 @@ class LanTransportImpl(
         scope.launch { startDiscovery() }
 
         startWatchdog()
+
+        registerNetworkCallback(myId)
 
         started = true
     }
@@ -432,7 +440,59 @@ class LanTransportImpl(
         }
     }
 
+    private fun registerNetworkCallback(myId: String) {
+        if (networkCallback != null) return
+        val connectivityManager =
+            context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val request = NetworkRequest.Builder()
+            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+            .build()
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                Logger.i("LanEngine -> Network available ($network), refreshing NSD registration+discovery")
+                // Single-flight: cancel any in-flight refresh so rapid
+                // onAvailable events never interleave stop/start sequences.
+                nsdRefreshJob?.cancel()
+                nsdRefreshJob = scope.launch {
+                    val visible = settingsRepository.isNetworkVisible.firstOrNull()
+                    stopDiscovery()
+                    // Brief settle after stop before re-registering; correctness
+                    // is bounded by startDiscovery's retry/backoff either way.
+                    delay(300L)
+                    startDiscovery()
+                    if (visible == true) {
+                        unregisterService()
+                        val name = settingsRepository.displayName.firstOrNull() ?: return@launch
+                        registerService(myId, name)
+                    }
+                }
+            }
+        }
+        networkCallback = callback
+        try {
+            connectivityManager.registerNetworkCallback(request, callback)
+        } catch (e: Exception) {
+            Logger.e("LanEngine -> Failed to register network callback", e)
+            networkCallback = null
+        }
+    }
+
+    private fun unregisterNetworkCallback() {
+        val callback = networkCallback ?: return
+        networkCallback = null
+        try {
+            val connectivityManager =
+                context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            connectivityManager.unregisterNetworkCallback(callback)
+        } catch (e: Exception) {
+            Logger.e("LanEngine -> Failed to unregister network callback", e)
+        }
+    }
+
     override suspend fun stop() {
+        unregisterNetworkCallback()
+        nsdRefreshJob?.cancel()
+        nsdRefreshJob = null
         discoveryEnabled = false
         visibilityJob?.cancel()
         visibilityJob = null
@@ -674,15 +734,13 @@ class LanTransportImpl(
                     return@launch
                 }
 
-                // FIX: Check if peer already exists before adding
-                val isDuplicate = peerMapMutex.withLock {
-                    val existing = peerMap.putIfAbsent(peerId, address)
-                    existing != null
-                }
-                
-                if (isDuplicate) {
-                    Logger.d("LanTransport -> Peer $peerId already known, skipping duplicate resolution")
+                val previousAddress = peerMapMutex.withLock { peerMap.put(peerId, address) }
+                if (previousAddress == address) {
+                    Logger.d("LanTransport -> Peer $peerId already known at $address, skipping duplicate resolution")
                     return@launch
+                }
+                if (previousAddress != null) {
+                    Logger.i("LanTransport -> Peer $peerId moved $previousAddress -> $address, updating routes")
                 }
                 
                 updateOnlinePeers()

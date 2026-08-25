@@ -26,6 +26,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import javax.inject.Inject
 
 /**
@@ -43,6 +45,11 @@ class MeshifyApp : Application(), SingletonImageLoader.Factory {
     @Inject lateinit var bleTransportProvider: Provider<BleTransportImpl>
 
     private val applicationScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    // Bounded parallel ingestion: heavy FILE disk-writes must not delay TEXT saves.
+    // Room transactions serialize the writes; ordering within a peer is preserved by
+    // the sender's timestamps.
+    private val ingestionSemaphore = Semaphore(4)
 
     // BLE Transport instance (created but not started until enabled in settings)
     private var bleTransport: BleTransportImpl? = null
@@ -78,7 +85,11 @@ class MeshifyApp : Application(), SingletonImageLoader.Factory {
                 when (event) {
                     is TransportEvent.PayloadReceived -> {
                         Logger.d("MeshifyApp -> Received payload from ${event.deviceId}, type=${event.payload.type}")
-                        chatRepository.handleIncomingPayload(event.deviceId, event.payload)
+                        applicationScope.launch {
+                            ingestionSemaphore.withPermit {
+                                chatRepository.handleIncomingPayload(event.deviceId, event.payload)
+                            }
+                        }
                     }
                     is TransportEvent.DeviceDiscovered -> {
                         Logger.i("MeshifyApp -> Device discovered: ${event.deviceId} at ${event.address} via ${event.rssi} dBm")

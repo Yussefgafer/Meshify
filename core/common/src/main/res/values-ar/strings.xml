@@ -453,6 +453,7 @@
     <string name="notification_channel_messages_no_vibrate">الرسائل (بدون اهتزاز)</string>
     <string name="notification_channel_messages_silent">الرسائل (صامتة)</string>
     <string name="notification_channel_messages_desc">إشعارات الرسائل الواردة</string>
+    <string name="content_desc_play_video">تشغيل الفيديو</string>
 
     <!-- Settings Screen - App Settings Section -->
     <string name="settings_group_app">إعدادات التطبيق</string>

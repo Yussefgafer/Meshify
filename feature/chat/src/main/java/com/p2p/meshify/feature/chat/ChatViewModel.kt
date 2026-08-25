@@ -14,6 +14,7 @@ import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
 import com.p2p.meshify.domain.repository.IChatRepository
 import com.p2p.meshify.core.ui.components.ForwardDialogState
 import com.p2p.meshify.core.util.Logger
+import com.p2p.meshify.domain.model.AppConstants
 import com.p2p.meshify.domain.model.DeleteType
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.model.TransportType
@@ -62,6 +63,7 @@ data class ChatUiState(
     val draftText: String = "",
     val replyTo: MessageEntity? = null,
     val stagedAttachments: List<StagedAttachment> = emptyList(),
+    val isStagingAttachment: Boolean = false,
     val isSending: Boolean = false,
     val sendError: String? = null,
     val failedMessageId: String? = null,
@@ -372,8 +374,15 @@ class ChatViewModel @Inject constructor(
             .firstOrNull { it.isFromMe && it.status == MessageStatus.FAILED } // window is DESC — newest first
             ?.id
 
-    fun stageAttachment(uri: Uri, bytes: ByteArray, type: MessageType) {
+    fun stageAttachment(uri: Uri, type: MessageType) {
         viewModelScope.launch {
+            _uiState.update { it.copy(isStagingAttachment = true) }
+            val bytes = withContext(Dispatchers.IO) { readAttachmentBytes(uri) }
+            _uiState.update { it.copy(isStagingAttachment = false) }
+            if (bytes == null) {
+                Logger.e("ChatViewModel -> Failed to read attachment: $uri")
+                return@launch
+            }
             stageMutex.withLock {
                 val current = _uiState.value.stagedAttachments
                 if (current.size >= 10) return@launch // Limit to 10 attachments
@@ -382,6 +391,37 @@ class ChatViewModel @Inject constructor(
                 val updated = current + newAttachment
                 _uiState.update { it.copy(stagedAttachments = updated) }
             }
+        }
+    }
+
+    /** Reads bytes from a content URI safely via streaming copy that aborts over the size limit. */
+    private fun readAttachmentBytes(uri: Uri): ByteArray? {
+        return try {
+            val maxBytes = AppConstants.MAX_FILE_SIZE_BYTES
+            context.contentResolver.openInputStream(uri)?.use { stream ->
+                val buffer = ByteArray(8 * 1024)
+                var total = 0L
+                val out = java.io.ByteArrayOutputStream()
+                var read: Int
+                while (stream.read(buffer).also { read = it } != -1) {
+                    total += read
+                    if (total > maxBytes) {
+                        Logger.e("ChatViewModel -> File too large: > $maxBytes bytes")
+                        return null
+                    }
+                    out.write(buffer, 0, read)
+                }
+                out.toByteArray()
+            }
+        } catch (e: SecurityException) {
+            Logger.e("ChatViewModel -> SecurityException reading URI: $uri", e)
+            null
+        } catch (e: java.io.FileNotFoundException) {
+            Logger.e("ChatViewModel -> File not found: $uri", e)
+            null
+        } catch (e: Exception) {
+            Logger.e("ChatViewModel -> Failed to read URI: $uri", e)
+            null
         }
     }
 

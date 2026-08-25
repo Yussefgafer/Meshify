@@ -13,6 +13,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,7 +59,6 @@ fun PhysicsSwipeToDelete(
     val magneticPullStrength = 0.4f
     val offsetX = remember { Animatable(0f) }
     var isUnlocked by remember { mutableStateOf(false) }
-    var isDragging by remember { mutableStateOf(false) }
     val unlockProgress by remember { derivedStateOf { (offsetX.value.absoluteValue / unlockThresholdPx).coerceIn(0f, 1f) } }
     val groupRadiusPx = with(density) { groupCornerRadius.toPx() }
     val itemRadiusPx = with(density) { itemCornerRadius.toPx() }
@@ -67,12 +67,14 @@ fun PhysicsSwipeToDelete(
     val animatedTopRadius by animateFloatAsState(targetTopRadius, spring(0.6f, 400f))
     val animatedBottomRadius by animateFloatAsState(targetBottomRadius, spring(0.6f, 400f))
 
-    // Report swipe progress to parent for neighbor effects
-    LaunchedEffect(unlockProgress, isDragging) {
-        if (isDragging || unlockProgress > 0f) {
-            onSwipeProgress?.invoke(itemIndex, unlockProgress)
-        } else {
-            onSwipeProgress?.invoke(itemIndex, 0f)
+    // Quantized progress reporting (10 steps) — parent state must not update every drag frame.
+    val reportedStep = remember { mutableIntStateOf(-1) }
+
+    fun reportSwipeProgress(progress: Float) {
+        val step = (progress * 10).roundToInt()
+        if (step != reportedStep.intValue) {
+            reportedStep.intValue = step
+            onSwipeProgress?.invoke(itemIndex, step / 10f)
         }
     }
 
@@ -100,7 +102,7 @@ fun PhysicsSwipeToDelete(
                         scope.launch {
                             offsetX.animateTo(0f, spring(0.5f))
                             isUnlocked = false
-                            onSwipeProgress?.invoke(itemIndex, 0f)
+                            reportSwipeProgress(0f)
                         }
                     },
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -133,19 +135,19 @@ fun PhysicsSwipeToDelete(
                 .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .pointerInput(Unit) {
                     detectHorizontalDragGestures(
-                        onDragStart = { isDragging = true },
+                        onDragStart = { },
                         onDragEnd = {
-                            isDragging = false
                             scope.launch {
                                 if (!deleteEnabled || offsetX.value.absoluteValue < unlockThresholdPx) {
                                     if (offsetX.value.absoluteValue > 10f) haptics.perform(HapticPattern.Thud)
                                     offsetX.animateTo(0f, spring(0.55f))
                                     isUnlocked = false
-                                    onSwipeProgress?.invoke(itemIndex, 0f)
+                                    reportSwipeProgress(0f)
                                 } else {
                                     if (!isUnlocked) haptics.perform(HapticPattern.Pop)
                                     isUnlocked = true
                                     offsetX.animateTo(-revealDistancePx, spring(0.6f))
+                                    reportSwipeProgress(1f)
                                 }
                             }
                         },
@@ -158,7 +160,10 @@ fun PhysicsSwipeToDelete(
                                     dragFriction
                                 }
                                 val newOffset = (offsetX.value + dragAmount * friction).coerceIn(-revealDistancePx * 1.2f, 0f)
-                                scope.launch { offsetX.snapTo(newOffset) }
+                                scope.launch {
+                                    offsetX.snapTo(newOffset)
+                                    reportSwipeProgress((newOffset.absoluteValue / unlockThresholdPx).coerceIn(0f, 1f))
+                                }
                                 if (offsetX.value.absoluteValue < unlockThresholdPx && newOffset.absoluteValue >= unlockThresholdPx) {
                                     haptics.perform(HapticPattern.Pop)
                                 }

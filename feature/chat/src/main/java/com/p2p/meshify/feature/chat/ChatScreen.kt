@@ -156,6 +156,7 @@ fun ChatScreen(
 
     // Track if user has scrolled away from bottom
     var hasScrolledToBottom by rememberSaveable { mutableStateOf(false) }
+    var initialJoinDone by rememberSaveable { mutableStateOf(false) }
 
     // BackHandler confirmation for unsaved drafts
     var showBackConfirmationDialog by remember { mutableStateOf(false) }
@@ -220,14 +221,20 @@ fun ChatScreen(
                 .first { it >= uiState.messages.size }
 
             if (isAtBottom) {
+                initialJoinDone = true
                 val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
                 val lastIndex = uiState.messages.size - 1
                 if (lastVisibleIndex >= lastIndex - 3) {
                     listState.animateScrollToItem(lastIndex)
                 }
             } else {
-                hasScrolledToBottom = true
-                listState.animateScrollToItem(uiState.messages.size - 1)
+                // Force-join only on first load or when OUR message sends;
+                // incoming messages must never yank a reader out of history.
+                if (!initialJoinDone || uiState.messages.last().isFromMe) {
+                    initialJoinDone = true
+                    hasScrolledToBottom = true
+                    listState.animateScrollToItem(uiState.messages.size - 1)
+                }
             }
         }
     }
@@ -367,6 +374,7 @@ fun ChatScreen(
                     stagedAttachments = uiState.stagedAttachments,
                     onRemoveAttachment = viewModel::removeStagedAttachment,
                     onStageAttachment = viewModel::stageAttachment,
+                    isStaging = uiState.isStagingAttachment,
                     isSending = uiState.isSending
                 )
             }
