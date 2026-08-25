@@ -162,9 +162,7 @@
     <string name="settings_label_md3_expressive">نظام MD3 Expressive</string>
     <string name="settings_label_github_repo">مستودع GitHub</string>
     <string name="settings_label_github_desc">عرض الكود المصدري والمساهمة</string>
-    <string name="settings_label_credits">اعتمادات المطور</string>
-    <string name="settings_label_credits_desc">بُني بواسطة ❤️ بواسطة Jo</string>
-    <string name="settings_label_device_id_suffix">(اضغط لنسخ المعرف الكامل)</string>
+    <string name="settings_device_id_copied">تم نسخ معرف الجهاز</string>
 
     <!-- Settings Screen - Dialogs -->
     <string name="settings_dialog_edit_name">تحرير الاسم المستعار</string>
@@ -584,7 +582,6 @@
     <string name="oob_btn_done">تم</string>
 
     <!-- Generic Dialog Buttons (Missing translation) -->
-    <string name="dialog_btn_close">إغلاق</string>
 
     <!-- Settings — Shape Style Dialog Labels -->
     <string name="settings_shape_label_sunny">نجمة</string>
@@ -620,8 +617,6 @@
     <string name="settings_bubble_label_organic">عضوي</string>
 
     <!-- Settings — Credits Dialog -->
-    <string name="settings_credits_title">الاعتمادات</string>
-    <string name="settings_credits_text">صُنع بـ ❤️ بواسطة جو\n\nKotlin + Jetpack Compose + Material 3 Expressive\nمراسلة لامركزية P2P</string>
 
     <!-- Settings — Validation Errors -->
     <string name="settings_error_display_name_empty">يجب أن يكون الاسم حرفاً واحداً على الأقل</string>

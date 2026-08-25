@@ -1,6 +1,10 @@
 package com.p2p.meshify.feature.settings
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -63,7 +67,6 @@ fun SettingsScreen(
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showFontSizeDialog by remember { mutableStateOf(false) }
     var showBleSheet by remember { mutableStateOf(false) }
-    var showCreditsDialog by remember { mutableStateOf(false) }
     var cacheStatus by remember { mutableStateOf<String?>(null) }
 
     val scrollState = rememberScrollState()
@@ -80,6 +83,8 @@ fun SettingsScreen(
 
     val cacheSuccess = stringResource(R.string.settings_cache_cleared_success)
     val cacheError = stringResource(R.string.settings_cache_cleared_error)
+    val deviceIdLabel = stringResource(R.string.setting_device_id)
+    val deviceIdCopied = stringResource(R.string.settings_device_id_copied)
 
     val onEditName = {
         haptics.perform(HapticPattern.Pop)
@@ -103,10 +108,6 @@ fun SettingsScreen(
     }
     val onOpenGithub = {
         context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/Yussefgafer/Meshify")))
-    }
-    val onOpenCredits = {
-        haptics.perform(HapticPattern.Pop)
-        showCreditsDialog = true
     }
 
     Scaffold(
@@ -178,11 +179,21 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xs))
 
-            // Device ID (short) as a pill
+            // Device ID (short) as a pill — tap to copy the full ID
             Surface(
                 color = MaterialTheme.colorScheme.primaryContainer,
                 shape = CircleShape,
-                modifier = Modifier.clip(CircleShape)
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(enabled = state.deviceIdLoaded) {
+                        haptics.perform(HapticPattern.Success)
+                        val clipboard =
+                            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(
+                            ClipData.newPlainText(deviceIdLabel, state.deviceId)
+                        )
+                        Toast.makeText(context, deviceIdCopied, Toast.LENGTH_SHORT).show()
+                    }
             ) {
                 Text(
                     text = if (state.deviceIdLoaded) state.deviceId.take(8).uppercase() else stringResource(R.string.settings_device_id_loading),
@@ -200,8 +211,6 @@ fun SettingsScreen(
 
             IdentitySection(
                 state = state,
-                viewModel = viewModel,
-                haptics = haptics,
                 onEditName = onEditName
             )
 
@@ -238,8 +247,7 @@ fun SettingsScreen(
                 appVersion = appVersion,
                 haptics = haptics,
                 onDeveloperModeClick = onDeveloperModeClick,
-                onOpenGithub = onOpenGithub,
-                onOpenCredits = onOpenCredits
+                onOpenGithub = onOpenGithub
             )
 
             Spacer(Modifier.height(MeshifyDesignSystem.Spacing.Xxl))
@@ -295,12 +303,6 @@ fun SettingsScreen(
             transportMode = state.transportMode,
             onModeSelected = { viewModel.setTransportMode(it) },
             onDismiss = { showBleSheet = false }
-        )
-    }
-
-    if (showCreditsDialog) {
-        SettingsCreditsDialog(
-            onDismiss = { showCreditsDialog = false }
         )
     }
 
