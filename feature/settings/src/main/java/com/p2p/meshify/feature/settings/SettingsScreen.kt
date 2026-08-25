@@ -270,8 +270,9 @@ fun SettingsScreen(
             appLanguage = state.appLanguage,
             onDismiss = { showLanguageDialog = false },
             onLanguageSelected = { lang ->
-                viewModel.setAppLanguage(lang)
-                (context as? ComponentActivity)?.recreate()
+                viewModel.setAppLanguage(lang) {
+                    (context as? ComponentActivity)?.recreate()
+                }
                 showLanguageDialog = false
             }
         )

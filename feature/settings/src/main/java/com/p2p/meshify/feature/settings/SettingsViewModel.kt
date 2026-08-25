@@ -164,10 +164,11 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setAppLanguage(language: String) {
+    fun setAppLanguage(language: String, onSaved: () -> Unit = {}) {
         viewModelScope.launch {
             try {
                 settingsRepository.setAppLanguage(language)
+                onSaved()
             } catch (e: Exception) {
                 _errorMessage.value = e.message ?: "Failed to save app language"
             }

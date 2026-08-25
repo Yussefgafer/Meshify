@@ -1,4 +1,5 @@
 V1.1.3
+- [Fix] In-app language switching is now deterministic — the stored locale is applied synchronously in MainActivity.attachBaseContext via createConfigurationContext + LocaleList instead of racing setContent from a coroutine, and Settings recreates the activity only after the DataStore write completes (previously the recreated activity could read the old language back, making the en/ar toggle look random)
 - [Perf] Attachment picking no longer blocks the main thread — the content-URI read (up to the ~10MB cap) moved off-compose into ChatViewModel on Dispatchers.IO with a staging progress indicator; large files can no longer freeze the chat input while picking
 - [Perf] Incoming media no longer delays text messages — global ingestion offloads payload handling to bounded-parallel workers (Semaphore(4)) so a big FILE disk-write can't stall TEXT saves behind it in the collector loop
 - [Perf] Video bubbles no longer spin up an ExoPlayer each on composition — a tap-to-play placeholder replaced the eager build+prepare, so a chat full of videos renders without N media pipelines buffering at once

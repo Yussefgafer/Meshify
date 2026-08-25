@@ -1,11 +1,13 @@
 package com.p2p.meshify
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
+import android.os.LocaleList
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -60,6 +62,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -124,12 +127,24 @@ class MainActivity : ComponentActivity() {
         onboardingPermissionLauncher.launch(permissions.toTypedArray())
     }
 
-    private fun applyLocale(language: String) {
-        val locale = java.util.Locale.forLanguageTag(language)
+    override fun attachBaseContext(newBase: Context) {
+        // Must resolve synchronously here: getApplication() is still null during attach,
+        // so the app instance is reached via MeshifyApp.instance instead.
+        val lang = try {
+            runBlocking { MeshifyApp.instance.settingsRepository.appLanguage.first() }
+        } catch (e: Exception) {
+            Logger.e("MainActivity -> Failed to load language", e)
+            null
+        }
+        if (lang == null) {
+            super.attachBaseContext(newBase)
+            return
+        }
+        val locale = java.util.Locale.forLanguageTag(lang)
         java.util.Locale.setDefault(locale)
-        val config = Configuration(resources.configuration)
-        config.setLocale(locale)
-        resources.updateConfiguration(config, resources.displayMetrics)
+        val config = Configuration(newBase.resources.configuration)
+        config.setLocales(LocaleList(locale))
+        super.attachBaseContext(newBase.createConfigurationContext(config))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -137,18 +152,6 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val app = application as MeshifyApp
-
-        // Apply stored locale before setContent so strings render in the right language.
-        // Use lifecycleScope.launch instead of runBlocking to avoid blocking the main thread.
-        lifecycleScope.launch {
-            try {
-                val lang = app.settingsRepository.appLanguage.first()
-                applyLocale(lang)
-            } catch (e: Exception) {
-                Logger.e("MainActivity -> Failed to load language", e)
-                // Default locale will be used as fallback
-            }
-        }
 
         // Only request permissions immediately if onboarding was already completed.
         // Otherwise, permissions will be requested after the onboarding flow.

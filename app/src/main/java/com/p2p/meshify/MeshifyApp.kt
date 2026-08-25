@@ -37,6 +37,12 @@ import javax.inject.Inject
 @HiltAndroidApp
 class MeshifyApp : Application(), SingletonImageLoader.Factory {
 
+    companion object {
+        @Volatile
+        lateinit var instance: MeshifyApp
+            private set
+    }
+
     @Inject lateinit var chatRepository: ChatRepositoryImpl
     @Inject lateinit var transportManager: TransportManager
     @Inject lateinit var settingsRepository: ISettingsRepository
@@ -55,6 +61,7 @@ class MeshifyApp : Application(), SingletonImageLoader.Factory {
     private var bleTransport: BleTransportImpl? = null
 
     override fun onCreate() {
+        instance = this
         super.onCreate()
         Logger.init(this)
         Logger.i("MeshifyApp -> Application onCreate START")
