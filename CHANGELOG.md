@@ -1,4 +1,9 @@
-Unreleased — Performance
+V1.1.3
+- [Fix] Truncated frames are now rejected instead of deserialized — a peer dying mid-transfer no longer yields a zero-padded buffer that could save a corrupt file or ACK a ghost payload; incomplete frames are discarded and the connection closed
+- [Fix] Keep-alive can no longer steal frames or corrupt the wire — PINGs are sent exclusively through the mutexed sendPayload path instead of writing raw frames on pooled sockets, and the direct input-stream PONG probe is deleted (it was swallowing real TEXT/FILE/ACK frames that arrived between reader-loop iterations); liveness verdict is now the send result itself
+- [Fix] File attachment limit aligned with the wire protocol frame cap — MAX_FILE_SIZE_BYTES 100MB→~10MB so sender-side validation can no longer accept files the receiver is guaranteed to reject and kill the connection over (files 10–100MB were deterministically undeliverable; chunked transfer for larger files is future work)
+- [Fix] LAN transport survives stop→start cycles — start()/stop() recreate their coroutine scopes instead of reusing cancelled ones, the incoming-payload collector is tracked and cancelled across restarts, and duplicate start() calls are an idempotent no-op (was: START_STICKY service restart relaunched everything into dead scopes = silent zombie mesh until cold process restart)
+- [Fix] Connection pool no longer leaks sockets and permits on mutual-connect races — addConnection closes the replaced socket and returns its permit, and reader-loop/idle cleanup remove by identity instead of key so a replacement landing mid-teardown is never closed or double-released (was: every overwrite drained one permit permanently until "Pool full" rejected all connections)
 - [Perf] Windowed message paging replaces unbounded conversation loading — UI observes only the newest 100 messages via observeLatestMessages; scrolling near the top fetches 100-message pages through getMessagesBefore and prepends them with scroll-position restoration (no Paging3 dependency added)
 - [Perf] Album attachment N+1 eliminated — one batched IN-query per change of visible groupIds feeds attachmentsByGroupId instead of one produceState query per bubble; superseded LRU cache deleted
 - [Perf] Reply previews resolve across the page window boundary via one getMessagesByIds batch; messageById lookup wrapped in remember(messages); LazyColumn rows gained contentType
@@ -14,8 +19,6 @@ Unreleased — Performance
 - [Fix] Block path traversal via sender-controlled file names — FileManagerImpl.saveMedia strips separators/'..' with UUID fallback plus canonical-path containment check before any write
 - [Fix] Offline file sends no longer deliver empty files — queued messages now persist the staged file (filesDir/staging) before queuing; retry streams the real bytes, promotes the staged copy to media on success, and an explicit empty-payload guard makes fake-SENT structurally impossible
 - [Fix] Failed-send Retry now replays the ORIGINAL failed message by id read from the repository — previously it re-sent whatever was currently in the input box (duplicate/wrong-text sends); the 500ms wall-clock debounce is replaced by a synchronous isSending guard so a deliberate Retry tap is never swallowed
-
-V1.1.3
 - [Style] Make splash screen dark (#1C1B1F) on all Android versions — windowSplashScreenBackground (12+) + windowBackground fallback
 - [Feat] Replace default Android launcher icon with Meshify chat-bubble icon (from icon.svg): white adaptive-icon background + dark-stroke bubble foreground; monochrome layer makes it a dynamic themed icon on Android 13+
 - [Chore] Remove docs/ from git tracking (gitignored, deleted from repository)

@@ -50,8 +50,9 @@ class SocketManager(
     @Volatile
     private var isRunning = false
     
-    // Dedicated scope for connection management
-    private val connectionScope = CoroutineScope(ioDispatcher + SupervisorJob())
+    // Dedicated scope for connection management — recreated by
+    // startListening() because a cancelled scope no-ops every launch
+    private var connectionScope = CoroutineScope(ioDispatcher + SupervisorJob())
     
     // Cleanup job for removing idle sockets
     private var cleanupJob: Job? = null
@@ -89,7 +90,8 @@ class SocketManager(
     suspend fun startListening() = withContext(ioDispatcher) {
         if (isRunning) return@withContext
         isRunning = true
-        
+        connectionScope = CoroutineScope(ioDispatcher + SupervisorJob())
+
         // Start cleanup job for idle sockets
         cleanupJob = connectionScope.launch {
             while (isRunning) {
@@ -135,20 +137,21 @@ class SocketManager(
         connectionScope.launch {
             val address = socket.inetAddress.hostAddress ?: "unknown"
             val lock = connectionPool.getOrCreateConnectionLock(address)
-            var acquiredPermit = false
-            
+            var storedConnection: PooledSocket? = null
+
             try {
-                // Add to connection pool
-                if (!connectionPool.addConnection(address, socket)) {
+                // Add to connection pool (returns the stored instance — never
+                // re-fetch by key, a replacement may have landed in between)
+                val added = connectionPool.addConnection(address, socket)
+                if (added == null) {
                     Logger.w("SocketManager -> Pool full, rejecting connection from $address")
                     socketFactory.closeSocket(socket, "SocketManager")
                     return@launch
                 }
-                acquiredPermit = true
-                
-                val pooledSocket = connectionPool.getConnection(address)
-                    ?: throw Exception("Failed to get pooled socket")
-                
+                storedConnection = added
+
+                val pooledSocket = added.socket
+
                 val inputStream = DataInputStream(pooledSocket.getInputStream())
                 val buffer = ByteArray(AppConfig.DEFAULT_BUFFER_SIZE) // Use configured buffer size
                 
@@ -178,6 +181,14 @@ class SocketManager(
 
                                 System.arraycopy(buffer, 0, bytes, totalRead, bytesRead)
                                 totalRead += bytesRead
+                            }
+
+                            // Short read = peer died mid-frame; the buffer tail
+                            // is zeros and deserializing it would emit a ghost
+                            // payload or save corrupt data. Close the connection.
+                            if (totalRead < length) {
+                                Logger.e("SocketManager -> Incomplete frame from $address ($totalRead/$length bytes) — discarding")
+                                break
                             }
 
                             // Update last used timestamp
@@ -213,7 +224,9 @@ class SocketManager(
                 Logger.d("SocketManager -> Exception details: ${e.stackTraceToString()}")
             } finally {
                 Logger.d("SocketManager -> Connection cleanup: $address")
-                connectionPool.removeConnection(address, closeSocket = false)
+                storedConnection?.let {
+                    connectionPool.removePooledSocket(address, it, closeSocket = false)
+                }
             }
         }
     }
@@ -227,8 +240,6 @@ class SocketManager(
         val lock = connectionPool.getOrCreateConnectionLock(targetAddress)
         
         lock.withLock {
-            var acquiredPermit = false
-            
             try {
                 Logger.d("SocketManager -> sendPayload START: target=$targetAddress, payloadType=${payload.type}")
                 
@@ -249,12 +260,11 @@ class SocketManager(
                         return@withContext Result.failure(e)
                     }
                     
-                    if (!connectionPool.addConnection(targetAddress, socket)) {
+                    if (connectionPool.addConnection(targetAddress, socket) == null) {
                         socketFactory.closeSocket(socket, "SocketManager")
                         Logger.e("SocketManager -> Failed to add connection to pool for $targetAddress")
                         return@withContext Result.failure(Exception("Connection pool full"))
                     }
-                    acquiredPermit = true
                     
                     Logger.d("SocketManager -> Connection established to $targetAddress")
                 }

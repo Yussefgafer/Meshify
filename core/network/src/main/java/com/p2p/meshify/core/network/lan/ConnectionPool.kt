@@ -62,22 +62,34 @@ class ConnectionPool {
     
     /**
      * Adds a new connection to the pool.
-     * 
+     * If an entry already exists for [peerId] (mutual-connect race), the old
+     * socket is closed and its permit released so the pool cannot drain.
+     *
      * @param peerId Peer identifier
      * @param socket Socket to add
-     * @return true if added successfully, false if pool is full
+     * @return the stored PooledSocket, or null if pool is full
      */
-    fun addConnection(peerId: String, socket: Socket): Boolean {
+    internal fun addConnection(peerId: String, socket: Socket): PooledSocket? {
         // Check pool size before adding
         if (!poolSemaphore.tryAcquire()) {
             Logger.w("ConnectionPool -> Pool full ($MAX_POOL_SIZE), rejecting connection for $peerId")
-            return false
+            return null
         }
-        
+
         val pooledSocket = PooledSocket(socket)
-        activeConnections[peerId] = pooledSocket
-        Logger.d("ConnectionPool -> Added connection for $peerId")
-        return true
+        val replaced = activeConnections.put(peerId, pooledSocket)
+        if (replaced != null) {
+            try {
+                replaced.socket.close()
+            } catch (e: Exception) {
+                Logger.e("ConnectionPool -> Failed to close replaced socket for $peerId", e)
+            }
+            poolSemaphore.release()
+            Logger.d("ConnectionPool -> Replaced existing connection for $peerId")
+        } else {
+            Logger.d("ConnectionPool -> Added connection for $peerId")
+        }
+        return pooledSocket
     }
     
     /**
@@ -102,6 +114,26 @@ class ConnectionPool {
             if (releasePermit) {
                 poolSemaphore.release()
             }
+            cleanupConnectionLock(peerId)
+        }
+    }
+
+    /**
+     * Removes a connection only if [expected] is still the mapped entry.
+     * Key-based removal can hit a newer replacement (added while the old
+     * reader loop was still winding down); this variant makes that race safe.
+     */
+    internal fun removePooledSocket(peerId: String, expected: PooledSocket, closeSocket: Boolean) {
+        if (activeConnections.remove(peerId, expected)) {
+            if (closeSocket) {
+                try {
+                    expected.socket.close()
+                    Logger.d("ConnectionPool -> Removed and closed connection for $peerId")
+                } catch (e: Exception) {
+                    Logger.e("ConnectionPool -> Failed to close socket for $peerId", e)
+                }
+            }
+            poolSemaphore.release()
             cleanupConnectionLock(peerId)
         }
     }
@@ -138,11 +170,14 @@ class ConnectionPool {
             }
         }
         
-        // Second pass: remove and close
+        // Second pass: remove and close (identity-safe so a replacement
+        // added between snapshot and removal is never touched)
         var cleanedCount = 0
         toRemove.forEach { key ->
-            removeConnection(key, closeSocket = true)
-            cleanedCount++
+            activeConnections[key]?.let { pooledSocket ->
+                removePooledSocket(key, pooledSocket, closeSocket = true)
+                cleanedCount++
+            }
         }
         
         if (cleanedCount > 0) {

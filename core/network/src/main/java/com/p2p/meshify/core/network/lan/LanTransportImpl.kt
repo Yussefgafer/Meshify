@@ -131,18 +131,32 @@ class LanTransportImpl(
     private var registrationListener: NsdManager.RegistrationListener? = null
     private var discoveryListener: NsdManager.DiscoveryListener? = null
 
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    // Recreated on every start(): a cancelled scope silently no-ops every
+    // launch{}, so a stopped transport must get a fresh one to restart
+    // (START_STICKY service-restart path).
+    private var scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var watchdogJob: Job? = null
     private var visibilityJob: Job? = null
     private var cleanupFailedCountsJob: Job? = null
+    private var payloadCollectorJob: Job? = null
+
+    @Volatile
+    private var started = false
 
     override suspend fun start() {
+        if (started) {
+            Logger.d("LanEngine -> Already started, ignoring duplicate start")
+            return
+        }
+
         val myId = settingsRepository.getDeviceId()
         // Keep-alive PINGs must carry our real device id so the remote peer
         // can route its PONG reply back to us (must precede startListening()).
         socketManager.setKeepAliveSenderId(myId)
 
         Logger.i("LanEngine -> Starting. MyID: $myId")
+
+        scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
         // Start cleanup job for failedSendCounts (prevents memory leak)
         cleanupFailedCountsJob = scope.launch {
@@ -168,7 +182,8 @@ class LanTransportImpl(
                 }
         }
 
-        scope.launch {
+        payloadCollectorJob?.cancel()
+        payloadCollectorJob = scope.launch {
             socketManager.incomingPayloads.collect { (address, payload) ->
                 val senderId = payload.senderId
                 // Control frames (keep-alive PING/PONG, typing) must never
@@ -198,6 +213,8 @@ class LanTransportImpl(
         scope.launch { startDiscovery() }
 
         startWatchdog()
+
+        started = true
     }
 
     /**
@@ -418,11 +435,17 @@ class LanTransportImpl(
     override suspend fun stop() {
         discoveryEnabled = false
         visibilityJob?.cancel()
+        visibilityJob = null
         watchdogJob?.cancel()
+        watchdogJob = null
         cleanupFailedCountsJob?.cancel()
+        cleanupFailedCountsJob = null
+        payloadCollectorJob?.cancel()
+        payloadCollectorJob = null
         unregisterService()
         stopDiscovery()
         socketManager.stopListening()
+        started = false
         scope.cancel()
     }
 
