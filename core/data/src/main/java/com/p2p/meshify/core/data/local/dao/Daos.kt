@@ -79,7 +79,7 @@ interface MessageDao {
     @Query("DELETE FROM messages WHERE chatId = :chatId")
     suspend fun deleteAllMessagesForChat(chatId: String)
 
-    // ✅ FIX: Get all attachments in database (for debugging/utility)
+    // FIX: Get all attachments in database (for debugging/utility)
     @Query("SELECT * FROM message_attachments ORDER BY id")
     suspend fun getAllAttachments(): List<MessageAttachmentEntity>
 
@@ -99,6 +99,9 @@ interface PendingMessageDao {
     @Query("SELECT * FROM pending_messages WHERE recipientId = :recipientId")
     suspend fun getByRecipient(recipientId: String): List<PendingMessageEntity>
 
+    @Query("SELECT * FROM pending_messages WHERE id = :id")
+    suspend fun getById(id: String): PendingMessageEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(message: PendingMessageEntity)
 
@@ -114,7 +117,7 @@ interface PendingMessageDao {
     @Query("DELETE FROM pending_messages WHERE id = :id")
     suspend fun deleteById(id: String)
 
-    // ✅ FIX: Get all pending messages (for debugging/utility)
+    // FIX: Get all pending messages (for debugging/utility)
     @Query("SELECT * FROM pending_messages ORDER BY timestamp ASC")
     suspend fun getAll(): List<PendingMessageEntity>
 }

@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.p2p.meshify.core.common.R
 import com.p2p.meshify.core.data.local.entity.MessageAttachmentEntity
 import com.p2p.meshify.core.data.local.entity.MessageEntity
+import com.p2p.meshify.core.data.local.entity.MessageStatus
 import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
 import com.p2p.meshify.domain.repository.IChatRepository
 import com.p2p.meshify.core.ui.components.ForwardDialogState
@@ -53,6 +54,7 @@ data class ChatUiState(
     val stagedAttachments: List<StagedAttachment> = emptyList(),
     val isSending: Boolean = false,
     val sendError: String? = null,
+    val failedMessageId: String? = null,
     val uploadError: String? = null,
     val transportUsed: Map<String, TransportType> = emptyMap(),
     val successMessage: String? = null
@@ -120,10 +122,6 @@ class ChatViewModel @Inject constructor(
     // ConcurrentHashMap for thread safety — invokeOnCompletion may run on a different dispatcher
     private val uploadJobs = ConcurrentHashMap<String, kotlinx.coroutines.Job>()
 
-    // ✅ Double tap protection - prevent sending same message twice
-    private var lastSendTime = 0L
-    private val sendDebounceMs = 500L // 500ms debounce
-
     init {
         if (peerId.isBlank()) {
             _uiState.update { it.copy(isLoading = false, sendError = context.getString(R.string.error_unknown)) }
@@ -158,7 +156,8 @@ class ChatViewModel @Inject constructor(
                     if (event.type == SecurityEvent.EventType.MESSAGE_SEND_FAILED) {
                         _uiState.update {
                             it.copy(
-                                sendError = context.getString(R.string.error_message_send_failed, event.reason)
+                                sendError = context.getString(R.string.error_message_send_failed, event.reason),
+                                failedMessageId = event.messageId.ifBlank { null }
                             )
                         }
                         Logger.e("ChatViewModel -> Message send failed: ${event.messageId}")
@@ -190,19 +189,10 @@ class ChatViewModel @Inject constructor(
         val hasAttachments = state.stagedAttachments.isNotEmpty()
 
         if (!hasText && !hasAttachments) return
-        if (state.isSending) return // Prevent double-send
-
-        // ✅ Double tap protection - ignore if too soon
-        val now = System.currentTimeMillis()
-        if (now - lastSendTime < sendDebounceMs) {
-            Logger.d("ChatViewModel -> Double tap detected, ignoring send")
-            return
-        }
-        lastSendTime = now
+        if (state.isSending) return // Concurrent-send guard only — no wall-clock debounce so a deliberate Retry tap is never swallowed
+        _uiState.update { it.copy(isSending = true) } // Set synchronously BEFORE launch so two rapid taps cannot both pass the guard
 
         viewModelScope.launch {
-            // Set isSending to true immediately to disable button
-            _uiState.update { it.copy(isSending = true) }
 
             try {
                 // Capture transport type before sending — race-free, no delay needed
@@ -214,7 +204,8 @@ class ChatViewModel @Inject constructor(
                     val result = repository.sendGroupedMessage(peerId, peerName, state.inputText, attachments, state.replyTo?.id)
                     if (result.isFailure) {
                         val errorMessage = context.getString(R.string.error_message_send_failed, result.exceptionOrNull()?.message ?: context.getString(R.string.error_unknown))
-                        _uiState.update { it.copy(isSending = false, sendError = errorMessage, inputText = state.inputText) }
+                        // Albums have no single replayable payload — no Retry id offered
+                        _uiState.update { it.copy(isSending = false, sendError = errorMessage, inputText = state.inputText, failedMessageId = null) }
                         return@launch
                     }
                     _uiState.update { it.copy(inputText = "", draftText = "", replyTo = null, stagedAttachments = emptyList()) }
@@ -223,7 +214,8 @@ class ChatViewModel @Inject constructor(
                     val result = repository.sendMessage(peerId, peerName, state.inputText, state.replyTo?.id)
                     if (result.isFailure) {
                         val errorMessage = context.getString(R.string.error_message_send_failed, result.exceptionOrNull()?.message ?: context.getString(R.string.error_unknown))
-                        _uiState.update { it.copy(isSending = false, sendError = errorMessage, inputText = state.inputText) }
+                        val failedId = resolveFailedMessageId()
+                        _uiState.update { it.copy(isSending = false, sendError = errorMessage, inputText = state.inputText, failedMessageId = failedId) }
                         return@launch
                     }
                     _uiState.update { it.copy(inputText = "", draftText = "", replyTo = null) }
@@ -256,11 +248,13 @@ class ChatViewModel @Inject constructor(
                         context.getString(R.string.error_network_retry)
                     else -> context.getString(R.string.error_message_send_failed, e.message ?: context.getString(R.string.error_unknown))
                 }
+                val failedId = if (hasAttachments) null else resolveFailedMessageId()
                 _uiState.update {
                     it.copy(
                         isSending = false,
                         sendError = errorMessage,
-                        inputText = state.inputText // Restore text on failure
+                        inputText = state.inputText, // Restore text on failure
+                        failedMessageId = failedId
                     )
                 }
             } finally {
@@ -269,6 +263,54 @@ class ChatViewModel @Inject constructor(
             }
         }
     }
+
+    /**
+     * P0-08: Replays the ORIGINAL payload of the failed message identified by
+     * [messageId], read back from the repository — never whatever currently
+     * sits in the input box. Input text and staged attachments are untouched.
+     */
+    fun retryFailedMessage(messageId: String) {
+        if (_uiState.value.isSending) return // Same concurrent-send guard as sendMessage()
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSending = true, sendError = null, failedMessageId = messageId) }
+            try {
+                val result = chatRepo.retryFailedMessage(messageId, peerName)
+                if (result.isFailure) {
+                    val errorMessage = context.getString(
+                        R.string.error_message_send_failed,
+                        result.exceptionOrNull()?.message ?: context.getString(R.string.error_unknown)
+                    )
+                    _uiState.update {
+                        it.copy(isSending = false, sendError = errorMessage, failedMessageId = messageId)
+                    }
+                } else {
+                    _uiState.update { it.copy(isSending = false, failedMessageId = null) }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.e("ChatViewModel -> Retry failed for message $messageId", e)
+                val errorMessage = context.getString(
+                    R.string.error_message_send_failed,
+                    e.message ?: context.getString(R.string.error_unknown)
+                )
+                _uiState.update {
+                    it.copy(isSending = false, sendError = errorMessage, failedMessageId = messageId)
+                }
+            }
+        }
+    }
+
+    /**
+     * P0-08: Id of the most recent outgoing message persisted as FAILED —
+     * captured whenever a send failure is surfaced so Retry can replay
+     * exactly that message.
+     */
+    private suspend fun resolveFailedMessageId(): String? =
+        chatRepo.getMessages(peerId).first()
+            .lastOrNull { it.isFromMe && it.status == MessageStatus.FAILED }
+            ?.id
 
     fun stageAttachment(uri: Uri, bytes: ByteArray, type: MessageType) {
         viewModelScope.launch {
@@ -386,7 +428,7 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             val result = repository.deleteMessage(messageId, deleteType)
             if (result.isFailure) {
-                _uiState.update { it.copy(sendError = context.getString(R.string.error_message_send_failed, result.exceptionOrNull()?.message ?: context.getString(R.string.error_unknown))) }
+                _uiState.update { it.copy(sendError = context.getString(R.string.error_message_send_failed, result.exceptionOrNull()?.message ?: context.getString(R.string.error_unknown)), failedMessageId = null) }
             }
             // Clean up transport history for deleted messages
             _uiState.update { it.copy(transportUsed = it.transportUsed - messageId) }
@@ -397,7 +439,7 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             val result = repository.addReaction(messageId, reaction)
             if (result.isFailure) {
-                _uiState.update { it.copy(sendError = context.getString(R.string.error_message_send_failed, result.exceptionOrNull()?.message ?: context.getString(R.string.error_unknown))) }
+                _uiState.update { it.copy(sendError = context.getString(R.string.error_message_send_failed, result.exceptionOrNull()?.message ?: context.getString(R.string.error_unknown)), failedMessageId = null) }
             }
         }
     }
@@ -548,7 +590,8 @@ class ChatViewModel @Inject constructor(
             if (failedCount > 0) {
                 _uiState.update {
                     it.copy(
-                        sendError = context.getString(R.string.error_forward_partial, failedPeerIds.size, peerIds.size)
+                        sendError = context.getString(R.string.error_forward_partial, failedPeerIds.size, peerIds.size),
+                        failedMessageId = null
                     )
                 }
                 Logger.w("ChatViewModel -> Forwarded $successCount messages, $failedCount attempts failed across ${failedPeerIds.size} peer(s)")
@@ -612,7 +655,7 @@ class ChatViewModel @Inject constructor(
                 if (result.isFailure) failedCount++
             }
             if (failedCount > 0) {
-                _uiState.update { it.copy(sendError = context.getString(R.string.error_message_send_failed, "Failed to delete $failedCount messages")) }
+                _uiState.update { it.copy(sendError = context.getString(R.string.error_message_send_failed, "Failed to delete $failedCount messages"), failedMessageId = null) }
             }
             // Clean up transport history for all deleted messages
             val idsToRemove = selectedIds.toSet()

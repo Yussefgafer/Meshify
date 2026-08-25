@@ -170,14 +170,17 @@ class MessageRepository(
 
             if (!isOnline) {
                 Logger.w("MessageRepository -> Peer $peerId offline, queuing file message")
-                pendingMessageDao.insert(
-                    PendingMessageEntity(
-                        id = message.id,
-                        recipientId = peerId,
-                        recipientName = cleanName,
-                        content = "[File: ${file.name}]",
-                        type = message.type
-                    )
+                queueForRetry(
+                    message = message,
+                    peerId = peerId,
+                    recipientName = cleanName,
+                    content = "[File: ${file.name}]",
+                    stagePayload = {
+                        fileManager.stageFile(
+                            fileName = "${message.id}.${file.extension.ifBlank { "bin" }}",
+                            source = file
+                        )
+                    }
                 )
                 Logger.d("MessageRepository -> File message queued successfully")
                 return@withContext Result.success(Unit)
@@ -216,15 +219,19 @@ class MessageRepository(
                 Logger.e("MessageRepository -> sendPayload failed: ${result.exceptionOrNull()?.message}")
                 messageDao.updateMessageStatus(message.id, MessageStatus.FAILED)
 
-                // Queue for retry
-                pendingMessageDao.insert(
-                    PendingMessageEntity(
-                        id = message.id,
-                        recipientId = peerId,
-                        recipientName = cleanName,
-                        content = "[File: ${file.name}]",
-                        type = message.type
-                    )
+                // Queue for retry, persisting the already-read bytes so the
+                // retry path can deliver real data
+                queueForRetry(
+                    message = message,
+                    peerId = peerId,
+                    recipientName = cleanName,
+                    content = "[File: ${file.name}]",
+                    stagePayload = {
+                        fileManager.stageBytes(
+                            fileName = "${message.id}.${file.extension.ifBlank { "bin" }}",
+                            data = fileBytes
+                        )
+                    }
                 )
 
                 return@withContext Result.failure(result.exceptionOrNull() ?: Exception("Send failed"))
@@ -298,15 +305,7 @@ class MessageRepository(
             // Step 4: If offline, queue for later delivery
             if (!isOnline) {
                 Logger.w("MessageRepository -> Peer $peerId offline, queuing message")
-                pendingMessageDao.insert(
-                    PendingMessageEntity(
-                        id = message.id,
-                        recipientId = peerId,
-                        recipientName = cleanName,
-                        content = message.text ?: "[${message.type.name}]",
-                        type = message.type
-                    )
-                )
+                queuePayloadForRetry(message, peerId, cleanName, payloadType, data)
                 Logger.d("MessageRepository -> Message queued successfully")
                 return@withContext Result.success(Unit)
             }
@@ -328,15 +327,7 @@ class MessageRepository(
             if (transport == null) {
                 Logger.e("MessageRepository -> No available transport for peer: $peerId")
                 messageDao.updateMessageStatus(message.id, MessageStatus.FAILED)
-                pendingMessageDao.insert(
-                    PendingMessageEntity(
-                        id = message.id,
-                        recipientId = peerId,
-                        recipientName = cleanName,
-                        content = message.text ?: "[${message.type.name}]",
-                        type = message.type
-                    )
-                )
+                queuePayloadForRetry(message, peerId, cleanName, payloadType, data)
                 return@withContext Result.failure(Exception("No available transport for peer: $peerId"))
             }
             val result = withTimeout(SEND_TIMEOUT_MS) {
@@ -348,15 +339,7 @@ class MessageRepository(
                 Logger.e("MessageRepository -> sendPayload failed: ${result.exceptionOrNull()?.message}")
                 database.withTransaction {
                     messageDao.updateMessageStatus(message.id, MessageStatus.FAILED)
-                    pendingMessageDao.insert(
-                        PendingMessageEntity(
-                            id = message.id,
-                            recipientId = peerId,
-                            recipientName = cleanName,
-                            content = message.text ?: "[${message.type.name}]",
-                            type = message.type
-                        )
-                    )
+                    queuePayloadForRetry(message, peerId, cleanName, payloadType, data)
                 }
 
                 return@withContext Result.failure(result.exceptionOrNull() ?: Exception("Send failed"))
@@ -373,20 +356,70 @@ class MessageRepository(
             // Ensure message is not left in limbo — mark as FAILED and queue for retry
             try {
                 messageDao.updateMessageStatus(message.id, MessageStatus.FAILED)
-                pendingMessageDao.insert(
-                    PendingMessageEntity(
-                        id = message.id,
-                        recipientId = peerId,
-                        recipientName = cleanName,
-                        content = message.text ?: "[${message.type.name}]",
-                        type = message.type
-                    )
-                )
+                queuePayloadForRetry(message, peerId, cleanName, payloadType, data)
             } catch (dbError: Exception) {
                 Logger.e("MessageRepository -> Failed to update message status after exception", dbError)
             }
             return@withContext Result.failure(e)
         }
+    }
+
+    /**
+     * Queues a message for later retry. When [stagePayload] is provided, a
+     * recoverable copy of the payload is persisted first and its path stored
+     * on the message, so PendingMessageRepository can deliver the real bytes
+     * instead of an empty payload when the peer comes back online.
+     */
+    private suspend fun queueForRetry(
+        message: MessageEntity,
+        peerId: String,
+        recipientName: String,
+        content: String,
+        stagePayload: (suspend () -> String?)?
+    ) {
+        if (stagePayload != null) {
+            val stagedPath = stagePayload()
+            if (stagedPath != null) {
+                // Upsert so the retry path reads mediaPath from the message row
+                messageDao.insertMessage(message.copy(mediaPath = stagedPath))
+            } else {
+                Logger.e("MessageRepository -> Failed to stage payload for message ${message.id}; it will fail fast on retry instead of sending empty data")
+            }
+        }
+        pendingMessageDao.insert(
+            PendingMessageEntity(
+                id = message.id,
+                recipientId = peerId,
+                recipientName = recipientName,
+                content = content,
+                type = message.type
+            )
+        )
+    }
+
+    /**
+     * queueForRetry variant for saveAndSend's in-memory payloads: stages raw
+     * bytes for non-text messages so offline file sends remain recoverable.
+     */
+    private suspend fun queuePayloadForRetry(
+        message: MessageEntity,
+        peerId: String,
+        recipientName: String,
+        payloadType: Payload.PayloadType,
+        data: ByteArray
+    ) {
+        val stagePayload: (suspend () -> String?)? = if (payloadType != Payload.PayloadType.TEXT && data.isNotEmpty()) {
+            { fileManager.stageBytes(fileName = "${message.id}.bin", data = data) }
+        } else {
+            null
+        }
+        queueForRetry(
+            message = message,
+            peerId = peerId,
+            recipientName = recipientName,
+            content = message.text ?: "[${message.type.name}]",
+            stagePayload = stagePayload
+        )
     }
 
     // ==================== Helper Methods ====================

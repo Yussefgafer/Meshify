@@ -189,7 +189,8 @@ fun ChatScreen(
                 duration = SnackbarDuration.Indefinite
             )
             if (result == SnackbarResult.ActionPerformed) {
-                viewModel.sendMessage()
+                // P0-08: Replay the ORIGINAL failed payload by id — never the live input box
+                uiState.failedMessageId?.let { viewModel.retryFailedMessage(it) }
             }
             viewModel.clearError()
         }

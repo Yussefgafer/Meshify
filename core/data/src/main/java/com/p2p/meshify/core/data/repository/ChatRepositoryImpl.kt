@@ -45,6 +45,7 @@ import kotlinx.serialization.json.Json
 import java.io.Closeable
 import java.io.File
 import java.nio.ByteBuffer
+import java.nio.BufferUnderflowException
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -95,7 +96,8 @@ class ChatRepositoryImpl(
     private val pendingMessageRepository: PendingMessageRepository = PendingMessageRepository(
         pendingMessageDao = pendingMessageDao,
         messageDao = messageDao,
-        transportManager = transportManager
+        transportManager = transportManager,
+        fileManager = fileManager
     )
 
     private val messageAttachmentRepository: MessageAttachmentRepository = MessageAttachmentRepository(
@@ -711,6 +713,40 @@ class ChatRepositoryImpl(
         return pendingMessageRepository.retryPendingMessages(peerId)
     }
 
+    /**
+     * P0-08: Re-sends the original content of a failed message identified by
+     * [messageId]. Reads the persisted message row (never live UI input),
+     * ensures a pending-queue entry exists (some failure paths don't create
+     * one) and delegates to the single-attempt manual retry.
+     */
+    suspend fun retryFailedMessage(messageId: String, peerName: String): Result<Unit> {
+        val message = messageDao.getMessageById(messageId)
+            ?: return Result.failure(Exception("Message not found"))
+        if (!message.isFromMe ||
+            (message.status != MessageStatus.FAILED && message.status != MessageStatus.SENDING)
+        ) {
+            return Result.failure(Exception("Message is not in a failed state"))
+        }
+        if (pendingMessageDao.getById(messageId) == null) {
+            pendingMessageDao.insert(
+                com.p2p.meshify.core.data.local.entity.PendingMessageEntity(
+                    id = message.id,
+                    recipientId = message.chatId,
+                    recipientName = parseName(peerName),
+                    content = message.text ?: "[Media]",
+                    type = message.type,
+                    timestamp = message.timestamp
+                )
+            )
+        }
+        val result = pendingMessageRepository.retrySingleMessage(messageId)
+        if (result.isFailure) {
+            // Failed replay must leave an honest FAILED state so Retry stays available
+            messageDao.updateMessageStatus(messageId, MessageStatus.FAILED)
+        }
+        return result
+    }
+
     private suspend fun saveIncomingMessage(
         peerId: String,
         text: String?,
@@ -863,35 +899,40 @@ class ChatRepositoryImpl(
     private fun deserializeEnvelope(data: ByteArray): MessageEnvelope {
         val buffer = ByteBuffer.wrap(data)
 
-        val senderIdLen = buffer.short.toInt()
-        val senderIdBytes = ByteArray(senderIdLen)
-        buffer.get(senderIdBytes)
-        val senderId = String(senderIdBytes, Charsets.UTF_8)
+        fun readSizedBytes(len: Int): ByteArray {
+            if (len < 0 || len > buffer.remaining()) {
+                throw IllegalArgumentException(
+                    "Malformed envelope: declared length $len exceeds remaining ${buffer.remaining()} bytes"
+                )
+            }
+            return ByteArray(len).also { buffer.get(it) }
+        }
 
-        val recipientIdLen = buffer.short.toInt()
-        val recipientIdBytes = ByteArray(recipientIdLen)
-        buffer.get(recipientIdBytes)
-        val recipientId = String(recipientIdBytes, Charsets.UTF_8)
+        try {
+            val senderIdLen = buffer.short.toInt()
+            val senderId = String(readSizedBytes(senderIdLen), Charsets.UTF_8)
 
-        val textLen = buffer.int
-        val textBytes = ByteArray(textLen)
-        buffer.get(textBytes)
-        val text = String(textBytes, Charsets.UTF_8)
+            val recipientIdLen = buffer.short.toInt()
+            val recipientId = String(readSizedBytes(recipientIdLen), Charsets.UTF_8)
 
-        val timestamp = buffer.long
+            val textLen = buffer.int
+            val text = String(readSizedBytes(textLen), Charsets.UTF_8)
 
-        val messageTypeLen = buffer.short.toInt()
-        val messageTypeBytes = ByteArray(messageTypeLen)
-        buffer.get(messageTypeBytes)
-        val messageType = String(messageTypeBytes, Charsets.UTF_8)
+            val timestamp = buffer.long
 
-        return MessageEnvelope(
-            senderId = senderId,
-            recipientId = recipientId,
-            text = text,
-            timestamp = timestamp,
-            messageType = messageType
-        )
+            val messageTypeLen = buffer.short.toInt()
+            val messageType = String(readSizedBytes(messageTypeLen), Charsets.UTF_8)
+
+            return MessageEnvelope(
+                senderId = senderId,
+                recipientId = recipientId,
+                text = text,
+                timestamp = timestamp,
+                messageType = messageType
+            )
+        } catch (e: BufferUnderflowException) {
+            throw IllegalArgumentException("Malformed envelope: truncated data (${data.size} bytes)", e)
+        }
     }
 
     private fun parseName(raw: String): String = PeerNameParser.parseName(raw)

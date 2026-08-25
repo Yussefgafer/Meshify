@@ -6,6 +6,10 @@ Unreleased
 - [Fix] RSSI estimator no longer corrupts the LAN wire protocol — deleted estimateRssiFromLatency which wrote a raw unframed 0x00 byte onto pooled sockets and could kill freshly-handshaked connections; unavailable WiFi RSSI now falls back to a static -60 dBm default
 - [Fix] FILE/VIDEO marker probe removed from SocketManager read loop — it consumed the next frame's length prefix and called reset() on a stream without mark support, corrupting/killing connections after any file-or-video-then-message sequence; framing is now strictly [length:int][bytes]
 - [Chore] Delete dead ParallelFileTransfer.kt (zero callers, algorithmically broken shared-stream writes) and the now-unused SocketManager connection wrappers
+- [Fix] Harden envelope deserialization against remote OOM — declared field lengths are now validated against the actual buffer before allocation; malformed/truncated envelopes throw IllegalArgumentException instead of attempting ~2GB allocations
+- [Fix] Block path traversal via sender-controlled file names — FileManagerImpl.saveMedia strips separators/'..' with UUID fallback plus canonical-path containment check before any write
+- [Fix] Offline file sends no longer deliver empty files — queued messages now persist the staged file (filesDir/staging) before queuing; retry streams the real bytes, promotes the staged copy to media on success, and an explicit empty-payload guard makes fake-SENT structurally impossible
+- [Fix] Failed-send Retry now replays the ORIGINAL failed message by id read from the repository — previously it re-sent whatever was currently in the input box (duplicate/wrong-text sends); the 500ms wall-clock debounce is replaced by a synchronous isSending guard so a deliberate Retry tap is never swallowed
 
 V1.1.3
 - [Style] Make splash screen dark (#1C1B1F) on all Android versions — windowSplashScreenBackground (12+) + windowBackground fallback
