@@ -39,10 +39,16 @@ class BleGattClient(
     /**
      * Connect to a remote peer's GATT Server.
      */
+    @SuppressLint("MissingPermission")
     fun connect(device: BluetoothDevice, peerId: String) {
-        if (gattConnections.containsKey(peerId)) {
-            Logger.d("BLE Already connected to $peerId", tag = TAG)
-            return
+        gattConnections[peerId]?.let { existing ->
+            if (existing.isConnected) {
+                Logger.d("BLE Already connected to $peerId", tag = TAG)
+                return
+            }
+            Logger.d("BLE Stale connection entry for $peerId, reconnecting", tag = TAG)
+            existing.gatt?.close()
+            gattConnections.remove(peerId)
         }
 
         val connection = BleGattConnection(

@@ -438,6 +438,21 @@
     <string name="error_reply_empty">لا يمكن أن يكون الرد فارغًا</string>
     <string name="error_reply_invalid_content">محتوى الرسالة غير صالح</string>
     <string name="error_reply_chat_not_found">المحادثة غير موجودة</string>
+    <string name="error_reply_expired">انتهت صلاحية الرد، حاول مرة أخرى</string>
+    <string name="error_reply_not_authorized">رد غير مصرح به</string>
+    <string name="error_reply_rate_limited">طلبات كثيرة ، يرجى الانتظار</string>
+    <string name="error_reply_too_long">الرسالة طويلة (الحد الأقصى 10000 حرف)</string>
+    <string name="error_reply_network">خطأ في الشبكة، تحقق من الاتصال</string>
+    <string name="error_reply_security">خطأ أمني، يرجى إعادة الاتصال</string>
+    <string name="error_reply_send_failed">فشل إرسال الرد</string>
+    <string name="error_reply_unknown">خطأ: سبب غير معروف</string>
+
+    <!-- قنوات الإشعارات -->
+    <string name="notification_channel_messages">الرسائل</string>
+    <string name="notification_channel_messages_no_sound">الرسائل (بدون صوت)</string>
+    <string name="notification_channel_messages_no_vibrate">الرسائل (بدون اهتزاز)</string>
+    <string name="notification_channel_messages_silent">الرسائل (صامتة)</string>
+    <string name="notification_channel_messages_desc">إشعارات الرسائل الواردة</string>
 
     <!-- Settings Screen - App Settings Section -->
     <string name="settings_group_app">إعدادات التطبيق</string>

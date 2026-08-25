@@ -82,6 +82,9 @@ class ChatViewModel @Inject constructor(
     val peerId: String = savedStateHandle.get<String>("peerId") ?: ""
     val peerName: String = savedStateHandle.get<String>("peerName") ?: context.getString(R.string.default_peer_name)
 
+    // Draft seeded by a failed-reply notification retry (one-shot, via MainActivity)
+    private val initialDraft: String? = savedStateHandle.get<String>("draftText")
+
     // Resolves current transport type from app-level state for outgoing messages
     private var _transportTypeProvider: (() -> TransportType)? = null
 
@@ -133,6 +136,9 @@ class ChatViewModel @Inject constructor(
     private val uploadJobs = ConcurrentHashMap<String, kotlinx.coroutines.Job>()
 
     init {
+        initialDraft?.takeIf { it.isNotBlank() }?.let { draft ->
+            _uiState.update { it.copy(inputText = draft, draftText = draft) }
+        }
         if (peerId.isBlank()) {
             _uiState.update { it.copy(isLoading = false, sendError = context.getString(R.string.error_unknown)) }
         } else {

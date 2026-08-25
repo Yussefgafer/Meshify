@@ -1,6 +1,7 @@
 package com.p2p.meshify
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Build
@@ -25,6 +26,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
 import com.p2p.meshify.core.util.Logger
+import com.p2p.meshify.core.util.NotificationHelper
 
 import com.p2p.meshify.service.MeshForegroundService
 import com.p2p.meshify.core.ui.navigation.MeshifyNavHost
@@ -82,6 +84,11 @@ private const val PERMISSION_ALREADY_GRANTED_DISPLAY_DELAY_MS = 600L
 class MainActivity : ComponentActivity() {
 
     @Inject lateinit var database: MeshifyDatabase
+
+    private var pendingChatPeerId by mutableStateOf<String?>(null)
+
+    private val pendingDraftForPeer = mutableMapOf<String, String>()
+    private var lastLaunchDraft: String? = null
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -156,6 +163,10 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        pendingChatPeerId = intent?.getStringExtra(NotificationHelper.EXTRA_CHAT_PEER_ID)
+        // captured into pendingDraftForPeer when navigation actually happens
+        lastLaunchDraft = intent?.getStringExtra(NotificationHelper.EXTRA_REPLY_TEXT)
+
         setContent {
             val settingsRepo = app.settingsRepository
             val themeMode by settingsRepo.themeMode.collectAsState(initial = com.p2p.meshify.domain.repository.ThemeMode.SYSTEM)
@@ -214,6 +225,26 @@ class MainActivity : ComponentActivity() {
                             ) {
                                 val effectiveStart = startDestination ?: Screen.Home
 
+                                LaunchedEffect(effectiveStart) {
+                                    if (effectiveStart == Screen.Home) {
+                                        // MutableState.collect doesn't exist in compose-runtime 1.11.3;
+                                        // snapshotFlow is the equivalent bridge (emits current value, then changes).
+                                        snapshotFlow { pendingChatPeerId }.collect { peerId ->
+                                            if (!peerId.isNullOrBlank()) {
+                                                val chatName = withContext(Dispatchers.IO) {
+                                                    database.chatDao().getChatById(peerId)?.peerName
+                                                }
+                                                if (!lastLaunchDraft.isNullOrBlank()) {
+                                                    pendingDraftForPeer[peerId] = lastLaunchDraft!!
+                                                    lastLaunchDraft = null
+                                                }
+                                                navController.navigate(Screen.Chat(peerId, chatName))
+                                                pendingChatPeerId = null
+                                            }
+                                        }
+                                    }
+                                }
+
                                 MeshifyNavHost(
                                     navController = navController,
                                     startDestination = effectiveStart,
@@ -254,6 +285,9 @@ class MainActivity : ComponentActivity() {
                                         val savedStateHandle = androidx.lifecycle.SavedStateHandle()
                                         savedStateHandle.set("peerId", peerId)
                                         savedStateHandle.set("peerName", peerName ?: "Peer")
+                                        pendingDraftForPeer.remove(peerId)?.let { draft ->
+                                            savedStateHandle.set("draftText", draft)
+                                        }
                                         val chatViewModel: ChatViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                                             key = peerId,
                                             factory = object : androidx.lifecycle.ViewModelProvider.Factory {
@@ -358,6 +392,14 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        intent.getStringExtra(NotificationHelper.EXTRA_CHAT_PEER_ID)?.let {
+            pendingChatPeerId = it
+        }
+        lastLaunchDraft = intent.getStringExtra(NotificationHelper.EXTRA_REPLY_TEXT)
     }
 
     private fun startAppService() {

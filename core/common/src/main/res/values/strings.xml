@@ -432,6 +432,21 @@
     <string name="error_reply_empty">Reply cannot be empty</string>
     <string name="error_reply_invalid_content">Invalid message content</string>
     <string name="error_reply_chat_not_found">Chat not found</string>
+    <string name="error_reply_expired">Reply expired, please try again</string>
+    <string name="error_reply_not_authorized">Unauthorized reply</string>
+    <string name="error_reply_rate_limited">Too many replies, please wait</string>
+    <string name="error_reply_too_long">Message too long (max 10000 characters)</string>
+    <string name="error_reply_network">Network error, please check connection</string>
+    <string name="error_reply_security">Security error, please reconnect</string>
+    <string name="error_reply_send_failed">Failed to send reply</string>
+    <string name="error_reply_unknown">Error: Unknown error</string>
+
+    <!-- Notification channels -->
+    <string name="notification_channel_messages">Messages</string>
+    <string name="notification_channel_messages_no_sound">Messages (no sound)</string>
+    <string name="notification_channel_messages_no_vibrate">Messages (no vibration)</string>
+    <string name="notification_channel_messages_silent">Messages (silent)</string>
+    <string name="notification_channel_messages_desc">Incoming message notifications</string>
 
     <!-- Settings Screen - App Settings Section -->
     <string name="settings_group_app">App Settings</string>

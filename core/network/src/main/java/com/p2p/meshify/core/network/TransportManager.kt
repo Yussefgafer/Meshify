@@ -9,7 +9,11 @@ import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.core.common.security.SimplePeerIdProvider
 import com.p2p.meshify.domain.model.TransportMode
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.Dispatchers
 
@@ -38,6 +42,7 @@ class TransportManager(
 ) {
     internal val socketManager = SocketManager() // Changed from private to internal
     private val transports = mutableMapOf<String, IMeshTransport>()
+    private val registryVersion = MutableStateFlow(0)
 
     // Current transport mode (updated reactively by MeshifyApp)
     @Volatile
@@ -50,6 +55,7 @@ class TransportManager(
      */
     fun registerTransport(name: String, transport: IMeshTransport) {
         transports[name] = transport
+        registryVersion.value++
     }
 
     /**
@@ -72,7 +78,9 @@ class TransportManager(
      * @param name Transport name to remove
      */
     fun unregisterTransport(name: String) {
-        transports.remove(name)
+        if (transports.remove(name) != null) {
+            registryVersion.value++
+        }
     }
 
     /**
@@ -154,11 +162,15 @@ class TransportManager(
 
     /**
      * Get merged events flow from all registered transports.
-     * @return Flow of transport events from all transports
+     * Re-subscribes automatically when transports are registered/unregistered,
+     * so transports added after subscription (e.g. BLE enabled later) are included.
      */
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun getAllEventsFlow(): Flow<com.p2p.meshify.core.network.base.TransportEvent> {
-        val flows = transports.values.map { it.events }
-        return merge(*flows.toTypedArray())
+        return registryVersion.flatMapLatest {
+            val flows = transports.values.toList().map { it.events }
+            if (flows.isEmpty()) emptyFlow() else merge(*flows.toTypedArray())
+        }
     }
 
     /**

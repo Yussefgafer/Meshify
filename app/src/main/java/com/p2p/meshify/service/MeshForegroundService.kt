@@ -114,16 +114,9 @@ class MeshForegroundService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        Logger.i("Service -> onTaskRemoved - App removed from recents")
-        // 1. Stop transport FIRST (deterministic, blocking with timeout)
-        stopMeshNetworkDeterministic()
-        // 2. Release multicast lock
-        multicastLock?.let { if (it.isHeld) it.release() }
-        // 3. Cancel coroutine scopes
-        shutdownScope.cancel()
-        serviceScope.cancel()
-        // 4. Stop the service
-        stopSelf()
+        // Deliberate: a swipe-away must not kill the mesh. The foreground service
+        // (START_STICKY) keeps transports alive; full teardown happens only in onDestroy.
+        Logger.i("Service -> onTaskRemoved - App removed from recents, keeping mesh alive")
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

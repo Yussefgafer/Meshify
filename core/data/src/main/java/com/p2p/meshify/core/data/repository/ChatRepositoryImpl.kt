@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -736,7 +737,11 @@ class ChatRepositoryImpl(
             }
 
             // Send notification
-            notificationHelper.showMessageNotification(finalName, message)
+            if (settingsRepository.notificationsEnabled.first()) {
+                val playSound = settingsRepository.notificationSound.first()
+                val vibrate = settingsRepository.notificationVibrate.first()
+                notificationHelper.showMessageNotification(finalName, message, playSound, vibrate)
+            }
 
             // Send ACK to sender
             sendSystemCommand(payload.senderId, "ACK_${payload.id}")
@@ -833,7 +838,11 @@ class ChatRepositoryImpl(
                 messageDao.insertMessage(message)
                 chatDao.incrementUnreadCount(peerId)
             }
-            notificationHelper.showMessageNotification(finalName, message)
+            if (settingsRepository.notificationsEnabled.first()) {
+                val playSound = settingsRepository.notificationSound.first()
+                val vibrate = settingsRepository.notificationVibrate.first()
+                notificationHelper.showMessageNotification(finalName, message, playSound, vibrate)
+            }
             Result.success(Unit)
         } catch (e: Exception) {
             Logger.e("ChatRepository -> Failed to save incoming message", e)

@@ -77,6 +77,28 @@ class BleTransportImpl(
     // Peer MAC address map: peerId -> BluetoothDevice MAC
     private val peerAddressMap = ConcurrentHashMap<String, String>()
 
+    // connectionKey -> real mesh peer id (UUID). Promoted from payload.senderId on
+    // first inbound payload, mirroring how LAN emits PayloadReceived with the real id.
+    private val identityAliases = ConcurrentHashMap<String, String>()
+
+    private fun resolveMeshId(connectionKey: String): String =
+        identityAliases[connectionKey] ?: connectionKey
+
+    private fun findConnectionKeyFor(meshId: String): String? =
+        identityAliases.entries.firstOrNull { it.value == meshId }?.key
+
+    private fun promoteIdentity(connectionKey: String, senderId: String) {
+        if (senderId.isBlank() || senderId == connectionKey) return
+        if (identityAliases.put(connectionKey, senderId) == null) {
+            // First time learning this identity — swap it into onlinePeers
+            _onlinePeers.update { peers ->
+                (peers - connectionKey + senderId)
+            }
+            // Carry the MAC address over so server-side callbacks resolve directly
+            peerAddressMap[connectionKey]?.let { mac -> peerAddressMap[senderId] = mac }
+        }
+    }
+
     /**
      * Start the BLE transport (server + advertising).
      */
@@ -104,11 +126,11 @@ class BleTransportImpl(
                 onPayloadReceived = { peerId, data ->
                     scope?.launch { handleIncomingPayload(peerId, data) }
                 },
-                onClientConnected = { clientPeerId ->
-                    scope?.launch { handleClientConnected(clientPeerId) }
+                onClientConnected = { connectionKey ->
+                    scope?.launch { handleClientConnected(resolveMeshId(connectionKey)) }
                 },
-                onClientDisconnected = { clientPeerId ->
-                    scope?.launch { handleClientDisconnected(clientPeerId) }
+                onClientDisconnected = { connectionKey ->
+                    scope?.launch { handleClientDisconnected(resolveMeshId(connectionKey)) }
                 }
             )
             bleGattServer?.startServer()
@@ -164,6 +186,7 @@ class BleTransportImpl(
             _onlinePeers.value = emptySet()
             _typingPeers.value = emptySet()
             peerAddressMap.clear()
+            identityAliases.clear()
 
             // Cancel and nullify the scope
             scope?.cancel()
@@ -240,10 +263,11 @@ class BleTransportImpl(
                 // Serialize payload to chunks
                 val chunks = BlePayloadSerializer.serializeToChunks(payload)
                 val client = bleGattClient ?: return@withLock Result.failure(IllegalStateException("BLE Client not initialized"))
+                val connectionKey = findConnectionKeyFor(targetDeviceId) ?: targetDeviceId
 
                 // Send all chunks sequentially, fail fast on any error
                 for ((index, chunk) in chunks.withIndex()) {
-                    val result = client.sendData(targetDeviceId, chunk)
+                    val result = client.sendData(connectionKey, chunk)
                     if (result.isFailure) {
                         Logger.e("BLE Payload send failed at chunk $index/${chunks.size} to $targetDeviceId", tag = TAG)
                         return@withLock Result.failure(result.exceptionOrNull() ?: java.io.IOException("Chunk $index failed"))
@@ -297,15 +321,17 @@ class BleTransportImpl(
      * Handle incoming payload from a peer.
      * Reassembles chunks and emits to the event stream.
      */
-    private suspend fun handleIncomingPayload(peerId: String, data: ByteArray) {
+    private suspend fun handleIncomingPayload(connectionKey: String, data: ByteArray) {
         try {
-            val payload = BlePayloadSerializer.processChunkForKey(peerId, data)
+            val payload = BlePayloadSerializer.processChunkForKey(connectionKey, data)
             if (payload != null) {
-                Logger.d("BLE Reassembled payload ${payload.id} from $peerId", tag = TAG)
-                _events.emit(TransportEvent.PayloadReceived(peerId, payload))
+                val senderIdentity = payload.senderId.ifBlank { resolveMeshId(connectionKey) }
+                promoteIdentity(connectionKey, senderIdentity)
+                Logger.d("BLE Reassembled payload ${payload.id} from $senderIdentity", tag = TAG)
+                _events.emit(TransportEvent.PayloadReceived(senderIdentity, payload))
             }
         } catch (e: Exception) {
-            Logger.e("BLE Error processing payload from $peerId: ${e.message}", e, tag = TAG)
+            Logger.e("BLE Error processing payload from $connectionKey: ${e.message}", e, tag = TAG)
         }
     }
 

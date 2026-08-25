@@ -64,6 +64,10 @@ class DiscoveryViewModel @Inject constructor(
     init {
         observeTransportEvents()
         checkWifiState()
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(DISCOVERY_SCAN_DELAY_MS)
+            _uiState.update { it.copy(isSearching = false) }
+        }
     }
 
     private fun observeTransportEvents() {
@@ -107,7 +111,9 @@ class DiscoveryViewModel @Inject constructor(
 
         _uiState.update {
             it.copy(
-                discoveredPeers = peerMap.values.toList()
+                discoveredPeers = peerMap.values.toList(),
+                isSearching = false,
+                errorMessage = null
             )
         }
     }
@@ -143,7 +149,12 @@ class DiscoveryViewModel @Inject constructor(
     }
 
     private fun handleError(event: TransportEvent.Error) {
-        _uiState.update { it.copy(errorMessage = event.message) }
+        Logger.e("DiscoveryViewModel -> Transport error: ${event.message}", event.exception)
+        // Background transport errors must not blank a populated peer list;
+        // surface full-screen error only when there is nothing to show.
+        if (peerMap.isEmpty()) {
+            _uiState.update { it.copy(errorMessage = event.message) }
+        }
     }
 
     /**
@@ -154,7 +165,7 @@ class DiscoveryViewModel @Inject constructor(
     fun refresh() {
         checkWifiState()
         viewModelScope.launch {
-            _uiState.update { it.copy(isRefreshing = true, errorMessage = null) }
+            _uiState.update { it.copy(isRefreshing = true, isSearching = true, errorMessage = null) }
 
             try {
                 // Stop and restart discovery to find fresh devices
@@ -168,7 +179,7 @@ class DiscoveryViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.update { it.copy(errorMessage = "Refresh failed: ${e.message}") }
             } finally {
-                _uiState.update { it.copy(isRefreshing = false) }
+                _uiState.update { it.copy(isRefreshing = false, isSearching = false) }
             }
         }
     }

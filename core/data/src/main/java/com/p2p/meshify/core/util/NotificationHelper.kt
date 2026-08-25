@@ -24,8 +24,13 @@ import javax.crypto.SecretKey
 class NotificationHelper(private val context: Context) {
     companion object {
         const val CHANNEL_ID_MESSAGES = "meshify_messages"
+        const val CHANNEL_ID_MESSAGES_NO_SOUND = "meshify_messages_no_sound"
+        const val CHANNEL_ID_MESSAGES_NO_VIBRATE = "meshify_messages_no_vibrate"
+        const val CHANNEL_ID_MESSAGES_SILENT = "meshify_messages_silent"
         const val CHANNEL_ID_CONNECTIONS = "meshify_connections"
         const val KEY_TEXT_REPLY = "text_reply"
+        const val EXTRA_CHAT_PEER_ID = "chat_peer_id"
+        const val EXTRA_REPLY_TEXT = "reply_text"
         private const val REPLY_SECRET_KEY_ALIAS = "meshify_reply_key"
         private const val KEYSTORE_PROVIDER = "AndroidKeyStore"
         private const val KEY_ROTATION_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000L // 30 days
@@ -35,15 +40,25 @@ class NotificationHelper(private val context: Context) {
 
     fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val messagesChannel = NotificationChannel(
-                CHANNEL_ID_MESSAGES,
-                "Messages",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Incoming message notifications"
-                enableLights(true)
-                enableVibration(true)
-                setShowBadge(true)
+            val messageChannelNames = mapOf(
+                CHANNEL_ID_MESSAGES to R.string.notification_channel_messages,
+                CHANNEL_ID_MESSAGES_NO_SOUND to R.string.notification_channel_messages_no_sound,
+                CHANNEL_ID_MESSAGES_NO_VIBRATE to R.string.notification_channel_messages_no_vibrate,
+                CHANNEL_ID_MESSAGES_SILENT to R.string.notification_channel_messages_silent
+            )
+            val messageChannels = listOf(
+                Triple(CHANNEL_ID_MESSAGES, true, true),
+                Triple(CHANNEL_ID_MESSAGES_NO_SOUND, false, true),
+                Triple(CHANNEL_ID_MESSAGES_NO_VIBRATE, true, false),
+                Triple(CHANNEL_ID_MESSAGES_SILENT, false, false)
+            ).map { (id, sound, vibrate) ->
+                NotificationChannel(id, context.getString(messageChannelNames.getValue(id)), NotificationManager.IMPORTANCE_HIGH).apply {
+                    description = context.getString(R.string.notification_channel_messages_desc)
+                    enableLights(true)
+                    enableVibration(vibrate)
+                    setShowBadge(true)
+                    if (!sound) setSound(null, null)
+                }
             }
 
             val connectionsChannel = NotificationChannel(
@@ -55,7 +70,7 @@ class NotificationHelper(private val context: Context) {
             }
 
             val manager = context.getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannels(listOf(messagesChannel, connectionsChannel))
+            manager.createNotificationChannels(messageChannels + listOf(connectionsChannel))
         }
     }
 
@@ -139,7 +154,18 @@ class NotificationHelper(private val context: Context) {
      * Create a notification with reply action for incoming messages.
      * Includes HMAC signature to prevent unauthorized replies.
      */
-    fun showMessageNotification(senderName: String, message: MessageEntity) {
+    fun showMessageNotification(
+        senderName: String,
+        message: MessageEntity,
+        playSound: Boolean = true,
+        vibrate: Boolean = true
+    ) {
+        val channelId = when {
+            playSound && vibrate -> CHANNEL_ID_MESSAGES
+            playSound -> CHANNEL_ID_MESSAGES_NO_VIBRATE
+            vibrate -> CHANNEL_ID_MESSAGES_NO_SOUND
+            else -> CHANNEL_ID_MESSAGES_SILENT
+        }
         val timestamp = System.currentTimeMillis()
         val signature = generateReplySignature(message.chatId, timestamp)
 
@@ -170,11 +196,12 @@ class NotificationHelper(private val context: Context) {
             replyPendingIntent
         ).addRemoteInput(remoteInput).build()
 
-        // Note: Intent will be set by the app module via setter injection
-        // to avoid circular dependency
-        val chatIntent = Intent("com.p2p.meshify.OPEN_CHAT").apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("chat_peer_id", message.chatId)
+        // Note: this module cannot reference app classes, so the intent targets
+        // com.p2p.meshify.MainActivity by class-name string.
+        val chatIntent = Intent().apply {
+            setClassName(context.packageName, "com.p2p.meshify.MainActivity")
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(EXTRA_CHAT_PEER_ID, message.chatId)
         }
 
         val pendingIntent = PendingIntent.getActivity(
@@ -183,14 +210,14 @@ class NotificationHelper(private val context: Context) {
         )
 
         // Create a public version for lock screen (no PII)
-        val publicNotification = NotificationCompat.Builder(context, CHANNEL_ID_MESSAGES)
+        val publicNotification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(android.R.drawable.stat_notify_chat)
             .setContentTitle(context.getString(R.string.notification_new_message))
             .setContentText(context.getString(R.string.notification_new_message_text))
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .build()
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID_MESSAGES)
+        val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(android.R.drawable.stat_notify_chat)
             .setContentTitle(senderName)
             .setContentText(message.text ?: "[Image]")
