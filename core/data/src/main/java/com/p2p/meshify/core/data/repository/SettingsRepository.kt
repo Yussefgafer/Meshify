@@ -10,10 +10,6 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import com.p2p.meshify.core.util.Logger
-import com.p2p.meshify.domain.model.BubbleStyle
-import com.p2p.meshify.domain.model.FontFamilyPreset
-import com.p2p.meshify.domain.model.MotionPreset
-import com.p2p.meshify.domain.model.ShapeStyle
 import com.p2p.meshify.domain.model.TransportMode
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.domain.repository.ThemeMode
@@ -56,15 +52,6 @@ class SettingsRepository(
         val KEY_NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
         val KEY_NOTIFICATION_SOUND = booleanPreferencesKey("notification_sound")
         val KEY_NOTIFICATION_VIBRATE = booleanPreferencesKey("notification_vibrate")
-
-        // MD3E design configuration keys
-        val KEY_SHAPE_STYLE = stringPreferencesKey("shape_style")
-        val KEY_MOTION_PRESET = stringPreferencesKey("motion_preset")
-        val KEY_MOTION_SCALE = floatPreferencesKey("motion_scale")
-        val KEY_FONT_FAMILY = stringPreferencesKey("font_family")
-        val KEY_CUSTOM_FONT_URI = stringPreferencesKey("custom_font_uri")
-        val KEY_BUBBLE_STYLE = stringPreferencesKey("bubble_style")
-        val KEY_VISUAL_DENSITY = floatPreferencesKey("visual_density")
     }
 
     override val displayName: Flow<String> = prefsStore.data.map { preferences ->
@@ -94,55 +81,6 @@ class SettingsRepository(
 
     override val avatarHash: Flow<String?> = prefsStore.data.map { preferences ->
         preferences[KEY_AVATAR_HASH]
-    }
-
-    // MD3E Settings Flows
-    override val shapeStyle: Flow<ShapeStyle> = prefsStore.data.map { preferences ->
-        try {
-            ShapeStyle.valueOf(preferences[KEY_SHAPE_STYLE] ?: "CIRCLE")
-        } catch (e: Exception) {
-            Logger.e("SettingsRepository -> Failed to read shapeStyle", e)
-            ShapeStyle.CIRCLE
-        }
-    }
-
-    override val motionPreset: Flow<MotionPreset> = prefsStore.data.map { preferences ->
-        try {
-            MotionPreset.valueOf(preferences[KEY_MOTION_PRESET] ?: "STANDARD")
-        } catch (e: Exception) {
-            Logger.e("SettingsRepository -> Failed to read motionPreset", e)
-            MotionPreset.STANDARD
-        }
-    }
-
-    override val motionScale: Flow<Float> = prefsStore.data.map { preferences ->
-        preferences[KEY_MOTION_SCALE] ?: 1.0f
-    }
-
-    override val fontFamilyPreset: Flow<FontFamilyPreset> = prefsStore.data.map { preferences ->
-        try {
-            FontFamilyPreset.valueOf(preferences[KEY_FONT_FAMILY] ?: "ROBOTO")
-        } catch (e: Exception) {
-            Logger.e("SettingsRepository -> Failed to read fontFamilyPreset", e)
-            FontFamilyPreset.ROBOTO
-        }
-    }
-
-    override val customFontUri: Flow<String?> = prefsStore.data.map { preferences ->
-        preferences[KEY_CUSTOM_FONT_URI]
-    }
-
-    override val bubbleStyle: Flow<BubbleStyle> = prefsStore.data.map { preferences ->
-        try {
-            BubbleStyle.valueOf(preferences[KEY_BUBBLE_STYLE] ?: "ROUNDED")
-        } catch (e: Exception) {
-            Logger.e("SettingsRepository -> Failed to read bubbleStyle", e)
-            BubbleStyle.ROUNDED
-        }
-    }
-
-    override val visualDensity: Flow<Float> = prefsStore.data.map { preferences ->
-        preferences[KEY_VISUAL_DENSITY] ?: 1.0f
     }
 
     override val seedColor: Flow<Int> = prefsStore.data.map { preferences ->
@@ -249,54 +187,6 @@ class SettingsRepository(
     override suspend fun setSeedColor(color: Int) {
         safeEdit { it[KEY_SEED_COLOR] = color }.onFailure { e ->
             Logger.e("SettingsRepository -> Failed to set seed color", e)
-        }
-    }
-
-    override suspend fun setShapeStyle(style: ShapeStyle) {
-        safeEdit { it[KEY_SHAPE_STYLE] = style.name }.onFailure { e ->
-            Logger.e("SettingsRepository -> Failed to set shape style", e)
-        }
-    }
-
-    override suspend fun setMotionPreset(preset: MotionPreset) {
-        safeEdit { it[KEY_MOTION_PRESET] = preset.name }.onFailure { e ->
-            Logger.e("SettingsRepository -> Failed to set motion preset", e)
-        }
-    }
-
-    override suspend fun setMotionScale(scale: Float) {
-        safeEdit { it[KEY_MOTION_SCALE] = scale.coerceIn(0.5f, 2.0f) }.onFailure { e ->
-            Logger.e("SettingsRepository -> Failed to set motion scale", e)
-        }
-    }
-
-    override suspend fun setFontFamilyPreset(family: FontFamilyPreset) {
-        safeEdit { it[KEY_FONT_FAMILY] = family.name }.onFailure { e ->
-            Logger.e("SettingsRepository -> Failed to set font family preset", e)
-        }
-    }
-
-    override suspend fun setCustomFontUri(uri: String?) {
-        if (uri != null) {
-            safeEdit { it[KEY_CUSTOM_FONT_URI] = uri }.onFailure { e ->
-                Logger.e("SettingsRepository -> Failed to set custom font URI", e)
-            }
-        } else {
-            safeEdit { it.remove(KEY_CUSTOM_FONT_URI) }.onFailure { e ->
-                Logger.e("SettingsRepository -> Failed to remove custom font URI", e)
-            }
-        }
-    }
-
-    override suspend fun setBubbleStyle(style: BubbleStyle) {
-        safeEdit { it[KEY_BUBBLE_STYLE] = style.name }.onFailure { e ->
-            Logger.e("SettingsRepository -> Failed to set bubble style", e)
-        }
-    }
-
-    override suspend fun setVisualDensity(density: Float) {
-        safeEdit { it[KEY_VISUAL_DENSITY] = density.coerceIn(0.8f, 1.5f) }.onFailure { e ->
-            Logger.e("SettingsRepository -> Failed to set visual density", e)
         }
     }
 

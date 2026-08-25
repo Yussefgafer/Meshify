@@ -13,7 +13,6 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ColorLens
-import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Fingerprint
@@ -203,8 +202,7 @@ fun AppSettingsSection(
     haptics: PremiumHaptics,
     onOpenLanguage: () -> Unit,
     onOpenFontSize: () -> Unit,
-    onClearCache: () -> Unit,
-    onOpenBackup: () -> Unit
+    onClearCache: () -> Unit
 ) {
     DxSettingsSection(title = stringResource(R.string.settings_group_app)) {
         DxSettingsItem(
@@ -276,16 +274,6 @@ fun AppSettingsSection(
             title = stringResource(R.string.setting_clear_cache),
             subtitle = stringResource(R.string.setting_clear_cache_desc),
             onClick = onClearCache,
-            showChevron = true
-        )
-
-        DxSettingsDivider()
-
-        DxSettingsItem(
-            icon = Icons.Filled.CloudUpload,
-            title = stringResource(R.string.settings_backup_title),
-            subtitle = stringResource(R.string.settings_backup_desc),
-            onClick = onOpenBackup,
             showChevron = true
         )
     }

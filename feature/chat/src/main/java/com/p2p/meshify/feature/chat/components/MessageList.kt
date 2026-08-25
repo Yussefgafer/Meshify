@@ -59,7 +59,6 @@ private const val MessageStaggerDelay = 50
  * @param uploadProgressMap Map of message ID → upload progress percentage (0-100)
  * @param transportUsed Map of message ID → transport type used for sending
  * @param peerName Display name of the chat peer (used in empty state text)
- * @param bubbleStyle Bubble shape style from theme configuration
  * @param listState LazyListState for external scroll control
  * @param attachmentsByGroupId Batched album attachments keyed by message groupId
  * @param replyById Reply-preview messages outside the loaded window, keyed by replyToId

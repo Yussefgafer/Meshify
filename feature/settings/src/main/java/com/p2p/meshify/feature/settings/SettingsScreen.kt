@@ -62,11 +62,9 @@ fun SettingsScreen(
     var showThemeSheet by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showFontSizeDialog by remember { mutableStateOf(false) }
-    var showBackupDialog by remember { mutableStateOf(false) }
     var showBleSheet by remember { mutableStateOf(false) }
     var showCreditsDialog by remember { mutableStateOf(false) }
     var cacheStatus by remember { mutableStateOf<String?>(null) }
-    var backupStatus by remember { mutableStateOf<String?>(null) }
 
     val scrollState = rememberScrollState()
 
@@ -103,7 +101,6 @@ fun SettingsScreen(
             cacheStatus = if (result.isSuccess) cacheSuccess else cacheError
         }
     }
-    val onOpenBackup = { showBackupDialog = true }
     val onOpenGithub = {
         context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/Yussefgafer/Meshify")))
     }
@@ -234,8 +231,7 @@ fun SettingsScreen(
                 haptics = haptics,
                 onOpenLanguage = onOpenLanguage,
                 onOpenFontSize = onOpenFontSize,
-                onClearCache = onClearCache,
-                onOpenBackup = onOpenBackup
+                onClearCache = onClearCache
             )
 
             AboutSection(
@@ -292,14 +288,6 @@ fun SettingsScreen(
         )
     }
 
-    if (showBackupDialog) {
-        SettingsBackupDialog(
-            onExportResult = { backupStatus = it },
-            onDismiss = { showBackupDialog = false },
-            viewModel = viewModel
-        )
-    }
-
     if (showBleSheet) {
         BleStatusBottomSheet(
             bleEnabled = state.bleEnabled,
@@ -324,18 +312,6 @@ fun SettingsScreen(
                 duration = SnackbarDuration.Short
             )
             cacheStatus = null
-        }
-    }
-
-    // Backup Status Message via SnackbarHost
-    LaunchedEffect(backupStatus) {
-        backupStatus?.let { msg ->
-            snackbarHostState.showSnackbar(
-                message = msg,
-                withDismissAction = true,
-                duration = SnackbarDuration.Short
-            )
-            backupStatus = null
         }
     }
 

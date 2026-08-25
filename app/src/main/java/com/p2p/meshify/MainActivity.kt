@@ -171,6 +171,8 @@ class MainActivity : ComponentActivity() {
             val settingsRepo = app.settingsRepository
             val themeMode by settingsRepo.themeMode.collectAsState(initial = com.p2p.meshify.domain.repository.ThemeMode.SYSTEM)
             val dynamicColor by settingsRepo.dynamicColorEnabled.collectAsState(initial = true)
+            val seedColor by settingsRepo.seedColor.collectAsState(initial = 0xFF006D68.toInt())
+            val fontSizeScale by settingsRepo.fontSizeScale.collectAsState(initial = 1f)
 
             var isReady by remember { mutableStateOf(false) }
             var startDestination by remember { mutableStateOf<Screen?>(null) }
@@ -197,7 +199,9 @@ class MainActivity : ComponentActivity() {
 
             MeshifyTheme(
                 themeMode = themeMode.name,
-                dynamicColor = dynamicColor
+                dynamicColor = dynamicColor,
+                seedColor = Color(seedColor),
+                fontSizeScale = fontSizeScale
             ) {
                 CompositionLocalProvider(LocalPremiumHaptics provides premiumHaptics) {
                     val context = LocalContext.current

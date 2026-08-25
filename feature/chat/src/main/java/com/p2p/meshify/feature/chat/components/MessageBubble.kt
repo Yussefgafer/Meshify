@@ -92,7 +92,6 @@ private const val StatusAlphaDefault = 0.7f
  * @param message The message entity to display
  * @param attachments List of media attachments associated with this message
  * @param peerName Display name of the chat peer (used for context)
- * @param bubbleStyle Bubble shape style from theme configuration
  * @param isSelected Whether this message is currently selected in multi-select mode
  * @param uploadProgress Upload progress percentage (0-100), or null if not uploading
  * @param transportType Transport type used to send this message (LAN/BLE/BOTH)

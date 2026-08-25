@@ -54,6 +54,9 @@ dependencies {
 
     // MD3E - Graphics Shapes for morphing
     implementation(libs.androidx.graphics.shapes)
+
+    // Seed-based Material color scheme generation
+    implementation(libs.material.kolor)
     
     // Coil for image loading
     implementation(libs.coil3.compose)

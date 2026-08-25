@@ -244,11 +244,4 @@ class SettingsViewModel @Inject constructor(
             }
         }
     }
-
-    fun exportBackup(onResult: (Result<String>) -> Unit) {
-        viewModelScope.launch {
-            onResult(settingsRepository.exportBackup())
-        }
-    }
-
 }

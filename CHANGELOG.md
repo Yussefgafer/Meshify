@@ -59,6 +59,11 @@ V1.1.3
 - [Chore] Guard DeveloperScreen and RealDeviceTesting nav behind BuildConfig.DEBUG (not accessible in release builds)
 - [Chore] Enable `buildConfig = true` in app/build.gradle.kts
 - [Docs] Update QWEN.md, CHANGELOG.md, docs/core-ui.md with design system info
+- [Feat] Accent color picker now actually works with dynamic colors off — MeshifyTheme generates a full M3 scheme from the saved seed via MaterialKolor (TonalSpot) on all Android versions; previously the picker saved an int nobody read while a hardcoded purple scheme rendered
+- [Feat] Font size setting is now applied — Typography scales every text style by the chosen factor (80–150%); previously stored and displayed in Settings but never read by any theme code
+- [Fix] Backup settings entry removed for now — Export generated the settings JSON then discarded it while showing "exported successfully", and Import was a "coming soon" stub; repository-level exportBackup/importBackup kept for future re-wiring
+- [Refactor] Delete legacy dead design-config settings from ISettingsRepository/SettingsRepository (shapeStyle, motionPreset, motionScale, fontFamilyPreset, customFontUri, bubbleStyle, visualDensity) and their DataStore keys + ThemeConfig.kt enums — zero UI surface, zero consumers
+- [Chore] Add com.materialkolor:material-kolor 5.0.0 to libs.versions.toml (:core:ui)
 
 V1.1.2
 - [Refactor] Update MeshifySettingsGroup/SettingsItem typography tokens: labelLarge→labelMedium, ExtraBold→Bold, surfaceContainerLow→surfaceContainer, bodySmall→bodyMedium

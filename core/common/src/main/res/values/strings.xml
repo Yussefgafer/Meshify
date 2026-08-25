@@ -302,15 +302,6 @@
     <string name="dialog_btn_save">Save</string>
     <string name="dialog_btn_cancel">Cancel</string>
 
-    <!-- Settings Backup & Restore -->
-    <string name="settings_backup_title">Backup &amp; Restore</string>
-    <string name="settings_backup_desc">Export your settings to a file or import from a backup file.</string>
-    <string name="settings_backup_export">Export Backup</string>
-    <string name="settings_backup_import">Import Backup</string>
-    <string name="settings_backup_export_success">Backup exported successfully!</string>
-    <string name="settings_backup_export_error">Failed to export: %1$s</string>
-    <string name="settings_backup_import_soon">Import feature coming soon</string>
-
     <!-- Chat Input -->
     <string name="chat_input_caption_placeholder">Add a caption…</string>
     
@@ -611,10 +602,6 @@
 
     <!-- Settings — Device ID Loading -->
     <string name="settings_device_id_loading">Loading…</string>
-
-    <!-- Settings — Backup Import -->
-    <string name="settings_backup_import_success">Backup imported successfully</string>
-    <string name="settings_backup_import_error">Failed to import backup</string>
 
     <!-- Accessibility — Content Descriptions -->
     <string name="content_desc_staged_media">Staged media attachment</string>
