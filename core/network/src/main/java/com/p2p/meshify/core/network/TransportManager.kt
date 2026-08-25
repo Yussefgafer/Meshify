@@ -36,7 +36,7 @@ class TransportManager(
     private val context: Context,
     private val settingsRepository: ISettingsRepository
 ) {
-    internal val socketManager = SocketManager() // ✅ Changed from private to internal
+    internal val socketManager = SocketManager() // Changed from private to internal
     private val transports = mutableMapOf<String, IMeshTransport>()
 
     // Current transport mode (updated reactively by MeshifyApp)
@@ -244,16 +244,16 @@ class TransportManager(
             // Future Transports - Add with 1 line each:
             // ============================================
 
-            // ✅ Bluetooth transport
+            // Bluetooth transport
             // manager.registerTransport("bluetooth", BluetoothTransportImpl(context, settingsRepository))
 
-            // ✅ WiFi-Direct transport
+            // WiFi-Direct transport
             // manager.registerTransport("wifi_direct", WifiDirectTransportImpl(context, settingsRepository))
 
-            // ✅ DHT transport (for internet-based P2P like BitTorrent)
+            // DHT transport (for internet-based P2P like BitTorrent)
             // manager.registerTransport("dht", DhtTransportImpl(context, settingsRepository))
 
-            // ✅ UWB (Ultra-Wideband) transport
+            // UWB (Ultra-Wideband) transport
             // manager.registerTransport("uwb", UwbTransportImpl(context, settingsRepository))
 
             return manager

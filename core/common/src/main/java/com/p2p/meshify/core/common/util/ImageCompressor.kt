@@ -60,7 +60,7 @@ object ImageCompressor {
         // Decode with sample size
         options.inJustDecodeBounds = false
         options.inSampleSize = sampleSize
-        // ✅ CRITICAL FIX: Enable inMutable for better memory reuse
+        // CRITICAL FIX: Enable inMutable for better memory reuse
         options.inMutable = false
 
         val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size, options)
@@ -72,7 +72,7 @@ object ImageCompressor {
         return try {
             orientedBitmap = fixOrientation(bitmap, imageBytes)
             
-            // ✅ CRITICAL FIX: Pre-calculate estimated output size to avoid excessive resizing
+            // CRITICAL FIX: Pre-calculate estimated output size to avoid excessive resizing
             // Estimate: width * height * 3 bytes / compression ratio
             val estimatedSize = (orientedBitmap.width * orientedBitmap.height * 3) / 10
             // Cap at 2MB initial size to prevent excessive memory allocation
@@ -110,11 +110,11 @@ object ImageCompressor {
                 height = orientedBitmap.height
             )
         } finally {
-            // ✅ CRITICAL FIX: Ensure memory is freed even in case of exception
+            // CRITICAL FIX: Ensure memory is freed even in case of exception
             // Close output stream first
             outputStream?.close()
 
-            // ✅ Recycle bitmaps in reverse order of creation
+            // Recycle bitmaps in reverse order of creation
             // Recycle oriented bitmap first (if different from original)
             if (orientedBitmap != null && orientedBitmap != bitmap && !orientedBitmap.isRecycled) {
                 orientedBitmap.recycle()
@@ -124,7 +124,7 @@ object ImageCompressor {
                 bitmap.recycle()
             }
 
-            // ✅ REMOVED: System.gc() was causing 5-50ms stutters
+            // REMOVED: System.gc() was causing 5-50ms stutters
             // Bitmap.recycle() is sufficient - GC will run naturally
         }
     }

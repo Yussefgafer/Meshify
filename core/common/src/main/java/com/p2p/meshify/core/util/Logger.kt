@@ -10,13 +10,13 @@ import android.util.Log
  * Unified logging utility with configurable TAG.
  * Located in core:common to be accessible by all modules.
  * 
- * ✅ SEC-03: Debug logging disabled in production builds
+ * SEC-03: Debug logging disabled in production builds
  * Prevents sensitive data exposure in release builds
  */
 object Logger {
     private const val DEFAULT_TAG = "Meshify"
     
-    // ✅ SEC-03: Only log debug/info in debug builds (using debuggable flag)
+    // SEC-03: Only log debug/info in debug builds (using debuggable flag)
     private var isDebug: Boolean = false
     
     // Public getter for LoggerWrapper
@@ -46,7 +46,7 @@ object Logger {
      * - e(message, throwable) - uses default tag
      * - e(message, tag, throwable) - custom tag
      * 
-     * ✅ Always logs errors (needed for production debugging)
+     * Always logs errors (needed for production debugging)
      */
     fun e(message: String, throwable: Throwable? = null, tag: String = DEFAULT_TAG) {
         Log.e(tag, message, throwable)

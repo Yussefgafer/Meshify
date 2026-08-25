@@ -54,7 +54,7 @@ data class ForwardDialogState(
     val recentChats: List<ChatUiModel> = emptyList(),
     val discoveredDevices: List<PeerDevice> = emptyList(),
     val allChats: List<ChatUiModel> = emptyList(),
-    val onlinePeerIds: Set<String> = emptySet(), // ✅ FIX: Track online peers
+    val onlinePeerIds: Set<String> = emptySet(), // FIX: Track online peers
     val selectedPeerIds: Set<String> = emptySet(),
     val searchQuery: String = "",
     val isForwarding: Boolean = false,
@@ -115,7 +115,7 @@ fun ForwardMessageDialog(
         focusRequester.requestFocus()
     }
 
-    // ✅ FIX: Back button handling - prevent data loss during forwarding
+    // FIX: Back button handling - prevent data loss during forwarding
     BackHandler(enabled = !state.isForwarding) {
         haptics.perform(HapticPattern.Pop)
         onDismiss()
@@ -264,7 +264,7 @@ fun ForwardMessageDialog(
                             ForwardPeerItem(
                                 name = chat.peerName,
                                 subtitle = chat.lastMessage ?: "",
-                                isOnline = chat.peerId in state.onlinePeerIds, // ✅ FIX: Use real online status
+                                isOnline = chat.peerId in state.onlinePeerIds, // FIX: Use real online status
                                 isSelected = state.selectedPeerIds.contains(chat.peerId),
                                 onToggle = {
                                     haptics.perform(HapticPattern.Pop)
@@ -313,7 +313,7 @@ fun ForwardMessageDialog(
                             ForwardPeerItem(
                                 name = chat.peerName,
                                 subtitle = chat.lastMessage ?: "",
-                                isOnline = chat.peerId in state.onlinePeerIds, // ✅ FIX: Use real online status
+                                isOnline = chat.peerId in state.onlinePeerIds, // FIX: Use real online status
                                 isSelected = state.selectedPeerIds.contains(chat.peerId),
                                 onToggle = {
                                     haptics.perform(HapticPattern.Pop)
@@ -366,7 +366,7 @@ fun ForwardMessageDialog(
                         )
                     ) {
                         if (state.isForwarding) {
-                            // ✅ Loading state with progress
+                            // Loading state with progress
                             CircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
                                 strokeWidth = 2.dp,
@@ -378,7 +378,7 @@ fun ForwardMessageDialog(
                                 fontWeight = FontWeight.Bold
                             )
                         } else if (state.errorMessage != null) {
-                            // ✅ Error state
+                            // Error state
                             Icon(
                                 imageVector = Icons.Default.Error,
                                 contentDescription = stringResource(R.string.forward_dialog_error),
@@ -399,7 +399,7 @@ fun ForwardMessageDialog(
                     }
                 }
 
-                // ✅ Error message display
+                // Error message display
                 if (state.errorMessage != null && !state.isForwarding) {
                     Row(
                         modifier = Modifier

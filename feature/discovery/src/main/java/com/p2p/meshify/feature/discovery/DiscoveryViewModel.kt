@@ -58,7 +58,7 @@ class DiscoveryViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(DiscoveryUiState())
     val uiState: StateFlow<DiscoveryUiState> = _uiState.asStateFlow()
 
-    // ✅ MINOR FIX m3: Use Map for O(1) lookup instead of O(n) indexOfFirst
+    // MINOR FIX m3: Use Map for O(1) lookup instead of O(n) indexOfFirst
     private val peerMap = mutableMapOf<String, PeerDevice>()
 
     init {
@@ -133,7 +133,7 @@ class DiscoveryViewModel @Inject constructor(
     }
 
     private fun handleDeviceLost(event: TransportEvent.DeviceLost) {
-        // ✅ MINOR FIX m3: O(1) map removal
+        // MINOR FIX m3: O(1) map removal
         peerMap.remove(event.deviceId)
         _uiState.update {
             it.copy(
@@ -147,9 +147,9 @@ class DiscoveryViewModel @Inject constructor(
     }
 
     /**
-     * ✅ UX-05: Trigger manual refresh for pull-to-refresh
-     * ✅ P0-3: Actually restart discovery instead of just delaying
-     * ✅ P0-4: Clear error message on refresh
+     * UX-05: Trigger manual refresh for pull-to-refresh
+     * P0-3: Actually restart discovery instead of just delaying
+     * P0-4: Clear error message on refresh
      */
     fun refresh() {
         checkWifiState()

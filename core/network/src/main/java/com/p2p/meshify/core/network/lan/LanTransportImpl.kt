@@ -48,7 +48,7 @@ class LanTransportImpl(
     private val peerIdProvider: SimplePeerIdProvider
 ) : IMeshTransport {
 
-    // ✅ Transport metadata
+    // Transport metadata
     override val transportName: String = "lan"
     override val isAvailable: Boolean = true // LAN is always available on Android devices
     override val capabilities: Set<TransportCapability> = setOf(
@@ -70,7 +70,7 @@ class LanTransportImpl(
     // (rolling window — see FAILURE_WINDOW_MS)
     private val failedSendCounts = ConcurrentHashMap<String, MutableList<Long>>()
 
-    // ✅ PF10: Cache for settings to avoid repeated firstOrNull() calls (5-10ms delay each)
+    // PF10: Cache for settings to avoid repeated firstOrNull() calls (5-10ms delay each)
     private var cachedDisplayName: String = "Unknown"
     private var cachedAvatarHash: String? = null
     private var lastCacheUpdate = 0L
@@ -317,7 +317,7 @@ class LanTransportImpl(
             }
         }
 
-        // ✅ FIX: Send clean payload with just the name for UI display
+        // FIX: Send clean payload with just the name for UI display
         val cleanPayload = payload.copy(data = "HELO_$name".toByteArray())
         _events.emit(TransportEvent.PayloadReceived(senderId, cleanPayload))
     }
@@ -585,7 +585,7 @@ class LanTransportImpl(
             }
             override fun onRegistrationFailed(info: NsdServiceInfo, errorCode: Int) {
                 Logger.e("NSD -> Registration Failed: $errorCode")
-                // ✅ FIX: Retry registration after delay
+                // FIX: Retry registration after delay
                 scope.launch {
                     delay(2000)
                     if (discoveryEnabled) {
@@ -674,7 +674,7 @@ class LanTransportImpl(
                     return@launch
                 }
 
-                // ✅ FIX: Check if peer already exists before adding
+                // FIX: Check if peer already exists before adding
                 val isDuplicate = peerMapMutex.withLock {
                     val existing = peerMap.putIfAbsent(peerId, address)
                     existing != null
