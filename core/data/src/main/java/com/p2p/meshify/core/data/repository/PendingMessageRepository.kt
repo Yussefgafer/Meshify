@@ -9,6 +9,7 @@ import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.MessageType
 import com.p2p.meshify.domain.model.Payload
 import com.p2p.meshify.domain.repository.IFileManager
+import com.p2p.meshify.domain.security.model.MessageEnvelope
 import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.core.network.base.IMeshTransport
 import kotlinx.coroutines.Dispatchers
@@ -143,7 +144,21 @@ class PendingMessageRepository(
         for (attempt in 1..maxAttempts) {
             try {
                 val data: ByteArray = when (msg.type) {
-                    MessageType.TEXT -> msg.text?.toByteArray() ?: byteArrayOf()
+                    MessageType.TEXT -> {
+                        // Must match the live-send wire format: the receiver
+                        // deserializes TEXT payloads as MessageEnvelope.
+                        val text = msg.text
+                            ?: return Result.failure(Exception("Null text for queued message ${msg.id}"))
+                        serializeMessageEnvelope(
+                            MessageEnvelope(
+                                senderId = msg.senderId,
+                                recipientId = pm.recipientId,
+                                text = text,
+                                timestamp = msg.timestamp,
+                                messageType = "text"
+                            )
+                        )
+                    }
                     MessageType.IMAGE, MessageType.VIDEO, MessageType.FILE,
                     MessageType.AUDIO, MessageType.DOCUMENT, MessageType.ARCHIVE,
                     MessageType.APK -> {
@@ -226,8 +241,11 @@ class PendingMessageRepository(
         }
 
         if (cleanupOnGiveUp) {
+            // Keep the pending row AND any staged file: the staged copy may be
+            // the only local copy of the content, and the next handshake's
+            // auto-retry (or manual Retry on this FAILED row) can still
+            // deliver it once the peer returns.
             messageDao.updateMessageStatus(msg.id, MessageStatus.FAILED)
-            deleteStagedFile(msg.mediaPath)
         }
         Logger.e("PendingMessageRepository -> Message ${msg.id} failed after $maxAttempts attempt(s)", lastException)
         return Result.failure(lastException ?: Exception("Max retries exceeded"))

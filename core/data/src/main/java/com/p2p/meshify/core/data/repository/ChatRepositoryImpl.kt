@@ -1,6 +1,7 @@
 package com.p2p.meshify.core.data.repository
 
 import android.content.Context
+import androidx.room.withTransaction
 import com.p2p.meshify.core.common.R
 import com.p2p.meshify.core.data.local.MeshifyDatabase
 import com.p2p.meshify.core.data.local.dao.ChatDao
@@ -44,8 +45,6 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import java.io.Closeable
 import java.io.File
-import java.nio.ByteBuffer
-import java.nio.BufferUnderflowException
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -170,7 +169,7 @@ class ChatRepositoryImpl(
             messageType = "text"
         )
 
-        val envelopeBytes = serializeEnvelope(envelope)
+        val envelopeBytes = serializeMessageEnvelope(envelope)
         return sendPlaintextPayload(text, peerId, peerName, envelopeBytes, replyToId)
     }
 
@@ -339,6 +338,23 @@ class ChatRepositoryImpl(
         }
     }
 
+    private suspend fun enqueueForwardedMessage(newMessage: MessageEntity, peerId: String) {
+        if (pendingMessageDao.getById(newMessage.id) != null) return
+        val existingChat = chatDao.getChatById(peerId)
+        val recipientName = existingChat?.let { parseName(it.peerName) }
+            ?: "${AppConstants.DEFAULT_PEER_NAME_PREFIX}${peerId.take(4)}"
+        pendingMessageDao.insert(
+            com.p2p.meshify.core.data.local.entity.PendingMessageEntity(
+                id = newMessage.id,
+                recipientId = peerId,
+                recipientName = recipientName,
+                content = newMessage.text ?: "[Media]",
+                type = newMessage.type,
+                timestamp = newMessage.timestamp
+            )
+        )
+    }
+
     private suspend fun forwardTextMessage(
         message: MessageEntity,
         peerId: String,
@@ -364,6 +380,7 @@ class ChatRepositoryImpl(
         val transport = transportManager.selectBestTransport(peerId).firstOrNull()
         if (transport == null) {
             messageDao.updateMessageStatus(newMessage.id, MessageStatus.QUEUED)
+            enqueueForwardedMessage(newMessage, peerId)
             return false
         }
 
@@ -375,7 +392,7 @@ class ChatRepositoryImpl(
             messageType = "text"
         )
 
-        val envelopeBytes = serializeEnvelope(envelope)
+        val envelopeBytes = serializeMessageEnvelope(envelope)
         val payload = Payload(
             id = newMessage.id,
             senderId = settingsRepository.getDeviceId(),
@@ -391,10 +408,13 @@ class ChatRepositoryImpl(
                 true
             } else {
                 messageDao.updateMessageStatus(newMessage.id, MessageStatus.QUEUED)
+                enqueueForwardedMessage(newMessage, peerId)
                 false
             }
         } catch (e: Exception) {
+            Logger.e("ChatRepository -> Failed to forward text message to $peerId", e)
             messageDao.updateMessageStatus(newMessage.id, MessageStatus.QUEUED)
+            enqueueForwardedMessage(newMessage, peerId)
             false
         }
     }
@@ -452,7 +472,7 @@ class ChatRepositoryImpl(
                 chatId = peerId,
                 senderId = message.senderId,
                 text = forwardContext,
-                mediaPath = null,
+                mediaPath = mediaPath,
                 type = message.type,
                 timestamp = System.currentTimeMillis(),
                 isFromMe = true,
@@ -466,6 +486,7 @@ class ChatRepositoryImpl(
             val transport = transportManager.selectBestTransport(peerId).firstOrNull()
             if (transport == null) {
                 messageDao.updateMessageStatus(newMessage.id, MessageStatus.QUEUED)
+                enqueueForwardedMessage(newMessage, peerId)
                 return false
             }
 
@@ -477,7 +498,7 @@ class ChatRepositoryImpl(
                 messageType = message.type.name.lowercase()
             )
 
-            val envelopeBytes = serializeEnvelope(envelope)
+            val envelopeBytes = serializeMessageEnvelope(envelope)
             val payload = Payload(
                 id = newMessage.id,
                 senderId = settingsRepository.getDeviceId(),
@@ -506,6 +527,7 @@ class ChatRepositoryImpl(
                 true
             } else {
                 messageDao.updateMessageStatus(newMessage.id, MessageStatus.QUEUED)
+                enqueueForwardedMessage(newMessage, peerId)
                 false
             }
         } catch (e: java.io.IOException) {
@@ -600,7 +622,7 @@ class ChatRepositoryImpl(
 
     private suspend fun handlePlaintextMessage(peerId: String, payload: Payload) {
         try {
-            val envelope = deserializeEnvelope(payload.data)
+            val envelope = deserializeMessageEnvelope(payload.data)
             val text = envelope.text
 
             val saveResult = saveIncomingMessage(peerId, text, null, MessageType.TEXT, payload.timestamp, payload.id)
@@ -770,7 +792,6 @@ class ChatRepositoryImpl(
         return try {
             val existingChat = chatDao.getChatById(peerId)
             val finalName = if (existingChat != null) parseName(existingChat.peerName) else "${AppConstants.DEFAULT_PEER_NAME_PREFIX}${peerId.take(4)}"
-            chatDao.insertChat(ChatEntity(peerId, finalName, text ?: "[Media]", timestamp))
             val message = MessageEntity(
                 id = messageId,
                 chatId = peerId,
@@ -782,7 +803,11 @@ class ChatRepositoryImpl(
                 isFromMe = false,
                 status = MessageStatus.SENT
             )
-            messageDao.insertMessage(message)
+            // Chat preview + message row must land together or not at all
+            database.withTransaction {
+                chatDao.insertChat(ChatEntity(peerId, finalName, text ?: "[Media]", timestamp))
+                messageDao.insertMessage(message)
+            }
             notificationHelper.showMessageNotification(finalName, message)
             Result.success(Unit)
         } catch (e: Exception) {
@@ -878,72 +903,6 @@ class ChatRepositoryImpl(
             messageDao.updateMessageStatus(messageId, MessageStatus.FAILED)
             Logger.e("ChatRepository -> Exception sending plaintext message", e)
             Result.failure(e)
-        }
-    }
-
-    // ==================== Serialization ====================
-
-    private fun serializeEnvelope(envelope: MessageEnvelope): ByteArray {
-        val textBytes = envelope.text.toByteArray(Charsets.UTF_8)
-        val senderIdBytes = envelope.senderId.toByteArray(Charsets.UTF_8)
-        val recipientIdBytes = envelope.recipientId.toByteArray(Charsets.UTF_8)
-        val messageTypeBytes = envelope.messageType.toByteArray(Charsets.UTF_8)
-
-        val totalSize = 2 + senderIdBytes.size +
-                2 + recipientIdBytes.size +
-                4 + textBytes.size +
-                8 +
-                2 + messageTypeBytes.size
-
-        return ByteBuffer.allocate(totalSize).apply {
-            putShort(senderIdBytes.size.toShort())
-            put(senderIdBytes)
-            putShort(recipientIdBytes.size.toShort())
-            put(recipientIdBytes)
-            putInt(textBytes.size)
-            put(textBytes)
-            putLong(envelope.timestamp)
-            putShort(messageTypeBytes.size.toShort())
-            put(messageTypeBytes)
-        }.array()
-    }
-
-    private fun deserializeEnvelope(data: ByteArray): MessageEnvelope {
-        val buffer = ByteBuffer.wrap(data)
-
-        fun readSizedBytes(len: Int): ByteArray {
-            if (len < 0 || len > buffer.remaining()) {
-                throw IllegalArgumentException(
-                    "Malformed envelope: declared length $len exceeds remaining ${buffer.remaining()} bytes"
-                )
-            }
-            return ByteArray(len).also { buffer.get(it) }
-        }
-
-        try {
-            val senderIdLen = buffer.short.toInt()
-            val senderId = String(readSizedBytes(senderIdLen), Charsets.UTF_8)
-
-            val recipientIdLen = buffer.short.toInt()
-            val recipientId = String(readSizedBytes(recipientIdLen), Charsets.UTF_8)
-
-            val textLen = buffer.int
-            val text = String(readSizedBytes(textLen), Charsets.UTF_8)
-
-            val timestamp = buffer.long
-
-            val messageTypeLen = buffer.short.toInt()
-            val messageType = String(readSizedBytes(messageTypeLen), Charsets.UTF_8)
-
-            return MessageEnvelope(
-                senderId = senderId,
-                recipientId = recipientId,
-                text = text,
-                timestamp = timestamp,
-                messageType = messageType
-            )
-        } catch (e: BufferUnderflowException) {
-            throw IllegalArgumentException("Malformed envelope: truncated data (${data.size} bytes)", e)
         }
     }
 
