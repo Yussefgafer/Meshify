@@ -7,22 +7,23 @@ import com.p2p.meshify.domain.model.Payload
 import java.nio.ByteBuffer
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.random.Random
 
 private const val TAG = "BlePayloadSerializer"
 
 /**
  * Wire format for BLE chunked transfer:
- * [4B: totalSize][4B: chunkIndex][4B: totalChunks][variable: chunkData]
+ * [4B: msgId][4B: totalSize][4B: chunkIndex][4B: totalChunks][variable: chunkData]
  *
- * Each chunk is limited to AppConfig.BLE_MTU_SIZE - AppConfig.BLE_CHUNK_HEADER_SIZE bytes.
+ * msgId is a random Int generated per message and shared by all of its chunks, so the
+ * reassembly key is unique per transfer — identically shaped transfers cannot interleave.
+ *
+ * Chunk data capacity is derived from the live negotiated MTU passed by the caller,
+ * not from the requested AppConfig.BLE_MTU_SIZE.
  */
 object BlePayloadSerializer {
 
-    private const val CHUNK_HEADER_SIZE = 12 // 4 + 4 + 4
-    private const val MAX_CHUNK_DATA_SIZE = AppConfig.BLE_MTU_SIZE - AppConfig.BLE_CHUNK_HEADER_SIZE
+    private const val CHUNK_HEADER_SIZE = 16 // msgId + totalSize + chunkIndex + totalChunks
 
     private val reassemblyBuffers = ConcurrentHashMap<String, ReassemblyState>()
 
@@ -36,30 +37,43 @@ object BlePayloadSerializer {
     /**
      * Serialize a Payload into BLE-compatible chunks.
      * Each chunk is ready to be sent via BLE GATT characteristic.
+     *
+     * @param maxWirePayloadSize usable bytes per GATT write/notify (negotiated MTU - ATT overhead).
      */
-    fun serializeToChunks(payload: Payload): List<ByteArray> {
+    fun serializeToChunks(payload: Payload, maxWirePayloadSize: Int): List<ByteArray> {
+        val maxChunkDataSize = maxWirePayloadSize - CHUNK_HEADER_SIZE
+        if (maxChunkDataSize <= 0) {
+            throw IllegalArgumentException("maxWirePayloadSize $maxWirePayloadSize leaves no room for chunk data")
+        }
+
         val fullBytes = PayloadSerializer.serialize(payload)
+        if (fullBytes.isEmpty()) {
+            throw IllegalArgumentException("Cannot serialize an empty payload")
+        }
+
         val totalSize = fullBytes.size
-        val totalChunks = (totalSize + MAX_CHUNK_DATA_SIZE - 1) / MAX_CHUNK_DATA_SIZE
+        val totalChunks = (totalSize + maxChunkDataSize - 1) / maxChunkDataSize
+        val msgId = Random.Default.nextInt()
 
         return if (totalChunks == 1) {
-            listOf(buildChunk(0, 1, totalSize, fullBytes))
+            listOf(buildChunk(msgId, 0, 1, totalSize, fullBytes))
         } else {
             (0 until totalChunks).map { chunkIndex ->
-                val offset = chunkIndex * MAX_CHUNK_DATA_SIZE
-                val chunkDataSize = minOf(MAX_CHUNK_DATA_SIZE, totalSize - offset)
+                val offset = chunkIndex * maxChunkDataSize
+                val chunkDataSize = minOf(maxChunkDataSize, totalSize - offset)
                 val chunkData = fullBytes.copyOfRange(offset, offset + chunkDataSize)
-                buildChunk(chunkIndex, totalChunks, totalSize, chunkData)
+                buildChunk(msgId, chunkIndex, totalChunks, totalSize, chunkData)
             }
         }
     }
 
     /**
      * Build a single chunk with header.
-     * Format: [4B totalSize][4B chunkIndex][4B totalChunks][chunkData]
+     * Format: [4B msgId][4B totalSize][4B chunkIndex][4B totalChunks][chunkData]
      */
-    private fun buildChunk(chunkIndex: Int, totalChunks: Int, totalSize: Int, chunkData: ByteArray): ByteArray {
+    private fun buildChunk(msgId: Int, chunkIndex: Int, totalChunks: Int, totalSize: Int, chunkData: ByteArray): ByteArray {
         val buffer = ByteBuffer.allocate(CHUNK_HEADER_SIZE + chunkData.size)
+        buffer.putInt(msgId)
         buffer.putInt(totalSize)
         buffer.putInt(chunkIndex)
         buffer.putInt(totalChunks)
@@ -77,6 +91,7 @@ object BlePayloadSerializer {
         }
 
         val buffer = ByteBuffer.wrap(chunkBytes)
+        val msgId = buffer.int
         val totalSize = buffer.int
         val chunkIndex = buffer.int
         val totalChunks = buffer.int
@@ -91,7 +106,7 @@ object BlePayloadSerializer {
         val chunkData = ByteArray(buffer.remaining())
         buffer.get(chunkData)
 
-        val reassemblyKey = "ble_${peerId}_${totalSize}_${totalChunks}"
+        val reassemblyKey = "ble_${peerId}_${msgId}"
 
         return processChunkInternal(reassemblyKey, chunkIndex, totalChunks, totalSize, chunkData)
     }
@@ -110,7 +125,7 @@ object BlePayloadSerializer {
         // Check for timeout BEFORE updating lastUpdateTime — otherwise
         // now - now = 0 and the timeout NEVER triggers.
         if (System.currentTimeMillis() - state.lastUpdateTime > AppConfig.BLE_REASSEMBLY_TIMEOUT_MS) {
-            Logger.w("Reassembly timeout for key: $reassemblyKey", tag = TAG)
+            Logger.e("BLE Incomplete transfer dropped (timeout): $reassemblyKey", tag = TAG)
             reassemblyBuffers.remove(reassemblyKey)
             return null
         }
@@ -130,9 +145,17 @@ object BlePayloadSerializer {
 
     private fun reassembleAndClear(state: ReassemblyState, key: String): Payload? {
         val sortedChunks = state.chunks.entries.sortedBy { it.key }
-        val totalSize = sortedChunks.sumOf { it.value.size }
+        val receivedBytes = sortedChunks.sumOf { it.value.size }
 
-        val buffer = ByteBuffer.allocate(totalSize)
+        // Defensive: guards against mixed-version garbage even though msgId-keyed
+        // buffers make cross-transfer contamination practically impossible
+        if (receivedBytes != state.totalSize) {
+            Logger.e("BLE Chunks sum to $receivedBytes bytes but header claims ${state.totalSize} for $key - dropping", tag = TAG)
+            reassemblyBuffers.remove(key)
+            return null
+        }
+
+        val buffer = ByteBuffer.allocate(receivedBytes)
         sortedChunks.forEach { (_, data) -> buffer.put(data) }
 
         reassemblyBuffers.remove(key)
@@ -161,9 +184,4 @@ object BlePayloadSerializer {
             reassemblyBuffers.remove(key)
         }
     }
-
-    /**
-     * Get the maximum data size per chunk (MTU - header).
-     */
-    fun getMaxChunkDataSize(): Int = MAX_CHUNK_DATA_SIZE
 }

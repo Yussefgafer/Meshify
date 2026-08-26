@@ -153,19 +153,6 @@ class MainActivity : ComponentActivity() {
 
         val app = application as MeshifyApp
 
-        // Only request permissions immediately if onboarding was already completed.
-        // Otherwise, permissions will be requested after the onboarding flow.
-        lifecycleScope.launch {
-            val completed = try {
-                app.settingsRepository.hasCompletedOnboarding.first()
-            } catch (e: Exception) {
-                true // fallback: assume completed to avoid blocking app startup
-            }
-            if (completed) {
-                checkAndRequestPermissions()
-            }
-        }
-
         pendingChatPeerId = intent?.getStringExtra(NotificationHelper.EXTRA_CHAT_PEER_ID)
         // captured into pendingDraftForPeer when navigation actually happens
         lastLaunchDraft = intent?.getStringExtra(NotificationHelper.EXTRA_REPLY_TEXT)
@@ -231,6 +218,23 @@ class MainActivity : ComponentActivity() {
                                 color = Color.Transparent
                             ) {
                                 val effectiveStart = startDestination ?: Screen.Home
+
+                                // Move the permission request into a UserIntent-gated point: only
+                                // requested after onboarding completes and the user navigates to a
+                                // feature that actually needs a permission. The eager post-onCreate
+                                // prompt was removed because it popped up before any user action,
+                                // making Android's "Allow only while using the app" negative state
+                                // stick on the home screen.
+                                LaunchedEffect(effectiveStart) {
+                                    val completed = try {
+                                        app.settingsRepository.hasCompletedOnboarding.first()
+                                    } catch (e: Exception) {
+                                        true
+                                    }
+                                    if (completed && effectiveStart == Screen.Home) {
+                                        checkAndRequestPermissions()
+                                    }
+                                }
 
                                 LaunchedEffect(effectiveStart) {
                                     if (effectiveStart == Screen.Home) {

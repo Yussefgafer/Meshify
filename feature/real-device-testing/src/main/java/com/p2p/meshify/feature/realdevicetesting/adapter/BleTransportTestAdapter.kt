@@ -53,7 +53,7 @@ private const val TAG = "BleTransportTestAdapter"
  *
  * BLE-specific constraints:
  * - Max 7 simultaneous connections (hardware limit)
- * - Payloads are chunked to [AppConfig.BLE_MTU_SIZE] - [AppConfig.BLE_CHUNK_HEADER_SIZE] bytes
+ * - Payloads are chunked to the peer's negotiated MTU minus ATT overhead and chunk header
  * - 50ms delay between chunks to avoid BLE stack overflow
  * - Bluetooth must be enabled on the device (checked in [isAvailable])
  *
@@ -262,8 +262,6 @@ class BleTransportTestAdapter(
 
             val startTime = System.currentTimeMillis()
             try {
-                // Serialize payload into BLE chunks
-                val chunks = BlePayloadSerializer.serializeToChunks(payload)
                 val gattClient = bleGattClient ?: run {
                     return@withLock TestSendResult.failure(
                         error = "GATT client not available",
@@ -279,6 +277,29 @@ class BleTransportTestAdapter(
                     gattClient.connect(btDevice, peerId)
                     // sendData() suspends on characteristicsReady.await() — no delay needed
                 }
+
+                // connect() above is asynchronous — wait for GATT readiness before sizing chunks
+                if (!gattClient.awaitReady(peerId)) {
+                    return@withLock TestSendResult.failure(
+                        error = "Peer '$peerId' GATT connection not ready",
+                        durationMs = System.currentTimeMillis() - startTime,
+                        bytesSent = 0
+                    )
+                }
+
+                // Serialize payload into BLE chunks sized from the live negotiated MTU;
+                // null means no GATT connection exists and sending cannot proceed
+                val negotiatedMtu = gattClient.getNegotiatedMtu(peerId) ?: run {
+                    return@withLock TestSendResult.failure(
+                        error = "Peer '$peerId' GATT connection not established",
+                        durationMs = System.currentTimeMillis() - startTime,
+                        bytesSent = 0
+                    )
+                }
+                val chunks = BlePayloadSerializer.serializeToChunks(
+                    payload,
+                    negotiatedMtu - AppConfig.BLE_ATT_OVERHEAD_BYTES
+                )
 
                 // Send each chunk
                 return@withLock sendChunks(
@@ -323,7 +344,7 @@ class BleTransportTestAdapter(
                 return TestSendResult.failure(
                     error = "Chunk $index failed: $error",
                     durationMs = duration,
-                    bytesSent = index * BlePayloadSerializer.getMaxChunkDataSize(),
+                    bytesSent = chunks.take(index).sumOf { it.size },
                     exception = chunkResult.exceptionOrNull()
                 )
             }

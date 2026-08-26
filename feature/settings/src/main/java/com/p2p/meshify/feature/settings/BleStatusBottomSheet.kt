@@ -41,8 +41,18 @@ import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
 import com.p2p.meshify.domain.model.TransportMode
 
 /**
- * BLE Status Bottom Sheet — shows BLE state, connected peers, and transport mode selector.
- * MD3E styled: primaryContainer status surface, expressive top corners, subtle chip selection motion.
+ * BLE Status Bottom Sheet — surfaces BLE state and transport mode selector.
+ *
+ * Reflects the runtime state of the BLE transport as observed by the UI:
+ * - [bleEnabled] is the user's preference from settings, NOT a guarantee that GATT
+ *   advertising/scanning has actually started. The transport can fail to start
+ *   (Bluetooth off, permission denied, service-add failure) and still have
+ *   `bleEnabled == true`.
+ * - The connection state of individual peers lives in BleTransportImpl.onlinePeers,
+ *   not here; this sheet only shows whether BLE is enabled at all.
+ *
+ * Style: MD3E — primaryContainer status surface, expressive top corners, subtle
+ * chip selection motion.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

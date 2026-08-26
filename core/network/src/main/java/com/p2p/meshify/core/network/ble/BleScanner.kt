@@ -207,6 +207,14 @@ class BleScanner(
         stopScanning()
         _discoveryChannel.close()
     }
+
+    /**
+     * Timestamp (System.currentTimeMillis) of the last scan result for [address],
+     * or null when the address has never been seen in this scan session.
+     * Used by BleTransportImpl to detect scan expiry — peers that disappear
+     * from advertising without firing an explicit lose callback.
+     */
+    fun getLastSeenFor(address: String): Long? = seenDevices[address]
 }
 
 /**

@@ -40,21 +40,22 @@ class BleConnectionPool {
     /**
      * Adds a new BLE connection to the pool.
      *
-     * @param peerId Peer identifier
+     * @param peerId Peer identifier (MAC address)
      * @param connectionType Type of connection (server or client)
      * @return true if added, false if pool is full
      */
     fun addConnection(peerId: String, connectionType: BleConnectionType): Boolean {
-        if (activeConnections.size >= AppConfig.BLE_MAX_CONNECTIONS) {
-            Logger.w("BLE Connection pool full (${AppConfig.BLE_MAX_CONNECTIONS}), rejecting $peerId", tag = TAG)
-            return false
+        synchronized(activeConnections) {
+            if (activeConnections.size >= AppConfig.BLE_MAX_CONNECTIONS) {
+                Logger.w("BLE Connection pool full (${AppConfig.BLE_MAX_CONNECTIONS}), rejecting $peerId", tag = TAG)
+                return false
+            }
+            activeConnections[peerId] = BleConnectionState(
+                type = connectionType,
+                connectedAt = System.currentTimeMillis()
+            )
+            connectionTimestamps[peerId] = System.currentTimeMillis()
         }
-
-        activeConnections[peerId] = BleConnectionState(
-            type = connectionType,
-            connectedAt = System.currentTimeMillis()
-        )
-        connectionTimestamps[peerId] = System.currentTimeMillis()
         Logger.d("BLE Connection added: $peerId (${connectionType.name})", tag = TAG)
         return true
     }
@@ -68,14 +69,6 @@ class BleConnectionPool {
             cleanupConnectionLock(peerId)
             Logger.d("BLE Connection removed: $peerId", tag = TAG)
         }
-    }
-
-    /**
-     * Updates the last used timestamp for a connection.
-     */
-    fun updateLastUsed(peerId: String) {
-        connectionTimestamps[peerId] = System.currentTimeMillis()
-        activeConnections[peerId]?.lastUsedAt = System.currentTimeMillis()
     }
 
     /**
@@ -103,6 +96,19 @@ class BleConnectionPool {
     fun hasRoom(): Boolean = activeConnections.size < AppConfig.BLE_MAX_CONNECTIONS
 
     /**
+     * Marks a peer active — refreshes its idle-timer so it is not evicted by cleanupIdleConnections.
+     */
+    fun markActive(peerId: String) {
+        connectionTimestamps[peerId] = System.currentTimeMillis()
+    }
+
+    /**
+     * Returns the last-activity timestamp for [peerId], or null if absent.
+     * Used by callers that need to know whether a peer was recently active.
+     */
+    fun getLastActiveAt(peerId: String): Long? = connectionTimestamps[peerId]
+
+    /**
      * Cleans up idle connections.
      *
      * @return Number of connections cleaned up
@@ -111,9 +117,10 @@ class BleConnectionPool {
         val now = System.currentTimeMillis()
         val toRemove = mutableListOf<String>()
 
-        for ((peerId, lastUsed) in connectionTimestamps) {
-            val idleTime = now - lastUsed
-            if (idleTime > IDLE_TIMEOUT_MS) {
+        // Iterate connectionTimestamps directly — its values are Long timestamps.
+        // (activeConnections holds BleConnectionState, not timestamps.)
+        for ((peerId, lastActive) in connectionTimestamps) {
+            if (now - lastActive > IDLE_TIMEOUT_MS) {
                 toRemove.add(peerId)
             }
         }
@@ -160,6 +167,5 @@ enum class BleConnectionType {
  */
 data class BleConnectionState(
     val type: BleConnectionType,
-    val connectedAt: Long,
-    var lastUsedAt: Long = System.currentTimeMillis()
+    val connectedAt: Long
 )
