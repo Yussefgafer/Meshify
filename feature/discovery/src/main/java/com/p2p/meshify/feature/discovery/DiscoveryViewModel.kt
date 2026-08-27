@@ -31,6 +31,7 @@ data class DiscoveryUiState(
     val isSearching: Boolean = true,
     val isRefreshing: Boolean = false,
     val errorMessage: String? = null,
+    val nonFatalError: String? = null,
     val isWifiEnabled: Boolean = true,
     val canDiscover: Boolean = true
 )
@@ -63,6 +64,11 @@ class DiscoveryViewModel @Inject constructor(
 
     init {
         observeTransportEvents()
+        // Seed already-known peers so returning to Discovery doesn't blank the list.
+        // The merged event flow has replay=0, so a recreated ViewModel would otherwise
+        // only refill on the next scan result (or stay empty until the next discovery).
+        peerMap.putAll(transportManager.discoveredPeers.value)
+        _uiState.update { it.copy(discoveredPeers = peerMap.values.toList()) }
         checkWifiState()
         viewModelScope.launch {
             kotlinx.coroutines.delay(DISCOVERY_SCAN_DELAY_MS)
@@ -150,11 +156,19 @@ class DiscoveryViewModel @Inject constructor(
 
     private fun handleError(event: TransportEvent.Error) {
         Logger.e("DiscoveryViewModel -> Transport error: ${event.message}", event.exception)
-        // Background transport errors must not blank a populated peer list;
-        // surface full-screen error only when there is nothing to show.
+        // Background transport errors must not blank a populated peer list.
+        // When LAN is working but BLE (or another transport) failed, surface the
+        // failure as a transient non-fatal message instead of swallowing it, so the
+        // user is not left with a silently broken transport.
         if (peerMap.isEmpty()) {
             _uiState.update { it.copy(errorMessage = event.message) }
+        } else {
+            _uiState.update { it.copy(nonFatalError = event.message) }
         }
+    }
+
+    fun clearNonFatalError() {
+        _uiState.update { it.copy(nonFatalError = null) }
     }
 
     /**
@@ -165,7 +179,7 @@ class DiscoveryViewModel @Inject constructor(
     fun refresh() {
         checkWifiState()
         viewModelScope.launch {
-            _uiState.update { it.copy(isRefreshing = true, isSearching = true, errorMessage = null) }
+            _uiState.update { it.copy(isRefreshing = true, isSearching = true, errorMessage = null, nonFatalError = null) }
 
             try {
                 // Stop and restart discovery to find fresh devices

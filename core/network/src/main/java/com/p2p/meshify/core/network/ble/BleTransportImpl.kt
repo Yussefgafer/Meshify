@@ -60,6 +60,12 @@ class BleTransportImpl(
     private val _typingPeers = MutableStateFlow<Set<String>>(emptySet())
     override val typingPeers: StateFlow<Set<String>> = _typingPeers
 
+    // Real BLE runtime state — true only after the GATT server came up and advertising
+    // started. Distinct from the bleEnabled user preference, which can be true while BLE
+    // actually failed to start (permissions, adapter off, service-add failure).
+    private val _bleRuntimeActive = MutableStateFlow(false)
+    override val runtimeActive: StateFlow<Boolean> = _bleRuntimeActive.asStateFlow()
+
     // BLE components
     private var bleAdvertiser: BleAdvertiser? = null
     private var bleScanner: BleScanner? = null
@@ -193,6 +199,7 @@ class BleTransportImpl(
             bleAdvertiser?.startAdvertising()
 
             isStarted = true
+            _bleRuntimeActive.value = true
             Logger.d("BLE Transport started successfully", tag = TAG)
 
             _events.emit(TransportEvent.ConnectionEstablished(peerId))
@@ -222,6 +229,7 @@ class BleTransportImpl(
 
             isStarted = false
             isDiscovering = false
+            _bleRuntimeActive.value = false
             _onlinePeers.value = emptySet()
             _typingPeers.value = emptySet()
             macByMeshId.clear()
@@ -251,6 +259,11 @@ class BleTransportImpl(
 
         try {
             bleScanner = BleScanner()
+
+            // Surface scan failures (e.g. missing BLUETOOTH_SCAN permission) as transport
+            // errors instead of failing silently — the discovery UI would otherwise show
+            // nothing and the user would never know BLE scanning never started.
+            bleScanner?.onScanError = { _events.tryEmit(TransportEvent.Error(it, null)) }
 
             // Collect discovered devices — track job for cancellation
             val currentScope = scope ?: return

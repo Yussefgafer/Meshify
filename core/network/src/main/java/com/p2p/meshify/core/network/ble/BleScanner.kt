@@ -30,6 +30,11 @@ class BleScanner(
     @Volatile
     private var isScanning = false
 
+    // Invoked when a scan cannot start or fails mid-scan, so the transport can surface
+    // it as a TransportEvent.Error (e.g. missing BLUETOOTH_SCAN permission) instead of
+    // failing silently.
+    var onScanError: ((String) -> Unit)? = null
+
     // Stable discovery flow — a single SharedFlow created once; the public surface
     // (discoveryFlow) is never reassigned, so a collector that subscribed at construction
     // keeps receiving after the scanner restarts (a Channel-based flow silently died here).
@@ -54,6 +59,7 @@ class BleScanner(
                 else -> "UNKNOWN($errorCode)"
             }
             Logger.e("BLE Scan failed: $errorName", tag = TAG)
+            onScanError?.invoke("BLE scan failed: $errorName")
             isScanning = false
         }
     }
@@ -97,9 +103,13 @@ class BleScanner(
             isScanning = true
             Logger.d("BLE Scanning started", tag = TAG)
         } catch (e: SecurityException) {
-            Logger.e("BLE Scanning: SecurityException - missing BLUETOOTH_SCAN permission", tag = TAG)
+            val msg = "BLE Scanning: SecurityException - missing BLUETOOTH_SCAN permission"
+            Logger.e(msg, tag = TAG)
+            onScanError?.invoke(msg)
         } catch (e: Exception) {
-            Logger.e("BLE Scanning: Unexpected error: ${e.message}", tag = TAG)
+            val msg = "BLE Scanning failed: ${e.message}"
+            Logger.e(msg, tag = TAG)
+            onScanError?.invoke(msg)
         }
     }
 

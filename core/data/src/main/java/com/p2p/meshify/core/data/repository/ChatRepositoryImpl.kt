@@ -51,6 +51,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * ChatRepositoryImpl - Facade pattern for chat operations.
@@ -113,6 +114,11 @@ class ChatRepositoryImpl(
 
     private val repositoryJob = SupervisorJob()
     private val scope = CoroutineScope(Dispatchers.IO + repositoryJob)
+
+    // MULTI_PATH delivers a single logical message over both LAN and BLE, so the same
+    // payload.id arrives twice; dedupe by id so the unread-count bump and notification
+    // side-effects don't fire twice (the DB insert is already idempotent via REPLACE).
+    private val processedPayloadIds = ConcurrentHashMap.newKeySet<String>()
 
     // TODO: Remove if unused after 2026-07 — consumed by ChatMessagesViewModel and ChatViewModel
     private val _securityEvents = MutableSharedFlow<SecurityEvent>(replay = 0)
@@ -595,6 +601,10 @@ class ChatRepositoryImpl(
     // ==================== Incoming Payload Handling ====================
 
     override suspend fun handleIncomingPayload(peerId: String, payload: Payload) {
+        if (!processedPayloadIds.add(payload.id)) {
+            Logger.d("ChatRepository -> Dropping duplicate payload ${payload.id}", tag = "ChatRepository")
+            return
+        }
         when (payload.type) {
             Payload.PayloadType.SYSTEM_CONTROL -> handleSystemCommand(peerId, payload)
             Payload.PayloadType.DELETE_REQUEST -> handleDeleteRequest(peerId, payload)

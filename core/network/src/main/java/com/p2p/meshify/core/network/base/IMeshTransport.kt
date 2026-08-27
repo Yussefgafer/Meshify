@@ -2,6 +2,7 @@ package com.p2p.meshify.core.network.base
 
 import com.p2p.meshify.domain.model.Payload
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -41,6 +42,14 @@ interface IMeshTransport {
      * Set of peer IDs currently typing.
      */
     val typingPeers: StateFlow<Set<String>>
+
+    /**
+     * Whether this transport is actually running at runtime (GATT up / sockets bound),
+     * as opposed to merely being enabled by user preference. Defaults to false for
+     * transports that don't model a separate runtime-active state; BLE overrides it to
+     * reflect real GATT/advertising state so the UI doesn't show "Active" when BLE failed.
+     */
+    val runtimeActive: StateFlow<Boolean> get() = MutableStateFlow(false)
 
     /**
      * Starts the transport service (e.g., binds sockets, starts mDNS).
