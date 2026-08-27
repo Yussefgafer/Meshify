@@ -414,10 +414,28 @@ class BleTransportImpl(
                     .filter { it.key != senderIdentity && it.value == linkKey }
                     .map { it.key }
                     .toList()
+                // Re-key boundary: a scan-time synthetic ble_* id is replaced by the real
+                // mesh UUID carried in the first payload. Surface the swap to the discovery
+                // layer (driven solely by DeviceDiscovered/DeviceLost) so the orphan row is
+                // removed and the real peer appears with its advertised name and signal.
+                val advertisedName = bleScanner?.getLastNameFor(linkKey)
+                val advertisedRssi = bleScanner?.getLastRssiFor(linkKey)
+                staleIds.forEach { _events.emit(TransportEvent.DeviceLost(it)) }
                 staleIds.forEach { macByMeshId.remove(it, linkKey) }
                 registerAlias(senderIdentity, linkKey)
                 pendingLinkMacs.remove(linkKey)
                 _onlinePeers.update { peers -> (peers - staleIds.toSet()) + senderIdentity }
+                if (staleIds.isNotEmpty()) {
+                    _events.emit(
+                        TransportEvent.DeviceDiscovered(
+                            deviceId = senderIdentity,
+                            deviceName = advertisedName ?: "",
+                            address = linkKey,
+                            rssi = advertisedRssi,
+                            transportType = com.p2p.meshify.domain.model.TransportType.BLE
+                        )
+                    )
+                }
                 Logger.d("BLE Reassembled payload ${payload.id} from $senderIdentity", tag = TAG)
                 connectionPool?.markActive(linkKey)
                 _events.emit(TransportEvent.PayloadReceived(senderIdentity, payload))

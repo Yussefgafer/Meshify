@@ -128,6 +128,12 @@ class BleScanner(
 
     // Track discovered devices for debouncing
     private val seenDevices = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    // Last advertised device name per MAC — kept past debounce so the transport can
+    // surface it when a synthetic ble_* id gets re-keyed to the real mesh UUID.
+    private val namesByAddress = java.util.concurrent.ConcurrentHashMap<String, String>()
+    // Last advertised RSSI per MAC — mirrors namesByAddress so the re-keyed discovery
+    // event can carry the signal strength the user already saw.
+    private val rssiByAddress = java.util.concurrent.ConcurrentHashMap<String, Int>()
     private val debouncingIntervalMs = 10_000L // Only report each device once per 10 seconds
 
     /**
@@ -135,7 +141,7 @@ class BleScanner(
      */
     private fun handleScanResult(result: ScanResult) {
         // Debounce: skip if we saw this device recently
-        val address = result.device.address
+        val address = result.device.address.uppercase()
         val now = System.currentTimeMillis()
         val lastSeen = seenDevices[address]
         if (lastSeen != null && now - lastSeen < debouncingIntervalMs) {
@@ -155,7 +161,9 @@ class BleScanner(
         }
 
         val deviceName = result.scanRecord?.deviceName ?: "Unknown"
+        namesByAddress[address] = deviceName
         val rssi = result.rssi
+        rssiByAddress[address] = rssi
 
         Logger.d("BLE Discovered: $peerId ($deviceName) RSSI: $rssi", tag = TAG)
 
@@ -204,6 +212,8 @@ class BleScanner(
     fun cleanup() {
         stopScanning()
         seenDevices.clear()
+        namesByAddress.clear()
+        rssiByAddress.clear()
     }
 
     /**
@@ -213,6 +223,21 @@ class BleScanner(
      * from advertising without firing an explicit lose callback.
      */
     fun getLastSeenFor(address: String): Long? = seenDevices[address]
+
+    /**
+     * Returns the most recently advertised device name for [address], or null if we
+     * never observed that MAC or it was cleared by [cleanup]. Used by the transport
+     * when a synthetic ble_* id is re-keyed to the real mesh UUID so the real
+     * discovery event can carry the name the user sees.
+     */
+    fun getLastNameFor(address: String): String? = namesByAddress[address]
+
+    /**
+     * Returns the most recently advertised RSSI for [address], or null if we never
+     * observed that MAC or it was cleared by [cleanup]. Mirrors [getLastNameFor] so the
+     * re-keyed discovery event preserves the signal strength the user already saw.
+     */
+    fun getLastRssiFor(address: String): Int? = rssiByAddress[address]
 }
 
 /**
