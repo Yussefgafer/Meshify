@@ -21,7 +21,10 @@ object AppConfig {
     const val BLE_ATT_OVERHEAD_BYTES: Int = 3 // ATT header: usable payload per packet = MTU - 3
     const val BLE_MAX_CONNECTIONS: Int = 7
     const val BLE_READY_TIMEOUT_MS: Long = 5_000L
-    const val BLE_REASSEMBLY_TIMEOUT_MS: Long = 5_000L
+    // Sliding-window gap between consecutive chunks: a transfer is dropped only if this long
+    // elapses with no new chunk arriving. Generous enough to survive BLE congestion/retransmits
+    // without stranding a transfer on a single delayed chunk.
+    const val BLE_REASSEMBLY_TIMEOUT_MS: Long = 30_000L
     const val BLE_SEND_TIMEOUT_MS: Long = 15_000L
 
     // Connection Management
