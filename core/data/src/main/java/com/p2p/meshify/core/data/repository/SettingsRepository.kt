@@ -342,6 +342,8 @@ class SettingsRepository(
         return try {
             prefsStore.edit { block(it) }
             Result.success(Unit)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             Logger.e("SettingsRepository -> Write Failed", e)
             Result.failure(e)

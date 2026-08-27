@@ -123,7 +123,6 @@ class MainActivity : ComponentActivity() {
      */
     private fun requestSpecificPermissions(permissions: List<String>) {
         if (permissions.isEmpty()) return
-        permissionResultCallback = null // Reset
         onboardingPermissionLauncher.launch(permissions.toTypedArray())
     }
 
@@ -393,6 +392,9 @@ class MainActivity : ComponentActivity() {
                                             },
                                             onRequestPermissions = { perms ->
                                                 requestSpecificPermissions(perms)
+                                            },
+                                            onStartService = {
+                                                startAppService()
                                             }
                                         )
                                     }
@@ -458,7 +460,8 @@ private fun OnboardingRoute(
     activity: MainActivity,
     settingsRepository: com.p2p.meshify.domain.repository.ISettingsRepository,
     onNavigateToHome: () -> Unit,
-    onRequestPermissions: (List<String>) -> Unit
+    onRequestPermissions: (List<String>) -> Unit,
+    onStartService: () -> Unit
 ) {
     val onboardingViewModel: WelcomeViewModel = hiltViewModel()
     val permissions = PermissionDefinitions.getPermissions()
@@ -533,8 +536,9 @@ private fun OnboardingRoute(
                 if (isPermissionFlowActive) {
                     showSkipConfirm = true
                 } else {
-                    scope.launch {
+                    activity.lifecycleScope.launch {
                         settingsRepository.setOnboardingCompleted()
+                        onStartService()
                     }
                     onNavigateToHome()
                 }
@@ -602,8 +606,9 @@ private fun OnboardingRoute(
             totalCount = permissions.size,
             permissionResults = permissionResults.toMap(),
             onStartClick = {
-                scope.launch {
+                activity.lifecycleScope.launch {
                     settingsRepository.setOnboardingCompleted()
+                    onStartService()
                 }
                 onNavigateToHome()
             },
@@ -627,8 +632,9 @@ private fun OnboardingRoute(
                         permissionResults[perm.id] = PermissionRequestResult.Skipped
                     }
                 }
-                scope.launch {
+                activity.lifecycleScope.launch {
                     settingsRepository.setOnboardingCompleted()
+                    onStartService()
                 }
                 onNavigateToHome()
             }
