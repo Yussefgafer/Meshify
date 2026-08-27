@@ -74,15 +74,6 @@ class BleGattClient(
     }
 
     /**
-     * Disconnect from a peer.
-     */
-    fun disconnect(peerId: String) {
-        val connection = gattConnections.remove(peerId) ?: return
-        connection.failAndRelease("Local disconnect")
-        Logger.d("BLE Disconnected from $peerId", tag = TAG)
-    }
-
-    /**
      * Send data to a connected peer.
      */
     suspend fun sendData(peerId: String, data: ByteArray): Result<Unit> {
