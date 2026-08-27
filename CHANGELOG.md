@@ -1,4 +1,5 @@
 V1.1.4
+- [Fix] Onboarding permission flow state now survives Activity recreation — currentPermissionIndex, isPermissionFlowActive, showSummaryDialog, showSkipConfirm, and the permissionResults map moved from remember to rememberSaveable (custom listSaver serializes the SnapshotStateMap of PermissionRequestResult), so rotating the screen or a process-death restore no longer resets the flow back to the welcome page
 - [Fix] WelcomeScreen pager navigation used `animateScrollToPage` outside of a coroutine scope, causing compilation errors; added `rememberCoroutineScope` and wrapped calls in `scope.launch` to ensure smooth page transitions
 - [Fix] Fixed a syntax error in `MainActivity.kt` caused by duplicate block comments
 - [Refactor] Unified WelcomeScreen paging state by removing redundant state from `WelcomeViewModel` and `WelcomeUiState`, making `PagerState` the single source of truth for current page index

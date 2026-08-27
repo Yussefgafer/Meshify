@@ -19,6 +19,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -68,6 +71,23 @@ import javax.inject.Inject
 
 private const val PERMISSION_ALREADY_GRANTED_DISPLAY_DELAY_MS = 600L
 private const val PERMISSION_RESULT_AUTO_ADVANCE_DELAY_MS = 200L // Short buffer for dialog dismissal before advancing page
+
+private fun PermissionRequestResult.toPermissionResultKey(): String = when (this) {
+    PermissionRequestResult.Granted -> "granted"
+    PermissionRequestResult.Denied -> "denied"
+    PermissionRequestResult.DeniedPermanently -> "denied_permanently"
+    PermissionRequestResult.Skipped -> "skipped"
+    PermissionRequestResult.AlreadyGranted -> "already_granted"
+}
+
+private fun String.toPermissionRequestResult(): PermissionRequestResult = when (this) {
+    "granted" -> PermissionRequestResult.Granted
+    "denied" -> PermissionRequestResult.Denied
+    "denied_permanently" -> PermissionRequestResult.DeniedPermanently
+    "skipped" -> PermissionRequestResult.Skipped
+    "already_granted" -> PermissionRequestResult.AlreadyGranted
+    else -> PermissionRequestResult.Denied
+}
 
 /**
  * Main entry point of the Meshify application.
@@ -463,12 +483,23 @@ private fun OnboardingRoute(
     val currentLang by settingsRepository.appLanguage.collectAsState(initial = "en")
 
     // Permission flow state
-    var isPermissionFlowActive by remember { mutableStateOf(false) }
-    var currentPermissionIndex by remember { mutableStateOf(0) }
-    val permissionResults = remember { mutableStateMapOf<String, PermissionRequestResult>() }
+    var isPermissionFlowActive by rememberSaveable { mutableStateOf(false) }
+    var currentPermissionIndex by rememberSaveable { mutableStateOf(0) }
+    val permissionResults = rememberSaveable(
+        saver = listSaver<SnapshotStateMap<String, PermissionRequestResult>, String>(
+            save = { map -> map.flatMap { (k, v) -> listOf(k, v.toPermissionResultKey()) } },
+            restore = { list ->
+                mutableStateMapOf<String, PermissionRequestResult>().apply {
+                    for (i in list.indices step 2) {
+                        this[list[i]] = list[i + 1].toPermissionRequestResult()
+                    }
+                }
+            }
+        )
+    ) { mutableStateMapOf() }
     var advanceTrigger by remember { mutableIntStateOf(0) }
-    var showSummaryDialog by remember { mutableStateOf(false) }
-    var showSkipConfirm by remember { mutableStateOf(false) }
+    var showSummaryDialog by rememberSaveable { mutableStateOf(false) }
+    var showSkipConfirm by rememberSaveable { mutableStateOf(false) }
 
     // Wire permission result callback from Activity — single persistent callback
     DisposableEffect(activity) {
