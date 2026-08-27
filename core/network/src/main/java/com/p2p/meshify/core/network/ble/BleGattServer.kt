@@ -73,6 +73,13 @@ class BleGattServer(
                 Logger.e("BLE GATT Server already running, refusing double-start", tag = TAG)
                 return
             }
+            // Refuse cleanly if the adapter is off — openGattServer would otherwise return
+            // null and the rest of this method would proceed with a phantom gattServer.
+            val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager
+            if (bluetoothManager == null || !bluetoothManager.adapter.isEnabled) {
+                Logger.e("BLE GATT Server: Bluetooth adapter unavailable or disabled", tag = TAG)
+                throw IllegalStateException("Bluetooth adapter not enabled")
+            }
             // Recreate deferred so a restart after stopServer can be awaited again
             if (serviceAdded.isDone) serviceAdded = java.util.concurrent.CompletableFuture()
 

@@ -169,7 +169,6 @@ class BleGattConnection(
 
     private var rxCharacteristic: BluetoothGattCharacteristic? = null
     private var txCharacteristic: BluetoothGattCharacteristic? = null
-    private var currentMtu = AppConfig.BLE_DEFAULT_MTU // Default BLE MTU — updated via onMtuChanged
     private var effectiveMtu: Int = AppConfig.BLE_DEFAULT_MTU // min(negotiatedMtu, AppConfig.BLE_MTU_SIZE)
 
     val negotiatedMtu: Int
@@ -272,7 +271,6 @@ class BleGattConnection(
             @SuppressLint("MissingPermission")
             override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
                 if (status == BluetoothGatt.GATT_SUCCESS) {
-                    currentMtu = mtu
                     effectiveMtu = minOf(mtu, AppConfig.BLE_MTU_SIZE)
                     Logger.d("BLE MTU negotiated: $mtu (effective: $effectiveMtu) for $peerId", tag = TAG)
                 } else {
@@ -394,10 +392,10 @@ class BleGattConnection(
             val maxPayloadSize = effectiveMtu - 3
             if (data.size > maxPayloadSize) {
                 Logger.e("BLE Payload size (${data.size}) exceeds effective MTU payload capacity ($maxPayloadSize) for $peerId. " +
-                    "MTU negotiated: $currentMtu. Chunk size mismatch — BlePayloadSerializer must be aligned with negotiated MTU.",
+                    "MTU negotiated: $effectiveMtu. Chunk size mismatch — BlePayloadSerializer must be aligned with negotiated MTU.",
                     tag = TAG)
                 return Result.failure(IllegalStateException(
-                    "Chunk size ${data.size} exceeds MTU payload limit $maxPayloadSize (negotiated MTU: $currentMtu)"
+                    "Chunk size ${data.size} exceeds MTU payload limit $maxPayloadSize (negotiated MTU: $effectiveMtu)"
                 ))
             }
 

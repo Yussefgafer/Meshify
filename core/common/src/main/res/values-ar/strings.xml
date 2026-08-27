@@ -11,6 +11,9 @@
     <!-- Default peer name fallback -->
     <string name="default_peer_name">نظير</string>
 
+    <!-- BLE: device name when scanRecord.deviceName is null -->
+    <string name="ble_unknown_device">جهاز غير معروف</string>
+
     <!-- Home / Recent Chats Screen -->
     <string name="screen_home_title">مشيفاي</string>
     <string name="chats_recent_header">المحادثات الأخيرة</string>

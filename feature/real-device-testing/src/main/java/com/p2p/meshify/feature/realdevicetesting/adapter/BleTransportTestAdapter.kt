@@ -121,7 +121,7 @@ class BleTransportTestAdapter(
 
         // Create BLE components
         bleAdvertiser = BleAdvertiser(peerId = peerId, deviceName = deviceName)
-        bleScanner = BleScanner()
+        bleScanner = BleScanner(context)
         bleGattServer = BleGattServer(
             context = context,
             onPayloadReceived = { fromPeerId, data ->

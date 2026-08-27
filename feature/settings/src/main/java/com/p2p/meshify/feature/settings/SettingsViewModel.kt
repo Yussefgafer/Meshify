@@ -37,7 +37,7 @@ data class SettingsUiState(
     val notificationSound: Boolean = true,
     val notificationVibrate: Boolean = true,
     val bleEnabled: Boolean = false,
-    val transportMode: TransportMode = TransportMode.AUTO,
+    val transportMode: TransportMode = TransportMode.MULTI_PATH,
     val bleRuntimeActive: Boolean = false,
     val displayNameError: String? = null
 )

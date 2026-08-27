@@ -24,6 +24,7 @@ private const val TAG = "BleScanner"
  * and emits discovery events with peer details.
  */
 class BleScanner(
+    private val context: android.content.Context,
     private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
 ) {
     private val scanner: BluetoothLeScanner? = bluetoothAdapter?.bluetoothLeScanner
@@ -170,7 +171,8 @@ class BleScanner(
             return
         }
 
-        val deviceName = result.scanRecord?.deviceName ?: "Unknown"
+        val deviceName = result.scanRecord?.deviceName
+            ?: context.getString(com.p2p.meshify.core.common.R.string.ble_unknown_device)
         namesByAddress[address] = deviceName
         val rssi = result.rssi
         rssiByAddress[address] = rssi

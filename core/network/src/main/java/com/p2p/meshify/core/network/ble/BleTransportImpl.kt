@@ -202,8 +202,6 @@ class BleTransportImpl(
             _bleRuntimeActive.value = true
             Logger.d("BLE Transport started successfully", tag = TAG)
 
-            _events.emit(TransportEvent.ConnectionEstablished(peerId))
-            
             // Start periodic cleanup of stale buffers and idle connections
             startPeriodicCleanup()
         } catch (e: Exception) {
@@ -235,6 +233,7 @@ class BleTransportImpl(
             macByMeshId.clear()
             pendingLinkMacs.clear()
             activeLinkCounts.clear()
+            sendLocks.clear()
 
             // Cancel and nullify the scope
             scope?.cancel()
@@ -258,7 +257,7 @@ class BleTransportImpl(
         Logger.d("Starting BLE Discovery...", tag = TAG)
 
         try {
-            bleScanner = BleScanner()
+            bleScanner = BleScanner(context)
 
             // Surface scan failures (e.g. missing BLUETOOTH_SCAN permission) as transport
             // errors instead of failing silently — the discovery UI would otherwise show
@@ -399,7 +398,19 @@ class BleTransportImpl(
 
         // Auto-connect to discovered peer — check pool room BEFORE connecting
         if (connectionPool?.addConnection(mac, BleConnectionType.CLIENT) == true) {
-            bleGattClient?.connect(device.device, mac)
+            // connect() re-throws SecurityException on missing BLUETOOTH_CONNECT (or
+            // denial at runtime); without this guard an uncaught throw inside the
+            // discovery collector kills BLE scanning for the rest of the session.
+            try {
+                bleGattClient?.connect(device.device, mac)
+            } catch (e: SecurityException) {
+                connectionPool?.removeConnection(mac)
+                Logger.e("BLE connect denied (missing BLUETOOTH_CONNECT?): ${e.message}", tag = TAG)
+                _events.emit(TransportEvent.Error("BLE connect denied: missing BLUETOOTH_CONNECT", e))
+            } catch (e: Exception) {
+                connectionPool?.removeConnection(mac)
+                Logger.e("BLE auto-connect failed for ${device.peerId}: ${e.message}", e, tag = TAG)
+            }
         } else {
             Logger.w("BLE Connection pool full, cannot auto-connect to ${device.peerId}", tag = TAG)
         }
