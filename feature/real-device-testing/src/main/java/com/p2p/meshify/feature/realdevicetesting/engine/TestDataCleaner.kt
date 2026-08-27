@@ -39,17 +39,17 @@ class TestDataCleaner(
      */
     suspend fun cleanup(targetDeviceId: String): Result<Unit> = try {
         val testPeerId = testPeerIdFor(targetDeviceId)
-        Logger.i(TAG, "Cleaning test data for peer: $testPeerId")
+        Logger.i("Cleaning test data for peer: $testPeerId", tag = TAG)
 
         // Step 1: Delete all messages for this test chat
         database.messageDao().deleteAllMessagesForChat(testPeerId)
-        Logger.i(TAG, "Deleted messages for $testPeerId")
+        Logger.i("Deleted messages for $testPeerId", tag = TAG)
 
         // Step 2: Delete the chat entry
         database.chatDao().deleteChatById(testPeerId)
-        Logger.i(TAG, "Deleted chat entry for $testPeerId")
+        Logger.i("Deleted chat entry for $testPeerId", tag = TAG)
 
-        Logger.i(TAG, "Test data cleaned for $testPeerId")
+        Logger.i("Test data cleaned for $testPeerId", tag = TAG)
         Result.success(Unit)
     } catch (e: Exception) {
         Logger.e("Failed to clean test data for $targetDeviceId", e, tag = TAG)

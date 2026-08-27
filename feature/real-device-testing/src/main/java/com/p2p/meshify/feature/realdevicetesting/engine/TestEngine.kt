@@ -74,7 +74,7 @@ class TestEngine(
         val results = mutableListOf<TestResult>()
 
         logger.startSession(targetPeer, transport.transportType.name)
-        Logger.i(TAG, "Starting test session: ${scenarios.size} tests, target=${targetPeer.name}")
+        Logger.i("Starting test session: ${scenarios.size} tests, target=${targetPeer.name}", tag = TAG)
 
         for (scenario in scenarios) {
             coroutineContext.ensureActive()
@@ -99,6 +99,6 @@ class TestEngine(
 
         val totalDuration = System.currentTimeMillis() - sessionStart
         logger.appendSummary(results, totalDuration)
-        Logger.i(TAG, "Test session complete: ${totalDuration}ms")
+        Logger.i("Test session complete: ${totalDuration}ms", tag = TAG)
     }
 }
