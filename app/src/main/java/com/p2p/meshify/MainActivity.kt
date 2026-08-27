@@ -66,19 +66,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
-/**
- * Delay to allow the permission card exit animation to complete before advancing.
- * This is a known workaround because Compose's AnimatedVisibility does not expose
- * an onComplete callback that can be observed from a LaunchedEffect.
- * The values are conservative estimates that work on most devices.
- */
-private const val PERMISSION_EXIT_ANIMATION_DELAY_MS = 800L
-
-/**
- * Delay for auto-advancing when a permission is already granted.
- * Allows the user to see the "Granted" state briefly before moving on.
- */
 private const val PERMISSION_ALREADY_GRANTED_DISPLAY_DELAY_MS = 600L
+private const val PERMISSION_RESULT_AUTO_ADVANCE_DELAY_MS = 200L // Short buffer for dialog dismissal before advancing page
 
 /**
  * Main entry point of the Meshify application.
@@ -558,7 +547,6 @@ private fun OnboardingRoute(
             if (alreadyGranted) {
                 LaunchedEffect(perm.id) {
                     permissionResults[perm.id] = PermissionRequestResult.AlreadyGranted
-                    advanceTrigger++
                     kotlinx.coroutines.delay(PERMISSION_ALREADY_GRANTED_DISPLAY_DELAY_MS)
                     currentPermissionIndex++
                 }
@@ -583,7 +571,7 @@ private fun OnboardingRoute(
         // Auto-advance after permission result
         LaunchedEffect(advanceTrigger) {
             if (advanceTrigger > 0) {
-                kotlinx.coroutines.delay(PERMISSION_EXIT_ANIMATION_DELAY_MS)
+                kotlinx.coroutines.delay(PERMISSION_RESULT_AUTO_ADVANCE_DELAY_MS)
                 if (currentPermissionIndex < permissions.size) {
                     currentPermissionIndex++
                 }

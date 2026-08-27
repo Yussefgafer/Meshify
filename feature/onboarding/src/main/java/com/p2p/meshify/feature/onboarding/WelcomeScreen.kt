@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.launch
 import com.p2p.meshify.core.ui.hooks.HapticPattern
 import com.p2p.meshify.core.ui.hooks.LocalPremiumHaptics
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
@@ -50,17 +51,8 @@ fun WelcomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val haptics = LocalPremiumHaptics.current
-    val pagerState = rememberPagerState(initialPage = 0, initialPageOffsetFraction = 0f) { 3 }
-
-    LaunchedEffect(uiState.currentPage) {
-        if (pagerState.currentPage != uiState.currentPage) pagerState.animateScrollToPage(page = uiState.currentPage)
-    }
-
-    LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.currentPage }.collect { page ->
-            if (page != uiState.currentPage && !uiState.isAnimating) viewModel.goToPage(page)
-        }
-    }
+    val scope = rememberCoroutineScope()
+    val pagerState = rememberPagerState(initialPage = 0, initialPageOffsetFraction = 0f) { uiState.totalPages }
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
@@ -80,9 +72,9 @@ fun WelcomeScreen(
             }
 
             BottomNav(
-                currentPage = uiState.currentPage, totalPages = 3, isAnimating = uiState.isAnimating,
-                onPageSelected = { haptics.perform(HapticPattern.Tick); viewModel.goToPage(it) },
-                onNextClick = { haptics.perform(HapticPattern.Pop); if (uiState.currentPage < 2) viewModel.nextPage() else onNextClick() }
+                currentPage = pagerState.currentPage, totalPages = uiState.totalPages,
+                onPageSelected = { haptics.perform(HapticPattern.Tick); scope.launch { pagerState.animateScrollToPage(it) } },
+                onNextClick = { haptics.perform(HapticPattern.Pop); if (pagerState.currentPage < uiState.totalPages - 1) scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) } else onNextClick() }
             )
         }
     }
@@ -113,7 +105,7 @@ private fun TopBar(currentLang: String, onLangMenuToggle: () -> Unit, isLangMenu
 }
 
 @Composable
-private fun BottomNav(currentPage: Int, totalPages: Int, isAnimating: Boolean, onPageSelected: (Int) -> Unit, onNextClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun BottomNav(currentPage: Int, totalPages: Int, onPageSelected: (Int) -> Unit, onNextClick: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier = modifier.fillMaxWidth().padding(MeshifyDesignSystem.Spacing.Lg), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Lg)) {
         val pageIndicatorDesc = stringResource(R.string.ob_cd_page_indicator)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -130,7 +122,7 @@ private fun BottomNav(currentPage: Int, totalPages: Int, isAnimating: Boolean, o
         }
 
         Surface(
-            onClick = onNextClick, enabled = !isAnimating, color = MaterialTheme.colorScheme.primary,
+            onClick = onNextClick, color = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary, shape = MeshifyDesignSystem.Shapes.Button,
             modifier = Modifier.fillMaxWidth().height(56.dp)
         ) {
