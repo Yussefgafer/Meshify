@@ -26,7 +26,7 @@ data class ChatEntity(
         Index(value = ["chatId", "timestamp"]),
         Index(value = ["senderId"]),
         Index(value = ["status"]),
-        // ✅ CRITICAL FIX: Add index on groupId for faster grouped message queries
+        // CRITICAL FIX: Add index on groupId for faster grouped message queries
         // This reduces O(n) scan to O(1) lookup when fetching attachments by groupId
         Index(value = ["groupId"])
     ]

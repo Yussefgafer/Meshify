@@ -180,7 +180,7 @@ class ReplyReceiver : BroadcastReceiver() {
         // Reject expired timestamps
         if (age > SIGNATURE_MAX_AGE_MS) {
             Logger.e("ReplyReceiver -> Expired timestamp, age: ${age}ms")
-            showReplyErrorNotification(context, "Reply expired, please try again", chatId, replyText)
+            showReplyErrorNotification(context, context.getString(R.string.error_reply_expired), chatId, replyText)
             return
         }
 
@@ -188,7 +188,7 @@ class ReplyReceiver : BroadcastReceiver() {
         val notificationHelper = NotificationHelper(context)
         if (!notificationHelper.verifyReplySignature(chatId, signature, timestamp)) {
             Logger.e("ReplyReceiver -> Signature verification failed") // No chatId for security
-            showReplyErrorNotification(context, "Unauthorized reply", null, replyText)
+            showReplyErrorNotification(context, context.getString(R.string.error_reply_not_authorized), null, replyText)
             return
         }
 
@@ -205,20 +205,20 @@ class ReplyReceiver : BroadcastReceiver() {
         // Rate limiting check (before launching coroutine)
         if (!replyRateLimiter.allowRequest(chatId)) {
             Logger.w("Rate limit exceeded", "ReplyReceiver")
-            showReplyErrorNotification(context, "Too many replies, please wait", chatId, replyText)
+            showReplyErrorNotification(context, context.getString(R.string.error_reply_rate_limited), chatId, replyText)
             return
         }
 
         if (replyText.isNullOrBlank()) {
             Logger.e("Empty reply text", null, "ReplyReceiver")
-            showReplyErrorNotification(context, "Reply cannot be empty", chatId, replyText)
+            showReplyErrorNotification(context, context.getString(R.string.error_reply_empty), chatId, replyText)
             return
         }
 
         // Validate message length
         if (replyText.length > 10000) {
             Logger.e("Message too long", null, "ReplyReceiver")
-            showReplyErrorNotification(context, "Message too long (max 10000 characters)", chatId, replyText)
+            showReplyErrorNotification(context, context.getString(R.string.error_reply_too_long), chatId, replyText)
             return
         }
 
@@ -228,7 +228,7 @@ class ReplyReceiver : BroadcastReceiver() {
 
         if (sanitizedText.isBlank()) {
             Logger.e("Message empty after sanitization", null, "ReplyReceiver")
-            showReplyErrorNotification(context, "Invalid message content", chatId, replyText)
+            showReplyErrorNotification(context, context.getString(R.string.error_reply_invalid_content), chatId, replyText)
             return
         }
 
@@ -271,10 +271,10 @@ class ReplyReceiver : BroadcastReceiver() {
                         val errorMessage = when (error) {
                             is java.net.UnknownHostException,
                             is java.net.SocketTimeoutException,
-                            is java.io.IOException -> "Network error, please check connection"
-                            is java.security.GeneralSecurityException -> "Security error, please reconnect"
-                            null -> "Failed to send reply"
-                            else -> error.message ?: "Failed to send reply"
+                            is java.io.IOException -> context.getString(R.string.error_reply_network)
+                            is java.security.GeneralSecurityException -> context.getString(R.string.error_reply_security)
+                            null -> context.getString(R.string.error_reply_send_failed)
+                            else -> error.message ?: context.getString(R.string.error_reply_send_failed)
                         }
                         Logger.e("ReplyReceiver -> Send failed: $errorMessage")
                         showReplyErrorNotification(context, errorMessage, chatId, sanitizedText)
@@ -287,9 +287,9 @@ class ReplyReceiver : BroadcastReceiver() {
                 val errorMessage = when (e) {
                     is java.net.UnknownHostException,
                     is java.net.SocketTimeoutException,
-                    is java.io.IOException -> "Network error, please check connection"
-                    is java.security.GeneralSecurityException -> "Security error, please reconnect"
-                    else -> e.message ?: "Error: Unknown error"
+                    is java.io.IOException -> context.getString(R.string.error_reply_network)
+                    is java.security.GeneralSecurityException -> context.getString(R.string.error_reply_security)
+                    else -> e.message ?: context.getString(R.string.error_reply_unknown)
                 }
                 showReplyErrorNotification(context, errorMessage, chatId, sanitizedText)
                 // Schedule retry with exponential backoff
@@ -348,8 +348,8 @@ class ReplyReceiver : BroadcastReceiver() {
     ) {
         val retryIntent = Intent(context, com.p2p.meshify.MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            chatId?.let { putExtra("chat_peer_id", it) }
-            replyText?.let { putExtra("reply_text", it) } // Preserve reply text for retry
+            chatId?.let { putExtra(NotificationHelper.EXTRA_CHAT_PEER_ID, it) }
+            replyText?.let { putExtra(NotificationHelper.EXTRA_REPLY_TEXT, it) } // Preserve reply text for retry
             putExtra("retry-action", true)
         }
 

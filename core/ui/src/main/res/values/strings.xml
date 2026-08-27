@@ -38,13 +38,4 @@
     <string name="message_image">Message Image</string>
     <string name="message_status">Message Status</string>
     <string name="message_reaction">Reaction</string>
-
-    <!-- Settings Backup & Restore -->
-    <string name="settings_backup_title">Backup &amp; Restore</string>
-    <string name="settings_backup_desc">Export your settings to a file or import from a backup file.</string>
-    <string name="settings_backup_export">Export Backup</string>
-    <string name="settings_backup_import">Import Backup</string>
-    <string name="settings_backup_export_success">Backup exported successfully!</string>
-    <string name="settings_backup_export_error">Export failed: %1$s</string>
-    <string name="settings_backup_import_soon">Import feature coming soon</string>
 </resources>

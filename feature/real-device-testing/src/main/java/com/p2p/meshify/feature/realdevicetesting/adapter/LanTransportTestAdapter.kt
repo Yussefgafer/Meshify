@@ -17,11 +17,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.conflate
-import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
@@ -61,10 +61,9 @@ class LanTransportTestAdapter(
     private lateinit var transport: LanTransportImpl
 
     // Event collection
-    override val events: Flow<TransportEvent>
-        get() = _events.asStateFlow().filterNotNull()
+    private val _events = MutableSharedFlow<TransportEvent>(extraBufferCapacity = 16)
 
-    private val _events = MutableStateFlow<TransportEvent?>(null)
+    override val events: Flow<TransportEvent> = _events.asSharedFlow()
     private var eventCollectionJob: Job? = null
 
     // Discovered peers (thread-safe)
@@ -76,11 +75,11 @@ class LanTransportTestAdapter(
 
     override suspend fun initialize() {
         if (isInitialized) {
-            Logger.d(TAG, "Already initialized — skipping")
+            Logger.d("Already initialized — skipping", tag = TAG)
             return
         }
 
-        Logger.i(TAG, "Initializing LAN transport for testing")
+        Logger.i("Initializing LAN transport for testing", tag = TAG)
 
         // Create the underlying transport
         transport = LanTransportImpl(
@@ -103,7 +102,7 @@ class LanTransportTestAdapter(
         startEventCollection()
 
         isInitialized = true
-        Logger.i(TAG, "LAN transport initialized, discovery started")
+        Logger.i("LAN transport initialized, discovery started", tag = TAG)
     }
 
     override suspend fun discoverPeers(timeoutMs: Long): List<DiscoveredPeer> {
@@ -113,27 +112,26 @@ class LanTransportTestAdapter(
         }
 
         val effectiveTimeout = maxOf(timeoutMs, 1_000L)
-        Logger.d(TAG, "Discovering peers (timeout=${effectiveTimeout}ms)")
+        Logger.d("Discovering peers (timeout=${effectiveTimeout}ms)", tag = TAG)
 
         // Clear previous discoveries for a fresh scan
         discoveredPeers.clear()
 
-        val result = withTimeoutOrNull(effectiveTimeout) {
-            // Collect events during the discovery window
-            val eventJob = scope?.launch {
+        // Collector runs as a child of the timeout scope so it is cancelled automatically on
+        // timeout — no leaked (zombie) collector. Peers are read from the map after the timeout,
+        // not from the block's return value (which is null on timeout).
+        withTimeoutOrNull(effectiveTimeout) {
+            launch {
                 transport.events
                     .catch { Logger.e("Event collection error", it, tag = TAG) }
                     .conflate()
                     .collect { event -> handleTransportEvent(event) }
             }
-
-            // Wait for the timeout — events are collected in the job above
-            eventJob?.join()
-            discoveredPeers.values.toList()
+            awaitCancellation()
         }
 
-        val found = result ?: emptyList()
-        Logger.i(TAG, "Discovery complete: ${found.size} peer(s) found")
+        val found = discoveredPeers.values.toList()
+        Logger.i("Discovery complete: ${found.size} peer(s) found", tag = TAG)
         return found
     }
 
@@ -159,7 +157,7 @@ class LanTransportTestAdapter(
             )
         }
 
-        Logger.d(TAG, "Sending test payload to $peerId (type=$payloadType, size=${testData.size}B)")
+        Logger.d("Sending test payload to $peerId (type=$payloadType, size=${testData.size}B)", tag = TAG)
 
         val payload = Payload(
             id = UUID.randomUUID().toString(),
@@ -207,11 +205,11 @@ class LanTransportTestAdapter(
 
     override suspend fun shutdown() {
         if (!isInitialized) {
-            Logger.d(TAG, "Not initialized — nothing to shut down")
+            Logger.d("Not initialized — nothing to shut down", tag = TAG)
             return
         }
 
-        Logger.i(TAG, "Shutting down LAN transport adapter")
+        Logger.i("Shutting down LAN transport adapter", tag = TAG)
 
         // Stop event collection
         eventCollectionJob?.cancel()
@@ -232,7 +230,7 @@ class LanTransportTestAdapter(
         discoveredPeers.clear()
         isInitialized = false
 
-        Logger.i(TAG, "LAN transport adapter shut down")
+        Logger.i("LAN transport adapter shut down", tag = TAG)
     }
 
     /**
@@ -250,11 +248,11 @@ class LanTransportTestAdapter(
                     rssi = event.rssi
                 )
                 discoveredPeers[event.deviceId] = peer
-                Logger.d(TAG, "Discovered: ${event.deviceName} (${event.address})")
+                Logger.d("Discovered: ${event.deviceName} (${event.address})", tag = TAG)
             }
             is TransportEvent.DeviceLost -> {
                 discoveredPeers.remove(event.deviceId)
-                Logger.d(TAG, "Lost: ${event.deviceId}")
+                Logger.d("Lost: ${event.deviceId}", tag = TAG)
             }
             is TransportEvent.Error -> {
                 Logger.w("Discovery error: ${event.message}", tag = TAG)
@@ -272,7 +270,7 @@ class LanTransportTestAdapter(
             transport.events
                 .catch { Logger.e("Transport event error", it, tag = TAG) }
                 .collect { event ->
-                    _events.value = event
+                    _events.tryEmit(event)
                 }
         }
     }

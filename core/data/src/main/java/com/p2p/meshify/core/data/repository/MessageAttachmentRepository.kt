@@ -86,7 +86,7 @@ class MessageAttachmentRepository(
      */
     suspend fun getAllAttachments(): List<MessageAttachmentEntity> =
         withContext(ioDispatcher) {
-            // ✅ FIX: Now uses the new DAO query
+            // FIX: Now uses the new DAO query
             messageDao.getAllAttachments()
         }
 

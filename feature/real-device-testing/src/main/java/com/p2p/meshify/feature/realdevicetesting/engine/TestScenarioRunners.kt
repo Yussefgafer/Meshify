@@ -54,7 +54,7 @@ class DiscoveryTestRunner : TestScenarioRunner {
         transport: TransportTestAdapter
     ): TestResult {
         val start = System.currentTimeMillis()
-        Logger.i(TAG, "Running DiscoveryTest")
+        Logger.i("Running DiscoveryTest", tag = TAG)
 
         return try {
             val peers = withTimeout(DISCOVERY_TIMEOUT_MS) {
@@ -107,7 +107,7 @@ class PingTestRunner : TestScenarioRunner {
         transport: TransportTestAdapter
     ): TestResult {
         val start = System.currentTimeMillis()
-        Logger.i(TAG, "Running PingTest")
+        Logger.i("Running PingTest", tag = TAG)
 
         return try {
             val result = withTimeout(PING_TIMEOUT_MS) {
@@ -158,7 +158,7 @@ class MessageTestRunner(
         transport: TransportTestAdapter
     ): TestResult {
         val start = System.currentTimeMillis()
-        Logger.i(TAG, "Running MessageTest")
+        Logger.i("Running MessageTest", tag = TAG)
 
         return try {
             val testPeerId = TestEngineConfig.testPeerIdFor(targetPeer.id)
@@ -211,7 +211,7 @@ class FileTestRunner(
         transport: TransportTestAdapter
     ): TestResult {
         val start = System.currentTimeMillis()
-        Logger.i(TAG, "Running FileTest")
+        Logger.i("Running FileTest", tag = TAG)
 
         return withTempTestFile { tempFile ->
             val testPeerId = TestEngineConfig.testPeerIdFor(targetPeer.id)
@@ -262,7 +262,7 @@ class LatencyTestRunner : TestScenarioRunner {
         transport: TransportTestAdapter
     ): TestResult {
         val start = System.currentTimeMillis()
-        Logger.i(TAG, "Running LatencyTest")
+        Logger.i("Running LatencyTest", tag = TAG)
 
         val latencies = mutableListOf<Long>()
         var failedCount = 0
@@ -308,7 +308,7 @@ class LatencyTestRunner : TestScenarioRunner {
         return if (sendResult != null && sendResult.success) {
             sendResult.durationMs
         } else {
-            Logger.w(TAG, "LatencyTest: message $index failed (${sendResult?.error})")
+            Logger.w("LatencyTest: message $index failed (${sendResult?.error})", tag = TAG)
             null
         }
     }
@@ -364,7 +364,7 @@ class RoundTripTestRunner : TestScenarioRunner {
         transport: TransportTestAdapter
     ): TestResult {
         val start = System.currentTimeMillis()
-        Logger.i(TAG, "Running RoundTripTest")
+        Logger.i("Running RoundTripTest", tag = TAG)
 
         return try {
             val nonce = UUID.randomUUID().toString().take(8)

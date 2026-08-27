@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
     <exclude domain="sharedpref" path="com.p2p.meshify_preferences.xml"/>
+    <exclude domain="database" />
+    <exclude domain="root" path="media/"/>
 </full-backup-content>

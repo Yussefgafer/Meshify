@@ -64,7 +64,9 @@ core/ui/src/main/java/com/p2p/meshify/core/ui/
 ```kotlin
 MeshifyTheme(
     themeMode = "SYSTEM", // "LIGHT", "DARK", "SYSTEM"
-    dynamicColor = true
+    dynamicColor = true,  // wallpaper-based scheme on Android 12+
+    seedColor = Color(0xFF006D68), // accent seed when dynamicColor is off (MaterialKolor)
+    fontSizeScale = 1f     // 0.8f..1.5f typography scale
 ) {
     // Your app content
 }

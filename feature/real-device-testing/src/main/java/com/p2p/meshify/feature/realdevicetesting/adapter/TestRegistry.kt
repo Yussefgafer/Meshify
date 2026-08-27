@@ -55,11 +55,11 @@ class TestRegistry private constructor() {
         deviceName: String
     ) = mutex.withLock {
         if (isInitialized) {
-            Logger.d(TAG, "Registry already initialized — skipping")
+            Logger.d("Registry already initialized — skipping", tag = TAG)
             return@withLock
         }
 
-        Logger.i(TAG, "Initializing transport test adapter registry")
+        Logger.i("Initializing transport test adapter registry", tag = TAG)
 
         // Register LAN transport
         val lanAdapter = LanTransportTestAdapter(
@@ -68,7 +68,7 @@ class TestRegistry private constructor() {
             peerIdProvider = peerIdProvider
         )
         adapters[lanAdapter.transportType.name.lowercase()] = lanAdapter
-        Logger.i(TAG, "Registered LAN transport: ${lanAdapter.displayName}")
+        Logger.i("Registered LAN transport: ${lanAdapter.displayName}", tag = TAG)
 
         // Register BLE transport (if available)
         val bleAdapter = BleTransportTestAdapter(
@@ -79,13 +79,13 @@ class TestRegistry private constructor() {
         )
         if (bleAdapter.isAvailable) {
             adapters[bleAdapter.transportType.name.lowercase()] = bleAdapter
-            Logger.i(TAG, "Registered BLE transport: ${bleAdapter.displayName}")
+            Logger.i("Registered BLE transport: ${bleAdapter.displayName}", tag = TAG)
         } else {
-            Logger.w(TAG, "BLE not available — skipping registration")
+            Logger.w("BLE not available — skipping registration", tag = TAG)
         }
 
         isInitialized = true
-        Logger.i(TAG, "Registry initialized with ${adapters.size} transport(s)")
+        Logger.i("Registry initialized with ${adapters.size} transport(s)", tag = TAG)
     }
 
     /**
@@ -152,11 +152,11 @@ class TestRegistry private constructor() {
      */
     suspend fun shutdownAll() = mutex.withLock {
         if (!isInitialized) {
-            Logger.d(TAG, "Not initialized — nothing to shut down")
+            Logger.d("Not initialized — nothing to shut down", tag = TAG)
             return@withLock
         }
 
-        Logger.i(TAG, "Shutting down all transport adapters (${adapters.size})")
+        Logger.i("Shutting down all transport adapters (${adapters.size})", tag = TAG)
 
         var successCount = 0
         var failCount = 0
@@ -172,7 +172,7 @@ class TestRegistry private constructor() {
 
         adapters.clear()
         isInitialized = false
-        Logger.i(TAG, "All adapters shut down: $successCount OK, $failCount failed")
+        Logger.i("All adapters shut down: $successCount OK, $failCount failed", tag = TAG)
     }
 
     /**

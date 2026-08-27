@@ -27,6 +27,9 @@ interface ChatDao {
 
     @Query("UPDATE chats SET unreadCount = 0 WHERE peerId = :peerId")
     suspend fun resetUnreadCount(peerId: String)
+
+    @Query("UPDATE chats SET unreadCount = unreadCount + 1 WHERE peerId = :peerId")
+    suspend fun incrementUnreadCount(peerId: String)
 }
 
 @Dao
@@ -36,6 +39,31 @@ interface MessageDao {
 
     @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp ASC")
     fun getAllMessagesForChat(chatId: String): Flow<List<MessageEntity>>
+
+    /**
+     * Observe the most recent [limit] messages of a chat, newest first.
+     * Caller reverses to display ascending.
+     */
+    @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp DESC LIMIT :limit")
+    fun observeLatestMessages(chatId: String, limit: Int): Flow<List<MessageEntity>>
+
+    /**
+     * Fetch up to [limit] messages strictly older than [beforeTimestamp], newest first.
+     * Caller reverses to display ascending.
+     */
+    @Query("""
+        SELECT * FROM messages
+        WHERE chatId = :chatId AND timestamp < :beforeTimestamp
+        ORDER BY timestamp DESC LIMIT :limit
+    """)
+    suspend fun getMessagesBefore(chatId: String, beforeTimestamp: Long, limit: Int): List<MessageEntity>
+
+    /**
+     * Batched attachment fetch for album messages: attachments rows carry
+     * messageId == album groupId, so one IN query serves every visible album.
+     */
+    @Query("SELECT * FROM message_attachments WHERE messageId IN (:groupIds)")
+    suspend fun getAttachmentsForGroups(groupIds: List<String>): List<MessageAttachmentEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: MessageEntity)
@@ -79,7 +107,7 @@ interface MessageDao {
     @Query("DELETE FROM messages WHERE chatId = :chatId")
     suspend fun deleteAllMessagesForChat(chatId: String)
 
-    // ✅ FIX: Get all attachments in database (for debugging/utility)
+    // FIX: Get all attachments in database (for debugging/utility)
     @Query("SELECT * FROM message_attachments ORDER BY id")
     suspend fun getAllAttachments(): List<MessageAttachmentEntity>
 
@@ -99,6 +127,9 @@ interface PendingMessageDao {
     @Query("SELECT * FROM pending_messages WHERE recipientId = :recipientId")
     suspend fun getByRecipient(recipientId: String): List<PendingMessageEntity>
 
+    @Query("SELECT * FROM pending_messages WHERE id = :id")
+    suspend fun getById(id: String): PendingMessageEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(message: PendingMessageEntity)
 
@@ -114,7 +145,7 @@ interface PendingMessageDao {
     @Query("DELETE FROM pending_messages WHERE id = :id")
     suspend fun deleteById(id: String)
 
-    // ✅ FIX: Get all pending messages (for debugging/utility)
+    // FIX: Get all pending messages (for debugging/utility)
     @Query("SELECT * FROM pending_messages ORDER BY timestamp ASC")
     suspend fun getAll(): List<PendingMessageEntity>
 }

@@ -41,7 +41,6 @@
     <string name="setting_display_name">الاسم المستعار</string>
     <string name="setting_language">اللغة</string>
     <string name="setting_dark_mode">الوضع الداكن</string>
-    <string name="setting_device_id">معرف الجهاز</string>
     <string name="setting_app_version">إصدار التطبيق</string>
     <string name="btn_save_changes">حفظ التغييرات</string>
     <string name="settings_section_identity">الهوية والملف الشخصي</string>

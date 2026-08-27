@@ -26,6 +26,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import javax.inject.Inject
 
 /**
@@ -34,6 +36,12 @@ import javax.inject.Inject
  */
 @HiltAndroidApp
 class MeshifyApp : Application(), SingletonImageLoader.Factory {
+
+    companion object {
+        @Volatile
+        lateinit var instance: MeshifyApp
+            private set
+    }
 
     @Inject lateinit var chatRepository: ChatRepositoryImpl
     @Inject lateinit var transportManager: TransportManager
@@ -44,10 +52,16 @@ class MeshifyApp : Application(), SingletonImageLoader.Factory {
 
     private val applicationScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
+    // Bounded parallel ingestion: heavy FILE disk-writes must not delay TEXT saves.
+    // Room transactions serialize the writes; ordering within a peer is preserved by
+    // the sender's timestamps.
+    private val ingestionSemaphore = Semaphore(4)
+
     // BLE Transport instance (created but not started until enabled in settings)
     private var bleTransport: BleTransportImpl? = null
 
     override fun onCreate() {
+        instance = this
         super.onCreate()
         Logger.init(this)
         Logger.i("MeshifyApp -> Application onCreate START")
@@ -78,7 +92,11 @@ class MeshifyApp : Application(), SingletonImageLoader.Factory {
                 when (event) {
                     is TransportEvent.PayloadReceived -> {
                         Logger.d("MeshifyApp -> Received payload from ${event.deviceId}, type=${event.payload.type}")
-                        chatRepository.handleIncomingPayload(event.deviceId, event.payload)
+                        applicationScope.launch {
+                            ingestionSemaphore.withPermit {
+                                chatRepository.handleIncomingPayload(event.deviceId, event.payload)
+                            }
+                        }
                     }
                     is TransportEvent.DeviceDiscovered -> {
                         Logger.i("MeshifyApp -> Device discovered: ${event.deviceId} at ${event.address} via ${event.rssi} dBm")
@@ -106,6 +124,9 @@ class MeshifyApp : Application(), SingletonImageLoader.Factory {
                     if (bleTransport == null) {
                         val newBleTransport = bleTransportProvider.get()
                         bleTransport = newBleTransport
+                        // registerTransport MUST precede start(): the per-transport event
+                        // forwarder is subscribed here, so starting before registering would
+                        // drop early ConnectionEstablished events into the void.
                         transportManager.registerTransport("ble", newBleTransport)
                         newBleTransport.start()
                         newBleTransport.startDiscovery()

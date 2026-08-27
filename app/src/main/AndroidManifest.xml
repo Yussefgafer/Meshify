@@ -23,8 +23,11 @@
         android:usesPermissionFlags="neverForLocation" 
         tools:targetApi="s" />
     
-    <!-- Required for Discovery on older versions -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Required for Discovery on older versions (pre-Android 12, BLE_LEGACY scan only)
+         Android 12+ uses BLUETOOTH_SCAN above with neverForLocation. -->
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="30" />
 
     <!-- Foreground Service Permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -47,6 +50,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:label="@string/app_name"
             android:theme="@style/Theme.Meshify"
             android:windowSoftInputMode="adjustResize">

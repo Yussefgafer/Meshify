@@ -1,6 +1,7 @@
 package com.p2p.meshify.core.data.repository
 
 import android.content.Context
+import androidx.room.withTransaction
 import com.p2p.meshify.core.common.R
 import com.p2p.meshify.core.data.local.MeshifyDatabase
 import com.p2p.meshify.core.data.local.dao.ChatDao
@@ -36,6 +37,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -44,7 +46,6 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import java.io.Closeable
 import java.io.File
-import java.nio.ByteBuffer
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -95,7 +96,8 @@ class ChatRepositoryImpl(
     private val pendingMessageRepository: PendingMessageRepository = PendingMessageRepository(
         pendingMessageDao = pendingMessageDao,
         messageDao = messageDao,
-        transportManager = transportManager
+        transportManager = transportManager,
+        fileManager = fileManager
     )
 
     private val messageAttachmentRepository: MessageAttachmentRepository = MessageAttachmentRepository(
@@ -127,6 +129,18 @@ class ChatRepositoryImpl(
     suspend fun getMessageAttachments(groupId: String): List<com.p2p.meshify.core.data.local.entity.MessageAttachmentEntity> =
         messageAttachmentRepository.getAttachmentsForMessage(groupId)
 
+    fun observeLatestMessages(chatId: String, limit: Int): Flow<List<MessageEntity>> =
+        messageRepository.observeLatestMessages(chatId, limit)
+
+    suspend fun getMessagesBefore(chatId: String, beforeTimestamp: Long, limit: Int): List<MessageEntity> =
+        messageRepository.getMessagesBefore(chatId, beforeTimestamp, limit)
+
+    suspend fun getAttachmentsForGroups(groupIds: List<String>): List<com.p2p.meshify.core.data.local.entity.MessageAttachmentEntity> =
+        messageRepository.getAttachmentsForGroups(groupIds)
+
+    suspend fun getMessagesByIds(ids: List<String>): List<MessageEntity> =
+        messageRepository.getMessagesByIds(ids)
+
     override val onlinePeers: Flow<Set<String>> = transportManager.getAllEventsFlow()
         .map { event ->
             transportManager.getAllTransports().flatMap { it.onlinePeers.value }.toSet()
@@ -156,7 +170,7 @@ class ChatRepositoryImpl(
             messageType = "text"
         )
 
-        val envelopeBytes = serializeEnvelope(envelope)
+        val envelopeBytes = serializeMessageEnvelope(envelope)
         return sendPlaintextPayload(text, peerId, peerName, envelopeBytes, replyToId)
     }
 
@@ -224,7 +238,7 @@ class ChatRepositoryImpl(
                 peerId = peerId,
                 peerName = peerName,
                 fileBytes = bytes,
-                fileName = "Album: $caption",
+                fileName = caption.ifBlank { "Media" },
                 fileType = if (type == MessageType.VIDEO) MessageType.VIDEO else MessageType.FILE,
                 replyToId = replyToId
             )
@@ -233,9 +247,14 @@ class ChatRepositoryImpl(
                 Logger.e("ChatRepository -> Failed to send album attachment: ${result.exceptionOrNull()?.message}")
             }
         }
+        // Mirror the loop outcome onto the parent row so it stops showing a
+        // perpetual queued state. Offline-queued attachments report success
+        // here (their own rows carry the true pending state until delivery).
         return if (hasFailure) {
+            messageDao.updateMessageStatus(messageId, MessageStatus.FAILED)
             Result.failure(Exception("Some album attachments failed to send"))
         } else {
+            messageDao.updateMessageStatus(messageId, MessageStatus.SENT)
             Result.success(Unit)
         }
     }
@@ -325,6 +344,23 @@ class ChatRepositoryImpl(
         }
     }
 
+    private suspend fun enqueueForwardedMessage(newMessage: MessageEntity, peerId: String) {
+        if (pendingMessageDao.getById(newMessage.id) != null) return
+        val existingChat = chatDao.getChatById(peerId)
+        val recipientName = existingChat?.let { parseName(it.peerName) }
+            ?: "${AppConstants.DEFAULT_PEER_NAME_PREFIX}${peerId.take(4)}"
+        pendingMessageDao.insert(
+            com.p2p.meshify.core.data.local.entity.PendingMessageEntity(
+                id = newMessage.id,
+                recipientId = peerId,
+                recipientName = recipientName,
+                content = newMessage.text ?: "[Media]",
+                type = newMessage.type,
+                timestamp = newMessage.timestamp
+            )
+        )
+    }
+
     private suspend fun forwardTextMessage(
         message: MessageEntity,
         peerId: String,
@@ -350,6 +386,7 @@ class ChatRepositoryImpl(
         val transport = transportManager.selectBestTransport(peerId).firstOrNull()
         if (transport == null) {
             messageDao.updateMessageStatus(newMessage.id, MessageStatus.QUEUED)
+            enqueueForwardedMessage(newMessage, peerId)
             return false
         }
 
@@ -361,7 +398,7 @@ class ChatRepositoryImpl(
             messageType = "text"
         )
 
-        val envelopeBytes = serializeEnvelope(envelope)
+        val envelopeBytes = serializeMessageEnvelope(envelope)
         val payload = Payload(
             id = newMessage.id,
             senderId = settingsRepository.getDeviceId(),
@@ -377,10 +414,13 @@ class ChatRepositoryImpl(
                 true
             } else {
                 messageDao.updateMessageStatus(newMessage.id, MessageStatus.QUEUED)
+                enqueueForwardedMessage(newMessage, peerId)
                 false
             }
         } catch (e: Exception) {
+            Logger.e("ChatRepository -> Failed to forward text message to $peerId", e)
             messageDao.updateMessageStatus(newMessage.id, MessageStatus.QUEUED)
+            enqueueForwardedMessage(newMessage, peerId)
             false
         }
     }
@@ -438,7 +478,7 @@ class ChatRepositoryImpl(
                 chatId = peerId,
                 senderId = message.senderId,
                 text = forwardContext,
-                mediaPath = null,
+                mediaPath = mediaPath,
                 type = message.type,
                 timestamp = System.currentTimeMillis(),
                 isFromMe = true,
@@ -452,6 +492,7 @@ class ChatRepositoryImpl(
             val transport = transportManager.selectBestTransport(peerId).firstOrNull()
             if (transport == null) {
                 messageDao.updateMessageStatus(newMessage.id, MessageStatus.QUEUED)
+                enqueueForwardedMessage(newMessage, peerId)
                 return false
             }
 
@@ -463,7 +504,7 @@ class ChatRepositoryImpl(
                 messageType = message.type.name.lowercase()
             )
 
-            val envelopeBytes = serializeEnvelope(envelope)
+            val envelopeBytes = serializeMessageEnvelope(envelope)
             val payload = Payload(
                 id = newMessage.id,
                 senderId = settingsRepository.getDeviceId(),
@@ -492,6 +533,7 @@ class ChatRepositoryImpl(
                 true
             } else {
                 messageDao.updateMessageStatus(newMessage.id, MessageStatus.QUEUED)
+                enqueueForwardedMessage(newMessage, peerId)
                 false
             }
         } catch (e: java.io.IOException) {
@@ -586,7 +628,7 @@ class ChatRepositoryImpl(
 
     private suspend fun handlePlaintextMessage(peerId: String, payload: Payload) {
         try {
-            val envelope = deserializeEnvelope(payload.data)
+            val envelope = deserializeMessageEnvelope(payload.data)
             val text = envelope.text
 
             val saveResult = saveIncomingMessage(peerId, text, null, MessageType.TEXT, payload.timestamp, payload.id)
@@ -614,7 +656,11 @@ class ChatRepositoryImpl(
         try {
             val handshake = Json.decodeFromString<Handshake>(String(payload.data))
             val cleanName = parseName(handshake.name)
-            chatDao.insertChat(ChatEntity(payload.senderId, cleanName, "Connected", payload.timestamp))
+            val preservedUnread = chatDao.getChatById(payload.senderId)?.unreadCount ?: 0
+            chatDao.insertChat(
+                ChatEntity(payload.senderId, cleanName, "Connected", payload.timestamp)
+                    .copy(unreadCount = preservedUnread)
+            )
 
             scope.launch {
                 try {
@@ -676,14 +722,26 @@ class ChatRepositoryImpl(
                 status = MessageStatus.SENT
             )
 
-            // Save message to database
+            // Save message to database — same unread-badge treatment as text:
+            // carry the existing count over INSERT OR REPLACE, then bump it.
             val existingChat = chatDao.getChatById(peerId)
             val finalName = if (existingChat != null) parseName(existingChat.peerName) else "${AppConstants.DEFAULT_PEER_NAME_PREFIX}${peerId.take(4)}"
-            chatDao.insertChat(ChatEntity(peerId, finalName, "[${messageType.name}]", payload.timestamp))
-            messageDao.insertMessage(message)
+            database.withTransaction {
+                val preservedUnread = chatDao.getChatById(peerId)?.unreadCount ?: 0
+                chatDao.insertChat(
+                    ChatEntity(peerId, finalName, "[${messageType.name}]", payload.timestamp)
+                        .copy(unreadCount = preservedUnread)
+                )
+                messageDao.insertMessage(message)
+                chatDao.incrementUnreadCount(peerId)
+            }
 
             // Send notification
-            notificationHelper.showMessageNotification(finalName, message)
+            if (settingsRepository.notificationsEnabled.first()) {
+                val playSound = settingsRepository.notificationSound.first()
+                val vibrate = settingsRepository.notificationVibrate.first()
+                notificationHelper.showMessageNotification(finalName, message, playSound, vibrate)
+            }
 
             // Send ACK to sender
             sendSystemCommand(payload.senderId, "ACK_${payload.id}")
@@ -711,6 +769,40 @@ class ChatRepositoryImpl(
         return pendingMessageRepository.retryPendingMessages(peerId)
     }
 
+    /**
+     * P0-08: Re-sends the original content of a failed message identified by
+     * [messageId]. Reads the persisted message row (never live UI input),
+     * ensures a pending-queue entry exists (some failure paths don't create
+     * one) and delegates to the single-attempt manual retry.
+     */
+    suspend fun retryFailedMessage(messageId: String, peerName: String): Result<Unit> {
+        val message = messageDao.getMessageById(messageId)
+            ?: return Result.failure(Exception("Message not found"))
+        if (!message.isFromMe ||
+            (message.status != MessageStatus.FAILED && message.status != MessageStatus.SENDING)
+        ) {
+            return Result.failure(Exception("Message is not in a failed state"))
+        }
+        if (pendingMessageDao.getById(messageId) == null) {
+            pendingMessageDao.insert(
+                com.p2p.meshify.core.data.local.entity.PendingMessageEntity(
+                    id = message.id,
+                    recipientId = message.chatId,
+                    recipientName = parseName(peerName),
+                    content = message.text ?: "[Media]",
+                    type = message.type,
+                    timestamp = message.timestamp
+                )
+            )
+        }
+        val result = pendingMessageRepository.retrySingleMessage(messageId)
+        if (result.isFailure) {
+            // Failed replay must leave an honest FAILED state so Retry stays available
+            messageDao.updateMessageStatus(messageId, MessageStatus.FAILED)
+        }
+        return result
+    }
+
     private suspend fun saveIncomingMessage(
         peerId: String,
         text: String?,
@@ -722,7 +814,6 @@ class ChatRepositoryImpl(
         return try {
             val existingChat = chatDao.getChatById(peerId)
             val finalName = if (existingChat != null) parseName(existingChat.peerName) else "${AppConstants.DEFAULT_PEER_NAME_PREFIX}${peerId.take(4)}"
-            chatDao.insertChat(ChatEntity(peerId, finalName, text ?: "[Media]", timestamp))
             val message = MessageEntity(
                 id = messageId,
                 chatId = peerId,
@@ -734,8 +825,24 @@ class ChatRepositoryImpl(
                 isFromMe = false,
                 status = MessageStatus.SENT
             )
-            messageDao.insertMessage(message)
-            notificationHelper.showMessageNotification(finalName, message)
+            // Chat preview + message row must land together or not at all.
+            // insertChat is INSERT OR REPLACE and would zero unreadCount (the
+            // entity default), so carry the existing count over the replace,
+            // then bump it — an incoming message means one more unread.
+            database.withTransaction {
+                val preservedUnread = chatDao.getChatById(peerId)?.unreadCount ?: 0
+                chatDao.insertChat(
+                    ChatEntity(peerId, finalName, text ?: "[Media]", timestamp)
+                        .copy(unreadCount = preservedUnread)
+                )
+                messageDao.insertMessage(message)
+                chatDao.incrementUnreadCount(peerId)
+            }
+            if (settingsRepository.notificationsEnabled.first()) {
+                val playSound = settingsRepository.notificationSound.first()
+                val vibrate = settingsRepository.notificationVibrate.first()
+                notificationHelper.showMessageNotification(finalName, message, playSound, vibrate)
+            }
             Result.success(Unit)
         } catch (e: Exception) {
             Logger.e("ChatRepository -> Failed to save incoming message", e)
@@ -831,67 +938,6 @@ class ChatRepositoryImpl(
             Logger.e("ChatRepository -> Exception sending plaintext message", e)
             Result.failure(e)
         }
-    }
-
-    // ==================== Serialization ====================
-
-    private fun serializeEnvelope(envelope: MessageEnvelope): ByteArray {
-        val textBytes = envelope.text.toByteArray(Charsets.UTF_8)
-        val senderIdBytes = envelope.senderId.toByteArray(Charsets.UTF_8)
-        val recipientIdBytes = envelope.recipientId.toByteArray(Charsets.UTF_8)
-        val messageTypeBytes = envelope.messageType.toByteArray(Charsets.UTF_8)
-
-        val totalSize = 2 + senderIdBytes.size +
-                2 + recipientIdBytes.size +
-                4 + textBytes.size +
-                8 +
-                2 + messageTypeBytes.size
-
-        return ByteBuffer.allocate(totalSize).apply {
-            putShort(senderIdBytes.size.toShort())
-            put(senderIdBytes)
-            putShort(recipientIdBytes.size.toShort())
-            put(recipientIdBytes)
-            putInt(textBytes.size)
-            put(textBytes)
-            putLong(envelope.timestamp)
-            putShort(messageTypeBytes.size.toShort())
-            put(messageTypeBytes)
-        }.array()
-    }
-
-    private fun deserializeEnvelope(data: ByteArray): MessageEnvelope {
-        val buffer = ByteBuffer.wrap(data)
-
-        val senderIdLen = buffer.short.toInt()
-        val senderIdBytes = ByteArray(senderIdLen)
-        buffer.get(senderIdBytes)
-        val senderId = String(senderIdBytes, Charsets.UTF_8)
-
-        val recipientIdLen = buffer.short.toInt()
-        val recipientIdBytes = ByteArray(recipientIdLen)
-        buffer.get(recipientIdBytes)
-        val recipientId = String(recipientIdBytes, Charsets.UTF_8)
-
-        val textLen = buffer.int
-        val textBytes = ByteArray(textLen)
-        buffer.get(textBytes)
-        val text = String(textBytes, Charsets.UTF_8)
-
-        val timestamp = buffer.long
-
-        val messageTypeLen = buffer.short.toInt()
-        val messageTypeBytes = ByteArray(messageTypeLen)
-        buffer.get(messageTypeBytes)
-        val messageType = String(messageTypeBytes, Charsets.UTF_8)
-
-        return MessageEnvelope(
-            senderId = senderId,
-            recipientId = recipientId,
-            text = text,
-            timestamp = timestamp,
-            messageType = messageType
-        )
     }
 
     private fun parseName(raw: String): String = PeerNameParser.parseName(raw)

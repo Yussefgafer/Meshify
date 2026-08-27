@@ -8,16 +8,14 @@ import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
-import com.p2p.meshify.core.network.base.TransportEvent
 import com.p2p.meshify.core.util.Logger
-import com.p2p.meshify.domain.repository.IChatRepository
 import kotlinx.coroutines.*
 import kotlinx.coroutines.TimeoutCancellationException
 import com.p2p.meshify.MeshifyApp
 
 /**
  * Foreground Service to keep the mesh network alive.
- * Refactored to depend on IChatRepository interface.
+ * Incoming payloads are ingested solely by MeshifyApp's global event collector.
  */
 class MeshForegroundService : Service() {
 
@@ -25,15 +23,11 @@ class MeshForegroundService : Service() {
     private val shutdownScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var multicastLock: WifiManager.MulticastLock? = null
 
-    private lateinit var chatRepository: IChatRepository
     private var transportStarted = false
 
     override fun onCreate() {
         super.onCreate()
         Logger.i("Service -> onCreate")
-
-        val app = application as MeshifyApp
-        chatRepository = app.chatRepository
 
         acquireMulticastLock()
         startMeshNetwork()
@@ -43,17 +37,6 @@ class MeshForegroundService : Service() {
         serviceScope.launch {
             val app = application as MeshifyApp
             val transportManager = app.transportManager
-
-            // Listen for incoming payloads globally
-            launch {
-                transportManager.getAllEventsFlow().collect { event ->
-                    if (event is TransportEvent.PayloadReceived) {
-                        // Corrected: PayloadReceived has 'deviceId' not 'peerId'
-                        chatRepository.handleIncomingPayload(event.deviceId, event.payload)
-                    }
-                }
-            }
-
             transportManager.startAllTransports()
             transportStarted = true
         }
@@ -131,16 +114,9 @@ class MeshForegroundService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        Logger.i("Service -> onTaskRemoved - App removed from recents")
-        // 1. Stop transport FIRST (deterministic, blocking with timeout)
-        stopMeshNetworkDeterministic()
-        // 2. Release multicast lock
-        multicastLock?.let { if (it.isHeld) it.release() }
-        // 3. Cancel coroutine scopes
-        shutdownScope.cancel()
-        serviceScope.cancel()
-        // 4. Stop the service
-        stopSelf()
+        // Deliberate: a swipe-away must not kill the mesh. The foreground service
+        // (START_STICKY) keeps transports alive; full teardown happens only in onDestroy.
+        Logger.i("Service -> onTaskRemoved - App removed from recents, keeping mesh alive")
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

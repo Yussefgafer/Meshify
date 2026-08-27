@@ -152,9 +152,7 @@
     <string name="settings_label_md3_expressive">MD3 Expressive System</string>
     <string name="settings_label_github_repo">GitHub Repository</string>
     <string name="settings_label_github_desc">View source code and contribute</string>
-    <string name="settings_label_credits">Developer Credits</string>
-    <string name="settings_label_credits_desc">Built with ❤️ by Jo</string>
-    <string name="settings_label_device_id_suffix">(Tap to copy full ID)</string>
+    <string name="settings_device_id_copied">Device ID copied</string>
     
     <!-- Settings Screen - Dialogs -->
     <string name="settings_dialog_edit_name">Edit Display Name</string>
@@ -302,15 +300,6 @@
     <string name="dialog_btn_save">Save</string>
     <string name="dialog_btn_cancel">Cancel</string>
 
-    <!-- Settings Backup & Restore -->
-    <string name="settings_backup_title">Backup &amp; Restore</string>
-    <string name="settings_backup_desc">Export your settings to a file or import from a backup file.</string>
-    <string name="settings_backup_export">Export Backup</string>
-    <string name="settings_backup_import">Import Backup</string>
-    <string name="settings_backup_export_success">Backup exported successfully!</string>
-    <string name="settings_backup_export_error">Failed to export: %1$s</string>
-    <string name="settings_backup_import_soon">Import feature coming soon</string>
-
     <!-- Chat Input -->
     <string name="chat_input_caption_placeholder">Add a caption…</string>
     
@@ -361,7 +350,7 @@
     <string name="discovery_transport_both">Both</string>
     <string name="content_desc_transport_badge">Transport method badge</string>
 
-    <!-- ✅ P0-4: Discovery Error State -->
+    <!-- P0-4: Discovery Error State -->
     <string name="discovery_error_title">An error occurred</string>
     <string name="discovery_error_retry">Retry</string>
     <string name="chat_content_desc_transport_icon">Transport method icon</string>
@@ -432,6 +421,22 @@
     <string name="error_reply_empty">Reply cannot be empty</string>
     <string name="error_reply_invalid_content">Invalid message content</string>
     <string name="error_reply_chat_not_found">Chat not found</string>
+    <string name="error_reply_expired">Reply expired, please try again</string>
+    <string name="error_reply_not_authorized">Unauthorized reply</string>
+    <string name="error_reply_rate_limited">Too many replies, please wait</string>
+    <string name="error_reply_too_long">Message too long (max 10000 characters)</string>
+    <string name="error_reply_network">Network error, please check connection</string>
+    <string name="error_reply_security">Security error, please reconnect</string>
+    <string name="error_reply_send_failed">Failed to send reply</string>
+    <string name="error_reply_unknown">Error: Unknown error</string>
+
+    <!-- Notification channels -->
+    <string name="notification_channel_messages">Messages</string>
+    <string name="notification_channel_messages_no_sound">Messages (no sound)</string>
+    <string name="notification_channel_messages_no_vibrate">Messages (no vibration)</string>
+    <string name="notification_channel_messages_silent">Messages (silent)</string>
+    <string name="notification_channel_messages_desc">Incoming message notifications</string>
+    <string name="content_desc_play_video">Play video</string>
 
     <!-- Settings Screen - App Settings Section -->
     <string name="settings_group_app">App Settings</string>
@@ -546,7 +551,6 @@
     <string name="oob_btn_done">Done</string>
 
     <!-- Generic Dialog Buttons -->
-    <string name="dialog_btn_close">Close</string>
 
     <!-- Settings — Shape Style Dialog Labels -->
     <string name="settings_shape_label_sunny">Star</string>
@@ -586,8 +590,6 @@
     <string name="settings_bubble_label_organic">Organic</string>
 
     <!-- Settings — Credits Dialog -->
-    <string name="settings_credits_title">Credits</string>
-    <string name="settings_credits_text">Built with ❤️ by Jo\n\nKotlin + Jetpack Compose + Material 3 Expressive\nDecentralized P2P Messaging</string>
 
     <!-- Settings — Validation Errors -->
     <string name="settings_error_display_name_empty">Name must be at least 1 character</string>
@@ -595,10 +597,6 @@
 
     <!-- Settings — Device ID Loading -->
     <string name="settings_device_id_loading">Loading…</string>
-
-    <!-- Settings — Backup Import -->
-    <string name="settings_backup_import_success">Backup imported successfully</string>
-    <string name="settings_backup_import_error">Failed to import backup</string>
 
     <!-- Accessibility — Content Descriptions -->
     <string name="content_desc_staged_media">Staged media attachment</string>

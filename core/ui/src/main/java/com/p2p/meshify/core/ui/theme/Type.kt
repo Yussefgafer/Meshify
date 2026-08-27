@@ -97,3 +97,31 @@ val Typography = Typography(
         letterSpacing = 0.5.sp
     )
 )
+
+private fun TextStyle.scaledBy(factor: Float): TextStyle = copy(
+    fontSize = (fontSize.value * factor).sp,
+    lineHeight = (lineHeight.value * factor).sp
+)
+
+fun Typography.scaled(scale: Float): Typography =
+    if (scale == 1f) {
+        this
+    } else {
+        copy(
+            displayLarge = displayLarge.scaledBy(scale),
+            displayMedium = displayMedium.scaledBy(scale),
+            displaySmall = displaySmall.scaledBy(scale),
+            headlineLarge = headlineLarge.scaledBy(scale),
+            headlineMedium = headlineMedium.scaledBy(scale),
+            headlineSmall = headlineSmall.scaledBy(scale),
+            titleLarge = titleLarge.scaledBy(scale),
+            titleMedium = titleMedium.scaledBy(scale),
+            titleSmall = titleSmall.scaledBy(scale),
+            bodyLarge = bodyLarge.scaledBy(scale),
+            bodyMedium = bodyMedium.scaledBy(scale),
+            bodySmall = bodySmall.scaledBy(scale),
+            labelLarge = labelLarge.scaledBy(scale),
+            labelMedium = labelMedium.scaledBy(scale),
+            labelSmall = labelSmall.scaledBy(scale)
+        )
+    }

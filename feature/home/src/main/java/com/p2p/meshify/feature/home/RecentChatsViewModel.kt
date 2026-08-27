@@ -25,7 +25,7 @@ private const val SEARCH_DEBOUNCE_MS = 300L
  * ViewModel for the Recent Chats (Home) Screen with Online Status.
  * Depends on ChatRepositoryImpl for direct method access.
  *
- * ✅ P0-2: Collects Room Flow continuously instead of take(1).
+ * P0-2: Collects Room Flow continuously instead of take(1).
  * Any database change (new chat, deleted chat, updated message)
  * will immediately update the UI.
  */
@@ -46,7 +46,7 @@ class RecentChatsViewModel @Inject constructor(
     init {
         loadChatsWithSearch()
 
-        // ✅ P0-2: Collect online peers independently — updates in real-time
+        // P0-2: Collect online peers independently — updates in real-time
         viewModelScope.launch {
             chatRepository.onlinePeers.collect { onlinePeers ->
                 _uiState.update { it.copy(onlinePeers = onlinePeers) }

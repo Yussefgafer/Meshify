@@ -74,7 +74,7 @@ class TestResultLogger(
         logEntries.add("")
         headerWritten = true
 
-        Logger.i(TAG, "Test session started for $targetPeerInfo via $transportInfo")
+        Logger.i("Test session started for $targetPeerInfo via $transportInfo", tag = TAG)
     }
 
     /**
@@ -86,7 +86,7 @@ class TestResultLogger(
      */
     fun appendResult(result: TestResult) {
         if (!headerWritten) {
-            Logger.w(TAG, "appendResult called before startSession — header auto-generated")
+            Logger.w("appendResult called before startSession — header auto-generated", tag = TAG)
             // Create a minimal header if startSession wasn't called
             startSession(
                 DiscoveredPeer(id = "unknown", name = "Unknown", address = "unknown", transportType = TransportType.LAN),
@@ -118,7 +118,7 @@ class TestResultLogger(
         val line = "[$timestamp] $testName: $statusLabel$durationStr$detailStr"
         logEntries.add(line)
 
-        Logger.i(TAG, "Logged: $line")
+        Logger.i("Logged: $line", tag = TAG)
     }
 
     /**
@@ -140,7 +140,7 @@ class TestResultLogger(
         logEntries.add("Total Duration: ${formatDuration(totalDurationMs)}")
         logEntries.add("====================================")
 
-        Logger.i(TAG, "Summary: $total tests, $passed passed, $failed failed, $timeout timeout")
+        Logger.i("Summary: $total tests, $passed passed, $failed failed, $timeout timeout", tag = TAG)
     }
 
     /**
@@ -166,7 +166,7 @@ class TestResultLogger(
         val logFile = File(logDir, fileName)
 
         logFile.writeText(logEntries.joinToString("\n"))
-        Logger.i(TAG, "Log exported to ${logFile.absolutePath} (${logFile.length()} bytes)")
+        Logger.i("Log exported to ${logFile.absolutePath} (${logFile.length()} bytes)", tag = TAG)
         Result.success(logFile)
     } catch (e: Exception) {
         Logger.e("Failed to export log file", e, tag = TAG)

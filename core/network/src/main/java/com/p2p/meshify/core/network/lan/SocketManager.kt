@@ -2,7 +2,6 @@ package com.p2p.meshify.core.network.lan
 
 import com.p2p.meshify.core.config.AppConfig
 import com.p2p.meshify.core.util.Logger
-import com.p2p.meshify.core.util.ParallelFileTransfer
 import com.p2p.meshify.core.util.PayloadSerializer
 import com.p2p.meshify.domain.model.Payload
 import kotlinx.coroutines.*
@@ -32,7 +31,6 @@ import java.net.SocketTimeoutException
  * Features:
  * - Connection pooling with idle cleanup
  * - Keep-alive ping to maintain connections
- * - Parallel file transfer for large files
  * - Pre-warming for known peers
  * - Comprehensive error handling with Result<T>
  */
@@ -52,8 +50,9 @@ class SocketManager(
     @Volatile
     private var isRunning = false
     
-    // Dedicated scope for connection management
-    private val connectionScope = CoroutineScope(ioDispatcher + SupervisorJob())
+    // Dedicated scope for connection management — recreated by
+    // startListening() because a cancelled scope no-ops every launch
+    private var connectionScope = CoroutineScope(ioDispatcher + SupervisorJob())
     
     // Cleanup job for removing idle sockets
     private var cleanupJob: Job? = null
@@ -65,7 +64,7 @@ class SocketManager(
         private const val CLEANUP_INTERVAL_MS = 60_000L // 1 minute
         private const val KEEP_ALIVE_INTERVAL_MS = 60_000L // 60 seconds (was 30s) - reduce network overhead by 50%
         private const val CONNECT_TIMEOUT_MS = 5000L // 5s
-        private const val READ_TIMEOUT_MS = 30000L // 30s
+        private const val READ_TIMEOUT_MS = 120_000L // 120s — must stay above KEEP_ALIVE_INTERVAL_MS so quiet periods between pings never kill accepted sockets
         private const val WRITE_TIMEOUT_MS = 5000L // 5s
     }
     
@@ -75,6 +74,15 @@ class SocketManager(
             sendPayload(peerId, payload)
         }
     }
+
+    /**
+     * Sets the device id used as senderId for keep-alive PING frames so the
+     * remote peer can route its PONG reply back to us. Must be called before
+     * startListening().
+     */
+    fun setKeepAliveSenderId(senderId: String) {
+        keepAliveManager?.senderId = senderId
+    }
     
     /**
      * Starts listening for incoming connections.
@@ -82,7 +90,8 @@ class SocketManager(
     suspend fun startListening() = withContext(ioDispatcher) {
         if (isRunning) return@withContext
         isRunning = true
-        
+        connectionScope = CoroutineScope(ioDispatcher + SupervisorJob())
+
         // Start cleanup job for idle sockets
         cleanupJob = connectionScope.launch {
             while (isRunning) {
@@ -128,20 +137,21 @@ class SocketManager(
         connectionScope.launch {
             val address = socket.inetAddress.hostAddress ?: "unknown"
             val lock = connectionPool.getOrCreateConnectionLock(address)
-            var acquiredPermit = false
-            
+            var storedConnection: PooledSocket? = null
+
             try {
-                // Add to connection pool
-                if (!connectionPool.addConnection(address, socket)) {
+                // Add to connection pool (returns the stored instance — never
+                // re-fetch by key, a replacement may have landed in between)
+                val added = connectionPool.addConnection(address, socket)
+                if (added == null) {
                     Logger.w("SocketManager -> Pool full, rejecting connection from $address")
                     socketFactory.closeSocket(socket, "SocketManager")
                     return@launch
                 }
-                acquiredPermit = true
-                
-                val pooledSocket = connectionPool.getConnection(address)
-                    ?: throw Exception("Failed to get pooled socket")
-                
+                storedConnection = added
+
+                val pooledSocket = added.socket
+
                 val inputStream = DataInputStream(pooledSocket.getInputStream())
                 val buffer = ByteArray(AppConfig.DEFAULT_BUFFER_SIZE) // Use configured buffer size
                 
@@ -173,48 +183,19 @@ class SocketManager(
                                 totalRead += bytesRead
                             }
 
+                            // Short read = peer died mid-frame; the buffer tail
+                            // is zeros and deserializing it would emit a ghost
+                            // payload or save corrupt data. Close the connection.
+                            if (totalRead < length) {
+                                Logger.e("SocketManager -> Incomplete frame from $address ($totalRead/$length bytes) — discarding")
+                                break
+                            }
+
                             // Update last used timestamp
                             connectionPool.updateLastUsed(address)
 
-                            // Deserialize payload header
+                            // Deserialize payload and emit
                             val payload = PayloadSerializer.deserialize(bytes)
-
-                            // Check for parallel transfer marker (for large files)
-                            if (payload.type == Payload.PayloadType.FILE || payload.type == Payload.PayloadType.VIDEO) {
-                                // Check if there's a parallel mode marker available
-                                if (inputStream.available() >= 4) {
-                                    inputStream.mark(4)
-                                    val marker = inputStream.readInt()
-                                    if (marker == 1) {
-                                        // Parallel transfer detected - receive file using ParallelFileTransfer
-                                        Logger.d("SocketManager -> Parallel transfer detected for ${payload.id}, receiving file...")
-                                        val fileResult = ParallelFileTransfer.receiveFile(pooledSocket)
-                                        if (fileResult.isSuccess) {
-                                            // Create new payload with received file data
-                                            val fileBytes = fileResult.getOrNull()
-                                            if (fileBytes != null) {
-                                                val enrichedPayload = payload.copy(data = fileBytes)
-                                                _incomingPayloads.emit(address to enrichedPayload)
-                                                Logger.d("SocketManager -> Parallel transfer completed: ${fileBytes.size} bytes")
-                                            } else {
-                                                Logger.e("SocketManager -> Parallel transfer returned null bytes")
-                                                _incomingPayloads.emit(address to payload)
-                                            }
-                                            continue // Continue to next iteration
-                                        } else {
-                                            Logger.e("SocketManager -> Parallel transfer failed: ${fileResult.exceptionOrNull()?.message}")
-                                            // Still emit original payload but log the error
-                                            _incomingPayloads.emit(address to payload)
-                                            continue
-                                        }
-                                    } else {
-                                        // Not a parallel transfer marker, reset stream
-                                        inputStream.reset()
-                                    }
-                                }
-                            }
-
-                            // Standard payload emit (no parallel transfer)
                             _incomingPayloads.emit(address to payload)
 
                         } catch (e: EOFException) {
@@ -243,7 +224,9 @@ class SocketManager(
                 Logger.d("SocketManager -> Exception details: ${e.stackTraceToString()}")
             } finally {
                 Logger.d("SocketManager -> Connection cleanup: $address")
-                connectionPool.removeConnection(address, closeSocket = false)
+                storedConnection?.let {
+                    connectionPool.removePooledSocket(address, it, closeSocket = false)
+                }
             }
         }
     }
@@ -257,8 +240,6 @@ class SocketManager(
         val lock = connectionPool.getOrCreateConnectionLock(targetAddress)
         
         lock.withLock {
-            var acquiredPermit = false
-            
             try {
                 Logger.d("SocketManager -> sendPayload START: target=$targetAddress, payloadType=${payload.type}")
                 
@@ -279,12 +260,11 @@ class SocketManager(
                         return@withContext Result.failure(e)
                     }
                     
-                    if (!connectionPool.addConnection(targetAddress, socket)) {
+                    if (connectionPool.addConnection(targetAddress, socket) == null) {
                         socketFactory.closeSocket(socket, "SocketManager")
                         Logger.e("SocketManager -> Failed to add connection to pool for $targetAddress")
                         return@withContext Result.failure(Exception("Connection pool full"))
                     }
-                    acquiredPermit = true
                     
                     Logger.d("SocketManager -> Connection established to $targetAddress")
                 }
@@ -354,19 +334,6 @@ class SocketManager(
      */
     fun getActiveConnectionCount(): Int = connectionPool.getActiveConnectionCount()
 
-    /**
-     * Checks if a valid connection exists for a peer.
-     */
-    fun hasValidConnection(peerAddress: String): Boolean {
-        return connectionPool.hasValidConnection(peerAddress)
-    }
-
-    /**
-     * Gets a connection for a peer.
-     */
-    fun getConnection(peerAddress: String): java.net.Socket? {
-        return connectionPool.getConnection(peerAddress)
-    }
     
     /**
      * Stops listening for incoming connections.

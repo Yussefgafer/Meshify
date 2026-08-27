@@ -84,7 +84,7 @@ fun DiscoveryScreen(
                     }
                 },
                 actions = {
-                    // ✅ UX-04: Refresh button in app bar
+                    // UX-04: Refresh button in app bar
                     IconButton(
                         onClick = { viewModel.refresh() },
                         enabled = !uiState.isRefreshing
@@ -120,7 +120,7 @@ fun DiscoveryScreen(
                     }
                 )
             }
-            // ✅ P0-4: Error state — display error message with retry
+            // P0-4: Error state — display error message with retry
             else {
                 val errorMessage = uiState.errorMessage
                 if (errorMessage != null) {
@@ -230,7 +230,7 @@ private fun PeerListItem(
                 )
             }
 
-            // ✅ T3: Transport type badge
+            // T3: Transport type badge
             TransportBadge(peer.transportType)
 
             Spacer(modifier = Modifier.width(MeshifyDesignSystem.Spacing.Sm))
@@ -429,7 +429,7 @@ private fun WifiDisabledState(
     }
 }
 
-// ✅ P0-4: Error state composable for discovery errors
+// P0-4: Error state composable for discovery errors
 @Composable
 private fun ErrorState(
     message: String,

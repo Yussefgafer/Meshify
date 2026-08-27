@@ -2,8 +2,6 @@ package com.p2p.meshify.core.network.lan
 
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.Payload
-import kotlinx.coroutines.withTimeout
-import java.io.DataOutputStream
 
 /**
  * Keep-alive manager for maintaining active connections.
@@ -14,104 +12,71 @@ import java.io.DataOutputStream
  * - Track connection health
  * 
  * Keep-Alive Protocol:
- * - Sends PING message every 60 seconds
- * - Expects PONG response (or any response)
- * - Removes connection if ping fails
+ * - Sends PING message every 60 seconds via sendPayload only
+ * - PONG responses are handled by the normal receive path, never here
+ * - Removes connection if the PING send fails
  */
 class KeepAliveManager(
     private val connectionPool: ConnectionPool,
+    // Real device id used as PING senderId so the remote peer can route its
+    // PONG reply back via its peerMap. Set by LanTransportImpl at startup;
+    // a hardcoded value would poison remote peer maps with a ghost entry.
+    @Volatile internal var senderId: String = "",
     private val sendPayload: suspend (String, Payload) -> Result<Unit>
 ) {
     
     companion object {
         private const val KEEP_ALIVE_INTERVAL_MS = 60_000L // 60 seconds (was 30s)
-        private const val PING_TIMEOUT_MS = 2_000L // 2 seconds
         private const val KEEP_ALIVE_PING = "PING"
     }
     
     /**
-     * Sends keep-alive ping to all active connections.
+     * Sends keep-alive pings to recently-active connections.
      * Should be called periodically (every KEEP_ALIVE_INTERVAL_MS).
-     * After sending PING, attempts to read PONG response from the same socket
-     * to verify bidirectional connectivity.
-     * 
+     *
+     * PINGs go exclusively through [sendPayload] (per-address mutex, correct
+     * framing). This class must never read from or write to pooled sockets
+     * directly: a direct read steals real frames from the reader loop, and an
+     * unmutexed write interleaves with in-flight framed sends.
+     *
      * @return Number of pings sent successfully
      */
     suspend fun sendKeepAlivePings(): Int {
-        val now = System.currentTimeMillis()
         var pingCount = 0
-        var deadCount = 0
-        
+
         for ((peerId, pooledSocket) in connectionPool.getActiveConnections()) {
-            // Only ping active connections that were used recently
-            // (within half of idle timeout)
-            val idleTime = now - pooledSocket.lastUsedAt
+            // Only ping connections used recently (within half of idle timeout)
+            val idleTime = System.currentTimeMillis() - pooledSocket.lastUsedAt
             val halfIdleTimeout = ConnectionPool.IDLE_TIMEOUT_MS / 2
-            
-            if (idleTime < halfIdleTimeout) {
-                try {
-                    // Send PING message directly on the pooled socket
-                    val pingPayload = Payload(
-                        senderId = "system",
-                        type = Payload.PayloadType.SYSTEM_CONTROL,
-                        data = KEEP_ALIVE_PING.toByteArray()
-                    )
-                    
-                    // Quick ping without blocking - using use() to ensure stream is closed
-                    withTimeout(PING_TIMEOUT_MS) {
-                        DataOutputStream(pooledSocket.socket.getOutputStream()).use { outputStream ->
-                            val bytes = com.p2p.meshify.core.util.PayloadSerializer.serialize(pingPayload)
-                            outputStream.writeInt(bytes.size)
-                            outputStream.write(bytes)
-                            outputStream.flush()
-                        }
-                        
-                        // After sending PING, attempt to read PONG response from the
-                        // same socket's input stream to verify bidirectional connectivity.
-                        // This detects half-open connections where write succeeds but
-                        // the remote end has gone away.
-                        val socket = pooledSocket.socket
-                        val originalTimeout = socket.soTimeout
-                        try {
-                            socket.soTimeout = 100 // brief check — avoids long block
-                            val inputStream = java.io.DataInputStream(socket.getInputStream())
-                            // Only try to read if data is available (non-blocking check)
-                            if (inputStream.available() > 0) {
-                                socket.soTimeout = (PING_TIMEOUT_MS / 2).toInt()
-                                val responseLength = inputStream.readInt()
-                                if (responseLength > 0 && responseLength < 1024) {
-                                    val responseBytes = ByteArray(responseLength)
-                                    inputStream.readFully(responseBytes)
-                                    val responseData = String(responseBytes, Charsets.UTF_8)
-                                    if (responseData.contains("PONG")) {
-                                        Logger.d("KeepAliveManager -> Received PONG from $peerId")
-                                    }
-                                }
-                            }
-                        } catch (e: java.net.SocketTimeoutException) {
-                            // Timeout is acceptable — no data pending, socket is alive
-                        } finally {
-                            socket.soTimeout = originalTimeout
-                        }
-                    }
-                    
-                    connectionPool.updateLastUsed(peerId)
-                    pingCount++
-                    
-                    Logger.d("KeepAliveManager -> Sent ping to $peerId")
-                } catch (e: Exception) {
-                    // Connection is dead, remove it
-                    Logger.d("KeepAliveManager -> Keep-alive failed for $peerId, removing connection: ${e.message}")
-                    connectionPool.removeConnection(peerId, closeSocket = true)
-                    deadCount++
-                }
+            if (idleTime >= halfIdleTimeout) continue
+
+            val pingPayload = Payload(
+                senderId = senderId,
+                type = Payload.PayloadType.SYSTEM_CONTROL,
+                data = KEEP_ALIVE_PING.toByteArray()
+            )
+
+            val result = try {
+                sendPayload(peerId, pingPayload)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+
+            if (result.isSuccess) {
+                connectionPool.updateLastUsed(peerId)
+                pingCount++
+                Logger.d("KeepAliveManager -> Sent ping to $peerId")
+            } else {
+                // Send failed — treat as dead and drop the connection
+                Logger.d("KeepAliveManager -> Keep-alive failed for $peerId, removing connection: ${result.exceptionOrNull()?.message}")
+                connectionPool.removePooledSocket(peerId, pooledSocket, closeSocket = true)
             }
         }
-        
-        if (pingCount > 0 || deadCount > 0) {
-            Logger.d("KeepAliveManager -> Sent $pingCount pings, removed $deadCount dead connections")
+
+        if (pingCount > 0) {
+            Logger.d("KeepAliveManager -> Sent $pingCount pings")
         }
-        
+
         return pingCount
     }
     

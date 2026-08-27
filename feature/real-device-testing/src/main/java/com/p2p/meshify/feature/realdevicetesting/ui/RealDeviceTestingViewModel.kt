@@ -98,13 +98,13 @@ class RealDeviceTestingViewModel(
             val result = checker.runAllChecks()
 
             if (result.allPassed) {
-                Logger.i(TAG, "Pre-flight passed — ready to test")
+                Logger.i("Pre-flight passed — ready to test", tag = TAG)
                 _uiState.value = RealDeviceTestingUiState.PreFlightDone(
                     preFlightResult = result,
                     scenarios = TestScenarioFactory.createDefaults()
                 )
             } else {
-                Logger.w(TAG, "Pre-flight failed: ${result.failedChecks.size} check(s)")
+                Logger.w("Pre-flight failed: ${result.failedChecks.size} check(s)", tag = TAG)
                 _uiState.value = RealDeviceTestingUiState.PreFlightFailed(result)
             }
         }
@@ -143,7 +143,7 @@ class RealDeviceTestingViewModel(
                 )
                 _snackbarMessage.value = context.getString(R.string.peer_selection_none)
             } else {
-                Logger.i(TAG, "Discovered ${allPeers.size} peer(s)")
+                Logger.i("Discovered ${allPeers.size} peer(s)", tag = TAG)
                 val autoSelected = if (allPeers.size == 1) allPeers.first() else null
                 _uiState.value = RealDeviceTestingUiState.PreFlightDone(
                     preFlightResult = preFlightResult,
@@ -159,7 +159,7 @@ class RealDeviceTestingViewModel(
     private suspend fun discoverPeersWithTimeout(timeoutMs: Long): List<DiscoveredPeer> {
         val availableTransports = TestRegistry.INSTANCE.getAvailableTransports()
         if (availableTransports.isEmpty()) {
-            Logger.w(TAG, "No transports available for discovery")
+            Logger.w("No transports available for discovery", tag = TAG)
             return emptyList()
         }
 
@@ -403,7 +403,7 @@ class RealDeviceTestingViewModel(
             targetPeer = currentState.targetPeer
         )
 
-        Logger.i(TAG, "Test run cancelled by user")
+        Logger.i("Test run cancelled by user", tag = TAG)
     }
 
     // ─── Export & Cleanup ─────────────────────────────────────────────────────────
@@ -503,7 +503,7 @@ class RealDeviceTestingViewModel(
             viewModelScope.launch {
                 val dataCleaner = TestDataCleaner(database)
                 dataCleaner.cleanup(currentState.targetPeer.id)
-                    .onSuccess { Logger.i(TAG, "Auto-cleaned test data on ViewModel cleared") }
+                    .onSuccess { Logger.i("Auto-cleaned test data on ViewModel cleared", tag = TAG) }
                     .onFailure { e -> Logger.e("Auto-cleanup failed", e, TAG) }
             }
         }

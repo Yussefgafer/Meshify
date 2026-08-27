@@ -1,8 +1,5 @@
 package com.p2p.meshify.feature.settings
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,10 +10,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ColorLens
-import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Notifications
@@ -34,7 +28,6 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.p2p.meshify.core.common.R
@@ -52,35 +45,14 @@ import com.p2p.meshify.domain.repository.ThemeMode
 @Composable
 fun IdentitySection(
     state: SettingsUiState,
-    viewModel: SettingsViewModel,
-    haptics: PremiumHaptics,
     onEditName: () -> Unit
 ) {
-    val context = LocalContext.current
-    val deviceTitle = stringResource(R.string.setting_device_id)
-    val deviceSuffix = stringResource(R.string.settings_label_device_id_suffix)
-
     DxSettingsSection(title = stringResource(R.string.settings_section_identity)) {
         DxSettingsItem(
             icon = Icons.Filled.Person,
             title = stringResource(R.string.setting_display_name),
             subtitle = state.displayName,
             onClick = onEditName,
-            showChevron = true
-        )
-
-        DxSettingsDivider()
-
-        DxSettingsItem(
-            icon = Icons.Filled.Fingerprint,
-            title = deviceTitle,
-            subtitle = state.deviceId.take(8).uppercase() + deviceSuffix,
-            onClick = {
-                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                val clip = ClipData.newPlainText(deviceTitle, state.deviceId)
-                clipboard.setPrimaryClip(clip)
-                haptics.perform(HapticPattern.Success)
-            },
             showChevron = true
         )
     }
@@ -203,8 +175,7 @@ fun AppSettingsSection(
     haptics: PremiumHaptics,
     onOpenLanguage: () -> Unit,
     onOpenFontSize: () -> Unit,
-    onClearCache: () -> Unit,
-    onOpenBackup: () -> Unit
+    onClearCache: () -> Unit
 ) {
     DxSettingsSection(title = stringResource(R.string.settings_group_app)) {
         DxSettingsItem(
@@ -278,16 +249,6 @@ fun AppSettingsSection(
             onClick = onClearCache,
             showChevron = true
         )
-
-        DxSettingsDivider()
-
-        DxSettingsItem(
-            icon = Icons.Filled.CloudUpload,
-            title = stringResource(R.string.settings_backup_title),
-            subtitle = stringResource(R.string.settings_backup_desc),
-            onClick = onOpenBackup,
-            showChevron = true
-        )
     }
 }
 
@@ -296,8 +257,7 @@ fun AboutSection(
     appVersion: String,
     haptics: PremiumHaptics,
     onDeveloperModeClick: () -> Unit,
-    onOpenGithub: () -> Unit,
-    onOpenCredits: () -> Unit
+    onOpenGithub: () -> Unit
 ) {
     val versionTapCount = remember { mutableIntStateOf(0) }
     val lastTapTime = remember { mutableLongStateOf(0L) }
@@ -333,16 +293,6 @@ fun AboutSection(
             title = stringResource(R.string.settings_label_github_repo),
             subtitle = stringResource(R.string.settings_label_github_desc),
             onClick = onOpenGithub,
-            showChevron = true
-        )
-
-        DxSettingsDivider()
-
-        DxSettingsItem(
-            icon = Icons.Filled.Favorite,
-            title = stringResource(R.string.settings_label_credits),
-            subtitle = stringResource(R.string.settings_label_credits_desc),
-            onClick = onOpenCredits,
             showChevron = true
         )
     }

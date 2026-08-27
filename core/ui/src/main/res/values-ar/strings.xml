@@ -32,15 +32,6 @@
     <string name="dialog_btn_save">حفظ</string>
     <string name="dialog_btn_cancel">إلغاء</string>
 
-    <!-- Settings Backup & Restore -->
-    <string name="settings_backup_title">النسخ الاحتياطي والاستعادة</string>
-    <string name="settings_backup_desc">قم بتصدير إعداداتك إلى ملف أو استيرادها من ملف نسخ احتياطي.</string>
-    <string name="settings_backup_export">تصدير النسخ الاحتياطي</string>
-    <string name="settings_backup_import">استيراد النسخ الاحتياطي</string>
-    <string name="settings_backup_export_success">تم تصدير النسخ الاحتياطي بنجاح!</string>
-    <string name="settings_backup_export_error">فشل التصدير: %1$s</string>
-    <string name="settings_backup_import_soon">ميزة الاستيراد قادمة قريباً</string>
-
     <!-- Chat Input -->
     <string name="chat_input_caption_placeholder">أضف تعليقاً…</string>
     <string name="chat_input_gallery">المعرض</string>

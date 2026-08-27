@@ -19,15 +19,14 @@ import com.p2p.meshify.feature.realdevicetesting.model.DiscoveredPeer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.conflate
-import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -53,7 +52,7 @@ private const val TAG = "BleTransportTestAdapter"
  *
  * BLE-specific constraints:
  * - Max 7 simultaneous connections (hardware limit)
- * - Payloads are chunked to [AppConfig.BLE_MTU_SIZE] - [AppConfig.BLE_CHUNK_HEADER_SIZE] bytes
+ * - Payloads are chunked to the peer's negotiated MTU minus ATT overhead and chunk header
  * - 50ms delay between chunks to avoid BLE stack overflow
  * - Bluetooth must be enabled on the device (checked in [isAvailable])
  *
@@ -87,10 +86,9 @@ class BleTransportTestAdapter(
     private var bleGattClient: BleGattClient? = null
 
     // Event collection
-    override val events: Flow<TransportEvent>
-        get() = _events.asStateFlow().filterNotNull()
+    private val _events = MutableSharedFlow<TransportEvent>(extraBufferCapacity = 16)
 
-    private val _events = MutableStateFlow<TransportEvent?>(null)
+    override val events: Flow<TransportEvent> = _events.asSharedFlow()
 
     // Discovered peers (thread-safe)
     private val discoveredPeers = ConcurrentHashMap<String, DiscoveredPeer>()
@@ -107,7 +105,7 @@ class BleTransportTestAdapter(
 
     override suspend fun initialize() {
         if (isInitialized) {
-            Logger.d(TAG, "Already initialized — skipping")
+            Logger.d("Already initialized — skipping", tag = TAG)
             return
         }
 
@@ -116,7 +114,7 @@ class BleTransportTestAdapter(
             return
         }
 
-        Logger.i(TAG, "Initializing BLE transport for testing")
+        Logger.i("Initializing BLE transport for testing", tag = TAG)
 
         // Create scope
         scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -127,30 +125,30 @@ class BleTransportTestAdapter(
         bleGattServer = BleGattServer(
             context = context,
             onPayloadReceived = { fromPeerId, data ->
-                Logger.d(TAG, "GATT server received payload from $fromPeerId (${data.size}B)")
+                Logger.d("GATT server received payload from $fromPeerId (${data.size}B)", tag = TAG)
                 // In test mode, we don't need to process incoming payloads
             },
             onClientConnected = { connectedPeerId ->
-                Logger.d(TAG, "GATT client connected: $connectedPeerId")
-                _events.value = TransportEvent.ConnectionEstablished(connectedPeerId)
+                Logger.d("GATT client connected: $connectedPeerId", tag = TAG)
+                _events.tryEmit(TransportEvent.ConnectionEstablished(connectedPeerId))
             },
             onClientDisconnected = { disconnectedPeerId ->
-                Logger.d(TAG, "GATT client disconnected: $disconnectedPeerId")
-                _events.value = TransportEvent.ConnectionLost(disconnectedPeerId, "BLE disconnect")
+                Logger.d("GATT client disconnected: $disconnectedPeerId", tag = TAG)
+                _events.tryEmit(TransportEvent.ConnectionLost(disconnectedPeerId, "BLE disconnect"))
                 discoveredPeers.remove(disconnectedPeerId)
             }
         )
         bleGattClient = BleGattClient(
             context = context,
             onPayloadReceived = { fromPeerId, data ->
-                Logger.d(TAG, "GATT client received payload from $fromPeerId (${data.size}B)")
+                Logger.d("GATT client received payload from $fromPeerId (${data.size}B)", tag = TAG)
             },
             onConnectionStateChanged = { connectedPeerId, isConnected ->
-                Logger.d(TAG, "GATT client connection state changed: $connectedPeerId -> $isConnected")
+                Logger.d("GATT client connection state changed: $connectedPeerId -> $isConnected", tag = TAG)
                 if (isConnected) {
-                    _events.value = TransportEvent.ConnectionEstablished(connectedPeerId)
+                    _events.tryEmit(TransportEvent.ConnectionEstablished(connectedPeerId))
                 } else {
-                    _events.value = TransportEvent.ConnectionLost(connectedPeerId, "Client disconnected")
+                    _events.tryEmit(TransportEvent.ConnectionLost(connectedPeerId, "Client disconnected"))
                 }
             }
         )
@@ -160,7 +158,7 @@ class BleTransportTestAdapter(
         bleGattServer?.startServer()
 
         isInitialized = true
-        Logger.i(TAG, "BLE transport initialized (advertising + GATT server started)")
+        Logger.i("BLE transport initialized (advertising + GATT server started)", tag = TAG)
     }
 
     override suspend fun discoverPeers(timeoutMs: Long): List<DiscoveredPeer> {
@@ -175,7 +173,7 @@ class BleTransportTestAdapter(
         }
 
         val effectiveTimeout = maxOf(timeoutMs, 1_000L)
-        Logger.d(TAG, "Discovering BLE peers (timeout=${effectiveTimeout}ms)")
+        Logger.d("Discovering BLE peers (timeout=${effectiveTimeout}ms)", tag = TAG)
 
         // Clear previous discoveries
         discoveredPeers.clear()
@@ -183,27 +181,18 @@ class BleTransportTestAdapter(
 
         val scanner = bleScanner ?: return emptyList()
 
-        val result = withTimeoutOrNull(effectiveTimeout) {
-            // Collect BLE scanner flow
-            val collectJob = scope?.launch {
+        // Collector runs as a child of the timeout scope, so it is cancelled automatically
+        // when the timeout fires — no leaked (zombie) collector. Peers are read from the
+        // map after the timeout, not from the block's return value (which is null on timeout).
+        withTimeoutOrNull(effectiveTimeout) {
+            launch {
                 scanner.discoveryFlow
                     .catch { Logger.e("BLE discovery error", it, tag = TAG) }
                     .conflate()
-                    .collect { device ->
-                        handleBleDeviceDiscovered(device)
-                    }
+                    .collect { device -> handleBleDeviceDiscovered(device) }
             }
-
-            // Start BLE scanning
             scanner.startScanning()
-
-            // Wait for timeout
-            collectJob?.join()
-
-            // Stop scanning after timeout
-            scanner.stopScanning()
-
-            discoveredPeers.values.toList()
+            awaitCancellation()
         }
 
         // Ensure scanning is stopped
@@ -213,8 +202,8 @@ class BleTransportTestAdapter(
             // Ignore — scanner may already be stopped
         }
 
-        val found = result ?: emptyList()
-        Logger.i(TAG, "BLE discovery complete: ${found.size} peer(s) found")
+        val found = discoveredPeers.values.toList()
+        Logger.i("BLE discovery complete: ${found.size} peer(s) found", tag = TAG)
         return found
     }
 
@@ -250,7 +239,7 @@ class BleTransportTestAdapter(
 
         // Acquire send lock to prevent interleaved chunks
         return sendLock.withLock {
-            Logger.d(TAG, "Sending BLE test payload to $peerId (type=$payloadType, size=${testData.size}B)")
+            Logger.d("Sending BLE test payload to $peerId (type=$payloadType, size=${testData.size}B)", tag = TAG)
 
             val payload = Payload(
                 id = UUID.randomUUID().toString(),
@@ -262,8 +251,6 @@ class BleTransportTestAdapter(
 
             val startTime = System.currentTimeMillis()
             try {
-                // Serialize payload into BLE chunks
-                val chunks = BlePayloadSerializer.serializeToChunks(payload)
                 val gattClient = bleGattClient ?: run {
                     return@withLock TestSendResult.failure(
                         error = "GATT client not available",
@@ -273,12 +260,36 @@ class BleTransportTestAdapter(
                 }
 
                 // Connect to peer if not already connected
+                val peerAddress = peerAddressMap[peerId]
                 val bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
-                val btDevice = bluetoothAdapter?.getRemoteDevice(peerAddressMap[peerId])
+                val btDevice = peerAddress?.let { bluetoothAdapter?.getRemoteDevice(it) }
                 if (btDevice != null && !gattClient.isConnected(peerId)) {
                     gattClient.connect(btDevice, peerId)
                     // sendData() suspends on characteristicsReady.await() — no delay needed
                 }
+
+                // connect() above is asynchronous — wait for GATT readiness before sizing chunks
+                if (!gattClient.awaitReady(peerId)) {
+                    return@withLock TestSendResult.failure(
+                        error = "Peer '$peerId' GATT connection not ready",
+                        durationMs = System.currentTimeMillis() - startTime,
+                        bytesSent = 0
+                    )
+                }
+
+                // Serialize payload into BLE chunks sized from the live negotiated MTU;
+                // null means no GATT connection exists and sending cannot proceed
+                val negotiatedMtu = gattClient.getNegotiatedMtu(peerId) ?: run {
+                    return@withLock TestSendResult.failure(
+                        error = "Peer '$peerId' GATT connection not established",
+                        durationMs = System.currentTimeMillis() - startTime,
+                        bytesSent = 0
+                    )
+                }
+                val chunks = BlePayloadSerializer.serializeToChunks(
+                    payload,
+                    negotiatedMtu - AppConfig.BLE_ATT_OVERHEAD_BYTES
+                )
 
                 // Send each chunk
                 return@withLock sendChunks(
@@ -323,24 +334,24 @@ class BleTransportTestAdapter(
                 return TestSendResult.failure(
                     error = "Chunk $index failed: $error",
                     durationMs = duration,
-                    bytesSent = index * BlePayloadSerializer.getMaxChunkDataSize(),
+                    bytesSent = chunks.take(index).sumOf { it.size },
                     exception = chunkResult.exceptionOrNull()
                 )
             }
         }
 
         val duration = System.currentTimeMillis() - startTime
-        Logger.i(TAG, "BLE send success: $peerId in ${duration}ms (${chunks.size} chunks)")
+        Logger.i("BLE send success: $peerId in ${duration}ms (${chunks.size} chunks)", tag = TAG)
         return TestSendResult.success(durationMs = duration, bytesSent = chunks.sumOf { it.size })
     }
 
     override suspend fun shutdown() {
         if (!isInitialized) {
-            Logger.d(TAG, "Not initialized — nothing to shut down")
+            Logger.d("Not initialized — nothing to shut down", tag = TAG)
             return
         }
 
-        Logger.i(TAG, "Shutting down BLE transport adapter")
+        Logger.i("Shutting down BLE transport adapter", tag = TAG)
 
         // Stop BLE components
         try {
@@ -365,7 +376,7 @@ class BleTransportTestAdapter(
         bleGattClient = null
         isInitialized = false
 
-        Logger.i(TAG, "BLE transport adapter shut down")
+        Logger.i("BLE transport adapter shut down", tag = TAG)
     }
 
     /**
@@ -385,14 +396,16 @@ class BleTransportTestAdapter(
         )
         discoveredPeers[device.peerId] = peer
 
-        _events.value = TransportEvent.DeviceDiscovered(
-            deviceId = device.peerId,
-            deviceName = device.deviceName,
-            address = device.device.address,
-            rssi = device.rssi,
-            transportType = TransportType.BLE
+        _events.tryEmit(
+            TransportEvent.DeviceDiscovered(
+                deviceId = device.peerId,
+                deviceName = device.deviceName,
+                address = device.device.address,
+                rssi = device.rssi,
+                transportType = TransportType.BLE
+            )
         )
 
-        Logger.d(TAG, "BLE discovered: ${device.deviceName} (${device.peerId}) RSSI=${device.rssi}")
+        Logger.d("BLE discovered: ${device.deviceName} (${device.peerId}) RSSI=${device.rssi}", tag = TAG)
     }
 }

@@ -15,8 +15,11 @@ import com.p2p.meshify.core.config.AppConfig
 import com.p2p.meshify.core.util.Logger
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withTimeout
 
 private const val TAG = "BleGattClient"
 
@@ -39,34 +42,44 @@ class BleGattClient(
     /**
      * Connect to a remote peer's GATT Server.
      */
+    @SuppressLint("MissingPermission")
     fun connect(device: BluetoothDevice, peerId: String) {
-        if (gattConnections.containsKey(peerId)) {
-            Logger.d("BLE Already connected to $peerId", tag = TAG)
-            return
+        gattConnections[peerId]?.let { existing ->
+            if (existing.isConnected) {
+                Logger.d("BLE Already connected to $peerId", tag = TAG)
+                return
+            }
+            Logger.d("BLE Stale connection entry for $peerId, reconnecting", tag = TAG)
+            existing.failAndRelease("Superseded by reconnect")
         }
 
         val connection = BleGattConnection(
             peerId = peerId,
             device = device,
             onPayloadReceived = onPayloadReceived,
-            onConnectionStateChanged = onConnectionStateChanged
+            onConnectionStateChanged = onConnectionStateChanged,
+            removeFromRegistry = { conn -> gattConnections.remove(peerId, conn) }
         )
 
-        gattConnections[peerId] = connection
-        connection.connect(context)
-        Logger.d("BLE Connecting to $peerId...", tag = TAG)
+        try {
+            gattConnections[peerId] = connection
+            connection.connect(context)
+            Logger.d("BLE Connecting to $peerId...", tag = TAG)
+        } catch (e: SecurityException) {
+            Logger.e("BLE Connect to $peerId: SecurityException - missing BLUETOOTH_CONNECT permission", tag = TAG)
+            connection.failAndRelease("SecurityException during connect")
+            gattConnections.remove(peerId, connection)
+            throw e
+        }
     }
 
     /**
      * Disconnect from a peer.
      */
-    @SuppressLint("MissingPermission")
     fun disconnect(peerId: String) {
-        gattConnections.remove(peerId)?.let { connection ->
-            connection.gatt?.close()
-            connection.gatt = null
-            Logger.d("BLE Disconnected from $peerId", tag = TAG)
-        }
+        val connection = gattConnections.remove(peerId) ?: return
+        connection.failAndRelease("Local disconnect")
+        Logger.d("BLE Disconnected from $peerId", tag = TAG)
     }
 
     /**
@@ -90,6 +103,39 @@ class BleGattClient(
     }
 
     /**
+     * Wait until the peer's GATT readiness deferred completes (MTU negotiation + CCCD write).
+     * Returns false on timeout or readiness failure. Abandoning the wait never completes or
+     * cancels the shared deferred — the binder callback can still complete it afterwards.
+     */
+    suspend fun awaitReady(peerId: String, timeoutMs: Long = AppConfig.BLE_READY_TIMEOUT_MS): Boolean {
+        val connection = gattConnections[peerId] ?: return false
+        return try {
+            withTimeout(timeoutMs) {
+                connection.awaitReadiness()
+                true
+            }
+        } catch (e: TimeoutCancellationException) {
+            Logger.d("BLE Readiness wait timed out for $peerId", tag = TAG)
+            false
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Logger.e("BLE Readiness failed for $peerId: ${e.message}", tag = TAG)
+            false
+        }
+    }
+
+    /**
+     * Negotiated MTU for a connected peer, or null when there is no active connection.
+     * Falls back to the minimum MTU until negotiation completes.
+     * Callers must awaitReady(peerId) == true first.
+     */
+    fun getNegotiatedMtu(peerId: String): Int? {
+        val connection = gattConnections[peerId] ?: return null
+        return if (connection.isConnected) connection.negotiatedMtu else null
+    }
+
+    /**
      * Get all connected peer IDs.
      */
     fun getConnectedPeers(): Set<String> {
@@ -99,9 +145,8 @@ class BleGattClient(
     /**
      * Clean up all connections.
      */
-    @SuppressLint("MissingPermission")
     fun cleanup() {
-        gattConnections.values.forEach { it.gatt?.close() }
+        gattConnections.values.forEach { it.failAndRelease("Transport cleanup") }
         gattConnections.clear()
         Logger.d("BLE All client connections cleaned up", tag = TAG)
     }
@@ -114,7 +159,8 @@ class BleGattConnection(
     val peerId: String,
     val device: BluetoothDevice,
     private val onPayloadReceived: (String, ByteArray) -> Unit,
-    private val onConnectionStateChanged: (String, Boolean) -> Unit
+    private val onConnectionStateChanged: (String, Boolean) -> Unit,
+    private val removeFromRegistry: (BleGattConnection) -> Unit
 ) {
     var gatt: BluetoothGatt? = null
         internal set
@@ -123,13 +169,52 @@ class BleGattConnection(
 
     private var rxCharacteristic: BluetoothGattCharacteristic? = null
     private var txCharacteristic: BluetoothGattCharacteristic? = null
-    private var currentMtu = 23 // Default BLE MTU — updated via onMtuChanged
-    private var effectiveMtu: Int = 23 // min(negotiatedMtu, AppConfig.BLE_MTU_SIZE)
+    private var currentMtu = AppConfig.BLE_DEFAULT_MTU // Default BLE MTU — updated via onMtuChanged
+    private var effectiveMtu: Int = AppConfig.BLE_DEFAULT_MTU // min(negotiatedMtu, AppConfig.BLE_MTU_SIZE)
+
+    val negotiatedMtu: Int
+        get() = effectiveMtu
+
     private var characteristicsReady = CompletableDeferred<Unit>()
+    private var released = false
+
+    // Epoch-bound outcome slot for the in-flight acknowledged write; the epoch lets
+    // onCharacteristicWrite refuse completions from an abandoned write's stale callback.
+    private class PendingWrite(val epoch: Int, val deferred: CompletableDeferred<Int>)
+
+    @Volatile
+    private var pendingWrite: PendingWrite? = null
+    private val writeEpochCounter = AtomicInteger(0)
+
+    suspend fun awaitReadiness() {
+        characteristicsReady.await()
+    }
+
+    /**
+     * Terminal-path teardown: fails pending readiness waiters immediately, releases the
+     * native GATT object and deregisters the connection. Idempotent — safe to invoke from
+     * both binder callbacks and client-initiated disconnect. CompletableDeferred ignores
+     * a second completion, so late callbacks after release are harmless no-ops.
+     */
+    @SuppressLint("MissingPermission")
+    internal fun failAndRelease(cause: String) {
+        synchronized(this) {
+            if (released) return
+            released = true
+        }
+        isConnected = false
+        characteristicsReady.completeExceptionally(IllegalStateException(cause))
+        Logger.e("BLE Connection $peerId terminated: $cause", tag = TAG)
+        gatt?.disconnect()
+        gatt?.close()
+        gatt = null
+        removeFromRegistry(this)
+    }
 
     private val serviceUuid = UUID.fromString(AppConfig.BLE_SERVICE_UUID)
     private val rxCharUuid = UUID.fromString(AppConfig.BLE_RX_CHAR_UUID)
     private val txCharUuid = UUID.fromString(AppConfig.BLE_TX_CHAR_UUID)
+    private val cccdUuid = UUID.fromString(AppConfig.BLE_CCCD_UUID)
 
     fun connect(context: Context) {
         // Reset readiness for new connection
@@ -142,17 +227,24 @@ class BleGattConnection(
         val callback = object : BluetoothGattCallback() {
             @SuppressLint("MissingPermission")
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-                when (newState) {
-                    BluetoothProfile.STATE_CONNECTED -> {
+                when {
+                    newState == BluetoothProfile.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS -> {
                         isConnected = true
                         onConnectionStateChanged(peerId, true)
                         Logger.d("BLE Connected to $peerId", tag = TAG)
                         gatt.discoverServices()
                     }
-                    BluetoothProfile.STATE_DISCONNECTED -> {
-                        isConnected = false
-                        onConnectionStateChanged(peerId, false)
-                        Logger.d("BLE Disconnected from $peerId", tag = TAG)
+                    else -> {
+                        if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                            isConnected = false
+                            onConnectionStateChanged(peerId, false)
+                            Logger.d("BLE Disconnected from $peerId", tag = TAG)
+                        }
+                        // Link loss surfaces as STATE_DISCONNECTED carrying an error status;
+                        // either condition is terminal for this connection object
+                        if (status != BluetoothGatt.GATT_SUCCESS || newState == BluetoothProfile.STATE_DISCONNECTED) {
+                            failAndRelease(if (status != BluetoothGatt.GATT_SUCCESS) "GATT error $status" else "Disconnected")
+                        }
                     }
                 }
             }
@@ -165,13 +257,15 @@ class BleGattConnection(
                     txCharacteristic = service?.getCharacteristic(txCharUuid)
 
                     if (rxCharacteristic != null && txCharacteristic != null) {
-                        // Request MTU
-                        gatt.requestMtu(AppConfig.BLE_MTU_SIZE)
+                        // A rejected request means onMtuChanged never fires — terminal
+                        if (!gatt.requestMtu(AppConfig.BLE_MTU_SIZE)) {
+                            failAndRelease("requestMtu rejected for MTU ${AppConfig.BLE_MTU_SIZE}")
+                        }
                     } else {
-                        Logger.e("BLE Required characteristics not found", tag = TAG)
+                        failAndRelease("Required characteristics not found")
                     }
                 } else {
-                    Logger.e("BLE Service discovery failed: $status", tag = TAG)
+                    failAndRelease("Service discovery failed: $status")
                 }
             }
 
@@ -190,35 +284,20 @@ class BleGattConnection(
                 txCharacteristic?.let { txChar ->
                     val notifyEnabled = gatt.setCharacteristicNotification(txChar, true)
                     if (!notifyEnabled) {
-                        Logger.e("BLE Failed to enable notifications for $peerId", tag = TAG)
-                        if (!characteristicsReady.isCompleted) {
-                            characteristicsReady.completeExceptionally(
-                                IllegalStateException("Notification enable failed")
-                            )
-                        }
+                        failAndRelease("Notification enable failed")
                         return
                     }
 
-                    val cccd = txChar.getDescriptor(UUID.fromString(AppConfig.BLE_CCCD_UUID))
+                    val cccd = txChar.getDescriptor(cccdUuid)
                     if (cccd == null) {
-                        Logger.e("BLE CCCD not found for $peerId", tag = TAG)
-                        if (!characteristicsReady.isCompleted) {
-                            characteristicsReady.completeExceptionally(
-                                IllegalStateException("CCCD not found")
-                            )
-                        }
+                        failAndRelease("CCCD not found")
                         return
                     }
 
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         val descResult = gatt.writeDescriptor(cccd, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
                         if (descResult != BluetoothStatusCodes.SUCCESS) {
-                            Logger.e("BLE Failed to write CCCD for $peerId: status=$descResult", tag = TAG)
-                            if (!characteristicsReady.isCompleted) {
-                                characteristicsReady.completeExceptionally(
-                                    IllegalStateException("CCCD write failed: $descResult")
-                                )
-                            }
+                            failAndRelease("CCCD write failed: $descResult")
                             return
                         }
                     } else {
@@ -227,23 +306,41 @@ class BleGattConnection(
                         @Suppress("DEPRECATION")
                         val descSuccess = gatt.writeDescriptor(cccd)
                         if (!descSuccess) {
-                            Logger.e("BLE Failed to write CCCD (Legacy) for $peerId", tag = TAG)
-                            if (!characteristicsReady.isCompleted) {
-                                characteristicsReady.completeExceptionally(
-                                    IllegalStateException("CCCD write failed (Legacy)")
-                                )
-                            }
+                            failAndRelease("CCCD write failed (Legacy)")
                             return
                         }
                     }
-                    // Set write type for RX characteristic
-                    rxCharacteristic?.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+                    // Acknowledged writes require WRITE_TYPE_DEFAULT; the remote ATT
+                    // layer rejects default writes unless PROPERTY_WRITE is declared
+                    rxCharacteristic?.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
                 }
+            }
 
-                // Signal that characteristics are ready for sending
-                if (!characteristicsReady.isCompleted) {
+            @SuppressLint("MissingPermission")
+            override fun onDescriptorWrite(
+                gatt: BluetoothGatt,
+                descriptor: BluetoothGattDescriptor,
+                status: Int
+            ) {
+                if (descriptor.uuid != cccdUuid || gatt !== this@BleGattConnection.gatt) return
+
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    Logger.d("BLE CCCD write confirmed for $peerId", tag = TAG)
                     characteristicsReady.complete(Unit)
+                } else {
+                    failAndRelease("CCCD write failed: $status")
                 }
+            }
+
+            override fun onCharacteristicWrite(
+                gatt: BluetoothGatt,
+                characteristic: BluetoothGattCharacteristic,
+                status: Int
+            ) {
+                if (characteristic.uuid != rxCharUuid) return
+                val pw = pendingWrite
+                // Epoch guard: a completion belonging to a timeout-abandoned write must not satisfy the current one
+                if (pw != null && pw.epoch == writeEpochCounter.get()) pw.deferred.complete(status)
             }
 
             @SuppressLint("MissingPermission")
@@ -275,11 +372,11 @@ class BleGattConnection(
         // Wait for service discovery + MTU negotiation + notification setup to complete
         try {
             characteristicsReady.await()
-        } catch (e: kotlinx.coroutines.CancellationException) {
+        } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Logger.e("BLE Characteristics readiness timeout for $peerId", tag = TAG)
-            return Result.failure(IllegalStateException("Characteristics not ready"))
+            Logger.e("BLE Readiness failed for $peerId: ${e.message}", tag = TAG)
+            return Result.failure(IllegalStateException(e.message ?: "Characteristics not ready"))
         }
 
         val rxChar = rxCharacteristic
@@ -304,25 +401,49 @@ class BleGattConnection(
                 ))
             }
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                val statusCode = gatt.writeCharacteristic(rxChar, data, rxChar.writeType)
-                if (statusCode != BluetoothStatusCodes.SUCCESS) {
-                    Logger.e("BLE Write failed for $peerId: status=$statusCode", tag = TAG)
-                    return Result.failure(Exception("Write failed with status $statusCode"))
+            // Strictly sequential acknowledged write: initiate, then suspend until
+            // onCharacteristicWrite reports the link-layer outcome. The transport's
+            // outer BLE_SEND_TIMEOUT_MS bounds this await; no local timeout is added.
+            val epoch = writeEpochCounter.incrementAndGet()
+            val writeOutcome = CompletableDeferred<Int>()
+            val pendingSlot = PendingWrite(epoch, writeOutcome)
+            pendingWrite = pendingSlot
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    val statusCode = gatt.writeCharacteristic(rxChar, data, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
+                    if (statusCode != BluetoothStatusCodes.SUCCESS) {
+                        return Result.failure(Exception("Chunk write to $peerId not initiated: status $statusCode"))
+                    }
+                } else {
+                    @Suppress("DEPRECATION")
+                    rxChar.value = data
+                    @Suppress("DEPRECATION")
+                    val initiated = gatt.writeCharacteristic(rxChar)
+                    if (!initiated) {
+                        return Result.failure(Exception("Chunk write to $peerId not initiated (legacy stack)"))
+                    }
                 }
-            } else {
-                @Suppress("DEPRECATION")
-                rxChar.value = data
-                @Suppress("DEPRECATION")
-                val success = gatt.writeCharacteristic(rxChar)
-                if (!success) {
-                    Logger.e("BLE Write failed (Legacy) for $peerId", tag = TAG)
-                    return Result.failure(Exception("Write failed (Legacy)"))
+
+                val gattStatus = try {
+                    writeOutcome.await()
+                } catch (ce: CancellationException) {
+                    // Abandoned acknowledged write leaves ATT link state unknown; teardown before propagating
+                    if (!writeOutcome.isCompleted) failAndRelease("Write abandoned mid-flight")
+                    throw ce
+                }
+                if (gattStatus != BluetoothGatt.GATT_SUCCESS) {
+                    return Result.failure(Exception("Chunk write to $peerId failed: GATT status $gattStatus"))
+                }
+            } finally {
+                if (pendingWrite === pendingSlot) {
+                    pendingWrite = null
                 }
             }
 
             Logger.d("BLE Sent ${data.size} bytes to $peerId", tag = TAG)
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Logger.e("BLE Exception sending data to $peerId: ${e.message}", e, tag = TAG)
             Result.failure(e)

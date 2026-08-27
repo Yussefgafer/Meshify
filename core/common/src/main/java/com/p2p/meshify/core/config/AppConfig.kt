@@ -14,10 +14,15 @@ object AppConfig {
     const val BLE_RX_CHAR_UUID: String = "00001235-0000-1000-8000-00805f9b34fb"
     const val BLE_TX_CHAR_UUID: String = "00001236-0000-1000-8000-00805f9b34fb"
     const val BLE_CCCD_UUID: String = "00002902-0000-1000-8000-00805f9b34fb"
+    // Requested MTU for GATT negotiation only — the actual negotiated MTU may be lower
+    // and must always be read from BleGattClient.getNegotiatedMtu() before sizing chunks.
     const val BLE_MTU_SIZE: Int = 512
+    const val BLE_DEFAULT_MTU: Int = 23 // Minimum BLE MTU per spec, used until negotiation completes
+    const val BLE_ATT_OVERHEAD_BYTES: Int = 3 // ATT header: usable payload per packet = MTU - 3
     const val BLE_MAX_CONNECTIONS: Int = 7
-    const val BLE_CHUNK_HEADER_SIZE: Int = 12
+    const val BLE_READY_TIMEOUT_MS: Long = 5_000L
     const val BLE_REASSEMBLY_TIMEOUT_MS: Long = 5_000L
+    const val BLE_SEND_TIMEOUT_MS: Long = 15_000L
 
     // Connection Management
     const val SOCKET_TIMEOUT_MS = 15_000

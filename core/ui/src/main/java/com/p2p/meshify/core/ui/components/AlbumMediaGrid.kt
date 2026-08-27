@@ -64,7 +64,7 @@ fun AlbumMediaGrid(
             )
         }
 
-        // ✅ PF11: FIX grid columns changing with count - use fixed columns = 3
+        // PF11: FIX grid columns changing with count - use fixed columns = 3
         // Previous dynamic columns caused layout recalculations on every item change
         // Fixed columns provide consistent layout and better performance
         val columns = 3 // Fixed 3 columns for consistent grid layout

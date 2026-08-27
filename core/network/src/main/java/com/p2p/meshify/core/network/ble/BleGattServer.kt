@@ -14,7 +14,10 @@ import android.os.Build
 import com.p2p.meshify.core.config.AppConfig
 import com.p2p.meshify.core.util.Logger
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.future.await
 
 private const val TAG = "BleGattServer"
 
@@ -37,19 +40,26 @@ class BleGattServer(
 
     private var gattServer: BluetoothGattServer? = null
     private var txCharacteristic: BluetoothGattCharacteristic? = null
+    // Completes once addService has been confirmed by the system, with the success status.
+    // Awaiters are decoupled from the binder callback via suspend awaitForServiceAdded().
+    private var serviceAdded: java.util.concurrent.CompletableFuture<Boolean> =
+        java.util.concurrent.CompletableFuture()
 
     // Track connected devices: device address -> BluetoothDevice
-    // WARNING: On Android 10+, MAC addresses are randomized per connection.
-    // The same physical device may appear under a different `device.address` each time.
-    // This map uses device.address as key — if the same peer reconnects with a new
-    // randomized MAC, it will be added as a new entry and the old entry becomes stale.
-    // A production fix would require BLE bonding or a custom pairing flow to assign
-    // stable peer identifiers. For now, stale entries are cleaned up on disconnect
-    // (but only for the address that disconnected). Periodic garbage collection
-    // of orphaned entries is handled via cleanup interval in BleTransportImpl.
+    // On Android 10+, MAC addresses are randomized per connection — the same physical
+    // device may appear under a new `device.address` on reconnect. Without BLE bonding
+    // we cannot map a randomized MAC back to a stable peer identity; every server-side
+    // entry's lifetime is therefore scoped to the active GATT connection. Entries are
+    // cleared in stopServer() and on each disconnect callback. Orphaned entries could
+    // only occur on disconnected-but-uncallbacked links; that is an Android BLE
+    // limitation we accept (no periodic GC runs against this map).
     private val connectedDevices = ConcurrentHashMap<String, BluetoothDevice>()
     // Track which devices have enabled notifications: device address -> subscribed
     private val subscribedDevices = ConcurrentHashMap<String, Boolean>()
+    // Track each client's negotiated MTU: device address -> mtu.
+    // Defaults to BLE_DEFAULT_MTU until the client negotiates a larger value;
+    // GATT callbacks arrive on binder threads, hence ConcurrentHashMap.
+    private val negotiatedMtus = ConcurrentHashMap<String, Int>()
 
     /**
      * Start the GATT Server.
@@ -57,6 +67,15 @@ class BleGattServer(
     @SuppressLint("MissingPermission")
     fun startServer() {
         try {
+            // Only one GATT server instance per process. A second openGattServer call would
+            // either fail or create an orphan that leaks. Require stopServer() before re-init.
+            if (gattServer != null) {
+                Logger.e("BLE GATT Server already running, refusing double-start", tag = TAG)
+                return
+            }
+            // Recreate deferred so a restart after stopServer can be awaited again
+            if (serviceAdded.isDone) serviceAdded = java.util.concurrent.CompletableFuture()
+
             gattServer = (context.getSystemService(Context.BLUETOOTH_SERVICE) as android.bluetooth.BluetoothManager)
                 .openGattServer(context, serverCallback)
             
@@ -94,6 +113,23 @@ class BleGattServer(
     }
 
     /**
+     * Suspends until the system confirms service addition (or fails the add).
+     * Returns true on success, false on a non-success onServiceAdded callback.
+     * Bounded by the in-call delay; callers should treat false as a transport start failure.
+     */
+    suspend fun awaitForServiceAdded(): Boolean {
+        val future = serviceAdded
+        return try {
+            future.await()
+        } catch (e: java.util.concurrent.CompletionException) {
+            Logger.e("BLE Server service-add await failed: ${e.message}", tag = TAG)
+            false
+        } catch (e: CancellationException) {
+            throw e
+        }
+    }
+
+    /**
      * Stop the GATT Server.
      */
     @SuppressLint("MissingPermission")
@@ -103,6 +139,11 @@ class BleGattServer(
             gattServer = null
             connectedDevices.clear()
             subscribedDevices.clear()
+            negotiatedMtus.clear()
+            // Fail any pending await so callers don't block forever on a torn-down server
+            if (!serviceAdded.isDone) {
+                serviceAdded.complete(false)
+            }
             Logger.d("BLE GATT Server stopped", tag = TAG)
         } catch (e: Exception) {
             Logger.e("BLE Failed to stop GATT Server: ${e.message}", e, tag = TAG)
@@ -126,6 +167,16 @@ class BleGattServer(
         if (subscribedDevices[peerId] != true) {
             Logger.w("BLE Peer $peerId not subscribed to notifications", tag = TAG)
             return Result.failure(IllegalStateException("Peer not subscribed"))
+        }
+
+        val maxNotifyPayloadSize =
+            (negotiatedMtus[peerId] ?: AppConfig.BLE_DEFAULT_MTU) - AppConfig.BLE_ATT_OVERHEAD_BYTES
+        if (data.size > maxNotifyPayloadSize) {
+            Logger.e(
+                "BLE Outgoing data (${data.size}B) exceeds $peerId MTU payload capacity ($maxNotifyPayloadSize) - skipping to avoid silent truncation",
+                tag = TAG
+            )
+            return Result.failure(IllegalStateException("Data exceeds peer MTU payload limit $maxNotifyPayloadSize"))
         }
 
         return try {
@@ -161,6 +212,11 @@ class BleGattServer(
     }
 
     /**
+     * The BluetoothDevice currently connected to our server under [address], if any.
+     */
+    fun getConnectedDevice(address: String): BluetoothDevice? = connectedDevices[address]
+
+    /**
      * Check if server is running.
      */
     fun isServerRunning(): Boolean = gattServer != null
@@ -175,18 +231,15 @@ class BleGattServer(
     private val serverCallback = object : BluetoothGattServerCallback() {
         @SuppressLint("MissingPermission")
         override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
-            val peerAddress = device.address
+            val peerAddress = device.address.uppercase()
             
             when (newState) {
                 BluetoothProfile.STATE_CONNECTED -> {
-                    // Android 10+ randomizes MAC per connection. The same physical device
-                    // may arrive with a different address. Try to clean up any stale entry
-                    // that shares the same device name (inexact but helps in common cases).
-                    val deviceName = device.name
-                    if (deviceName != null) {
-                        connectedDevices.entries.removeAll { (_, existingDevice) ->
-                            existingDevice.address != peerAddress && existingDevice.name == deviceName
-                        }
+                    // A repeat connection from a tracked address replaces the entry and resets
+                    // its per-link state; entries under other addresses are left untouched
+                    if (connectedDevices.containsKey(peerAddress)) {
+                        subscribedDevices.remove(peerAddress)
+                        negotiatedMtus.remove(peerAddress)
                     }
                     connectedDevices[peerAddress] = device
                     onClientConnected(peerAddress)
@@ -195,6 +248,7 @@ class BleGattServer(
                 BluetoothProfile.STATE_DISCONNECTED -> {
                     connectedDevices.remove(peerAddress)
                     subscribedDevices.remove(peerAddress)
+                    negotiatedMtus.remove(peerAddress)
                     onClientDisconnected(peerAddress)
                     Logger.d("BLE Client disconnected: $peerAddress", tag = TAG)
                 }
@@ -212,7 +266,7 @@ class BleGattServer(
             value: ByteArray
         ) {
             if (characteristic.uuid == rxCharUuid) {
-                val peerAddress = device.address
+                val peerAddress = device.address.uppercase()
                 Logger.d("BLE Received ${value.size} bytes from $peerAddress", tag = TAG)
                 onPayloadReceived(peerAddress, value)
             }
@@ -233,7 +287,7 @@ class BleGattServer(
             value: ByteArray
         ) {
             if (descriptor.uuid == cccdUuid) {
-                val peerAddress = device.address
+                val peerAddress = device.address.uppercase()
                 val subscribed = value.contentEquals(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
                 subscribedDevices[peerAddress] = subscribed
                 Logger.d("BLE Peer $peerAddress ${if (subscribed) "subscribed" else "unsubscribed"} to notifications", tag = TAG)
@@ -241,6 +295,23 @@ class BleGattServer(
 
             if (responseNeeded) {
                 gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
+            }
+        }
+
+        @SuppressLint("MissingPermission")
+        override fun onMtuChanged(device: BluetoothDevice, mtu: Int) {
+            val peerAddress = device.address.uppercase()
+            if (!connectedDevices.containsKey(peerAddress)) {
+                Logger.d("BLE Ignoring late server MTU callback for removed $peerAddress", tag = TAG)
+                return
+            }
+            negotiatedMtus[peerAddress] = maxOf(AppConfig.BLE_DEFAULT_MTU, mtu)
+            Logger.d("BLE Server MTU for $peerAddress: ${maxOf(AppConfig.BLE_DEFAULT_MTU, mtu)}", tag = TAG)
+        }
+
+        override fun onServiceAdded(status: Int, service: BluetoothGattService?) {
+            if (!serviceAdded.isDone) {
+                serviceAdded.complete(status == BluetoothGatt.GATT_SUCCESS)
             }
         }
     }

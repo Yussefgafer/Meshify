@@ -3,6 +3,10 @@ package com.p2p.meshify.core.network.lan
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.os.Build
@@ -26,7 +30,6 @@ import java.io.File
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.Collections.newSetFromMap
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -49,7 +52,7 @@ class LanTransportImpl(
     private val peerIdProvider: SimplePeerIdProvider
 ) : IMeshTransport {
 
-    // ✅ Transport metadata
+    // Transport metadata
     override val transportName: String = "lan"
     override val isAvailable: Boolean = true // LAN is always available on Android devices
     override val capabilities: Set<TransportCapability> = setOf(
@@ -67,10 +70,11 @@ class LanTransportImpl(
     // Mutex for protecting peerMap operations
     private val peerMapMutex = Mutex()
 
-    // Dead Peer Detection: track consecutive send failures per peer
-    private val failedSendCounts = ConcurrentHashMap<String, AtomicInteger>()
+    // Dead Peer Detection: track recent send-failure timestamps per peer
+    // (rolling window — see FAILURE_WINDOW_MS)
+    private val failedSendCounts = ConcurrentHashMap<String, MutableList<Long>>()
 
-    // ✅ PF10: Cache for settings to avoid repeated firstOrNull() calls (5-10ms delay each)
+    // PF10: Cache for settings to avoid repeated firstOrNull() calls (5-10ms delay each)
     private var cachedDisplayName: String = "Unknown"
     private var cachedAvatarHash: String? = null
     private var lastCacheUpdate = 0L
@@ -117,27 +121,48 @@ class LanTransportImpl(
     @Volatile
     private var discoveryEnabled = false
 
-    // Dead peer threshold: remove peer after this many consecutive failures
     companion object {
-        private const val MAX_FAILURES_BEFORE_REMOVAL = 5 // Increased from 3 to handle unstable networks
+        private const val MAX_FAILURES_BEFORE_REMOVAL = 5 // Failures within FAILURE_WINDOW_MS mark peer dead
+        private const val FAILURE_WINDOW_MS = 60_000L // Rolling window for counting failures
         private const val CLEANUP_FAILED_COUNTS_INTERVAL_MS = 5 * 60 * 1000L // 5 minutes
         private const val NSD_RETRY_DELAY_MS = 2000L // 2s initial retry
         private const val NSD_MAX_RETRIES = 3
+        // Static default when WiFi RSSI is unavailable: SignalStrength.MEDIUM
+        private const val DEFAULT_RSSI_DBM = -60
     }
 
     private val nsdManager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
     private var registrationListener: NsdManager.RegistrationListener? = null
     private var discoveryListener: NsdManager.DiscoveryListener? = null
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private var nsdRefreshJob: Job? = null
 
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    // Recreated on every start(): a cancelled scope silently no-ops every
+    // launch{}, so a stopped transport must get a fresh one to restart
+    // (START_STICKY service-restart path).
+    private var scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var watchdogJob: Job? = null
     private var visibilityJob: Job? = null
     private var cleanupFailedCountsJob: Job? = null
+    private var payloadCollectorJob: Job? = null
+
+    @Volatile
+    private var started = false
 
     override suspend fun start() {
+        if (started) {
+            Logger.d("LanEngine -> Already started, ignoring duplicate start")
+            return
+        }
+
         val myId = settingsRepository.getDeviceId()
+        // Keep-alive PINGs must carry our real device id so the remote peer
+        // can route its PONG reply back to us (must precede startListening()).
+        socketManager.setKeepAliveSenderId(myId)
 
         Logger.i("LanEngine -> Starting. MyID: $myId")
+
+        scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
         // Start cleanup job for failedSendCounts (prevents memory leak)
         cleanupFailedCountsJob = scope.launch {
@@ -163,13 +188,20 @@ class LanTransportImpl(
                 }
         }
 
-        scope.launch {
+        payloadCollectorJob?.cancel()
+        payloadCollectorJob = scope.launch {
             socketManager.incomingPayloads.collect { (address, payload) ->
                 val senderId = payload.senderId
-                peerMapMutex.withLock {
-                    peerMap[senderId] = address
+                // Control frames (keep-alive PING/PONG, typing) must never
+                // enter peerMap — otherwise the sender would show up as an
+                // online peer. SYSTEM_CONTROL replies route via the real
+                // device id carried in the frame itself.
+                if (payload.type != Payload.PayloadType.SYSTEM_CONTROL) {
+                    peerMapMutex.withLock {
+                        peerMap[senderId] = address
+                    }
+                    updateOnlinePeers()
                 }
-                updateOnlinePeers()
 
                 when (payload.type) {
                     Payload.PayloadType.SYSTEM_CONTROL -> handleSystemCommand(senderId, String(payload.data))
@@ -187,29 +219,33 @@ class LanTransportImpl(
         scope.launch { startDiscovery() }
 
         startWatchdog()
+
+        registerNetworkCallback(myId)
+
+        started = true
     }
 
     /**
      * Cleans up failedSendCounts to prevent memory leak.
-     * Removes entries with zero count or stale entries older than 10 minutes.
+     * Removes entries whose failures all fall outside the rolling window.
      */
     private suspend fun cleanupFailedCounts() = withContext(Dispatchers.IO) {
         failedCountsMutex.withLock {
             val now = System.currentTimeMillis()
             val toRemove = mutableListOf<String>()
-            
-            for ((peerId, counter) in failedSendCounts) {
-                if (counter.get() == 0) {
+
+            for ((peerId, timestamps) in failedSendCounts) {
+                if (timestamps.none { now - it < FAILURE_WINDOW_MS }) {
                     toRemove.add(peerId)
                 }
             }
-            
+
             toRemove.forEach { peerId ->
                 failedSendCounts.remove(peerId)
             }
-            
+
             if (toRemove.isNotEmpty()) {
-                Logger.d("LanTransport -> Cleaned up ${toRemove.size} stale failed count entries")
+                Logger.d("LanTransport -> Cleaned up ${toRemove.size} stale failure window entries")
             }
         }
     }
@@ -289,7 +325,7 @@ class LanTransportImpl(
             }
         }
 
-        // ✅ FIX: Send clean payload with just the name for UI display
+        // FIX: Send clean payload with just the name for UI display
         val cleanPayload = payload.copy(data = "HELO_$name".toByteArray())
         _events.emit(TransportEvent.PayloadReceived(senderId, cleanPayload))
     }
@@ -368,70 +404,19 @@ class LanTransportImpl(
 
     /**
      * Get RSSI for a peer device.
-     * Uses actual WiFi RSSI when available, falls back to latency-based estimation.
+     * Uses actual WiFi RSSI when available; otherwise falls back to a static
+     * default representing SignalStrength.MEDIUM (-60 dBm). Never touches
+     * socket streams.
      */
     private fun getPeerRssi(peerAddress: String): Int {
         val actualRssi = getActualRssi()
         return if (actualRssi != Int.MIN_VALUE) {
             actualRssi
         } else {
-            // Fallback: estimate RSSI based on network latency (RTT)
-            estimateRssiFromLatency(peerAddress)
+            DEFAULT_RSSI_DBM
         }
     }
 
-    /**
-     * Estimate RSSI based on existing connection latency.
-     * Only uses already-established connections — does NOT open new TCP
-     * connections for estimation (wasteful and slow).
-     *
-     * RTT thresholds: <5ms = -40dBm (excellent), >100ms = -85dBm (poor)
-     *
-     * @param peerAddress The peer's IP address to measure latency to
-     */
-    private fun estimateRssiFromLatency(peerAddress: String): Int {
-        return try {
-            // Only use existing socket from connection pool — never open a new
-            // TCP connection just for RSSI estimation.
-            val existingSocket = socketManager.hasValidConnection(peerAddress)
-
-            if (existingSocket) {
-                val socket = socketManager.getConnection(peerAddress)
-                if (socket != null && socket.isConnected && !socket.isClosed) {
-                    val startTime = System.currentTimeMillis()
-                    try {
-                        // Send a quick ping and measure response time
-                        val outputStream = socket.getOutputStream()
-                        outputStream.write(byteArrayOf(0x00))
-                        outputStream.flush()
-                        val rtt = System.currentTimeMillis() - startTime
-
-                        // Convert RTT to estimated RSSI
-                        when {
-                            rtt < 5 -> -40  // Excellent: very close, low latency
-                            rtt < 20 -> -55  // Good: same subnet, fast response
-                            rtt < 50 -> -65 // Moderate: some network delay
-                            rtt < 100 -> -75 // Poor: significant latency
-                            else -> -85      // Very poor: high latency, edge of range
-                        }
-                    } catch (e: Exception) {
-                        // If ping fails on existing socket, return poor signal
-                        -85
-                    }
-                } else {
-                    -85
-                }
-            } else {
-                // No existing connection — return a conservative default
-                // instead of opening a new socket just for estimation.
-                -85
-            }
-        } catch (e: Exception) {
-            // Cannot estimate — return very poor signal
-            Logger.e("LanTransport -> Failed to estimate RSSI for $peerAddress", e)
-            -90
-        }
-    }
 
     private suspend fun updateOnlinePeers() = withContext(Dispatchers.IO) {
         peerMapMutex.withLock {
@@ -455,14 +440,72 @@ class LanTransportImpl(
         }
     }
 
+    private fun registerNetworkCallback(myId: String) {
+        if (networkCallback != null) return
+        val connectivityManager =
+            context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val request = NetworkRequest.Builder()
+            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+            .build()
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                Logger.i("LanEngine -> Network available ($network), refreshing NSD registration+discovery")
+                // Single-flight: cancel any in-flight refresh so rapid
+                // onAvailable events never interleave stop/start sequences.
+                nsdRefreshJob?.cancel()
+                nsdRefreshJob = scope.launch {
+                    val visible = settingsRepository.isNetworkVisible.firstOrNull()
+                    stopDiscovery()
+                    // Brief settle after stop before re-registering; correctness
+                    // is bounded by startDiscovery's retry/backoff either way.
+                    delay(300L)
+                    startDiscovery()
+                    if (visible == true) {
+                        unregisterService()
+                        val name = settingsRepository.displayName.firstOrNull() ?: return@launch
+                        registerService(myId, name)
+                    }
+                }
+            }
+        }
+        networkCallback = callback
+        try {
+            connectivityManager.registerNetworkCallback(request, callback)
+        } catch (e: Exception) {
+            Logger.e("LanEngine -> Failed to register network callback", e)
+            networkCallback = null
+        }
+    }
+
+    private fun unregisterNetworkCallback() {
+        val callback = networkCallback ?: return
+        networkCallback = null
+        try {
+            val connectivityManager =
+                context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            connectivityManager.unregisterNetworkCallback(callback)
+        } catch (e: Exception) {
+            Logger.e("LanEngine -> Failed to unregister network callback", e)
+        }
+    }
+
     override suspend fun stop() {
+        unregisterNetworkCallback()
+        nsdRefreshJob?.cancel()
+        nsdRefreshJob = null
         discoveryEnabled = false
         visibilityJob?.cancel()
+        visibilityJob = null
         watchdogJob?.cancel()
+        watchdogJob = null
         cleanupFailedCountsJob?.cancel()
+        cleanupFailedCountsJob = null
+        payloadCollectorJob?.cancel()
+        payloadCollectorJob = null
         unregisterService()
         stopDiscovery()
         socketManager.stopListening()
+        started = false
         scope.cancel()
     }
 
@@ -546,20 +589,23 @@ class LanTransportImpl(
 
         val result = socketManager.sendPayload(ipAddress, payload)
 
-        // Dead Peer Detection: track consecutive failures
+        // Dead Peer Detection: count failures inside a rolling window so
+        // scattered historical failures can never evict a live peer
         if (result.isFailure) {
             val exception = result.exceptionOrNull()
             // Only count network-related failures (timeout, connection refused)
             if (exception is SocketTimeoutException || exception is ConnectException) {
                 failedCountsMutex.withLock {
-                    val failureCount = failedSendCounts.getOrPut(targetDeviceId) { AtomicInteger(0) }
-                    val count = failureCount.incrementAndGet()
+                    val now = System.currentTimeMillis()
+                    val timestamps = failedSendCounts.getOrPut(targetDeviceId) { mutableListOf() }
+                    timestamps.add(now)
+                    timestamps.removeAll { now - it > FAILURE_WINDOW_MS }
 
-                    Logger.w("LanTransport -> Send failed to $targetDeviceId (count: $count)")
+                    Logger.w("LanTransport -> Send failed to $targetDeviceId (${timestamps.size} failures in last ${FAILURE_WINDOW_MS / 1000}s)")
 
-                    // Remove peer if failures exceed threshold
-                    if (count >= MAX_FAILURES_BEFORE_REMOVAL) {
-                        Logger.w("LanTransport -> Marking peer $targetDeviceId as dead after $count failures")
+                    // Remove peer only if enough failures occurred within the window
+                    if (timestamps.size >= MAX_FAILURES_BEFORE_REMOVAL) {
+                        Logger.w("LanTransport -> Marking peer $targetDeviceId as dead after ${timestamps.size} failures within ${FAILURE_WINDOW_MS / 1000}s")
 
                         peerMapMutex.withLock {
                             peerMap.remove(targetDeviceId)
@@ -575,7 +621,7 @@ class LanTransportImpl(
                 }
             }
         } else {
-            // Reset failure count on success
+            // Reset failure window on success
             failedCountsMutex.withLock {
                 failedSendCounts.remove(targetDeviceId)
             }
@@ -599,7 +645,7 @@ class LanTransportImpl(
             }
             override fun onRegistrationFailed(info: NsdServiceInfo, errorCode: Int) {
                 Logger.e("NSD -> Registration Failed: $errorCode")
-                // ✅ FIX: Retry registration after delay
+                // FIX: Retry registration after delay
                 scope.launch {
                     delay(2000)
                     if (discoveryEnabled) {
@@ -688,15 +734,13 @@ class LanTransportImpl(
                     return@launch
                 }
 
-                // ✅ FIX: Check if peer already exists before adding
-                val isDuplicate = peerMapMutex.withLock {
-                    val existing = peerMap.putIfAbsent(peerId, address)
-                    existing != null
-                }
-                
-                if (isDuplicate) {
-                    Logger.d("LanTransport -> Peer $peerId already known, skipping duplicate resolution")
+                val previousAddress = peerMapMutex.withLock { peerMap.put(peerId, address) }
+                if (previousAddress == address) {
+                    Logger.d("LanTransport -> Peer $peerId already known at $address, skipping duplicate resolution")
                     return@launch
+                }
+                if (previousAddress != null) {
+                    Logger.i("LanTransport -> Peer $peerId moved $previousAddress -> $address, updating routes")
                 }
                 
                 updateOnlinePeers()

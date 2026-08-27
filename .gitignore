@@ -2,6 +2,7 @@
 .idea/
 *.iml
 .gradle/
+.vscode/settings.json
 
 # ===== Gradle / local config (may contain secrets) =====
 local.properties
@@ -19,17 +20,7 @@ Thumbs.db
 
 # ===== Agents / tooling / sessions =====
 .qwen/
-.qwen-session
-skills/
-.windsurf/
-.ignored/
-.agents/
-.agent
-agents/
-agent
-.gemini/
-Material_3_expressive/
-docs/
+.ignored
 
 # ===== Generated / temp / logs =====
 *.salive
@@ -40,18 +31,11 @@ docs/
 *.backup
 *~
 log_device1.txt
-qwen-code-export-*.md
 
 # ===== Secrets / keystores / credentials =====
 *.jks
 *.keystore
-MESHIFY_KEYSTORE_BASE64.txt
-gha-creds-*.json
 
 # ===== Agent instruction / notes (untracked by design) =====
-QWEN.md
 TODO.md
-AGENT.md
 AGENTS.md
-GEMINI.md
-Rev.md
