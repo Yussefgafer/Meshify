@@ -11,9 +11,9 @@ import android.os.ParcelUuid
 import com.p2p.meshify.core.config.AppConfig
 import com.p2p.meshify.core.util.Logger
 import java.util.UUID
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
 private const val TAG = "BleScanner"
 
@@ -27,12 +27,14 @@ class BleScanner(
     private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
 ) {
     private val scanner: BluetoothLeScanner? = bluetoothAdapter?.bluetoothLeScanner
+    @Volatile
     private var isScanning = false
 
-    // Channel for discovered devices — lazily created to support restart after cleanup
-    private var _discoveryChannel: Channel<BleDiscoveredDevice> = Channel(Channel.BUFFERED)
-    var discoveryFlow: Flow<BleDiscoveredDevice> = _discoveryChannel.receiveAsFlow()
-        private set
+    // Stable discovery flow — a single SharedFlow created once; the public surface
+    // (discoveryFlow) is never reassigned, so a collector that subscribed at construction
+    // keeps receiving after the scanner restarts (a Channel-based flow silently died here).
+    private val _discoveryFlow = MutableSharedFlow<BleDiscoveredDevice>(extraBufferCapacity = 64)
+    val discoveryFlow: Flow<BleDiscoveredDevice> = _discoveryFlow.asSharedFlow()
 
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
@@ -76,11 +78,7 @@ class BleScanner(
             return
         }
 
-        // Recreate channel if it was closed (e.g., after cleanup) and update flow reference
-        if (_discoveryChannel.isClosedForSend) {
-            _discoveryChannel = Channel(Channel.BUFFERED)
-            discoveryFlow = _discoveryChannel.receiveAsFlow()
-        }
+        // Discovery flow is a stable SharedFlow created once; nothing to recreate here.
 
         val serviceUuid = UUID.fromString(AppConfig.BLE_SERVICE_UUID)
         val scanFilters = listOf(
@@ -161,7 +159,7 @@ class BleScanner(
 
         Logger.d("BLE Discovered: $peerId ($deviceName) RSSI: $rssi", tag = TAG)
 
-        _discoveryChannel.trySend(
+        _discoveryFlow.tryEmit(
             BleDiscoveredDevice(
                 peerId = peerId,
                 deviceName = deviceName,
@@ -205,7 +203,7 @@ class BleScanner(
      */
     fun cleanup() {
         stopScanning()
-        _discoveryChannel.close()
+        seenDevices.clear()
     }
 
     /**

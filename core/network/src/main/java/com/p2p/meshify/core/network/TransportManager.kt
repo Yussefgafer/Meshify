@@ -3,19 +3,23 @@ package com.p2p.meshify.core.network
 import android.content.Context
 import com.p2p.meshify.core.network.base.IMeshTransport
 import com.p2p.meshify.core.network.base.TransportCapability
+import com.p2p.meshify.core.network.base.TransportEvent
 import com.p2p.meshify.core.network.lan.LanTransportImpl
 import com.p2p.meshify.core.network.lan.SocketManager
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.core.common.security.SimplePeerIdProvider
 import com.p2p.meshify.domain.model.TransportMode
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.merge
+import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.launchIn
 
 /**
  * Central manager for all transport protocols.
@@ -41,8 +45,15 @@ class TransportManager(
     private val settingsRepository: ISettingsRepository
 ) {
     internal val socketManager = SocketManager() // Changed from private to internal
-    private val transports = mutableMapOf<String, IMeshTransport>()
-    private val registryVersion = MutableStateFlow(0)
+    private val transports = ConcurrentHashMap<String, IMeshTransport>()
+    private val transportJobs = ConcurrentHashMap<String, Job>()
+
+    private val managerScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    // Stable merged event flow — fed by a per-transport subscription created on
+    // registerTransport and cancelled on unregisterTransport, so swapping a transport
+    // (e.g. BLE enable/disable) never tears down the collector's flow (no event gap).
+    private val _allEvents = MutableSharedFlow<TransportEvent>(extraBufferCapacity = 64)
 
     // Current transport mode (updated reactively by MeshifyApp)
     @Volatile
@@ -54,8 +65,14 @@ class TransportManager(
      * @param transport Transport implementation
      */
     fun registerTransport(name: String, transport: IMeshTransport) {
+        // Cancel any existing forwarder for this name to prevent orphaned emission
+        // if re-registered (e.g., BLE toggle). The prior transport is also removed
+        // from the registry so it will never be returned by getTransport/... calls.
+        transportJobs.remove(name)?.cancel()
         transports[name] = transport
-        registryVersion.value++
+        transportJobs[name] = transport.events
+            .onEach { _allEvents.emit(it) }
+            .launchIn(managerScope)
     }
 
     /**
@@ -79,7 +96,7 @@ class TransportManager(
      */
     fun unregisterTransport(name: String) {
         if (transports.remove(name) != null) {
-            registryVersion.value++
+            transportJobs.remove(name)?.cancel()
         }
     }
 
@@ -161,17 +178,15 @@ class TransportManager(
     }
 
     /**
-     * Get merged events flow from all registered transports.
-     * Re-subscribes automatically when transports are registered/unregistered,
-     * so transports added after subscription (e.g. BLE enabled later) are included.
+     * Get the merged events flow from all registered transports.
+     *
+     * The returned flow is stable for the manager's lifetime: each transport's own
+     * events flow is funneled into a single internal SharedFlow on registration and
+     * its subscription is cancelled on unregistration. The collector therefore never
+     * sees the flow torn down during a transport swap (e.g. BLE enable/disable),
+     * so no events are dropped in the gap.
      */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    fun getAllEventsFlow(): Flow<com.p2p.meshify.core.network.base.TransportEvent> {
-        return registryVersion.flatMapLatest {
-            val flows = transports.values.toList().map { it.events }
-            if (flows.isEmpty()) emptyFlow() else merge(*flows.toTypedArray())
-        }
-    }
+    fun getAllEventsFlow(): Flow<TransportEvent> = _allEvents.asSharedFlow()
 
     /**
      * Start all registered transports.

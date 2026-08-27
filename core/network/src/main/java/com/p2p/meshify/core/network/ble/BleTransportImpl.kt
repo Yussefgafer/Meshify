@@ -33,8 +33,7 @@ private const val SCAN_EXPIRY_MS = 30_000L // Drop peers not seen advertising fo
 class BleTransportImpl(
     private val context: Context,
     private val settingsRepository: ISettingsRepository,
-    private val peerId: String,
-    private val deviceName: String
+    private val peerId: String
 ) : IMeshTransport {
 
     // Transport metadata
@@ -181,6 +180,10 @@ class BleTransportImpl(
                     scope?.launch { handleConnectionStateChanged(peerId, connected) }
                 }
             )
+
+            // Read the display name lazily here (start() is suspending) instead of blocking
+            // the DI graph in NetworkModule; keeps the value live without runBlocking.
+            val deviceName = settingsRepository.displayName.first()
 
             // Start advertising
             bleAdvertiser = BleAdvertiser(

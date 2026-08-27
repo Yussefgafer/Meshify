@@ -9,8 +9,6 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.flow.first
 import javax.inject.Singleton
 
 @Module
@@ -24,9 +22,6 @@ object NetworkModule {
         peerIdProvider: SimplePeerIdProvider
     ): BleTransportImpl {
         val peerId = peerIdProvider.getPeerId()
-        val deviceName = runBlocking {
-            settingsRepository.displayName.first()
-        }
-        return BleTransportImpl(context, settingsRepository, peerId, deviceName)
+        return BleTransportImpl(context, settingsRepository, peerId)
     }
 }

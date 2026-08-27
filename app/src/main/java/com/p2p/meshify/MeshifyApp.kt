@@ -124,6 +124,9 @@ class MeshifyApp : Application(), SingletonImageLoader.Factory {
                     if (bleTransport == null) {
                         val newBleTransport = bleTransportProvider.get()
                         bleTransport = newBleTransport
+                        // registerTransport MUST precede start(): the per-transport event
+                        // forwarder is subscribed here, so starting before registering would
+                        // drop early ConnectionEstablished events into the void.
                         transportManager.registerTransport("ble", newBleTransport)
                         newBleTransport.start()
                         newBleTransport.startDiscovery()
