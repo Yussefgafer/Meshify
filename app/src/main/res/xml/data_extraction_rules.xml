@@ -2,8 +2,12 @@
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="sharedpref" path="com.p2p.meshify_preferences.xml"/>
+        <exclude domain="database" />
+        <exclude domain="root" path="media/"/>
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="com.p2p.meshify_preferences.xml"/>
+        <exclude domain="database" />
+        <exclude domain="root" path="media/"/>
     </device-transfer>
 </data-extraction-rules>

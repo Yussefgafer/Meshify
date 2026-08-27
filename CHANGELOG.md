@@ -1,4 +1,4 @@
-V1.1.3
+V1.1.4
 - [Fix] Real-device testing harness hardened — discoverPeers now launches collectors as child coroutines within the timeout scope, ensuring automatic teardown on timeout and eliminating zombie scanners; switched event flow from StateFlow to SharedFlow to prevent event gaps during transport swaps
 - [Fix] Repaired module-wide Logger signatures in :feature:real-device-testing — corrected tag placement and argument order across ViewModel and ScenarioRunners to match project standards
 - [Fix] TransportManager concurrency hardened — transports registry switched from mutableMapOf to ConcurrentHashMap; per-transport event forwarders (onEach{emit}.launchIn) replace flatMapLatest/registryVersion, eliminating the event gap that dropped events during BLE enable/disable swaps; managerScope is a stable SupervisorJob for the app lifetime
@@ -64,6 +64,8 @@ V1.1.3
 - [Fix] Failed-send Retry now replays the ORIGINAL failed message by id read from the repository — previously it re-sent whatever was currently in the input box (duplicate/wrong-text sends); the 500ms wall-clock debounce is replaced by a synchronous isSending guard so a deliberate Retry tap is never swallowed
 - [Style] Make splash screen dark (#1C1B1F) on all Android versions — windowSplashScreenBackground (12+) + windowBackground fallback
 - [Feat] Replace default Android launcher icon with Meshify chat-bubble icon (from icon.svg): white adaptive-icon background + dark-stroke bubble foreground; monochrome layer makes it a dynamic themed icon on Android 13+
+
+V1.1.3
 - [Chore] Remove docs/ from git tracking (gitignored, deleted from repository)
 - [Refactor] Delete SettingsComponents.kt (dead code — 0 callers, duplicated Dx* components)
 - [Refactor] Delete SettingsGroup.kt (replaced by Dx*; DeveloperScreen migrated)
