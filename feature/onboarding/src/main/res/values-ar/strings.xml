@@ -26,6 +26,7 @@
 
     <!-- Permission Labels (Page 3 list) -->
     <string name="ob_perm_label_nearby">الأجهزة القريبة</string>
+    <string name="ob_perm_label_location">الموقع</string>
     <string name="ob_perm_label_bt">البلوتوث</string>
     <string name="ob_perm_label_notif">الإشعارات</string>
     <string name="ob_perm_required">مطلوب</string>

@@ -497,7 +497,7 @@ private fun OnboardingRoute(
             }
         )
     ) { mutableStateMapOf() }
-    var advanceTrigger by rememberSaveable { mutableIntStateOf(0) }
+    var advanceTrigger by remember { mutableIntStateOf(0) }
     var showSummaryDialog by rememberSaveable { mutableStateOf(false) }
     var showSkipConfirm by rememberSaveable { mutableStateOf(false) }
 
@@ -555,15 +555,7 @@ private fun OnboardingRoute(
                 currentPermissionIndex = 0
             },
             onSkipClick = {
-                if (isPermissionFlowActive) {
-                    showSkipConfirm = true
-                } else {
-                    activity.lifecycleScope.launch {
-                        settingsRepository.setOnboardingCompleted()
-                        onStartService()
-                    }
-                    onNavigateToHome()
-                }
+                showSkipConfirm = true
             }
         )
 

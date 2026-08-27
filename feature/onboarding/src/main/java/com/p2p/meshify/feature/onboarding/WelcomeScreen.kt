@@ -13,7 +13,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
@@ -322,7 +321,7 @@ object PermissionDefinitions {
                 ifDenyRes = listOf(R.string.ob_perm_nearby_deny_1, R.string.ob_perm_nearby_deny_2),
                 androidPermissions = listOf(Manifest.permission.NEARBY_WIFI_DEVICES)))
         } else {
-            permissions.add(PermissionInfo(id = "location", iconType = PermissionIconType.Location, labelRes = R.string.ob_perm_label_nearby, importanceLabelRes = R.string.ob_perm_required, isRequired = true,
+            permissions.add(PermissionInfo(id = "location", iconType = PermissionIconType.Location, labelRes = R.string.ob_perm_label_location, importanceLabelRes = R.string.ob_perm_required, isRequired = true,
                 whatHappensRes = listOf(R.string.ob_perm_loc_why_1, R.string.ob_perm_loc_why_2),
                 ifDenyRes = listOf(R.string.ob_perm_loc_deny_1, R.string.ob_perm_loc_deny_2),
                 androidPermissions = listOf(Manifest.permission.ACCESS_FINE_LOCATION)))
