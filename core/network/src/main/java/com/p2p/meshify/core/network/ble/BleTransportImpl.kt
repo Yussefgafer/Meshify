@@ -277,33 +277,49 @@ class BleTransportImpl(
         Logger.d("Stopping BLE Transport...", tag = TAG)
 
         try {
-            bleAdvertiser?.stopAdvertising()
-            bleScanner?.stopScanning()
-            bleGattServer?.stopServer()
-            bleGattClient?.cleanup()
-            connectionPool?.clearAll()
-
-            isStarted = false
-            isDiscovering = false
-            _bleRuntimeActive.value = false
+            tearDownGattStack()
             bleWantedOn = false
             unregisterBluetoothStateReceiver()
-            _onlinePeers.value = emptySet()
-            _typingPeers.value = emptySet()
-            macByMeshId.clear()
-            pendingLinkMacs.clear()
-            activeLinkCounts.clear()
-            establishedMacs.clear()
-            sendLocks.clear()
-
-            // Cancel and nullify the scope
-            scope?.cancel()
-            scope = null
 
             Logger.d("BLE Transport stopped", tag = TAG)
         } catch (e: Exception) {
             Logger.e("BLE Failed to stop: ${e.message}", e, tag = TAG)
         }
+    }
+
+    /**
+     * Releases every GATT/transport resource and invalidates the transport scope.
+     * Cancels the discovery coroutine and the transport `scope` so a later start() takes
+     * the `if (scope == null || !scope.isActive)` branch and allocates a fresh scope
+     * (otherwise stale periodic-cleanup coroutines from startPeriodicCleanup would
+     * accumulate across restart cycles). Does NOT unregister the system-BT receiver —
+     * the caller decides that (stop() does; teardownOnSystemBtOff must not, so the
+     * receiver stays alive for the STATE_ON self-heal).
+     */
+    private fun tearDownGattStack() {
+        bleAdvertiser?.stopAdvertising()
+        bleScanner?.stopScanning()
+        bleGattServer?.stopServer()
+        bleGattClient?.cleanup()
+        connectionPool?.clearAll()
+
+        isStarted = false
+        isDiscovering = false
+        _bleRuntimeActive.value = false
+        _onlinePeers.value = emptySet()
+        _typingPeers.value = emptySet()
+        macByMeshId.clear()
+        pendingLinkMacs.clear()
+        activeLinkCounts.clear()
+        establishedMacs.clear()
+        sendLocks.clear()
+
+        discoveryJob?.cancel()
+        discoveryJob = null
+        // Cancel and nullify the transport scope (NOT bluetoothStateScope) so any
+        // periodic-cleanup coroutine started on it is released.
+        scope?.cancel()
+        scope = null
     }
 
     /**
@@ -723,21 +739,7 @@ class BleTransportImpl(
     private fun teardownOnSystemBtOff() {
         Logger.w("BLE System BT turning off; tearing down transport", tag = TAG)
         try {
-            bleAdvertiser?.stopAdvertising()
-            bleScanner?.stopScanning()
-            bleGattServer?.stopServer()
-            bleGattClient?.cleanup()
-            connectionPool?.clearAll()
-            isStarted = false
-            isDiscovering = false
-            _bleRuntimeActive.value = false
-            _onlinePeers.value = emptySet()
-            _typingPeers.value = emptySet()
-            macByMeshId.clear()
-            pendingLinkMacs.clear()
-            activeLinkCounts.clear()
-            establishedMacs.clear()
-            sendLocks.clear()
+            tearDownGattStack()
         } catch (e: Exception) {
             Logger.e("BLE Teardown on system OFF failed: ${e.message}", e, tag = TAG)
         }
