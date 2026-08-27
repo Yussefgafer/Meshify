@@ -145,6 +145,7 @@ fun PermissionRequestCard(permission: PermissionInfo, onAllowClick: () -> Unit, 
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onRequestDismiss)
     ) {
             Surface(
+                onClick = {},
                 modifier = modifier.fillMaxWidth(0.92f).align(Alignment.BottomCenter).padding(bottom = MeshifyDesignSystem.Spacing.Xl),
                 shape = MeshifyDesignSystem.Shapes.Dialog, color = MaterialTheme.colorScheme.surfaceContainerHigh, tonalElevation = 8.dp
             ) {

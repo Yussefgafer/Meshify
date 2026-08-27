@@ -497,7 +497,7 @@ private fun OnboardingRoute(
             }
         )
     ) { mutableStateMapOf() }
-    var advanceTrigger by remember { mutableIntStateOf(0) }
+    var advanceTrigger by rememberSaveable { mutableIntStateOf(0) }
     var showSummaryDialog by rememberSaveable { mutableStateOf(false) }
     var showSkipConfirm by rememberSaveable { mutableStateOf(false) }
 
@@ -538,12 +538,14 @@ private fun OnboardingRoute(
                     activity.recreate()
                 }
             },
-            permissionStatuses = permissions.associate { 
+            permissionStatuses = permissions.associate {
                 val res = permissionResults[it.id]
                 it.id to when (res) {
                     PermissionRequestResult.Granted -> PermissionStatus.Granted
                     PermissionRequestResult.Denied -> PermissionStatus.Denied
                     PermissionRequestResult.DeniedPermanently -> PermissionStatus.DeniedPermanently
+                    PermissionRequestResult.AlreadyGranted -> PermissionStatus.AlreadyGranted
+                    PermissionRequestResult.Skipped -> PermissionStatus.Skipped
                     else -> PermissionStatus.NotAsked
                 }
             },
@@ -580,6 +582,11 @@ private fun OnboardingRoute(
                     permissionResults[perm.id] = PermissionRequestResult.AlreadyGranted
                     kotlinx.coroutines.delay(PERMISSION_ALREADY_GRANTED_DISPLAY_DELAY_MS)
                     currentPermissionIndex++
+                    // If we reached the end of the flow, show the summary dialog
+                    if (currentPermissionIndex >= permissions.size) {
+                        isPermissionFlowActive = false
+                        showSummaryDialog = true
+                    }
                 }
             } else {
                 PermissionRequestCard(

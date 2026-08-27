@@ -7,7 +7,6 @@
     <!-- Onboarding — Page 1: Welcome -->
     <string name="ob_welcome_title">Welcome to Meshify</string>
     <string name="ob_welcome_desc">Offline messaging.\nDirect. Private. Yours.</string>
-    <string name="ob_language_label">Language</string>
     <string name="ob_btn_next">Next</string>
     <string name="ob_btn_skip">Skip</string>
     <string name="ob_btn_get_started">Get Started</string>
