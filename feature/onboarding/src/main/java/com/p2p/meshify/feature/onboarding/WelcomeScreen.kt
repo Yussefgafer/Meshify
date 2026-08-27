@@ -327,10 +327,16 @@ object PermissionDefinitions {
                 androidPermissions = listOf(Manifest.permission.ACCESS_FINE_LOCATION)))
         }
 
-        permissions.add(PermissionInfo(id = "bluetooth", iconType = PermissionIconType.Bluetooth, labelRes = R.string.ob_perm_label_bt, importanceLabelRes = R.string.ob_perm_optional, isRequired = false,
-            whatHappensRes = listOf(R.string.ob_perm_bt_why_1, R.string.ob_perm_bt_why_2),
-            ifDenyRes = listOf(R.string.ob_perm_bt_deny_1, R.string.ob_perm_bt_deny_2),
-            androidPermissions = listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_ADVERTISE)))
+        // On API 31+ (Android 12 / S) the BLE runtime permissions must be granted at
+        // runtime. On API 30 and below, the legacy BLUETOOTH / BLUETOOTH_ADMIN perms
+        // (declared in core/network/AndroidManifest.xml with maxSdkVersion=30) are
+        // install-time and granted automatically — no card needed.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            permissions.add(PermissionInfo(id = "bluetooth", iconType = PermissionIconType.Bluetooth, labelRes = R.string.ob_perm_label_bt, importanceLabelRes = R.string.ob_perm_optional, isRequired = false,
+                whatHappensRes = listOf(R.string.ob_perm_bt_why_1, R.string.ob_perm_bt_why_2),
+                ifDenyRes = listOf(R.string.ob_perm_bt_deny_1, R.string.ob_perm_bt_deny_2),
+                androidPermissions = listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_ADVERTISE)))
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions.add(PermissionInfo(id = "notifications", iconType = PermissionIconType.Notifications, labelRes = R.string.ob_perm_label_notif, importanceLabelRes = R.string.ob_perm_optional, isRequired = false,
