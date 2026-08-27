@@ -2,7 +2,11 @@ package com.p2p.meshify.core.network.ble
 
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
 import com.p2p.meshify.core.config.AppConfig
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.Payload
@@ -11,6 +15,7 @@ import com.p2p.meshify.core.network.base.IMeshTransport
 import com.p2p.meshify.core.network.base.TransportCapability
 import com.p2p.meshify.core.network.base.TransportEvent
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -78,6 +83,23 @@ class BleTransportImpl(
     private var isDiscovering = false
     private var scope: CoroutineScope? = null
     private var discoveryJob: Job? = null // Track discovery coroutine for cancellation
+
+    // System BT state observer. Registered after a successful start() so a Quick-Settings
+    // BT toggle (which bypasses the in-app switch) tears the GATT stack down before the
+    // system kills it underneath us, and restarts when the adapter comes back. Without
+    // this, a user disabling BT in the system shade leaves the transport in a half-live
+    // state: server registered, advertiser started, but every operation fails silently.
+    private var bluetoothStateReceiver: BroadcastReceiver? = null
+    // Owned scope for the system-BT monitor. Deliberately SEPARATE from the transport
+    // `scope`: a failed start() cancels the transport scope (tearDownPartialStart), and
+    // if the monitor were a child of it the receiver would leak un-unregistered. Keeping
+    // the monitor on its own scope lets start() fail without stranding the receiver.
+    private var bluetoothStateScope: CoroutineScope? = null
+    private var bluetoothStateJob: Job? = null
+    // Set to false only by an explicit stop() so the ACTION_STATE_CHANGED handler can
+    // distinguish a user-driven teardown from a system-driven one and skip the auto-restart
+    // for the former.
+    private var bleWantedOn: Boolean = false
 
     // One mutex per resolved connection key: serializes chunks to a single peer without
     // head-of-line blocking sends to other peers
@@ -206,6 +228,8 @@ class BleTransportImpl(
 
             isStarted = true
             _bleRuntimeActive.value = true
+            bleWantedOn = true
+            registerBluetoothStateReceiver()
             Logger.d("BLE Transport started successfully", tag = TAG)
 
             // Start periodic cleanup of stale buffers and idle connections
@@ -240,9 +264,15 @@ class BleTransportImpl(
 
     /**
      * Stop the BLE transport.
+     *
+     * Guard uses `bleWantedOn || isStarted` (not `isStarted` alone): a system-shade
+     * BT-off triggers an inline teardown that sets isStarted=false but leaves bleWantedOn
+     * true and the receiver registered. A later explicit in-app BLE-off must still run so
+     * it can clear bleWantedOn and unregister the receiver — otherwise the live receiver
+     * would self-heal the transport back ON against the user's intent when BT returns.
      */
     override suspend fun stop() {
-        if (!isStarted) return
+        if (!bleWantedOn && !isStarted) return
 
         Logger.d("Stopping BLE Transport...", tag = TAG)
 
@@ -256,6 +286,8 @@ class BleTransportImpl(
             isStarted = false
             isDiscovering = false
             _bleRuntimeActive.value = false
+            bleWantedOn = false
+            unregisterBluetoothStateReceiver()
             _onlinePeers.value = emptySet()
             _typingPeers.value = emptySet()
             macByMeshId.clear()
@@ -624,5 +656,115 @@ class BleTransportImpl(
      */
     fun isBleEnabled(): Boolean {
         return getBluetoothAdapter()?.isEnabled == true
+    }
+
+    /**
+     * Observes BluetoothAdapter ACTION_STATE_CHANGED so a system-shade BT toggle (which
+     * bypasses the in-app switch) tears our GATT stack down before the adapter is fully
+     * off, and re-issues start() when it comes back. Without this the server/advertiser
+     * stay registered but every operation fails silently until the user toggles the
+     * in-app BLE switch.
+     *
+     * Receiver registration uses RECEIVER_EXPORTED on API 33+ because BluetoothAdapter
+     * is a system-level broadcast; on older APIs the implicit flag is sufficient.
+     */
+    private fun registerBluetoothStateReceiver() {
+        if (bluetoothStateReceiver != null) return
+
+        val channel = Channel<Int>(capacity = Channel.CONFLATED)
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context, intent: Intent) {
+                if (intent.action != BluetoothAdapter.ACTION_STATE_CHANGED) return
+                val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
+                channel.trySend(state)
+            }
+        }
+        val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            context.registerReceiver(receiver, filter)
+        }
+        bluetoothStateReceiver = receiver
+
+        // Own scope (not the transport `scope`): a failed re-start() cancels the transport
+        // scope via tearDownPartialStart, which must NOT strand this monitor/receiver.
+        val monitorScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        bluetoothStateScope = monitorScope
+        bluetoothStateJob = monitorScope.launch {
+            for (state in channel) {
+                handleBluetoothStateChange(state)
+            }
+        }
+    }
+
+    /**
+     * Reacts to a BluetoothAdapter state change broadcast.
+     *
+     * - STATE_TURNING_OFF: inline teardown (NOT stop()) so the receiver stays registered
+     *   for the subsequent STATE_ON. stop() would unregister the receiver, cancel this
+     *   scope and null bleWantedOn, defeating the auto-restart path.
+     * - STATE_ON: if BLE was wanted (bleWantedOn) and we are currently torn down, re-issue
+     *   start() so a Quick-Settings toggle self-heals.
+     *
+     * Internal (not private) so the system-shade recovery path is unit-testable in isolation
+     * without standing up the full GATT server.
+     */
+    internal suspend fun handleBluetoothStateChange(state: Int) {
+        when (state) {
+            BluetoothAdapter.STATE_TURNING_OFF -> teardownOnSystemBtOff()
+            BluetoothAdapter.STATE_ON -> restartOnSystemBtOn()
+        }
+    }
+
+    /** Inline teardown on system-shade BT-off; keeps the receiver alive for STATE_ON. */
+    private fun teardownOnSystemBtOff() {
+        Logger.w("BLE System BT turning off; tearing down transport", tag = TAG)
+        try {
+            bleAdvertiser?.stopAdvertising()
+            bleScanner?.stopScanning()
+            bleGattServer?.stopServer()
+            bleGattClient?.cleanup()
+            connectionPool?.clearAll()
+            isStarted = false
+            isDiscovering = false
+            _bleRuntimeActive.value = false
+            _onlinePeers.value = emptySet()
+            _typingPeers.value = emptySet()
+            macByMeshId.clear()
+            pendingLinkMacs.clear()
+            activeLinkCounts.clear()
+            establishedMacs.clear()
+            sendLocks.clear()
+        } catch (e: Exception) {
+            Logger.e("BLE Teardown on system OFF failed: ${e.message}", e, tag = TAG)
+        }
+    }
+
+    /** Re-issue start() when BT returns and the user still wants BLE on. */
+    private suspend fun restartOnSystemBtOn() {
+        if (!bleWantedOn || isStarted) return
+        Logger.d("BLE System BT back on; restarting transport", tag = TAG)
+        try {
+            start()
+        } catch (e: Exception) {
+            Logger.e("BLE Restart on system ON failed: ${e.message}", e, tag = TAG)
+            _events.emit(TransportEvent.Error("BLE auto-restart failed: ${e.message}", e))
+        }
+    }
+
+    private fun unregisterBluetoothStateReceiver() {
+        bluetoothStateJob?.cancel()
+        bluetoothStateJob = null
+        bluetoothStateScope?.cancel()
+        bluetoothStateScope = null
+        bluetoothStateReceiver?.let {
+            try { context.unregisterReceiver(it) } catch (_: IllegalArgumentException) {
+                // already unregistered (e.g. context-restarted receiver)
+            }
+        }
+        bluetoothStateReceiver = null
     }
 }
