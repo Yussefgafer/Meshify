@@ -106,6 +106,12 @@ class BleTransportImpl(
     // alias resolves (connect with known alias, first inbound payload, disconnect)
     private val pendingLinkMacs: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
+    // MACs for which a ConnectionEstablished was actually emitted on the public event
+    // stream. A ConnectionLost for the same MAC is emitted only when the address is in
+    // this set, so a server-side link-up that races ahead of the alias resolution
+    // (and therefore emitted no ConnectionEstablished) does not produce a phantom lost.
+    private val establishedMacs: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
     // Open GATT links per MAC (client + server roles combined). Presence for a MAC
     // survives disconnect callbacks until its last link drops.
     private val activeLinkCounts = ConcurrentHashMap<String, AtomicInteger>()
@@ -233,6 +239,7 @@ class BleTransportImpl(
             macByMeshId.clear()
             pendingLinkMacs.clear()
             activeLinkCounts.clear()
+            establishedMacs.clear()
             sendLocks.clear()
 
             // Cancel and nullify the scope
@@ -459,6 +466,12 @@ class BleTransportImpl(
                             transportType = com.p2p.meshify.domain.model.TransportType.BLE
                         )
                     )
+                    // The link was already established under the old alias, so subscribers
+                    // would otherwise see the peer as "discovered" but never "established"
+                    // for the new meshId until the next reconnect.
+                    if (establishedMacs.contains(linkKey)) {
+                        _events.emit(TransportEvent.ConnectionEstablished(senderIdentity))
+                    }
                 }
                 Logger.d("BLE Reassembled payload ${payload.id} from $senderIdentity", tag = TAG)
                 connectionPool?.markActive(linkKey)
@@ -490,6 +503,7 @@ class BleTransportImpl(
         pendingLinkMacs.remove(address)
         _onlinePeers.update { it + meshId }
 
+        establishedMacs.add(address)
         _events.emit(TransportEvent.ConnectionEstablished(meshId))
     }
 
@@ -509,7 +523,12 @@ class BleTransportImpl(
         val meshId = meshIdForMac(address) ?: return
         _onlinePeers.update { it - meshId }
 
-        _events.emit(TransportEvent.ConnectionLost(meshId, "disconnected"))
+        // A link-up that was deferred (unknown alias at connect time) never produced a
+        // matching ConnectionEstablished, so emitting a ConnectionLost for it would be a
+        // phantom event the subscriber can't reconcile.
+        if (establishedMacs.remove(address)) {
+            _events.emit(TransportEvent.ConnectionLost(meshId, "disconnected"))
+        }
     }
 
     /**

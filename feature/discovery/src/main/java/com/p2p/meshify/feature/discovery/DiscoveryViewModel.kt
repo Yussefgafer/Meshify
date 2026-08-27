@@ -20,7 +20,7 @@ import javax.inject.Inject
 /** Discovery cleanup pause before restarting scan (ms) */
 private const val DISCOVERY_CLEANUP_DELAY_MS = 200L
 
-/** Time to wait for discovery scan results (ms) */
+/** Fallback window before turning off the search spinner if no peer ever appears. */
 private const val DISCOVERY_SCAN_DELAY_MS = 2000L
 
 /**
@@ -70,6 +70,9 @@ class DiscoveryViewModel @Inject constructor(
         peerMap.putAll(transportManager.discoveredPeers.value)
         _uiState.update { it.copy(discoveredPeers = peerMap.values.toList()) }
         checkWifiState()
+        // Fallback so the spinner does not spin forever if no DeviceDiscovered ever
+        // arrives; handleDeviceDiscovered clears it earlier the moment a peer shows up,
+        // and refresh() manages its own scan-bound isSearching lifecycle.
         viewModelScope.launch {
             kotlinx.coroutines.delay(DISCOVERY_SCAN_DELAY_MS)
             _uiState.update { it.copy(isSearching = false) }
