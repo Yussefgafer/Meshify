@@ -1,4 +1,6 @@
 V1.1.3
+- [Fix] Real-device testing harness hardened — discoverPeers now launches collectors as child coroutines within the timeout scope, ensuring automatic teardown on timeout and eliminating zombie scanners; switched event flow from StateFlow to SharedFlow to prevent event gaps during transport swaps
+- [Fix] Repaired module-wide Logger signatures in :feature:real-device-testing — corrected tag placement and argument order across ViewModel and ScenarioRunners to match project standards
 - [Fix] TransportManager concurrency hardened — transports registry switched from mutableMapOf to ConcurrentHashMap; per-transport event forwarders (onEach{emit}.launchIn) replace flatMapLatest/registryVersion, eliminating the event gap that dropped events during BLE enable/disable swaps; managerScope is a stable SupervisorJob for the app lifetime
 - [Fix] BleScanner made stable — isScanning marked @Volatile; discoveryFlow replaced recreatable Channel with a single MutableSharedFlow (stable reference), so the collector in BleTransportImpl survives scanner restarts without missing discoveries; cleanup now clears seenDevices map
 - [Fix] DI graph unblocked — NetworkModule.runBlocking(displayName.first()) removed; BleTransportImpl now reads displayName lazily inside suspending start(), keeping the Hilt graph non-blocking at app startup
