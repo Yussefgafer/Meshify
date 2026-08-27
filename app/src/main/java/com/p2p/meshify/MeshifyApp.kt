@@ -1,6 +1,10 @@
 package com.p2p.meshify
 
+import android.Manifest
 import android.app.Application
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.content.ContextCompat
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
@@ -122,6 +126,15 @@ class MeshifyApp : Application(), SingletonImageLoader.Factory {
             settingsRepository.bleEnabled.collect { enabled ->
                 if (enabled) {
                     if (bleTransport == null) {
+                        // Guard against enabling BLE without the runtime perms. Without
+                        // this check, BleGattServer.startServer() / BleScanner would
+                        // SecurityException silently and the toggle would lie to the user.
+                        val missing = missingBluetoothPermissions()
+                        if (missing.isNotEmpty()) {
+                            Logger.e("MeshifyApp -> BLE enable blocked: missing permissions ${missing.joinToString()}; reverting setting")
+                            settingsRepository.setBleEnabled(false)
+                            return@collect
+                        }
                         val newBleTransport = bleTransportProvider.get()
                         bleTransport = newBleTransport
                         // registerTransport MUST precede start(): the per-transport event
@@ -214,5 +227,23 @@ class MeshifyApp : Application(), SingletonImageLoader.Factory {
             }
             .crossfade(true)
             .build()
+    }
+
+    /**
+     * Returns the BLE runtime permissions that still need to be granted for the user
+     * to enable BLE in settings, or empty if all are granted. On API ≤30 the legacy
+     * BLUETOOTH / BLUETOOTH_ADMIN perms are install-time and granted automatically, so
+     * the required-runtime list is empty.
+     */
+    private fun missingBluetoothPermissions(): List<String> {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return emptyList()
+        val required = listOf(
+            Manifest.permission.BLUETOOTH_SCAN,
+            Manifest.permission.BLUETOOTH_CONNECT,
+            Manifest.permission.BLUETOOTH_ADVERTISE
+        )
+        return required.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
     }
 }

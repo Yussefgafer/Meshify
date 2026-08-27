@@ -332,7 +332,7 @@ class MainActivity : ComponentActivity() {
                                             factory = object : androidx.lifecycle.ViewModelProvider.Factory {
                                                 override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                                                     @Suppress("UNCHECKED_CAST")
-                                                    return SettingsViewModel(app.settingsRepository) as T
+                                                    return SettingsViewModel(app.settingsRepository, app.transportManager) as T
                                                 }
                                             }
                                         )
