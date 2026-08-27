@@ -177,7 +177,6 @@ class BleTransportImpl(
             }
             if (!serverReady) {
                 Logger.e("BLE GATT server service-add failed; tearing down transport", tag = TAG)
-                bleGattServer?.stopServer()
                 _events.emit(TransportEvent.Error("BLE GATT service-add failed", null))
                 tearDownPartialStart()
                 return
@@ -212,6 +211,9 @@ class BleTransportImpl(
             // Start periodic cleanup of stale buffers and idle connections
             startPeriodicCleanup()
         } catch (e: CancellationException) {
+            // Cancellation propagates, but the scope + pool allocated mid-start must still
+            // be released — stop()'s `!isStarted` guard would otherwise skip cleanup.
+            tearDownPartialStart()
             throw e
         } catch (e: Exception) {
             Logger.e("BLE Failed to start: ${e.message}", e, tag = TAG)
