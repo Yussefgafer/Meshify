@@ -2,7 +2,7 @@ package com.p2p.meshify.feature.realdevicetesting.preflight
 
 import android.content.Context
 import com.p2p.meshify.core.common.preflight.ConnectivityChecker
-import com.p2p.meshify.core.common.preflight.PermissionChecker
+import com.p2p.meshify.core.common.preflight.WifiPermissionChecker
 import com.p2p.meshify.core.util.Logger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -12,14 +12,14 @@ import kotlinx.coroutines.withContext
  *
  * After Phase 3 security simplification, encryption checks are removed.
  * Runs ALL checks regardless of individual outcomes:
- * 1. PermissionChecker — verifies required permissions are granted
+ * 1. WifiPermissionChecker — verifies WiFi/network permissions are granted
  * 2. ConnectivityChecker — verifies WiFi connected with valid IP
  */
 class PreFlightChecker(
     context: Context,
     testPort: Int = 8888
 ) {
-    private val permissionChecker = PermissionChecker(context)
+    private val wifiPermissionChecker = WifiPermissionChecker(context)
     private val connectivityChecker = ConnectivityChecker(context, testPort)
 
     /**
@@ -66,7 +66,7 @@ class PreFlightChecker(
     }
 
     private fun runPermissionChecks(): List<CheckResult> {
-        val results = permissionChecker.checkTestPermissions()
+        val results = wifiPermissionChecker.checkTestPermissions()
 
         return results.map { permResult ->
             val permissionName = permResult.permission.substringAfterLast('.')
