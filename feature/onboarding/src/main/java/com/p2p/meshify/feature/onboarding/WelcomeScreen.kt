@@ -13,7 +13,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
@@ -33,6 +32,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.launch
 import com.p2p.meshify.core.ui.hooks.HapticPattern
 import com.p2p.meshify.core.ui.hooks.LocalPremiumHaptics
 import com.p2p.meshify.core.ui.theme.MeshifyDesignSystem
@@ -50,17 +50,8 @@ fun WelcomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val haptics = LocalPremiumHaptics.current
-    val pagerState = rememberPagerState(initialPage = 0, initialPageOffsetFraction = 0f) { 3 }
-
-    LaunchedEffect(uiState.currentPage) {
-        if (pagerState.currentPage != uiState.currentPage) pagerState.animateScrollToPage(page = uiState.currentPage)
-    }
-
-    LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.currentPage }.collect { page ->
-            if (page != uiState.currentPage && !uiState.isAnimating) viewModel.goToPage(page)
-        }
-    }
+    val scope = rememberCoroutineScope()
+    val pagerState = rememberPagerState(initialPage = 0, initialPageOffsetFraction = 0f) { uiState.totalPages }
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
@@ -80,9 +71,9 @@ fun WelcomeScreen(
             }
 
             BottomNav(
-                currentPage = uiState.currentPage, totalPages = 3, isAnimating = uiState.isAnimating,
-                onPageSelected = { haptics.perform(HapticPattern.Tick); viewModel.goToPage(it) },
-                onNextClick = { haptics.perform(HapticPattern.Pop); if (uiState.currentPage < 2) viewModel.nextPage() else onNextClick() }
+                currentPage = pagerState.currentPage, totalPages = uiState.totalPages,
+                onPageSelected = { haptics.perform(HapticPattern.Tick); scope.launch { pagerState.animateScrollToPage(it) } },
+                onNextClick = { haptics.perform(HapticPattern.Pop); if (pagerState.currentPage < uiState.totalPages - 1) scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) } else onNextClick() }
             )
         }
     }
@@ -113,7 +104,7 @@ private fun TopBar(currentLang: String, onLangMenuToggle: () -> Unit, isLangMenu
 }
 
 @Composable
-private fun BottomNav(currentPage: Int, totalPages: Int, isAnimating: Boolean, onPageSelected: (Int) -> Unit, onNextClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun BottomNav(currentPage: Int, totalPages: Int, onPageSelected: (Int) -> Unit, onNextClick: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier = modifier.fillMaxWidth().padding(MeshifyDesignSystem.Spacing.Lg), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Lg)) {
         val pageIndicatorDesc = stringResource(R.string.ob_cd_page_indicator)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -130,7 +121,7 @@ private fun BottomNav(currentPage: Int, totalPages: Int, isAnimating: Boolean, o
         }
 
         Surface(
-            onClick = onNextClick, enabled = !isAnimating, color = MaterialTheme.colorScheme.primary,
+            onClick = onNextClick, color = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary, shape = MeshifyDesignSystem.Shapes.Button,
             modifier = Modifier.fillMaxWidth().height(56.dp)
         ) {
@@ -153,6 +144,7 @@ fun PermissionRequestCard(permission: PermissionInfo, onAllowClick: () -> Unit, 
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onRequestDismiss)
     ) {
             Surface(
+                onClick = {},
                 modifier = modifier.fillMaxWidth(0.92f).align(Alignment.BottomCenter).padding(bottom = MeshifyDesignSystem.Spacing.Xl),
                 shape = MeshifyDesignSystem.Shapes.Dialog, color = MaterialTheme.colorScheme.surfaceContainerHigh, tonalElevation = 8.dp
             ) {
@@ -329,16 +321,22 @@ object PermissionDefinitions {
                 ifDenyRes = listOf(R.string.ob_perm_nearby_deny_1, R.string.ob_perm_nearby_deny_2),
                 androidPermissions = listOf(Manifest.permission.NEARBY_WIFI_DEVICES)))
         } else {
-            permissions.add(PermissionInfo(id = "location", iconType = PermissionIconType.Location, labelRes = R.string.ob_perm_label_nearby, importanceLabelRes = R.string.ob_perm_required, isRequired = true,
+            permissions.add(PermissionInfo(id = "location", iconType = PermissionIconType.Location, labelRes = R.string.ob_perm_label_location, importanceLabelRes = R.string.ob_perm_required, isRequired = true,
                 whatHappensRes = listOf(R.string.ob_perm_loc_why_1, R.string.ob_perm_loc_why_2),
                 ifDenyRes = listOf(R.string.ob_perm_loc_deny_1, R.string.ob_perm_loc_deny_2),
                 androidPermissions = listOf(Manifest.permission.ACCESS_FINE_LOCATION)))
         }
 
-        permissions.add(PermissionInfo(id = "bluetooth", iconType = PermissionIconType.Bluetooth, labelRes = R.string.ob_perm_label_bt, importanceLabelRes = R.string.ob_perm_optional, isRequired = false,
-            whatHappensRes = listOf(R.string.ob_perm_bt_why_1, R.string.ob_perm_bt_why_2),
-            ifDenyRes = listOf(R.string.ob_perm_bt_deny_1, R.string.ob_perm_bt_deny_2),
-            androidPermissions = listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_ADVERTISE)))
+        // On API 31+ (Android 12 / S) the BLE runtime permissions must be granted at
+        // runtime. On API 30 and below, the legacy BLUETOOTH / BLUETOOTH_ADMIN perms
+        // (declared in core/network/AndroidManifest.xml with maxSdkVersion=30) are
+        // install-time and granted automatically — no card needed.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            permissions.add(PermissionInfo(id = "bluetooth", iconType = PermissionIconType.Bluetooth, labelRes = R.string.ob_perm_label_bt, importanceLabelRes = R.string.ob_perm_optional, isRequired = false,
+                whatHappensRes = listOf(R.string.ob_perm_bt_why_1, R.string.ob_perm_bt_why_2),
+                ifDenyRes = listOf(R.string.ob_perm_bt_deny_1, R.string.ob_perm_bt_deny_2),
+                androidPermissions = listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_ADVERTISE)))
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions.add(PermissionInfo(id = "notifications", iconType = PermissionIconType.Notifications, labelRes = R.string.ob_perm_label_notif, importanceLabelRes = R.string.ob_perm_optional, isRequired = false,

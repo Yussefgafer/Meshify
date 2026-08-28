@@ -21,8 +21,18 @@ object AppConfig {
     const val BLE_ATT_OVERHEAD_BYTES: Int = 3 // ATT header: usable payload per packet = MTU - 3
     const val BLE_MAX_CONNECTIONS: Int = 7
     const val BLE_READY_TIMEOUT_MS: Long = 5_000L
-    const val BLE_REASSEMBLY_TIMEOUT_MS: Long = 5_000L
+    // Sliding-window gap between consecutive chunks: a transfer is dropped only if this long
+    // elapses with no new chunk arriving. Generous enough to survive BLE congestion/retransmits
+    // without stranding a transfer on a single delayed chunk.
+    const val BLE_REASSEMBLY_TIMEOUT_MS: Long = 30_000L
     const val BLE_SEND_TIMEOUT_MS: Long = 15_000L
+    // Per-peer GATT write rate limit (audit item H5): bounds server-side reassembly-buffer
+    // ingestion so a flooding client cannot grow reassembly state without bound. Sliding window
+    // over onCharacteristicWriteRequest: at most BLE_SERVER_WRITE_RATE_LIMIT_MAX writes from a
+    // single peer MAC within BLE_SERVER_WRITE_RATE_LIMIT_WINDOW_MS. Set well above normal BLE
+    // payload throughput so legitimate transfers are not throttled, while a hostile flood is capped.
+    const val BLE_SERVER_WRITE_RATE_LIMIT_MAX: Int = 200
+    const val BLE_SERVER_WRITE_RATE_LIMIT_WINDOW_MS: Long = 10_000L
 
     // Connection Management
     const val SOCKET_TIMEOUT_MS = 15_000

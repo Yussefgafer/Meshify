@@ -2,15 +2,13 @@ package com.p2p.meshify.core.network.ble
 
 import com.p2p.meshify.core.config.AppConfig
 import com.p2p.meshify.core.util.Logger
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
 
 private const val TAG = "BleConnectionPool"
 
 /**
  * BLE connection pool manager.
- * 
+ *
  * BLE has stricter connection limits than TCP (~7 active connections).
  * This pool manages GATT server/client connections with proper lifecycle.
  */
@@ -24,18 +22,8 @@ class BleConnectionPool {
     // Active BLE connections: peerId -> BleConnectionState
     private val activeConnections = ConcurrentHashMap<String, BleConnectionState>()
 
-    // Per-peer locks for thread-safe operations
-    private val connectionLocks = ConcurrentHashMap<String, Mutex>()
-
     // Track connection timestamps for idle cleanup
     private val connectionTimestamps = ConcurrentHashMap<String, Long>()
-
-    /**
-     * Gets or creates a per-connection Mutex.
-     */
-    fun getOrCreateConnectionLock(peerId: String): Mutex {
-        return connectionLocks.computeIfAbsent(peerId) { Mutex() }
-    }
 
     /**
      * Adds a new BLE connection to the pool.
@@ -66,7 +54,6 @@ class BleConnectionPool {
     fun removeConnection(peerId: String) {
         activeConnections.remove(peerId)?.let {
             connectionTimestamps.remove(peerId)
-            cleanupConnectionLock(peerId)
             Logger.d("BLE Connection removed: $peerId", tag = TAG)
         }
     }
@@ -134,20 +121,12 @@ class BleConnectionPool {
     }
 
     /**
-     * Cleans up a connection lock to prevent memory leak.
-     */
-    private fun cleanupConnectionLock(peerId: String) {
-        connectionLocks.remove(peerId)
-    }
-
-    /**
      * Clears all connections (for shutdown).
      */
     fun clearAll() {
         val count = activeConnections.size
         activeConnections.clear()
         connectionTimestamps.clear()
-        connectionLocks.clear()
         Logger.d("BLE Connection pool cleared ($count connections)", tag = TAG)
     }
 }

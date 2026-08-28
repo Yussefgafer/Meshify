@@ -44,10 +44,10 @@ import com.p2p.meshify.domain.model.TransportMode
  * BLE Status Bottom Sheet — surfaces BLE state and transport mode selector.
  *
  * Reflects the runtime state of the BLE transport as observed by the UI:
- * - [bleEnabled] is the user's preference from settings, NOT a guarantee that GATT
- *   advertising/scanning has actually started. The transport can fail to start
- *   (Bluetooth off, permission denied, service-add failure) and still have
- *   `bleEnabled == true`.
+ * - [bleRuntimeActive] is the transport's actual runtime state (GATT up + advertising),
+ *   NOT the bleEnabled user preference. The preference can be true while BLE failed to
+ *   start (Bluetooth off, permission denied, service-add failure); this sheet therefore
+ *   shows the real state so a failed-but-enabled BLE no longer reads as "Active".
  * - The connection state of individual peers lives in BleTransportImpl.onlinePeers,
  *   not here; this sheet only shows whether BLE is enabled at all.
  *
@@ -57,7 +57,7 @@ import com.p2p.meshify.domain.model.TransportMode
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BleStatusBottomSheet(
-    bleEnabled: Boolean,
+    bleRuntimeActive: Boolean,
     transportMode: TransportMode,
     onModeSelected: (TransportMode) -> Unit,
     onDismiss: () -> Unit
@@ -85,7 +85,7 @@ fun BleStatusBottomSheet(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MeshifyDesignSystem.Shapes.CardSmall,
-                color = if (bleEnabled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                color = if (bleRuntimeActive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
             ) {
                 Column(
                     modifier = Modifier.padding(MeshifyDesignSystem.Spacing.Md)
@@ -95,14 +95,14 @@ fun BleStatusBottomSheet(
                         horizontalArrangement = Arrangement.spacedBy(MeshifyDesignSystem.Spacing.Sm)
                     ) {
                         Icon(
-                            imageVector = if (bleEnabled) Icons.AutoMirrored.Filled.BluetoothSearching else Icons.Default.BluetoothDisabled,
+                            imageVector = if (bleRuntimeActive) Icons.AutoMirrored.Filled.BluetoothSearching else Icons.Default.BluetoothDisabled,
                             contentDescription = null,
-                            tint = if (bleEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = if (bleRuntimeActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = if (bleEnabled) stringResource(R.string.ble_sheet_active) else stringResource(R.string.ble_sheet_inactive),
+                            text = if (bleRuntimeActive) stringResource(R.string.ble_sheet_active) else stringResource(R.string.ble_sheet_inactive),
                             style = MaterialTheme.typography.titleMedium,
-                            color = if (bleEnabled) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                            color = if (bleRuntimeActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }

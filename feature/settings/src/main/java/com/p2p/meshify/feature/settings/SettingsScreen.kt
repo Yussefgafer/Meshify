@@ -299,7 +299,7 @@ fun SettingsScreen(
 
     if (showBleSheet) {
         BleStatusBottomSheet(
-            bleEnabled = state.bleEnabled,
+            bleRuntimeActive = state.bleRuntimeActive,
             transportMode = state.transportMode,
             onModeSelected = { viewModel.setTransportMode(it) },
             onDismiss = { showBleSheet = false }

@@ -13,17 +13,19 @@ private const val TAG = "BlePayloadSerializer"
 
 /**
  * Wire format for BLE chunked transfer:
- * [4B: msgId][4B: totalSize][4B: chunkIndex][4B: totalChunks][variable: chunkData]
+ * [8B: msgId][4B: totalSize][4B: chunkIndex][4B: totalChunks][variable: chunkData]
  *
- * msgId is a random Int generated per message and shared by all of its chunks, so the
- * reassembly key is unique per transfer — identically shaped transfers cannot interleave.
+ * msgId is a random Long (64-bit) generated per message and shared by all of its chunks, so the
+ * reassembly key is unique per transfer — identically shaped transfers cannot interleave. The
+ * 64-bit space (audit item M3) pushes the birthday-collision threshold to ~4 billion concurrent
+ * transfers to a single peer, well beyond any realistic load.
  *
  * Chunk data capacity is derived from the live negotiated MTU passed by the caller,
  * not from the requested AppConfig.BLE_MTU_SIZE.
  */
 object BlePayloadSerializer {
 
-    private const val CHUNK_HEADER_SIZE = 16 // msgId + totalSize + chunkIndex + totalChunks
+    private const val CHUNK_HEADER_SIZE = 20 // 8B msgId + 4B totalSize + 4B chunkIndex + 4B totalChunks
 
     private val reassemblyBuffers = ConcurrentHashMap<String, ReassemblyState>()
 
@@ -53,7 +55,7 @@ object BlePayloadSerializer {
 
         val totalSize = fullBytes.size
         val totalChunks = (totalSize + maxChunkDataSize - 1) / maxChunkDataSize
-        val msgId = Random.Default.nextInt()
+        val msgId = Random.Default.nextLong()
 
         return if (totalChunks == 1) {
             listOf(buildChunk(msgId, 0, 1, totalSize, fullBytes))
@@ -69,11 +71,11 @@ object BlePayloadSerializer {
 
     /**
      * Build a single chunk with header.
-     * Format: [4B msgId][4B totalSize][4B chunkIndex][4B totalChunks][chunkData]
+     * Format: [8B msgId][4B totalSize][4B chunkIndex][4B totalChunks][chunkData]
      */
-    private fun buildChunk(msgId: Int, chunkIndex: Int, totalChunks: Int, totalSize: Int, chunkData: ByteArray): ByteArray {
+    private fun buildChunk(msgId: Long, chunkIndex: Int, totalChunks: Int, totalSize: Int, chunkData: ByteArray): ByteArray {
         val buffer = ByteBuffer.allocate(CHUNK_HEADER_SIZE + chunkData.size)
-        buffer.putInt(msgId)
+        buffer.putLong(msgId)
         buffer.putInt(totalSize)
         buffer.putInt(chunkIndex)
         buffer.putInt(totalChunks)
@@ -91,7 +93,7 @@ object BlePayloadSerializer {
         }
 
         val buffer = ByteBuffer.wrap(chunkBytes)
-        val msgId = buffer.int
+        val msgId = buffer.long
         val totalSize = buffer.int
         val chunkIndex = buffer.int
         val totalChunks = buffer.int

@@ -24,11 +24,17 @@ private const val TAG = "BleScanner"
  * and emits discovery events with peer details.
  */
 class BleScanner(
+    private val context: android.content.Context,
     private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
 ) {
     private val scanner: BluetoothLeScanner? = bluetoothAdapter?.bluetoothLeScanner
     @Volatile
     private var isScanning = false
+
+    // Invoked when a scan cannot start or fails mid-scan, so the transport can surface
+    // it as a TransportEvent.Error (e.g. missing BLUETOOTH_SCAN permission) instead of
+    // failing silently.
+    var onScanError: ((String) -> Unit)? = null
 
     // Stable discovery flow — a single SharedFlow created once; the public surface
     // (discoveryFlow) is never reassigned, so a collector that subscribed at construction
@@ -54,6 +60,7 @@ class BleScanner(
                 else -> "UNKNOWN($errorCode)"
             }
             Logger.e("BLE Scan failed: $errorName", tag = TAG)
+            onScanError?.invoke("BLE scan failed: $errorName")
             isScanning = false
         }
     }
@@ -97,9 +104,13 @@ class BleScanner(
             isScanning = true
             Logger.d("BLE Scanning started", tag = TAG)
         } catch (e: SecurityException) {
-            Logger.e("BLE Scanning: SecurityException - missing BLUETOOTH_SCAN permission", tag = TAG)
+            val msg = "BLE Scanning: SecurityException - missing BLUETOOTH_SCAN permission"
+            Logger.e(msg, tag = TAG)
+            onScanError?.invoke(msg)
         } catch (e: Exception) {
-            Logger.e("BLE Scanning: Unexpected error: ${e.message}", tag = TAG)
+            val msg = "BLE Scanning failed: ${e.message}"
+            Logger.e(msg, tag = TAG)
+            onScanError?.invoke(msg)
         }
     }
 
@@ -128,6 +139,12 @@ class BleScanner(
 
     // Track discovered devices for debouncing
     private val seenDevices = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    // Last advertised device name per MAC — kept past debounce so the transport can
+    // surface it when a synthetic ble_* id gets re-keyed to the real mesh UUID.
+    private val namesByAddress = java.util.concurrent.ConcurrentHashMap<String, String>()
+    // Last advertised RSSI per MAC — mirrors namesByAddress so the re-keyed discovery
+    // event can carry the signal strength the user already saw.
+    private val rssiByAddress = java.util.concurrent.ConcurrentHashMap<String, Int>()
     private val debouncingIntervalMs = 10_000L // Only report each device once per 10 seconds
 
     /**
@@ -135,7 +152,7 @@ class BleScanner(
      */
     private fun handleScanResult(result: ScanResult) {
         // Debounce: skip if we saw this device recently
-        val address = result.device.address
+        val address = result.device.address.uppercase()
         val now = System.currentTimeMillis()
         val lastSeen = seenDevices[address]
         if (lastSeen != null && now - lastSeen < debouncingIntervalMs) {
@@ -154,8 +171,11 @@ class BleScanner(
             return
         }
 
-        val deviceName = result.scanRecord?.deviceName ?: "Unknown"
+        val deviceName = result.scanRecord?.deviceName
+            ?: context.getString(com.p2p.meshify.core.common.R.string.ble_unknown_device)
+        namesByAddress[address] = deviceName
         val rssi = result.rssi
+        rssiByAddress[address] = rssi
 
         Logger.d("BLE Discovered: $peerId ($deviceName) RSSI: $rssi", tag = TAG)
 
@@ -204,6 +224,8 @@ class BleScanner(
     fun cleanup() {
         stopScanning()
         seenDevices.clear()
+        namesByAddress.clear()
+        rssiByAddress.clear()
     }
 
     /**
@@ -213,6 +235,21 @@ class BleScanner(
      * from advertising without firing an explicit lose callback.
      */
     fun getLastSeenFor(address: String): Long? = seenDevices[address]
+
+    /**
+     * Returns the most recently advertised device name for [address], or null if we
+     * never observed that MAC or it was cleared by [cleanup]. Used by the transport
+     * when a synthetic ble_* id is re-keyed to the real mesh UUID so the real
+     * discovery event can carry the name the user sees.
+     */
+    fun getLastNameFor(address: String): String? = namesByAddress[address]
+
+    /**
+     * Returns the most recently advertised RSSI for [address], or null if we never
+     * observed that MAC or it was cleared by [cleanup]. Mirrors [getLastNameFor] so the
+     * re-keyed discovery event preserves the signal strength the user already saw.
+     */
+    fun getLastRssiFor(address: String): Int? = rssiByAddress[address]
 }
 
 /**

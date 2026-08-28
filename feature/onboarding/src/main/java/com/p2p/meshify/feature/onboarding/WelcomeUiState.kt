@@ -1,9 +1,7 @@
 package com.p2p.meshify.feature.onboarding
 
 data class WelcomeUiState(
-    val currentPage: Int = 0,
     val totalPages: Int = 3,
-    val isAnimating: Boolean = false,
     val isLangMenuOpen: Boolean = false
 )
 

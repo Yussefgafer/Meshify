@@ -19,6 +19,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -66,19 +69,25 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
-/**
- * Delay to allow the permission card exit animation to complete before advancing.
- * This is a known workaround because Compose's AnimatedVisibility does not expose
- * an onComplete callback that can be observed from a LaunchedEffect.
- * The values are conservative estimates that work on most devices.
- */
-private const val PERMISSION_EXIT_ANIMATION_DELAY_MS = 800L
-
-/**
- * Delay for auto-advancing when a permission is already granted.
- * Allows the user to see the "Granted" state briefly before moving on.
- */
 private const val PERMISSION_ALREADY_GRANTED_DISPLAY_DELAY_MS = 600L
+private const val PERMISSION_RESULT_AUTO_ADVANCE_DELAY_MS = 200L // Short buffer for dialog dismissal before advancing page
+
+private fun PermissionRequestResult.toPermissionResultKey(): String = when (this) {
+    PermissionRequestResult.Granted -> "granted"
+    PermissionRequestResult.Denied -> "denied"
+    PermissionRequestResult.DeniedPermanently -> "denied_permanently"
+    PermissionRequestResult.Skipped -> "skipped"
+    PermissionRequestResult.AlreadyGranted -> "already_granted"
+}
+
+private fun String.toPermissionRequestResult(): PermissionRequestResult = when (this) {
+    "granted" -> PermissionRequestResult.Granted
+    "denied" -> PermissionRequestResult.Denied
+    "denied_permanently" -> PermissionRequestResult.DeniedPermanently
+    "skipped" -> PermissionRequestResult.Skipped
+    "already_granted" -> PermissionRequestResult.AlreadyGranted
+    else -> PermissionRequestResult.Denied
+}
 
 /**
  * Main entry point of the Meshify application.
@@ -123,7 +132,6 @@ class MainActivity : ComponentActivity() {
      */
     private fun requestSpecificPermissions(permissions: List<String>) {
         if (permissions.isEmpty()) return
-        permissionResultCallback = null // Reset
         onboardingPermissionLauncher.launch(permissions.toTypedArray())
     }
 
@@ -324,7 +332,7 @@ class MainActivity : ComponentActivity() {
                                             factory = object : androidx.lifecycle.ViewModelProvider.Factory {
                                                 override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                                                     @Suppress("UNCHECKED_CAST")
-                                                    return SettingsViewModel(app.settingsRepository) as T
+                                                    return SettingsViewModel(app.settingsRepository, app.transportManager) as T
                                                 }
                                             }
                                         )
@@ -393,6 +401,9 @@ class MainActivity : ComponentActivity() {
                                             },
                                             onRequestPermissions = { perms ->
                                                 requestSpecificPermissions(perms)
+                                            },
+                                            onStartService = {
+                                                startAppService()
                                             }
                                         )
                                     }
@@ -458,7 +469,8 @@ private fun OnboardingRoute(
     activity: MainActivity,
     settingsRepository: com.p2p.meshify.domain.repository.ISettingsRepository,
     onNavigateToHome: () -> Unit,
-    onRequestPermissions: (List<String>) -> Unit
+    onRequestPermissions: (List<String>) -> Unit,
+    onStartService: () -> Unit
 ) {
     val onboardingViewModel: WelcomeViewModel = hiltViewModel()
     val permissions = PermissionDefinitions.getPermissions()
@@ -471,12 +483,23 @@ private fun OnboardingRoute(
     val currentLang by settingsRepository.appLanguage.collectAsState(initial = "en")
 
     // Permission flow state
-    var isPermissionFlowActive by remember { mutableStateOf(false) }
-    var currentPermissionIndex by remember { mutableStateOf(0) }
-    val permissionResults = remember { mutableStateMapOf<String, PermissionRequestResult>() }
+    var isPermissionFlowActive by rememberSaveable { mutableStateOf(false) }
+    var currentPermissionIndex by rememberSaveable { mutableStateOf(0) }
+    val permissionResults = rememberSaveable(
+        saver = listSaver<SnapshotStateMap<String, PermissionRequestResult>, String>(
+            save = { map -> map.flatMap { (k, v) -> listOf(k, v.toPermissionResultKey()) } },
+            restore = { list ->
+                mutableStateMapOf<String, PermissionRequestResult>().apply {
+                    for (i in list.indices step 2) {
+                        this[list[i]] = list[i + 1].toPermissionRequestResult()
+                    }
+                }
+            }
+        )
+    ) { mutableStateMapOf() }
     var advanceTrigger by remember { mutableIntStateOf(0) }
-    var showSummaryDialog by remember { mutableStateOf(false) }
-    var showSkipConfirm by remember { mutableStateOf(false) }
+    var showSummaryDialog by rememberSaveable { mutableStateOf(false) }
+    var showSkipConfirm by rememberSaveable { mutableStateOf(false) }
 
     // Wire permission result callback from Activity — single persistent callback
     DisposableEffect(activity) {
@@ -515,12 +538,14 @@ private fun OnboardingRoute(
                     activity.recreate()
                 }
             },
-            permissionStatuses = permissions.associate { 
+            permissionStatuses = permissions.associate {
                 val res = permissionResults[it.id]
                 it.id to when (res) {
                     PermissionRequestResult.Granted -> PermissionStatus.Granted
                     PermissionRequestResult.Denied -> PermissionStatus.Denied
                     PermissionRequestResult.DeniedPermanently -> PermissionStatus.DeniedPermanently
+                    PermissionRequestResult.AlreadyGranted -> PermissionStatus.AlreadyGranted
+                    PermissionRequestResult.Skipped -> PermissionStatus.Skipped
                     else -> PermissionStatus.NotAsked
                 }
             },
@@ -530,14 +555,7 @@ private fun OnboardingRoute(
                 currentPermissionIndex = 0
             },
             onSkipClick = {
-                if (isPermissionFlowActive) {
-                    showSkipConfirm = true
-                } else {
-                    scope.launch {
-                        settingsRepository.setOnboardingCompleted()
-                    }
-                    onNavigateToHome()
-                }
+                showSkipConfirm = true
             }
         )
 
@@ -554,9 +572,13 @@ private fun OnboardingRoute(
             if (alreadyGranted) {
                 LaunchedEffect(perm.id) {
                     permissionResults[perm.id] = PermissionRequestResult.AlreadyGranted
-                    advanceTrigger++
                     kotlinx.coroutines.delay(PERMISSION_ALREADY_GRANTED_DISPLAY_DELAY_MS)
                     currentPermissionIndex++
+                    // If we reached the end of the flow, show the summary dialog
+                    if (currentPermissionIndex >= permissions.size) {
+                        isPermissionFlowActive = false
+                        showSummaryDialog = true
+                    }
                 }
             } else {
                 PermissionRequestCard(
@@ -579,7 +601,7 @@ private fun OnboardingRoute(
         // Auto-advance after permission result
         LaunchedEffect(advanceTrigger) {
             if (advanceTrigger > 0) {
-                kotlinx.coroutines.delay(PERMISSION_EXIT_ANIMATION_DELAY_MS)
+                kotlinx.coroutines.delay(PERMISSION_RESULT_AUTO_ADVANCE_DELAY_MS)
                 if (currentPermissionIndex < permissions.size) {
                     currentPermissionIndex++
                 }
@@ -602,8 +624,9 @@ private fun OnboardingRoute(
             totalCount = permissions.size,
             permissionResults = permissionResults.toMap(),
             onStartClick = {
-                scope.launch {
+                activity.lifecycleScope.launch {
                     settingsRepository.setOnboardingCompleted()
+                    onStartService()
                 }
                 onNavigateToHome()
             },
@@ -627,8 +650,9 @@ private fun OnboardingRoute(
                         permissionResults[perm.id] = PermissionRequestResult.Skipped
                     }
                 }
-                scope.launch {
+                activity.lifecycleScope.launch {
                     settingsRepository.setOnboardingCompleted()
+                    onStartService()
                 }
                 onNavigateToHome()
             }

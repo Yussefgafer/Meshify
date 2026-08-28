@@ -7,6 +7,7 @@ import android.content.Context
 import android.net.Uri
 import com.p2p.meshify.core.util.FileUtils
 import com.p2p.meshify.domain.model.TransportMode
+import com.p2p.meshify.core.network.TransportManager
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.domain.repository.ThemeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -36,12 +37,14 @@ data class SettingsUiState(
     val notificationSound: Boolean = true,
     val notificationVibrate: Boolean = true,
     val bleEnabled: Boolean = false,
-    val transportMode: TransportMode = TransportMode.AUTO,
+    val transportMode: TransportMode = TransportMode.MULTI_PATH,
+    val bleRuntimeActive: Boolean = false,
     val displayNameError: String? = null
 )
 
 class SettingsViewModel @Inject constructor(
-    val settingsRepository: ISettingsRepository
+    val settingsRepository: ISettingsRepository,
+    private val transportManager: TransportManager
 ) : ViewModel() {
 
     private val _settingsUiState = MutableStateFlow(SettingsUiState())
@@ -67,6 +70,7 @@ class SettingsViewModel @Inject constructor(
         repo.notificationVibrate.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(notificationVibrate = value) }.launchIn(viewModelScope)
         repo.bleEnabled.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(bleEnabled = value) }.launchIn(viewModelScope)
         repo.transportMode.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(transportMode = value) }.launchIn(viewModelScope)
+        transportManager.bleRuntimeActive.onEach { value -> _settingsUiState.value = _settingsUiState.value.copy(bleRuntimeActive = value) }.launchIn(viewModelScope)
 
         viewModelScope.launch {
             val deviceId = repo.getDeviceId()

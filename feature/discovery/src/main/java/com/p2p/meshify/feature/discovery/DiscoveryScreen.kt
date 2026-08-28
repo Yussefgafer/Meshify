@@ -68,6 +68,13 @@ fun DiscoveryScreen(
         }
     }
 
+    LaunchedEffect(uiState.nonFatalError) {
+        uiState.nonFatalError?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearNonFatalError()
+        }
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {

@@ -9,6 +9,7 @@ import com.p2p.meshify.core.network.lan.SocketManager
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import com.p2p.meshify.core.common.security.SimplePeerIdProvider
+import com.p2p.meshify.domain.model.PeerDevice
 import com.p2p.meshify.domain.model.TransportMode
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
@@ -17,7 +18,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.launchIn
 
@@ -55,6 +60,18 @@ class TransportManager(
     // (e.g. BLE enable/disable) never tears down the collector's flow (no event gap).
     private val _allEvents = MutableSharedFlow<TransportEvent>(extraBufferCapacity = 64)
 
+    // Current set of discovered peers, retained as state so a newly-subscribed collector
+    // (e.g. a recreated DiscoveryViewModel) sees already-known peers instead of a blank
+    // list. The merged event flow is replay=0, so past discovery events are not replayed.
+    private val _discoveredPeers = MutableStateFlow<Map<String, PeerDevice>>(emptyMap())
+    val discoveredPeers: StateFlow<Map<String, PeerDevice>> = _discoveredPeers.asStateFlow()
+
+    // Real BLE runtime-active state, mirrored from the BLE transport so the settings UI can
+    // show actual BLE status instead of the bleEnabled preference (which stays true even when
+    // BLE failed to start).
+    private val _bleRuntimeActive = MutableStateFlow(false)
+    val bleRuntimeActive: StateFlow<Boolean> = _bleRuntimeActive.asStateFlow()
+
     // Current transport mode (updated reactively by MeshifyApp)
     @Volatile
     private var transportMode: TransportMode = TransportMode.MULTI_PATH
@@ -70,8 +87,14 @@ class TransportManager(
         // from the registry so it will never be returned by getTransport/... calls.
         transportJobs.remove(name)?.cancel()
         transports[name] = transport
+        if (name == "ble") {
+            transport.runtimeActive.onEach { _bleRuntimeActive.value = it }.launchIn(managerScope)
+        }
         transportJobs[name] = transport.events
-            .onEach { _allEvents.emit(it) }
+            .onEach {
+                updateDiscoveredPeers(it)
+                _allEvents.emit(it)
+            }
             .launchIn(managerScope)
     }
 
@@ -97,6 +120,7 @@ class TransportManager(
     fun unregisterTransport(name: String) {
         if (transports.remove(name) != null) {
             transportJobs.remove(name)?.cancel()
+            if (name == "ble") _bleRuntimeActive.value = false
         }
     }
 
@@ -187,6 +211,30 @@ class TransportManager(
      * so no events are dropped in the gap.
      */
     fun getAllEventsFlow(): Flow<TransportEvent> = _allEvents.asSharedFlow()
+
+    /**
+     * Maintains [_discoveredPeers] from the event stream. Only discovery lifecycle events
+     * mutate the set; connection and payload events leave it untouched so a peer that is
+     * still advertised but temporarily without a GATT link stays visible.
+     */
+    private fun updateDiscoveredPeers(event: TransportEvent) {
+        when (event) {
+            is TransportEvent.DeviceDiscovered -> {
+                val peer = PeerDevice(
+                    id = event.deviceId,
+                    name = event.deviceName,
+                    address = event.address,
+                    rssi = event.rssi,
+                    transportType = event.transportType
+                )
+                _discoveredPeers.update { it + (event.deviceId to peer) }
+            }
+            is TransportEvent.DeviceLost -> {
+                _discoveredPeers.update { it - event.deviceId }
+            }
+            else -> { /* ConnectionEstablished/Lost, PayloadReceived, Error don't change discovery */ }
+        }
+    }
 
     /**
      * Start all registered transports.

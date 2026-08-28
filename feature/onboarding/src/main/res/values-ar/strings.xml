@@ -7,7 +7,6 @@
     <!-- Onboarding — Page 1: Welcome -->
     <string name="ob_welcome_title">مرحباً بك في ميشفاي</string>
     <string name="ob_welcome_desc">مراسلة بدون إنترنت.\nمباشر. خاص. لك.</string>
-    <string name="ob_language_label">اللغة</string>
     <string name="ob_btn_next">التالي</string>
     <string name="ob_btn_skip">تخطي</string>
     <string name="ob_btn_get_started">لنبدأ</string>
@@ -27,6 +26,7 @@
 
     <!-- Permission Labels (Page 3 list) -->
     <string name="ob_perm_label_nearby">الأجهزة القريبة</string>
+    <string name="ob_perm_label_location">الموقع</string>
     <string name="ob_perm_label_bt">البلوتوث</string>
     <string name="ob_perm_label_notif">الإشعارات</string>
     <string name="ob_perm_required">مطلوب</string>

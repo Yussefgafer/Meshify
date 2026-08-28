@@ -20,7 +20,7 @@ import javax.inject.Inject
 /** Discovery cleanup pause before restarting scan (ms) */
 private const val DISCOVERY_CLEANUP_DELAY_MS = 200L
 
-/** Time to wait for discovery scan results (ms) */
+/** Fallback window before turning off the search spinner if no peer ever appears. */
 private const val DISCOVERY_SCAN_DELAY_MS = 2000L
 
 /**
@@ -31,6 +31,7 @@ data class DiscoveryUiState(
     val isSearching: Boolean = true,
     val isRefreshing: Boolean = false,
     val errorMessage: String? = null,
+    val nonFatalError: String? = null,
     val isWifiEnabled: Boolean = true,
     val canDiscover: Boolean = true
 )
@@ -63,7 +64,15 @@ class DiscoveryViewModel @Inject constructor(
 
     init {
         observeTransportEvents()
+        // Seed already-known peers so returning to Discovery doesn't blank the list.
+        // The merged event flow has replay=0, so a recreated ViewModel would otherwise
+        // only refill on the next scan result (or stay empty until the next discovery).
+        peerMap.putAll(transportManager.discoveredPeers.value)
+        _uiState.update { it.copy(discoveredPeers = peerMap.values.toList()) }
         checkWifiState()
+        // Fallback so the spinner does not spin forever if no DeviceDiscovered ever
+        // arrives; handleDeviceDiscovered clears it earlier the moment a peer shows up,
+        // and refresh() manages its own scan-bound isSearching lifecycle.
         viewModelScope.launch {
             kotlinx.coroutines.delay(DISCOVERY_SCAN_DELAY_MS)
             _uiState.update { it.copy(isSearching = false) }
@@ -150,11 +159,19 @@ class DiscoveryViewModel @Inject constructor(
 
     private fun handleError(event: TransportEvent.Error) {
         Logger.e("DiscoveryViewModel -> Transport error: ${event.message}", event.exception)
-        // Background transport errors must not blank a populated peer list;
-        // surface full-screen error only when there is nothing to show.
+        // Background transport errors must not blank a populated peer list.
+        // When LAN is working but BLE (or another transport) failed, surface the
+        // failure as a transient non-fatal message instead of swallowing it, so the
+        // user is not left with a silently broken transport.
         if (peerMap.isEmpty()) {
             _uiState.update { it.copy(errorMessage = event.message) }
+        } else {
+            _uiState.update { it.copy(nonFatalError = event.message) }
         }
+    }
+
+    fun clearNonFatalError() {
+        _uiState.update { it.copy(nonFatalError = null) }
     }
 
     /**
@@ -165,7 +182,7 @@ class DiscoveryViewModel @Inject constructor(
     fun refresh() {
         checkWifiState()
         viewModelScope.launch {
-            _uiState.update { it.copy(isRefreshing = true, isSearching = true, errorMessage = null) }
+            _uiState.update { it.copy(isRefreshing = true, isSearching = true, errorMessage = null, nonFatalError = null) }
 
             try {
                 // Stop and restart discovery to find fresh devices

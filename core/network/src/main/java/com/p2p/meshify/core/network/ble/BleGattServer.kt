@@ -11,12 +11,17 @@ import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothProfile
 import android.content.Context
 import android.os.Build
+import com.p2p.meshify.core.common.util.RateLimiter
 import com.p2p.meshify.core.config.AppConfig
 import com.p2p.meshify.core.util.Logger
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.future.await
 
 private const val TAG = "BleGattServer"
@@ -60,6 +65,16 @@ class BleGattServer(
     // Defaults to BLE_DEFAULT_MTU until the client negotiates a larger value;
     // GATT callbacks arrive on binder threads, hence ConcurrentHashMap.
     private val negotiatedMtus = ConcurrentHashMap<String, Int>()
+    // Lifecycle scope for the write-rate-limiter cleanup job. Torn down only in cleanup()
+    // (not stopServer) so the limiter survives a stop/restart cycle and keeps bounding floods.
+    private val rateLimiterScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    // Per-peer GATT write rate limiter (audit item H5). Keyed by device address so a single
+    // flooding MAC is throttled independently of well-behaved peers. Bound to rateLimiterScope.
+    private val writeRateLimiter = RateLimiter(
+        maxRequests = AppConfig.BLE_SERVER_WRITE_RATE_LIMIT_MAX,
+        windowMs = AppConfig.BLE_SERVER_WRITE_RATE_LIMIT_WINDOW_MS,
+        scope = rateLimiterScope
+    )
 
     /**
      * Start the GATT Server.
@@ -72,6 +87,13 @@ class BleGattServer(
             if (gattServer != null) {
                 Logger.e("BLE GATT Server already running, refusing double-start", tag = TAG)
                 return
+            }
+            // Refuse cleanly if the adapter is off or absent — openGattServer would otherwise
+            // return null and the rest of this method would proceed with a phantom gattServer.
+            val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager
+            if (bluetoothManager?.adapter?.isEnabled != true) {
+                Logger.e("BLE GATT Server: Bluetooth adapter unavailable or disabled", tag = TAG)
+                throw IllegalStateException("Bluetooth adapter not enabled")
             }
             // Recreate deferred so a restart after stopServer can be awaited again
             if (serviceAdded.isDone) serviceAdded = java.util.concurrent.CompletableFuture()
@@ -140,6 +162,7 @@ class BleGattServer(
             connectedDevices.clear()
             subscribedDevices.clear()
             negotiatedMtus.clear()
+            writeRateLimiter.clear()
             // Fail any pending await so callers don't block forever on a torn-down server
             if (!serviceAdded.isDone) {
                 serviceAdded.complete(false)
@@ -226,6 +249,8 @@ class BleGattServer(
      */
     fun cleanup() {
         stopServer()
+        writeRateLimiter.close()
+        rateLimiterScope.cancel()
     }
 
     private val serverCallback = object : BluetoothGattServerCallback() {
@@ -249,6 +274,7 @@ class BleGattServer(
                     connectedDevices.remove(peerAddress)
                     subscribedDevices.remove(peerAddress)
                     negotiatedMtus.remove(peerAddress)
+                    writeRateLimiter.reset(peerAddress)
                     onClientDisconnected(peerAddress)
                     Logger.d("BLE Client disconnected: $peerAddress", tag = TAG)
                 }
@@ -267,6 +293,16 @@ class BleGattServer(
         ) {
             if (characteristic.uuid == rxCharUuid) {
                 val peerAddress = device.address.uppercase()
+                // H5: bound per-peer write rate so a flooding client cannot grow the
+                // reassembly buffer without limit. Drop over-limit writes before they
+                // reach onPayloadReceived; answer a write-request with GATT_FAILURE.
+                if (!writeRateLimiter.allowRequest(peerAddress)) {
+                    Logger.w("BLE Dropping write from $peerAddress: rate limit exceeded", tag = TAG)
+                    if (responseNeeded) {
+                        gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, null)
+                    }
+                    return
+                }
                 Logger.d("BLE Received ${value.size} bytes from $peerAddress", tag = TAG)
                 onPayloadReceived(peerAddress, value)
             }

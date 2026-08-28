@@ -30,7 +30,7 @@ data class PermissionResult(
  * - NEARBY_WIFI_DEVICES (API 33+): Discover nearby devices on WiFi
  * - ACCESS_FINE_LOCATION (API < 31): Legacy WiFi discovery
  */
-class PermissionChecker(private val context: Context) {
+class WifiPermissionChecker(private val context: Context) {
 
     /**
      * Check all permissions required for real-device testing.
