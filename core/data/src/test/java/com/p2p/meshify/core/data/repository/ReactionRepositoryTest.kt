@@ -154,19 +154,16 @@ class ReactionRepositoryTest {
     }
 
     @Test
-    fun addReaction_transportFailure_silentlySucceeds() = runTest {
-        // Documenting current behavior: ReactionRepository.addReaction does
-        // not check the sendPayload Result — it returns success even when the
-        // transport rejects the payload (the local DB update has already been
-        // applied by then). This is asymmetric with MessageRepository, which
-        // DOES propagate transport failures. A future bug-fix should make
-        // these consistent; until then this test pins the current contract.
+    fun addReaction_transportFailure_propagatesFailure() = runTest {
+        // ReactionRepository.addReaction must propagate transport failures
+        // (consistent with MessageRepository.saveAndSend) instead of silently
+        // reporting success after the local DB update.
         val scheduler = testScheduler
         val lan = FakeTransport("lan", sendResult = Result.failure(Exception("nope")))
         val (repo, _, _) = makeRepo(scheduler, textMessage(), lan)
 
         val result = repo.addReaction("msg1", "\uD83D\uDC4D")
-        assertTrue("addReaction currently swallows transport failure", result.isSuccess)
+        assertTrue("addReaction propagates transport failure", result.isFailure)
         assertEquals(1, lan.sentPayloads.size)
     }
 }

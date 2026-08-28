@@ -42,10 +42,7 @@ class MessageTypeTest {
     }
 
     @Test
-    fun fromMimeType_apkMimeFallsBackToFileCurrentBug() {
-        // KNOWN BUG: "application/vnd.android.package-archive" contains no "apk" substring and the
-        // implementation only checks mime.contains("apk"), so it returns FILE instead of APK.
-        // Asserting the current (incorrect) behavior keeps the build green; TODO expected APK.
-        assertEquals(MessageType.FILE, MessageType.fromMimeType("application/vnd.android.package-archive"))
+    fun fromMimeType_apkMimeMapsToApk() {
+        assertEquals(MessageType.APK, MessageType.fromMimeType("application/vnd.android.package-archive"))
     }
 }

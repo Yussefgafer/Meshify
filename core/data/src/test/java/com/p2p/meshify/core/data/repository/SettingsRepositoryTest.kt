@@ -7,6 +7,10 @@ import com.p2p.meshify.domain.model.TransportMode
 import com.p2p.meshify.domain.repository.ThemeMode
 import io.mockk.mockk
 import java.nio.file.Files
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -29,6 +33,7 @@ import org.junit.Test
 class SettingsRepositoryTest {
 
     private lateinit var tempDir: java.nio.file.Path
+    private lateinit var dataStoreScope: CoroutineScope
     private lateinit var dataStore: DataStore<Preferences>
     private lateinit var context: android.content.Context
     private lateinit var repository: SettingsRepository
@@ -37,8 +42,9 @@ class SettingsRepositoryTest {
     fun setUp() {
         tempDir = Files.createTempDirectory("settings-repo-test")
         context = mockk(relaxed = true)
+        dataStoreScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         dataStore = PreferenceDataStoreFactory.create(
-            scope = kotlinx.coroutines.GlobalScope,
+            scope = dataStoreScope,
             produceFile = { tempDir.resolve("settings.preferences_pb").toFile() }
         )
         repository = SettingsRepository(context = context, prefsStore = dataStore)
@@ -46,6 +52,7 @@ class SettingsRepositoryTest {
 
     @After
     fun tearDown() {
+        dataStoreScope.cancel()
         tempDir.toFile().deleteRecursively()
     }
 
@@ -197,7 +204,7 @@ class SettingsRepositoryTest {
             "haptic_feedback" to "false",
             "transport_mode" to "BLE_ONLY",
             "ble_enabled" to "true"
-        ).mapValues { it.value.toString() }
+        )
         val json = kotlinx.serialization.json.Json.encodeToString(
             kotlinx.serialization.json.JsonObject.serializer(),
             kotlinx.serialization.json.JsonObject(backup.mapValues { kotlinx.serialization.json.JsonPrimitive(it.value) })

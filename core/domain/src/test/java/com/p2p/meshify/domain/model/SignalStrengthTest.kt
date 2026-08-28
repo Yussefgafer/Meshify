@@ -25,11 +25,10 @@ class SignalStrengthTest {
     }
 
     @Test
-    fun fromRssi_offlineBranchIsUnreachable() {
-        // The three branches (rssi > -50, rssi in -70..-50, rssi < -70) cover every Int value,
-        // so `else -> OFFLINE` can never be reached. No input yields OFFLINE.
-        for (rssi in listOf(Int.MIN_VALUE, -1000, -71, -70, -50, -49, 0, Int.MAX_VALUE)) {
-            assertNotEquals(SignalStrength.OFFLINE, SignalStrength.fromRssi(rssi))
-        }
+    fun fromRssi_nonPhysicalRssiIsOffline() {
+        // A non-physical RSSI (>= 0) signals "no usable reading" and maps to OFFLINE,
+        // so the OFFLINE branch is reachable for disconnected / unmeasured peers.
+        assertEquals(SignalStrength.OFFLINE, SignalStrength.fromRssi(0))
+        assertEquals(SignalStrength.OFFLINE, SignalStrength.fromRssi(Int.MAX_VALUE))
     }
 }
