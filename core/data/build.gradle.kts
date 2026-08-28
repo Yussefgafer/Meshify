@@ -34,6 +34,9 @@ android {
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
+            // JVM-only tests (no Robolectric) need android.util.Log etc. to
+            // return default values instead of throwing "Method ... not mocked".
+            isReturnDefaultValues = true
         }
     }
 }
