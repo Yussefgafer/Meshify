@@ -1,8 +1,10 @@
 package com.p2p.meshify.core.network.ble
 
 import com.p2p.meshify.domain.model.Payload
+import java.nio.ByteBuffer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BlePayloadSerializerTest {
@@ -86,5 +88,30 @@ class BlePayloadSerializerTest {
         assertNotNull(resultB)
         assertEquals(payloadA.data.toList(), resultA!!.data.toList())
         assertEquals(payloadB.data.toList(), resultB!!.data.toList())
+    }
+
+    @Test
+    fun msgId_is64BitAndUniqueAcrossSerializations() {
+        val a = BlePayloadSerializer.serializeToChunks(makePayload(20), 512)
+        val b = BlePayloadSerializer.serializeToChunks(makePayload(20), 512)
+
+        // First 8 bytes carry the 64-bit msgId (M3 fix — was a 32-bit Int); the full header is
+        // 20 bytes (8B msgId + 12B of fixed fields), so the chunk must be at least that wide.
+        assertTrue("chunk too small to carry the 20-byte header", a[0].size >= 20)
+
+        // Distinct serializations produce distinct msgIds so per-peer reassembly keys never collide.
+        val msgIdA = ByteBuffer.wrap(a[0]).long
+        val msgIdB = ByteBuffer.wrap(b[0]).long
+        assert(msgIdA != msgIdB) { "expected distinct msgIds, both were $msgIdA" }
+
+        // The 8-byte msgId must not shift the remaining 12 bytes of fixed-header fields: the
+        // following totalSize / chunkIndex / totalChunks still decode to a coherent chunk.
+        val bufA = ByteBuffer.wrap(a[0])
+        bufA.long // skip msgId
+        val totalSizeA = bufA.int
+        val chunkIndexA = bufA.int
+        val totalChunksA = bufA.int
+        assertTrue("totalSize should be positive", totalSizeA > 0)
+        assertTrue("chunkIndex in range", chunkIndexA in 0 until totalChunksA)
     }
 }
