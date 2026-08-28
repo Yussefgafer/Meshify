@@ -57,4 +57,12 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
 
     debugImplementation(libs.androidx.ui.tooling)
+
+    // Unit test support (WelcomeViewModel etc.); shares MainDispatcherRule + SettingsRepositoryFake
+    // from :core:testing via testImplementation(project(":core:testing")).
+    testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.turbine)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(project(":core:testing"))
 }
