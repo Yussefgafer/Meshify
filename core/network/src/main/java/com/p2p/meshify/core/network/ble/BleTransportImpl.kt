@@ -171,7 +171,9 @@ class BleTransportImpl(
             // Initialize connection pool
             connectionPool = BleConnectionPool()
 
-            // Initialize GATT Server
+            // Initialize GATT Server — release any stale instance from a prior cycle first
+            // (its rate-limiter scope would otherwise leak since start() reassigns the field).
+            bleGattServer?.cleanup()
             bleGattServer = BleGattServer(
                 context = context,
                 onPayloadReceived = { peerId, data ->
@@ -255,7 +257,7 @@ class BleTransportImpl(
     private fun tearDownPartialStart() {
         // stopServer / stopAdvertising are no-ops if the component never started
         bleAdvertiser?.stopAdvertising()
-        bleGattServer?.stopServer()
+        bleGattServer?.cleanup()
         connectionPool?.clearAll()
         connectionPool = null
         scope?.cancel()
@@ -299,7 +301,7 @@ class BleTransportImpl(
     private fun tearDownGattStack() {
         bleAdvertiser?.stopAdvertising()
         bleScanner?.stopScanning()
-        bleGattServer?.stopServer()
+        bleGattServer?.cleanup()
         bleGattClient?.cleanup()
         connectionPool?.clearAll()
 

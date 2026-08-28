@@ -39,3 +39,6 @@ log_device1.txt
 # ===== Agent instruction / notes (untracked by design) =====
 TODO.md
 AGENTS.md
+.qwen*
+.openclaude
+
