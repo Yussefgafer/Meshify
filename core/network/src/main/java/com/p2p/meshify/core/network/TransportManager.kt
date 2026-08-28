@@ -47,13 +47,15 @@ import kotlinx.coroutines.flow.launchIn
  */
 class TransportManager(
     private val context: Context,
-    private val settingsRepository: ISettingsRepository
+    private val settingsRepository: ISettingsRepository,
+    private val injectedManagerScope: CoroutineScope? = null
 ) {
     internal val socketManager = SocketManager() // Changed from private to internal
     private val transports = ConcurrentHashMap<String, IMeshTransport>()
     private val transportJobs = ConcurrentHashMap<String, Job>()
 
-    private val managerScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    internal val managerScope: CoroutineScope = injectedManagerScope
+        ?: CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     // Stable merged event flow — fed by a per-transport subscription created on
     // registerTransport and cancelled on unregisterTransport, so swapping a transport
