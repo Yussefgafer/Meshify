@@ -66,7 +66,9 @@ dependencies {
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
+    testImplementation(libs.turbine)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(project(":core:testing"))
     testImplementation(libs.androidx.core.testing)
     testImplementation(libs.robolectric)
 }
