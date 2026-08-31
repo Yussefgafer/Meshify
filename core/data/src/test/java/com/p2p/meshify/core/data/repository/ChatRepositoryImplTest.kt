@@ -14,6 +14,8 @@ import com.p2p.meshify.core.util.NotificationHelper
 import com.p2p.meshify.domain.model.Payload
 import com.p2p.meshify.domain.repository.IFileManager
 import com.p2p.meshify.domain.repository.ISettingsRepository
+import androidx.room.withTransaction
+import java.nio.ByteBuffer
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -50,11 +52,14 @@ import org.junit.Test
  *   so ingestion is idempotent for forward-compatibility.
  *
  * What's deliberately NOT covered here:
- * - The full save-and-notify side of TEXT/FILE/HANDSHAKE: those paths require
- *   a real Room transaction (or a heavy fake DAOs + chat preview bumping) and
- *   belong in an instrumented / on-device test, not in a pure-JVM unit test.
- *   The dedup gate in front of them is the load-bearing piece — if it
- *   misfires, every downstream branch double-fires — so it's what we exercise.
+ * - The full save-and-notify side of FILE/HANDSHAKE, chat-preview bumping, and
+ *   notification side effects: those paths require a real Room transaction (or a
+ *   heavy fake DAOs) and belong in an instrumented / on-device test. The TEXT
+ *   save path's dedup gate IS exercised here — the MULTI_PATH test runs its
+ *   `withTransaction` block inline and asserts a single `insertMessage` across
+ *   two deliveries. The dedup gate in front of every branch is the load-bearing
+ *   piece — if it misfires, every downstream branch double-fires — so it's what
+ *   we exercise.
  *
  * Limit of the test: this is a JVM unit test driven by mockk. It cannot
  * reproduce real LAN/BLE multi-transport races, MTU fragmentation, GATT
@@ -266,5 +271,72 @@ class ChatRepositoryImplTest {
     fun `ChatRepositoryImpl — construction succeeds with mocked dependencies`() {
         val repo = newRepo()
         assertNotNull(repo)
+    }
+
+    /**
+     * MULTI_PATH dedup gate, exercised over the TEXT save path (the path that
+     * actually writes a message row). Under MULTI_PATH the same logical message
+     * is delivered once over LAN and once over BLE with an identical
+     * [Payload.id]; the [ChatRepositoryImpl.processedPayloadIds] set must drop
+     * the second delivery BEFORE [MessageDao.insertMessage] runs, so exactly
+     * one message row lands.
+     *
+     * Unlike the ACK cases above, the TEXT path wraps its writes in
+     * `database.withTransaction`; we execute that block inline here (the shared
+     * @Before only statically stubs withTransaction without running it) so the
+     * underlying insert actually fires and is observable.
+     */
+    @Test
+    fun `handleIncomingPayload — MULTI_PATH same payload id over two transports stores ONE message`() = runTest {
+        // Run the withTransaction block inline so the TEXT save path's
+        // insertMessage side effect is observable (countable) on the test dispatcher.
+        coEvery { database.withTransaction(any<suspend () -> Unit>()) }.coAnswers {
+            val block = secondArg<suspend () -> Unit>()
+            block()
+        }
+
+        val repo = newRepo()
+        val payload = Payload(
+            id = "multi-path-1",
+            senderId = "peer-a",
+            type = Payload.PayloadType.TEXT,
+            data = serializeEnvelope("peer-a", "self-id", "hello over mesh", 1_700_000_000_000L)
+        )
+
+        // First delivery (simulated LAN) writes the message.
+        repo.handleIncomingPayload("peer-a", payload)
+        // Second delivery (simulated BLE) carries the same id — must be dropped.
+        repo.handleIncomingPayload("peer-a", payload)
+
+        // Exactly one message row was persisted across both transports.
+        coVerify(exactly = 1) { messageDao.insertMessage(any()) }
+    }
+
+    /**
+     * Mirror of [com.p2p.meshify.core.data.repository.serializeMessageEnvelope]
+     * (internal) so this test can build a wire-valid TEXT payload without
+     * reaching into production internals. Layout:
+     * [short senderLen][sender][short recipientLen][recipient]
+     * [int textLen][text][long timestamp][short typeLen][type] (UTF-8).
+     */
+    private fun serializeEnvelope(
+        senderId: String,
+        recipientId: String,
+        text: String,
+        timestamp: Long
+    ): ByteArray {
+        val s = senderId.toByteArray(Charsets.UTF_8)
+        val r = recipientId.toByteArray(Charsets.UTF_8)
+        val t = text.toByteArray(Charsets.UTF_8)
+        val ty = "text".toByteArray(Charsets.UTF_8)
+        val buf = ByteBuffer.allocate(
+            2 + s.size + 2 + r.size + 4 + t.size + 8 + 2 + ty.size
+        )
+        buf.putShort(s.size.toShort()); buf.put(s)
+        buf.putShort(r.size.toShort()); buf.put(r)
+        buf.putInt(t.size); buf.put(t)
+        buf.putLong(timestamp)
+        buf.putShort(ty.size.toShort()); buf.put(ty)
+        return buf.array()
     }
 }

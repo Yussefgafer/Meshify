@@ -20,13 +20,12 @@ import java.nio.file.Files
  *
  * Why no Robolectric here:
  * `FileManagerImpl` only touches `Context.getFilesDir()` — a single File
- * accessor. The Robolectric 4.16.1 instrumentation layer pulls in
- * `android-all-instrumented-*.jar` artifacts compiled to Java 24 (class file
- * major version 70), which the bundled ASM cannot decode on this JDK, so any
- * `@RunWith(RobolectricTestRunner::class)` test in `:core:data` crashes
- * during `Shadows.reset()`. The class under test doesn't need Android
- * resources, services, or `Looper`, so we drive it with a mockk `Context`
- * pointing at a JUnit temp dir. Same approach as
+ * accessor. The class under test doesn't need Android resources, services, or
+ * `Looper`, so we drive it with a mockk `Context` pointing at a JUnit temp dir
+ * (fast and deterministic). Note: the project compiles test bytecode to
+ * class-file v65 (via compileOptions VERSION_21 in this module's
+ * build.gradle.kts); Robolectric is available here but adds no value for a
+ * pure-file-access test, so we avoid it. Same approach as
  * `WifiPermissionCheckerTest.contextGranting(...)`.
  *
  * What this covers:
