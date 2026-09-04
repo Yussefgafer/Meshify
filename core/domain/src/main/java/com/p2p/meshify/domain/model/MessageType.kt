@@ -42,7 +42,7 @@ enum class MessageType(
                 mime.contains("excel") -> DOCUMENT
                 mime.contains("powerpoint") -> DOCUMENT
                 mime.contains("zip") || mime.contains("compressed") -> ARCHIVE
-                mime.contains("apk") -> APK
+                mime.contains("package-archive") -> APK
                 mime.startsWith("text/") -> TEXT
                 else -> FILE
             }

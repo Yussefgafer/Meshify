@@ -9,10 +9,10 @@ enum class SignalStrength {
     companion object {
         fun fromRssi(rssi: Int): SignalStrength {
             return when {
+                rssi >= 0 -> OFFLINE // non-physical / no usable signal reading
                 rssi > -50 -> STRONG
-                rssi in -70..-50 -> MEDIUM
-                rssi < -70 -> WEAK
-                else -> OFFLINE
+                rssi >= -70 -> MEDIUM
+                else -> WEAK
             }
         }
     }

@@ -51,7 +51,10 @@ class ReactionRepository(
             val transport = transportManager.selectBestTransport(message.chatId).firstOrNull()
                 ?: return@withContext Result.failure(Exception("No available transport"))
 
-            transport.sendPayload(message.chatId, payload)
+            val sendResult = transport.sendPayload(message.chatId, payload)
+            if (sendResult.isFailure) {
+                return@withContext sendResult
+            }
 
             Logger.d("ReactionRepository -> Reaction ${reaction ?: "removed"} for message: $messageId")
             Result.success(Unit)
