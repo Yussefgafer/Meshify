@@ -2,6 +2,10 @@ package com.p2p.meshify.core.data.repository
 
 import android.content.Context
 import com.p2p.meshify.core.common.util.StringResourceProvider
+import com.p2p.meshify.core.crypto.EncryptResult
+import com.p2p.meshify.core.crypto.MessageCipher
+import com.p2p.meshify.core.crypto.PeerPublicKeyUnavailableException
+import com.p2p.meshify.core.crypto.PeerUnsupportedEncryptionException
 import com.p2p.meshify.core.data.local.MeshifyDatabase
 import com.p2p.meshify.core.data.local.dao.ChatDao
 import com.p2p.meshify.core.data.local.dao.MessageDao
@@ -14,7 +18,6 @@ import com.p2p.meshify.core.util.NotificationHelper
 import com.p2p.meshify.domain.model.Payload
 import com.p2p.meshify.domain.repository.IFileManager
 import com.p2p.meshify.domain.repository.ISettingsRepository
-import androidx.room.withTransaction
 import java.nio.ByteBuffer
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -31,7 +34,9 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -95,10 +100,6 @@ class ChatRepositoryImplTest {
         every { android.util.Log.i(any<String>(), any<String>()) } returns 0
         every { android.util.Log.v(any<String>(), any<String>()) } returns 0
 
-        // Save-path branches use androidx.room.withTransaction. Run the caller's
-        // block inline so the underlying (mocked) DAOs are invoked synchronously.
-        mockkStatic("androidx.room.RoomDatabaseKt__RoomDatabase_androidKt")
-
         // Repository constructor requires applicationContext for the
         // memory-leak guard. Provide a relaxed mock returning an applicationContext.
         val appContext = mockk<Context>(relaxed = true)
@@ -130,16 +131,24 @@ class ChatRepositoryImplTest {
         every { settingsRepository.notificationSound } returns kotlinx.coroutines.flow.flowOf(false)
         every { settingsRepository.notificationVibrate } returns kotlinx.coroutines.flow.flowOf(false)
         coEvery { settingsRepository.getDeviceId() } returns "self-id"
+
+        // encryptOrRollback runs insert → encrypt → rollback as separate
+        // transactions (encrypt deliberately sits outside any transaction
+        // so the peer-key wait never holds the DB lock). On failure the
+        // rollback deletes the message and restores the chat row.
+        // The plain-mocked DAO path in this test still works for
+        // non-send branches; the send/encrypt branches are covered by
+        // focused unit tests that stub the transaction behavior
+        // explicitly.
     }
 
     @After
     fun tearDown() {
         Dispatchers.resetMain()
         unmockkStatic(android.util.Log::class)
-        unmockkStatic("androidx.room.RoomDatabaseKt__RoomDatabase_androidKt")
     }
 
-    private fun newRepo(): ChatRepositoryImpl = ChatRepositoryImpl(
+    private fun newRepo(messageCipher: MessageCipher? = null): ChatRepositoryImpl = ChatRepositoryImpl(
         context = context,
         stringProvider = stringProvider,
         database = database,
@@ -149,7 +158,11 @@ class ChatRepositoryImplTest {
         transportManager = transportManager,
         fileManager = fileManager,
         notificationHelper = notificationHelper,
-        settingsRepository = settingsRepository
+        settingsRepository = settingsRepository,
+        messageCipher = messageCipher,
+        transactionRunner = object : TransactionRunner {
+            override suspend fun <T> run(block: suspend () -> T): T = block()
+        }
     )
 
     @Test
@@ -280,21 +293,9 @@ class ChatRepositoryImplTest {
      * [Payload.id]; the [ChatRepositoryImpl.processedPayloadIds] set must drop
      * the second delivery BEFORE [MessageDao.insertMessage] runs, so exactly
      * one message row lands.
-     *
-     * Unlike the ACK cases above, the TEXT path wraps its writes in
-     * `database.withTransaction`; we execute that block inline here (the shared
-     * @Before only statically stubs withTransaction without running it) so the
-     * underlying insert actually fires and is observable.
      */
     @Test
     fun `handleIncomingPayload — MULTI_PATH same payload id over two transports stores ONE message`() = runTest {
-        // Run the withTransaction block inline so the TEXT save path's
-        // insertMessage side effect is observable (countable) on the test dispatcher.
-        coEvery { database.withTransaction(any<suspend () -> Unit>()) }.coAnswers {
-            val block = secondArg<suspend () -> Unit>()
-            block()
-        }
-
         val repo = newRepo()
         val payload = Payload(
             id = "multi-path-1",
@@ -338,5 +339,159 @@ class ChatRepositoryImplTest {
         buf.putLong(timestamp)
         buf.putShort(ty.size.toShort()); buf.put(ty)
         return buf.array()
+    }
+
+    // ==================== Unencrypted-send flow (PeerUnsupportedEncryptionException) ====================
+
+    /**
+     * When the peer's handshake signaled no encryption support, a normal
+     * [ChatRepositoryImpl.sendMessage] must NOT auto-send; per the crypto
+     * contract it demands explicit user action. The repo drops the placeholder
+     * message row, then surfaces the typed exception so the UI can prompt.
+     */
+    @Test
+    fun `sendMessage — unsupported peer throws and drops placeholder row`() = runTest {
+        val cipher = mockk<MessageCipher>(relaxed = true)
+        coEvery { cipher.encryptFor("peer-a", any()) } returns EncryptResult.PeerDoesNotSupportEncryption
+
+        coEvery { chatDao.getChatById("peer-a") } returns null
+        coEvery { pendingMessageDao.getById(any()) } returns null
+
+        val repo = newRepo(cipher)
+        val result = repo.sendMessage("peer-a", "Alice", "hello", null)
+
+        // Typed exception, NOT a generic failure — the UI keys off this type.
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is PeerUnsupportedEncryptionException)
+        val ex = result.exceptionOrNull() as PeerUnsupportedEncryptionException
+        assertEquals("peer-a", ex.peerId)
+
+        // encryptOrRollback rolls back as a second transaction: the placeholder
+        // message is deleted and — because no prior chat existed — the chat row
+        // is deleted so the conversation list stays clean.
+        coVerify(exactly = 0) { transport.sendPayload(any(), any()) }
+        coVerify(exactly = 0) { messageDao.updateMessageStatus(any<String>(), MessageStatus.FAILED) }
+        coVerify { chatDao.deleteChatById("peer-a") }
+    }
+
+    /**
+     * When the peer's public key hasn't arrived yet (handshake in flight or
+     * never received), the message must NOT be silently queued as plaintext —
+     * the crypto contract requires the user to know the message didn't leave
+     * the device. The repo rolls the placeholder back and surfaces a typed
+     * exception so the VM can render a "Encryption key pending — Retry" UI.
+     */
+    @Test
+    fun `sendMessage — unavailable peer key throws and drops placeholder row`() = runTest {
+        val cipher = mockk<MessageCipher>(relaxed = true)
+        coEvery { cipher.encryptFor("peer-a", any()) } returns EncryptResult.PublicKeyUnavailable
+
+        coEvery { chatDao.getChatById("peer-a") } returns null
+        coEvery { pendingMessageDao.getById(any()) } returns null
+
+        val repo = newRepo(cipher)
+        val result = repo.sendMessage("peer-a", "Alice", "hello", null)
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is PeerPublicKeyUnavailableException)
+        val ex = result.exceptionOrNull() as PeerPublicKeyUnavailableException
+        assertEquals("peer-a", ex.peerId)
+
+        coVerify(exactly = 0) { transport.sendPayload(any(), any()) }
+        coVerify(exactly = 0) { messageDao.updateMessageStatus(any<String>(), MessageStatus.FAILED) }
+        coVerify { chatDao.deleteChatById("peer-a") }
+    }
+
+    /**
+     * When the peer's key is unavailable but a prior chat row already exists
+     * (prior messages in the conversation), the rollback restores the chat
+     * row with its original preview and timestamp — the conversation list
+     * shows the previous last message, not the unsent placeholder.
+     */
+    @Test
+    fun `sendMessage — unavailable key with existing chat restores prior chat row`() = runTest {
+        val cipher = mockk<MessageCipher>(relaxed = true)
+        coEvery { cipher.encryptFor("peer-b", any()) } returns EncryptResult.PublicKeyUnavailable
+
+        val priorChat = ChatEntity(peerId = "peer-b", peerName = "Bob", lastMessage = "prev", lastTimestamp = 100L)
+        coEvery { chatDao.getChatById("peer-b") } returns priorChat
+        coEvery { pendingMessageDao.getById(any()) } returns null
+
+        val repo = newRepo(cipher)
+        val result = repo.sendMessage("peer-b", "Bob", "new msg", null)
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is PeerPublicKeyUnavailableException)
+
+        // The prior chat is restored, not deleted.
+        coVerify(exactly = 0) { chatDao.deleteChatById("peer-b") }
+        coVerify { chatDao.insertChat(priorChat) }
+    }
+
+    /**
+     * The explicit opt-in path bypasses encryption entirely: when the user
+     * confirmed "send unencrypted", the message goes out as plaintext even for
+     * a peer marked unsupported (no throw, no dialog re-prompt).
+     */
+    @Test
+    fun `sendMessageUnencrypted — explicit opt-in sends plaintext for unsupported peer`() = runTest {
+        val cipher = mockk<MessageCipher>(relaxed = true)
+        coEvery { cipher.encryptFor("peer-a", any()) } returns EncryptResult.PeerDoesNotSupportEncryption
+        coEvery { transport.onlinePeers } returns MutableStateFlow(setOf("peer-a"))
+
+        val captured = mutableListOf<Payload>()
+        coEvery { transport.sendPayload(eq("peer-a"), capture(captured)) } returns Result.success(Unit)
+
+        val repo = newRepo(cipher)
+        val result = repo.sendMessageUnencrypted("peer-a", "Alice", "hello", null)
+
+        assertTrue(result.isSuccess)
+        assertTrue("expected exactly one wire payload", captured.size == 1)
+        assertEnvelopeHeader(captured.single().data)
+        // Encryption was never attempted for the unsupported peer.
+        coVerify(exactly = 0) { cipher.encryptFor(any(), any()) }
+    }
+
+    /**
+     * sendMessageUnencrypted on an *encryption-capable* peer must still send
+     * plaintext (explicit user override), never silently encrypt — the user
+     * chose to bypass after being warned.
+     */
+    @Test
+    fun `sendMessageUnencrypted — opt-in still bypasses encryption for supported peer`() = runTest {
+        val cipher = mockk<MessageCipher>(relaxed = true)
+        coEvery { cipher.encryptFor("peer-a", any()) } returns EncryptResult.Success(byteArrayOf(1, 2, 3))
+        coEvery { transport.onlinePeers } returns MutableStateFlow(setOf("peer-a"))
+
+        val captured = mutableListOf<Payload>()
+        coEvery { transport.sendPayload(eq("peer-a"), capture(captured)) } returns Result.success(Unit)
+
+        val repo = newRepo(cipher)
+        val result = repo.sendMessageUnencrypted("peer-a", "Alice", "hello", null)
+
+        assertTrue(result.isSuccess)
+        assertTrue("expected exactly one wire payload", captured.size == 1)
+        // Plaintext envelope on the wire, never the 3-byte ciphertext stub.
+        assertEnvelopeHeader(captured.single().data)
+        coVerify(exactly = 0) { cipher.encryptFor(any(), any()) }
+    }
+
+    /**
+     * A serialized MessageEnvelope begins [short senderLen][sender bytes]...
+     * Ciphertext would not match this header shape.
+     */
+    private fun assertEnvelopeHeader(data: ByteArray) {
+        if (data.size < 4) {
+            throw AssertionError("Expected a plaintext envelope, got ${data.size} bytes")
+        }
+        val senderLen = ((data[0].toInt() and 0xFF) shl 8) or (data[1].toInt() and 0xFF)
+        assertTrue("sender length must be sane (< 2048), was $senderLen", senderLen in 1..2048)
+        val recipientIndex = 2 + senderLen
+        if (data.size < recipientIndex + 2) {
+            throw AssertionError("Envelope too short for recipient length field at index $recipientIndex; size=${data.size}, senderLen=$senderLen")
+        }
+        val recipientLen = ((data[recipientIndex].toInt() and 0xFF) shl 8) or
+            (data[recipientIndex + 1].toInt() and 0xFF)
+        assertTrue("recipient length must be sane (< 2048), was $recipientLen", recipientLen in 1..2048)
     }
 }

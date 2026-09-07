@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Room
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.p2p.meshify.core.crypto.MessageCipher
+import com.p2p.meshify.core.crypto.PeerPublicKeyStore
 import com.p2p.meshify.core.data.local.MeshifyDatabase
 import com.p2p.meshify.core.common.security.SimplePeerIdProvider
 import com.p2p.meshify.core.common.util.AndroidStringResourceProvider
@@ -80,12 +82,16 @@ object AppModule {
     fun provideTransportManager(
         @ApplicationContext context: Context,
         settingsRepository: ISettingsRepository,
-        peerIdProvider: SimplePeerIdProvider
+        peerIdProvider: SimplePeerIdProvider,
+        messageCipher: MessageCipher?,
+        peerPublicKeyStore: PeerPublicKeyStore
     ): TransportManager {
         return TransportManager.createDefault(
             context,
             settingsRepository,
-            peerIdProvider
+            peerIdProvider,
+            messageCipher,
+            peerPublicKeyStore
         )
     }
 }

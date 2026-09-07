@@ -21,10 +21,13 @@ private const val TAG = "PayloadSerializer"
  *
  * V3 adds explicit version bump for string-based type encoding to maintain
  * backward compatibility with V2 ordinal-based payloads during mixed-version rollout.
+ * V4 (Current) adds the isEncrypted flag (1 byte) after the sender UUID so receivers
+ * can tell encrypted data from plaintext envelope bytes across the wire.
  */
 object PayloadSerializer {
 
-    private const val CURRENT_VERSION = 3
+    private const val CURRENT_VERSION = 4
+    private const val V3_VERSION = 3
     private const val V2_VERSION = 2
     private const val MAX_TYPE_LENGTH = 64 // Safety bound for type string
     private const val MIN_PAYLOAD_SIZE = 4 + 4 + 8 // Minimum: length + version + timestamp
@@ -41,7 +44,7 @@ object PayloadSerializer {
     fun serialize(payload: Payload): ByteArray {
         val typeBytes = payload.type.name.toByteArray()
         val dataSize = payload.data.size
-        val headerSize = 4 + 4 + 8 + 4 + typeBytes.size + 16 + 16 // Length + Version + Timestamp + TypeLength + TypeName + MsgID + SenderID
+        val headerSize = 4 + 4 + 8 + 4 + typeBytes.size + 16 + 16 + 1 // Length + Version + Timestamp + TypeLength + TypeName + MsgID + SenderID + IsEncrypted
         val buffer = ByteBuffer.allocate(headerSize + dataSize)
 
         buffer.putInt(headerSize + dataSize)
@@ -59,6 +62,9 @@ object PayloadSerializer {
         val senderUuid = try { UUID.fromString(payload.senderId) } catch (e: Exception) { UUID.randomUUID() }
         buffer.putLong(senderUuid.mostSignificantBits)
         buffer.putLong(senderUuid.leastSignificantBits)
+
+        // IsEncrypted flag (V4)
+        buffer.put(if (payload.isEncrypted) 1 else 0)
 
         buffer.put(payload.data)
 
@@ -125,8 +131,8 @@ object PayloadSerializer {
                         Payload.PayloadType.values()[typeOrdinal]
                     }
                 }
-                CURRENT_VERSION -> {
-                    // V3: Type encoded as String with length prefix
+                V3_VERSION -> {
+                    // V3: Type encoded as String with length prefix (no isEncrypted flag)
                     if (buffer.remaining() < 4) {
                         return DeserializeResult.Error("Insufficient bytes for V3 type length", bytes)
                     }
@@ -136,6 +142,30 @@ object PayloadSerializer {
                     if (typeLength < 0 || typeLength > MAX_TYPE_LENGTH || typeLength > buffer.remaining()) {
                         // Skip remaining fields safely by returning error
                         return DeserializeResult.Error("Invalid V3 type length: $typeLength", bytes)
+                    }
+
+                    val typeBytes = ByteArray(typeLength)
+                    buffer.get(typeBytes)
+                    // Use explicit UTF-8 charset to avoid platform-dependent decoding
+                    val typeName = try {
+                        String(typeBytes, StandardCharsets.UTF_8)
+                    } catch (e: Exception) {
+                        Logger.w("Invalid UTF-8 type name, using default charset", tag = TAG)
+                        String(typeBytes) // Fallback to default charset
+                    }
+                    try { Payload.PayloadType.valueOf(typeName) } catch (e: IllegalArgumentException) { Payload.PayloadType.SYSTEM_CONTROL }
+                }
+                CURRENT_VERSION -> {
+                    // V4: Type encoded as String with length prefix (isEncrypted flag follows UUIDs)
+                    if (buffer.remaining() < 4) {
+                        return DeserializeResult.Error("Insufficient bytes for V4 type length", bytes)
+                    }
+                    val typeLength = buffer.int
+
+                    // Bounds check for type length
+                    if (typeLength < 0 || typeLength > MAX_TYPE_LENGTH || typeLength > buffer.remaining()) {
+                        // Skip remaining fields safely by returning error
+                        return DeserializeResult.Error("Invalid V4 type length: $typeLength", bytes)
                     }
 
                     val typeBytes = ByteArray(typeLength)
@@ -170,6 +200,16 @@ object PayloadSerializer {
             val senderLsb = buffer.long
             val senderId = UUID(senderMsb, senderLsb).toString()
 
+            // isEncrypted flag (V4 only; V2/V3 default to plaintext)
+            val isEncrypted = if (version == CURRENT_VERSION) {
+                if (buffer.remaining() < 1) {
+                    return DeserializeResult.Error("Insufficient bytes for isEncrypted flag", bytes)
+                }
+                buffer.get() == 1.toByte()
+            } else {
+                false
+            }
+
             // Data (remaining bytes) with max size check
             val remainingBytes = buffer.remaining()
             if (remainingBytes > MAX_DATA_SIZE) {
@@ -187,7 +227,8 @@ object PayloadSerializer {
                     senderId = senderId,
                     timestamp = timestamp,
                     type = type,
-                    data = data
+                    data = data,
+                    isEncrypted = isEncrypted
                 )
             )
 

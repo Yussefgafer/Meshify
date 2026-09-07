@@ -342,6 +342,12 @@
     <string name="security_warning_decryption_failed">فشل فك تشفير رسالة من %1$s: %2$s</string>
     <string name="security_warning_session_expired">انتهت الجلسة مع %1$s - يرجى إعادة الاتصال</string>
 
+    <!-- Unsupported-peer unencrypted send prompt (Send Unencrypted flow) -->
+    <string name="dialog_unsupported_peer_title">إرسال بدون تشفير؟</string>
+    <string name="dialog_unsupported_peer_message">هذا الطرف لا يدعم التشفير. هل تريد إرسال هذه الرسالة كنص عادي؟</string>
+    <string name="btn_send_unencrypted">إرسال بدون تشفير</string>
+    <string name="error_encryption_key_pending">مفتاح التشفير قيد الانتظار — إعادة المحاولة</string>
+
     <!-- ChatApp-Compose Chat Input Strings -->
     <string name="emoji_selector_bt_desc">محدد الرموز التعبيرية</string>
     <string name="dm_desc">رابط</string>

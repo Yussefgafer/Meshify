@@ -327,6 +327,11 @@
     <string name="security_warning_decryption_failed">Decryption failed for message from %1$s: %2$s</string>
     <string name="security_warning_session_expired">Session expired with %1$s - please reconnect</string>
 
+    <!-- Unsupported-peer unencrypted send prompt (Send Unencrypted flow) -->
+    <string name="dialog_unsupported_peer_title">Send unencrypted?</string>
+    <string name="dialog_unsupported_peer_message">This peer doesn\'t support encrypted messaging. Send this message as plain text instead?</string>
+    <string name="btn_send_unencrypted">Send unencrypted</string>
+
     <!-- ChatApp-Compose Chat Input Strings -->
     <string name="emoji_selector_bt_desc">Emoji Selector</string>
     <string name="dm_desc">Link</string>
@@ -432,6 +437,7 @@
     <string name="error_reply_security">Security error, please reconnect</string>
     <string name="error_reply_send_failed">Failed to send reply</string>
     <string name="error_reply_unknown">Error: Unknown error</string>
+    <string name="error_encryption_key_pending">Encryption key pending — Retry</string>
 
     <!-- Notification channels -->
     <string name="notification_channel_messages">Messages</string>

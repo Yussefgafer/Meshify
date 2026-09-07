@@ -2,6 +2,7 @@ package com.p2p.meshify.di
 
 import android.content.Context
 import com.p2p.meshify.core.common.security.SimplePeerIdProvider
+import com.p2p.meshify.core.crypto.PeerPublicKeyStore
 import com.p2p.meshify.core.network.ble.BleTransportImpl
 import com.p2p.meshify.domain.repository.ISettingsRepository
 import dagger.Module
@@ -19,9 +20,10 @@ object NetworkModule {
     fun provideBleTransport(
         @ApplicationContext context: Context,
         settingsRepository: ISettingsRepository,
-        peerIdProvider: SimplePeerIdProvider
+        peerIdProvider: SimplePeerIdProvider,
+        peerPublicKeyStore: PeerPublicKeyStore
     ): BleTransportImpl {
         val peerId = peerIdProvider.getPeerId()
-        return BleTransportImpl(context, settingsRepository, peerId)
+        return BleTransportImpl(context, settingsRepository, peerId, peerPublicKeyStore)
     }
 }

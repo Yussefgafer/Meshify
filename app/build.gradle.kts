@@ -111,6 +111,7 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 dependencies {
     // Core Modules
     implementation(project(":core:common"))
+    implementation(project(":core:crypto"))
     implementation(project(":core:domain"))
     implementation(project(":core:data"))
     implementation(project(":core:network"))

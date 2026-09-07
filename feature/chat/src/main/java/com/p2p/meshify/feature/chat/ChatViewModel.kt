@@ -7,6 +7,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.p2p.meshify.core.common.R
+import com.p2p.meshify.core.crypto.PeerPublicKeyUnavailableException
+import com.p2p.meshify.core.crypto.PeerUnsupportedEncryptionException
 import com.p2p.meshify.core.data.local.entity.MessageAttachmentEntity
 import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.data.local.entity.MessageStatus
@@ -69,7 +71,16 @@ data class ChatUiState(
     val failedMessageId: String? = null,
     val uploadError: String? = null,
     val transportUsed: Map<String, TransportType> = emptyMap(),
-    val successMessage: String? = null
+    val successMessage: String? = null,
+    /** Set when the peer's handshake signaled no encryption support; the send
+     *  is blocked until the user explicitly confirms "send unencrypted". */
+    val pendingUnencryptedSend: PendingUnencryptedSend? = null
+)
+
+/** Holds the text of a send that was blocked waiting for unencrypted consent. */
+data class PendingUnencryptedSend(
+    val text: String,
+    val replyToId: String?
 )
 
 @OptIn(FlowPreview::class)
@@ -253,6 +264,7 @@ class ChatViewModel @Inject constructor(
 
         if (!hasText && !hasAttachments) return
         if (state.isSending) return // Concurrent-send guard only — no wall-clock debounce so a deliberate Retry tap is never swallowed
+        if (state.pendingUnencryptedSend != null) return // Consent dialog up: the user must confirm/dismiss before another send can fire
         _uiState.update { it.copy(isSending = true) } // Set synchronously BEFORE launch so two rapid taps cannot both pass the guard
 
         viewModelScope.launch {
@@ -276,6 +288,32 @@ class ChatViewModel @Inject constructor(
                     // Send text message
                     val result = repository.sendMessage(peerId, peerName, state.inputText, state.replyTo?.id)
                     if (result.isFailure) {
+                        // Peer's handshake signaled no encryption support: the crypto
+                        // contract forbids auto-sending. Ask for explicit consent.
+                        if (result.exceptionOrNull() is PeerUnsupportedEncryptionException) {
+                            _uiState.update {
+                                it.copy(
+                                    isSending = false,
+                                    sendError = null,
+                                    failedMessageId = null,
+                                    pendingUnencryptedSend = PendingUnencryptedSend(
+                                        text = state.inputText,
+                                        replyToId = state.replyTo?.id
+                                    )
+                                )
+                            }
+                            return@launch
+                        }
+                        if (result.exceptionOrNull() is PeerPublicKeyUnavailableException) {
+                            _uiState.update {
+                                it.copy(
+                                    isSending = false,
+                                    sendError = context.getString(R.string.error_encryption_key_pending),
+                                    failedMessageId = null // Placeholder row was rolled back — no stale failed-id to highlight
+                                )
+                            }
+                            return@launch
+                        }
                         val errorMessage = context.getString(R.string.error_message_send_failed, result.exceptionOrNull()?.message ?: context.getString(R.string.error_unknown))
                         val failedId = resolveFailedMessageId()
                         _uiState.update { it.copy(isSending = false, sendError = errorMessage, inputText = state.inputText, failedMessageId = failedId) }
@@ -373,6 +411,48 @@ class ChatViewModel @Inject constructor(
         chatRepo.observeLatestMessages(peerId, MESSAGE_PAGE_SIZE).first()
             .firstOrNull { it.isFromMe && it.status == MessageStatus.FAILED } // window is DESC — newest first
             ?.id
+
+    /**
+     * User explicitly confirmed "Send unencrypted" after the peer's handshake
+     * signaled no encryption support. Replays the blocked text through
+     * [IChatRepository.sendMessageUnencrypted]; the message row that the
+     * blocked attempt dropped is re-created by the repository.
+     */
+    fun confirmSendUnencrypted() {
+        val pending = _uiState.value.pendingUnencryptedSend ?: return
+        if (_uiState.value.isSending) return
+
+        // Clear the prompt immediately so the dialog closes; a repeat failure
+        // (rare) would re-prompt via the same exception path.
+        _uiState.update { it.copy(pendingUnencryptedSend = null, isSending = true) }
+
+        viewModelScope.launch {
+            try {
+                val result = repository.sendMessageUnencrypted(peerId, peerName, pending.text, pending.replyToId)
+                if (result.isFailure) {
+                    val errorMessage = context.getString(R.string.error_message_send_failed, result.exceptionOrNull()?.message ?: context.getString(R.string.error_unknown))
+                    _uiState.update { it.copy(isSending = false, sendError = errorMessage) }
+                } else {
+                    _uiState.update { it.copy(isSending = false, inputText = "", draftText = "", replyTo = null) }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.e("ChatViewModel -> Unencrypted send failed", e)
+                val errorMessage = when {
+                    e.message?.contains("offline", ignoreCase = true) == true ->
+                        context.getString(R.string.error_peer_offline_message_saved)
+                    else -> context.getString(R.string.error_message_send_failed, e.message ?: context.getString(R.string.error_unknown))
+                }
+                _uiState.update { it.copy(isSending = false, sendError = errorMessage) }
+            }
+        }
+    }
+
+    /** User declined the unencrypted send — drop the blocked draft prompt. */
+    fun dismissUnencryptedPrompt() {
+        _uiState.update { it.copy(pendingUnencryptedSend = null) }
+    }
 
     fun stageAttachment(uri: Uri, type: MessageType) {
         viewModelScope.launch {

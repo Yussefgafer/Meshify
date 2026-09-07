@@ -3,6 +3,7 @@ package com.p2p.meshify.feature.chat
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
+import com.p2p.meshify.core.crypto.PeerUnsupportedEncryptionException
 import com.p2p.meshify.core.data.local.entity.MessageEntity
 import com.p2p.meshify.core.data.local.entity.MessageStatus
 import com.p2p.meshify.core.data.repository.ChatRepositoryImpl
@@ -598,5 +599,95 @@ class ChatViewModelTest {
         coVerify(exactly = 1) { repository.forwardMessage("fwd-2", listOf("peer-target")) }
         // isForwarding must be reset on the dialog state in the finally.
         assertFalse(vm.forwardDialogState.value.isForwarding)
+    }
+
+    // ===== unencrypted-send consent flow =====
+
+    @Test
+    fun `sendMessage — unsupported peer opens the consent dialog instead of an error`() = runTest {
+        val vm = newVm()
+        advanceUntilIdle()
+
+        coEvery { repository.sendMessage(any(), any(), any(), any()) } returns
+            Result.failure(PeerUnsupportedEncryptionException("peer-1"))
+
+        vm.onInputChanged("secret hello")
+        vm.sendMessage()
+        advanceUntilIdle()
+
+        // No generic error — the dialog state is populated with the blocked text.
+        assertNull(vm.uiState.value.sendError)
+        assertNotNull(vm.uiState.value.pendingUnencryptedSend)
+        assertEquals("secret hello", vm.uiState.value.pendingUnencryptedSend!!.text)
+        // The input text is NOT cleared while waiting for consent.
+        assertEquals("secret hello", vm.uiState.value.inputText)
+        // Send state reset so the dialog's confirm path can proceed.
+        assertFalse(vm.uiState.value.isSending)
+    }
+
+    @Test
+    fun `confirmSendUnencrypted — confirmed consent replays plaintext and clears input`() = runTest {
+        val vm = newVm()
+        advanceUntilIdle()
+
+        coEvery { repository.sendMessage(any(), any(), any(), any()) } returns
+            Result.failure(PeerUnsupportedEncryptionException("peer-1"))
+        coEvery { repository.sendMessageUnencrypted(any(), any(), any(), any()) } returns Result.success(Unit)
+
+        vm.onInputChanged("secret hello")
+        vm.sendMessage()
+        advanceUntilIdle()
+        assertNotNull(vm.uiState.value.pendingUnencryptedSend)
+
+        vm.confirmSendUnencrypted()
+        advanceUntilIdle()
+
+        // Explicit opt-in replayed the same text, unencrypted, with the reply target.
+        coVerify(exactly = 1) { repository.sendMessageUnencrypted("peer-1", "Alice", "secret hello", null) }
+        // Dialog closed, input cleared.
+        assertNull(vm.uiState.value.pendingUnencryptedSend)
+        assertEquals("", vm.uiState.value.inputText)
+        assertNull(vm.uiState.value.sendError)
+    }
+
+    @Test
+    fun `confirmSendUnencrypted — failure surfaces error but keeps no dialog`() = runTest {
+        val vm = newVm()
+        advanceUntilIdle()
+
+        coEvery { repository.sendMessage(any(), any(), any(), any()) } returns
+            Result.failure(PeerUnsupportedEncryptionException("peer-1"))
+        coEvery { repository.sendMessageUnencrypted(any(), any(), any(), any()) } returns
+            Result.failure(RuntimeException("offline"))
+
+        vm.onInputChanged("hello again")
+        vm.sendMessage()
+        advanceUntilIdle()
+        vm.confirmSendUnencrypted()
+        advanceUntilIdle()
+
+        assertNull(vm.uiState.value.pendingUnencryptedSend)
+        assertNotNull(vm.uiState.value.sendError)
+    }
+
+    @Test
+    fun `dismissUnencryptedPrompt — declines the send and keeps the draft`() = runTest {
+        val vm = newVm()
+        advanceUntilIdle()
+
+        coEvery { repository.sendMessage(any(), any(), any(), any()) } returns
+            Result.failure(PeerUnsupportedEncryptionException("peer-1"))
+
+        vm.onInputChanged("draft kept")
+        vm.sendMessage()
+        advanceUntilIdle()
+        assertNotNull(vm.uiState.value.pendingUnencryptedSend)
+
+        vm.dismissUnencryptedPrompt()
+
+        assertNull(vm.uiState.value.pendingUnencryptedSend)
+        // The draft is preserved so the user can edit/retry later.
+        assertEquals("draft kept", vm.uiState.value.inputText)
+        coVerify(exactly = 0) { repository.sendMessageUnencrypted(any(), any(), any(), any()) }
     }
 }

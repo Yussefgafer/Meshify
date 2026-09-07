@@ -36,6 +36,56 @@ class PayloadSerializerTest {
     }
 
     @Test
+    fun serialize_then_deserializeSafe_roundTrips_preservesIsEncryptedTrue() {
+        val id = UUID.randomUUID().toString()
+        val senderId = UUID.randomUUID().toString()
+        val payload = Payload(
+            id = id,
+            senderId = senderId,
+            timestamp = 777L,
+            type = Payload.PayloadType.TEXT,
+            data = byteArrayOf(9, 8, 7),
+            isEncrypted = true
+        )
+
+        val bytes = PayloadSerializer.serialize(payload)
+        val result = PayloadSerializer.deserializeSafe(bytes)
+
+        assertTrue(result is DeserializeResult.Success)
+        val restored = (result as DeserializeResult.Success).payload
+        assertEquals(id, restored.id)
+        assertEquals(senderId, restored.senderId)
+        assertEquals(777L, restored.timestamp)
+        assertEquals(Payload.PayloadType.TEXT, restored.type)
+        assertTrue(restored.isEncrypted)
+        assertArrayEquals(byteArrayOf(9, 8, 7), restored.data)
+    }
+
+    @Test
+    fun deserializeSafe_v3Payload_withoutFlag_defaultsToPlaintext() {
+        val msg = UUID.randomUUID()
+        val snd = UUID.randomUUID()
+        val buffer = ByteBuffer.allocate(57)
+        buffer.putInt(57)
+        buffer.putInt(3) // V3 — no isEncrypted flag
+        buffer.putLong(0L)
+        buffer.putInt(4) // type length
+        buffer.put("TEXT".toByteArray())
+        buffer.putLong(msg.mostSignificantBits)
+        buffer.putLong(msg.leastSignificantBits)
+        buffer.putLong(snd.mostSignificantBits)
+        buffer.putLong(snd.leastSignificantBits)
+        buffer.put(42)
+
+        val result = PayloadSerializer.deserializeSafe(buffer.array())
+        assertTrue(result is DeserializeResult.Success)
+        val restored = (result as DeserializeResult.Success).payload
+        assertEquals(Payload.PayloadType.TEXT, restored.type)
+        assertTrue(!restored.isEncrypted)
+        assertArrayEquals(byteArrayOf(42), restored.data)
+    }
+
+    @Test
     fun deserializeSafe_emptyArray_isError() {
         val result = PayloadSerializer.deserializeSafe(byteArrayOf())
         assertTrue(result is DeserializeResult.Error)

@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import com.p2p.meshify.core.config.AppConfig
+import com.p2p.meshify.core.crypto.PeerPublicKeyStore
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.domain.model.Payload
 import com.p2p.meshify.domain.repository.ISettingsRepository
@@ -38,7 +39,14 @@ private const val SCAN_EXPIRY_MS = 30_000L // Drop peers not seen advertising fo
 class BleTransportImpl(
     private val context: Context,
     private val settingsRepository: ISettingsRepository,
-    private val peerId: String
+    private val peerId: String,
+    // Optional. Injected from Hilt (same singleton the cipher reads) so BLE
+    // peers are explicitly marked as not supporting encryption — the cipher
+    // then returns PeerDoesNotSupportEncryption and the UI flows the user
+    // through the "Send Unencrypted" consent dialog. BLE itself ships no
+    // handshake-with-key path in this release, so BLE-only peers are
+    // plaintext by explicit user consent.
+    private val peerPublicKeyStore: PeerPublicKeyStore? = null
 ) : IMeshTransport {
 
     // Transport metadata
@@ -574,6 +582,23 @@ class BleTransportImpl(
         }
         pendingLinkMacs.remove(address)
         _onlinePeers.update { it + meshId }
+
+        // Encryption: BLE has no handshake-with-publicKey path in this release.
+        // For peers we do NOT already know a public key for,
+        // mark them as unsupported so the cipher returns
+        // PeerDoesNotSupportEncryption and the UI flows through the explicit
+        // "Send Unencrypted" consent dialog instead of silently falling back
+        // to plaintext. The data still flows over BLE — the user just sees
+        // and consents to plaintext.
+        //
+        // If this peer already has a stored public key (e.g. from a prior LAN
+        // handshake on the same meshId), we must NOT remove it here.
+        // Otherwise LAN encryption would break moments after a BLE connection
+        // succeeds on the same peer.
+        val hasKnownKey = peerPublicKeyStore?.hasKnownKey(meshId) == true
+        if (!hasKnownKey) {
+            peerPublicKeyStore?.markPeerAsUnsupported(meshId)
+        }
 
         establishedMacs.add(address)
         _events.emit(TransportEvent.ConnectionEstablished(meshId))

@@ -12,6 +12,8 @@ import android.net.nsd.NsdServiceInfo
 import android.os.Build
 import androidx.core.content.ContextCompat
 import com.p2p.meshify.core.config.AppConfig
+import com.p2p.meshify.core.crypto.MessageCipher
+import com.p2p.meshify.core.crypto.PeerPublicKeyStore
 import com.p2p.meshify.core.util.Logger
 import com.p2p.meshify.core.util.FileUtils
 import com.p2p.meshify.domain.model.Payload
@@ -49,7 +51,9 @@ class LanTransportImpl(
     private val context: Context,
     private val socketManager: SocketManager,
     private val settingsRepository: ISettingsRepository,
-    private val peerIdProvider: SimplePeerIdProvider
+    private val peerIdProvider: SimplePeerIdProvider,
+    private val messageCipher: MessageCipher? = null,
+    private val peerPublicKeyStore: PeerPublicKeyStore? = null
 ) : IMeshTransport {
 
     // Transport metadata
@@ -284,6 +288,25 @@ class LanTransportImpl(
         val name = handshake.name
         val hash = handshake.avatarHash
 
+        // Store peer's public key if present, otherwise mark as unsupported.
+        // `peerPublicKeyStore` is the Hilt-provided singleton the cipher reads
+        // from; if it's null (unit tests), treat every peer as unsupported so
+        // the cipher returns PeerDoesNotSupportEncryption instead of silently
+        // letting traffic go un-encrypted.
+        val peerPublicKey = handshake.publicKeyBase64
+        val store = peerPublicKeyStore
+        if (store != null) {
+            if (peerPublicKey != null) {
+                store.store(senderId, peerPublicKey)
+                Logger.d("LanTransport -> Stored public key for peer $senderId")
+            } else {
+                store.markPeerAsUnsupported(senderId)
+                Logger.d("LanTransport -> Peer $senderId does not support encryption")
+            }
+        } else {
+            Logger.w("LanTransport -> No PeerPublicKeyStore wired; treating $senderId as unsupported")
+        }
+
         peerMapMutex.withLock {
             if (!peerMap.containsKey(senderId)) {
                 val rssi = getPeerRssi(address)
@@ -296,10 +319,11 @@ class LanTransportImpl(
                 val myPeerId = peerIdProvider.getPeerId()
 
                 val myHandshake = Handshake(
-                    version = 3,
+                    version = 4,
                     name = displayName,
                     avatarHash = avatarHash,
-                    timestamp = System.currentTimeMillis()
+                    timestamp = System.currentTimeMillis(),
+                    publicKeyBase64 = messageCipher?.getPublicKeyBase64()
                 )
 
                 scope.launch {
@@ -750,10 +774,11 @@ class LanTransportImpl(
                 val myAvatarHash = settingsRepository.avatarHash.firstOrNull()
 
                 val myHandshake = Handshake(
-                    version = 3,
+                    version = 4,
                     name = myName,
                     avatarHash = myAvatarHash,
-                    timestamp = System.currentTimeMillis()
+                    timestamp = System.currentTimeMillis(),
+                    publicKeyBase64 = messageCipher?.getPublicKeyBase64()
                 )
 
                 Logger.i("LanTransport -> Resolved peer $peerId at $address. Sending Handshake.")

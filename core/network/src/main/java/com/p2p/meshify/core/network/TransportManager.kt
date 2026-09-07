@@ -1,6 +1,8 @@
 package com.p2p.meshify.core.network
 
 import android.content.Context
+import com.p2p.meshify.core.crypto.MessageCipher
+import com.p2p.meshify.core.crypto.PeerPublicKeyStore
 import com.p2p.meshify.core.network.base.IMeshTransport
 import com.p2p.meshify.core.network.base.TransportCapability
 import com.p2p.meshify.core.network.base.TransportEvent
@@ -48,7 +50,8 @@ import kotlinx.coroutines.flow.launchIn
 class TransportManager(
     private val context: Context,
     private val settingsRepository: ISettingsRepository,
-    private val injectedManagerScope: CoroutineScope? = null
+    private val injectedManagerScope: CoroutineScope? = null,
+    private val messageCipher: MessageCipher? = null
 ) {
     internal val socketManager = SocketManager() // Changed from private to internal
     private val transports = ConcurrentHashMap<String, IMeshTransport>()
@@ -303,14 +306,23 @@ class TransportManager(
         fun createDefault(
             context: Context,
             settingsRepository: ISettingsRepository,
-            peerIdProvider: SimplePeerIdProvider
+            peerIdProvider: SimplePeerIdProvider,
+            messageCipher: MessageCipher? = null,
+            peerPublicKeyStore: PeerPublicKeyStore? = null
         ): TransportManager {
-            val manager = TransportManager(context, settingsRepository)
+            val manager = TransportManager(context, settingsRepository, messageCipher = messageCipher)
 
             // Register LAN transport (always available)
             manager.registerTransport(
                 "lan",
-                LanTransportImpl(context, manager.socketManager, settingsRepository, peerIdProvider)
+                LanTransportImpl(
+                    context,
+                    manager.socketManager,
+                    settingsRepository,
+                    peerIdProvider,
+                    messageCipher,
+                    peerPublicKeyStore
+                )
             )
 
             // NOTE: BLE transport is NOT registered here — it is managed by MeshifyApp

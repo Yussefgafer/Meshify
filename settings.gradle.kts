@@ -22,6 +22,7 @@ include(":app")
 
 // Core modules
 include(":core:common")
+include(":core:crypto")
 include(":core:data")
 include(":core:domain")
 include(":core:network")

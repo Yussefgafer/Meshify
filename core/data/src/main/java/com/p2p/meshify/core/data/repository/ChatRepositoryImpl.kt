@@ -3,6 +3,11 @@ package com.p2p.meshify.core.data.repository
 import android.content.Context
 import androidx.room.withTransaction
 import com.p2p.meshify.core.common.R
+import com.p2p.meshify.core.crypto.CryptoDecryptionException
+import com.p2p.meshify.core.crypto.EncryptResult
+import com.p2p.meshify.core.crypto.MessageCipher
+import com.p2p.meshify.core.crypto.PeerPublicKeyUnavailableException
+import com.p2p.meshify.core.crypto.PeerUnsupportedEncryptionException
 import com.p2p.meshify.core.data.local.MeshifyDatabase
 import com.p2p.meshify.core.data.local.dao.ChatDao
 import com.p2p.meshify.core.data.local.dao.MessageDao
@@ -69,7 +74,11 @@ class ChatRepositoryImpl(
     private val transportManager: TransportManager,
     private val fileManager: IFileManager,
     private val notificationHelper: NotificationHelper,
-    private val settingsRepository: ISettingsRepository
+    private val settingsRepository: ISettingsRepository,
+    private val messageCipher: MessageCipher? = null,
+    private val transactionRunner: TransactionRunner = object : TransactionRunner {
+        override suspend fun <T> run(block: suspend () -> T): T = database.withTransaction(block)
+    }
 ) : IChatRepository, Closeable {
 
     init {
@@ -164,10 +173,23 @@ class ChatRepositoryImpl(
         text: String,
         replyToId: String?
     ): Result<Unit> {
+        val envelopeBytes = buildTextEnvelope(peerId, text)
+        return sendPlaintextPayload(text, peerId, peerName, envelopeBytes, replyToId, forceUnencrypted = false)
+    }
+
+    override suspend fun sendMessageUnencrypted(
+        peerId: String,
+        peerName: String,
+        text: String,
+        replyToId: String?
+    ): Result<Unit> {
+        val envelopeBytes = buildTextEnvelope(peerId, text)
+        return sendPlaintextPayload(text, peerId, peerName, envelopeBytes, replyToId, forceUnencrypted = true)
+    }
+
+    private suspend fun buildTextEnvelope(peerId: String, text: String): ByteArray {
         val myId = settingsRepository.getDeviceId()
         val timestamp = System.currentTimeMillis()
-        val messageId = UUID.randomUUID().toString()
-
         val envelope = MessageEnvelope(
             senderId = myId,
             recipientId = peerId,
@@ -175,9 +197,7 @@ class ChatRepositoryImpl(
             timestamp = timestamp,
             messageType = "text"
         )
-
-        val envelopeBytes = serializeMessageEnvelope(envelope)
-        return sendPlaintextPayload(text, peerId, peerName, envelopeBytes, replyToId)
+        return serializeMessageEnvelope(envelope)
     }
 
     override suspend fun sendFileWithProgress(
@@ -405,12 +425,31 @@ class ChatRepositoryImpl(
         )
 
         val envelopeBytes = serializeMessageEnvelope(envelope)
+
+        // Attempt encryption; fall back to plaintext if the peer doesn't support it
+        // or the key isn't available yet — forwarding prioritises delivery.
+        var isEncrypted = false
+        var payloadData = envelopeBytes
+        if (messageCipher != null) {
+            when (val encryptResult = messageCipher.encryptFor(peerId, envelopeBytes)) {
+                is EncryptResult.Success -> {
+                    payloadData = encryptResult.ciphertext
+                    isEncrypted = true
+                }
+                EncryptResult.PeerDoesNotSupportEncryption ->
+                    Logger.w("ChatRepository → Forwarding to $peerId without encryption (peer does not support it)", tag = "ChatRepository")
+                EncryptResult.PublicKeyUnavailable ->
+                    Logger.w("ChatRepository → Forwarding to $peerId without encryption (key not yet available)", tag = "ChatRepository")
+            }
+        }
+
         val payload = Payload(
             id = newMessage.id,
             senderId = settingsRepository.getDeviceId(),
             timestamp = newMessage.timestamp,
             type = Payload.PayloadType.TEXT,
-            data = envelopeBytes
+            data = payloadData,
+            isEncrypted = isEncrypted
         )
 
         return try {
@@ -638,7 +677,28 @@ class ChatRepositoryImpl(
 
     private suspend fun handlePlaintextMessage(peerId: String, payload: Payload) {
         try {
-            val envelope = deserializeMessageEnvelope(payload.data)
+            val envelopeData: ByteArray = if (payload.isEncrypted && messageCipher != null) {
+                try {
+                    messageCipher.decrypt(payload.data)
+                } catch (e: CryptoDecryptionException) {
+                    Logger.e(
+                        "Decryption failed for incoming payload ${payload.id} from $peerId; storing visible placeholder instead of silently re-parsing ciphertext as envelope. " +
+                            "This usually means the sender's keyset is out of sync with ours (e.g. cold-restart keyset regen).",
+                        e,
+                        tag = "ChatRepository"
+                    )
+                    val placeholder = context.getString(R.string.error_decryption_failed)
+                    val saveResult = saveIncomingMessage(peerId, placeholder, null, MessageType.TEXT, payload.timestamp, payload.id)
+                    if (saveResult.isSuccess) {
+                        Logger.w("Stored decryption-failed placeholder for ${payload.id}; skipping ACK")
+                    }
+                    return
+                }
+            } else {
+                payload.data
+            }
+
+            val envelope = deserializeMessageEnvelope(envelopeData)
             val text = envelope.text
 
             val saveResult = saveIncomingMessage(peerId, text, null, MessageType.TEXT, payload.timestamp, payload.id)
@@ -736,7 +796,7 @@ class ChatRepositoryImpl(
             // carry the existing count over INSERT OR REPLACE, then bump it.
             val existingChat = chatDao.getChatById(peerId)
             val finalName = if (existingChat != null) parseName(existingChat.peerName) else "${AppConstants.DEFAULT_PEER_NAME_PREFIX}${peerId.take(4)}"
-            database.withTransaction {
+            transactionRunner.run {
                 val preservedUnread = chatDao.getChatById(peerId)?.unreadCount ?: 0
                 chatDao.insertChat(
                     ChatEntity(peerId, finalName, "[${messageType.name}]", payload.timestamp)
@@ -839,7 +899,7 @@ class ChatRepositoryImpl(
             // insertChat is INSERT OR REPLACE and would zero unreadCount (the
             // entity default), so carry the existing count over the replace,
             // then bump it — an incoming message means one more unread.
-            database.withTransaction {
+            transactionRunner.run {
                 val preservedUnread = chatDao.getChatById(peerId)?.unreadCount ?: 0
                 chatDao.insertChat(
                     ChatEntity(peerId, finalName, text ?: "[Media]", timestamp)
@@ -865,7 +925,8 @@ class ChatRepositoryImpl(
         peerId: String,
         peerName: String,
         envelopeData: ByteArray,
-        replyToId: String?
+        replyToId: String?,
+        forceUnencrypted: Boolean = false
     ): Result<Unit> {
         val messageId = UUID.randomUUID().toString()
         val myId = settingsRepository.getDeviceId()
@@ -885,8 +946,19 @@ class ChatRepositoryImpl(
             replyToId = replyToId
         )
 
-        chatDao.insertChat(ChatEntity(peerId, cleanName, message.text, timestamp))
-        messageDao.insertMessage(message)
+        // encryptOrRollback inserts a placeholder chat+message row, attempts
+        // encryption outside any transaction (may wait up to 4s for the peer key),
+        // then on failure deletes the message row and either deletes the chat row
+        // (new peer) or restores the prior chat row (existing peer). A crash between
+        // the insert and the rollback leaves both rows orphaned.
+        val txResult = encryptOrRollback(
+            peerId = peerId,
+            cleanName = cleanName,
+            message = message,
+            envelopeData = envelopeData,
+            forceUnencrypted = forceUnencrypted
+        )
+        val payloadData: ByteArray = txResult.getOrElse { return Result.failure(it) }
 
         val isOnline = transportManager.getAllTransports().any { it.onlinePeers.value.contains(peerId) }
 
@@ -908,7 +980,8 @@ class ChatRepositoryImpl(
             senderId = myId,
             timestamp = timestamp,
             type = Payload.PayloadType.TEXT,
-            data = envelopeData
+            data = payloadData,
+            isEncrypted = messageCipher != null && !forceUnencrypted
         )
 
         return try {
@@ -951,6 +1024,74 @@ class ChatRepositoryImpl(
     }
 
     private fun parseName(raw: String): String = PeerNameParser.parseName(raw)
+
+    /**
+     * Insert placeholder message + chat row, attempt encryption, then either:
+     * - return `Result.success(ciphertext)` so the caller sends, or
+     * - roll back the placeholder rows and return `Result.failure(typedException)` so
+     *   the caller surfaces the error to the UI.
+     *
+     * The insert runs in its own transaction; encryption runs OUTSIDE it (bounded at
+     * 4s by the peer-key wait) so the DB writer lock is never held during the network
+     * wait; rollback — if encryption fails — runs in a second transaction and restores
+     * the chat row exactly (deleted if new peer, restored from the prior snapshot if
+     * already existed). A crash or cancellation between the insert and the rollback can
+     * leave the placeholder rows orphaned (no durable protection without holding a
+     * single DB connection across the encrypt window).
+     */
+    private suspend fun encryptOrRollback(
+        peerId: String,
+        cleanName: String,
+        message: MessageEntity,
+        envelopeData: ByteArray,
+        forceUnencrypted: Boolean = false
+    ): Result<ByteArray> {
+        // Capture the chat row before our insert so a failed encryption can
+        // restore the conversation list exactly: new peers have their chat row
+        // deleted; existing chats have their prior preview/timestamp restored.
+        val priorChat = chatDao.getChatById(peerId)
+
+        // Insert placeholder chat + message row (fast, no network wait).
+        transactionRunner.run {
+            chatDao.insertChat(ChatEntity(peerId, cleanName, message.text, message.timestamp))
+            messageDao.insertMessage(message)
+        }
+
+        // Phase 2: Encrypt outside transaction (may wait for peer key up to 4s)
+        return try {
+            val payloadBytes = when {
+                messageCipher != null && !forceUnencrypted -> {
+                    when (val encryptResult = messageCipher.encryptFor(peerId, envelopeData)) {
+                        is EncryptResult.Success -> encryptResult.ciphertext
+                        EncryptResult.PeerDoesNotSupportEncryption -> throw PeerUnsupportedEncryptionException(peerId)
+                        EncryptResult.PublicKeyUnavailable -> throw PeerPublicKeyUnavailableException(peerId)
+                    }
+                }
+                else -> envelopeData
+            }
+            Result.success(payloadBytes)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // Never swallow cancellation: a cancelled coroutine must not enter a
+            // DB transaction to "roll back"; the caller observes the cancellation.
+            throw e
+        } catch (e: Exception) {
+            // Rollback: delete the placeholder message, then restore the chat
+            // row to exactly what it was before the insert — deleted if new,
+            // restored with prior preview/timestamp if it already existed.
+            // A crash or cancellation between the insert and this rollback
+            // can leave both rows orphaned (no durable protection without
+            // holding a single DB connection across the encrypt window).
+            transactionRunner.run {
+                messageDao.deleteMessages(listOf(message.id))
+                if (priorChat == null) {
+                    chatDao.deleteChatById(peerId)
+                } else {
+                    chatDao.insertChat(priorChat)
+                }
+            }
+            Result.failure(e)
+        }
+    }
 
     // ==================== Cleanup ====================
 

@@ -1,6 +1,7 @@
 package com.p2p.meshify.di
 
 import android.content.Context
+import com.p2p.meshify.core.crypto.MessageCipher
 import com.p2p.meshify.core.data.local.MeshifyDatabase
 import com.p2p.meshify.core.data.local.dao.ChatDao
 import com.p2p.meshify.core.data.local.dao.MessageDao
@@ -47,7 +48,8 @@ object RepositoryModule {
         transportManager: TransportManager,
         fileManager: IFileManager,
         notificationHelper: NotificationHelper,
-        settingsRepository: ISettingsRepository
+        settingsRepository: ISettingsRepository,
+        messageCipher: MessageCipher?
     ): ChatRepositoryImpl {
         return ChatRepositoryImpl(
             context = context,
@@ -59,7 +61,8 @@ object RepositoryModule {
             transportManager = transportManager,
             fileManager = fileManager,
             notificationHelper = notificationHelper,
-            settingsRepository = settingsRepository
+            settingsRepository = settingsRepository,
+            messageCipher = messageCipher
         )
     }
 

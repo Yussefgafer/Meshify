@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -33,6 +34,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -523,6 +525,29 @@ fun ChatScreen(
                 pendingDeleteAction = null
             },
             hapticTick = { haptics.perform(HapticPattern.Tick) }
+        )
+    }
+
+    // Unencrypted-send consent dialog: the peer's handshake signaled no
+    // encryption support, and the crypto contract forbids auto-sending.
+    if (uiState.pendingUnencryptedSend != null) {
+        AlertDialog(
+            onDismissRequest = viewModel::dismissUnencryptedPrompt,
+            title = { Text(stringResource(R.string.dialog_unsupported_peer_title)) },
+            text = { Text(stringResource(R.string.dialog_unsupported_peer_message)) },
+            confirmButton = {
+                TextButton(onClick = viewModel::confirmSendUnencrypted) {
+                    Text(
+                        stringResource(R.string.btn_send_unencrypted),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::dismissUnencryptedPrompt) {
+                    Text(stringResource(R.string.dialog_btn_cancel))
+                }
+            }
         )
     }
 }

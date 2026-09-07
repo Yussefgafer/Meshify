@@ -34,6 +34,22 @@ interface IChatRepository {
 
     // Message sending
     suspend fun sendMessage(peerId: String, peerName: String, text: String, replyToId: String? = null): Result<Unit>
+
+    /**
+     * Replays the just-failed send WITHOUT encryption. Used after the user
+     * explicitly confirms "Send unencrypted" in response to a
+     * [com.p2p.meshify.core.crypto.PeerUnsupportedEncryptionException].
+     * Only valid for plain TEXT; album/file sends must not bypass encryption
+     * via this path because we have no way to surface the same confirmation
+     * mid-upload.
+     */
+    suspend fun sendMessageUnencrypted(
+        peerId: String,
+        peerName: String,
+        text: String,
+        replyToId: String? = null
+    ): Result<Unit>
+
     suspend fun sendGroupedMessage(
         peerId: String,
         peerName: String,
