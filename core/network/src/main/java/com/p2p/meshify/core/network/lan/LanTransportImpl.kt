@@ -41,7 +41,7 @@ import kotlinx.coroutines.sync.withLock
  *
  * Improvements:
  * - Mutex locks for critical operations on peerMap
- * - Periodic cleanup of failedSendCounts to prevent memory leaks
+ * - Periodic cleanup of expired failure entries to prevent memory leaks
  * - Retry logic with exponential backoff for NSD operations
  * - Improved Dead Peer Detection with accurate failure tracking
  * - Timeout for all async operations
@@ -75,8 +75,8 @@ class LanTransportImpl(
     private val peerMapMutex = Mutex()
 
     // Dead Peer Detection: track recent send-failure timestamps per peer
-    // (rolling window — see FAILURE_WINDOW_MS)
-    private val failedSendCounts = ConcurrentHashMap<String, MutableList<Long>>()
+    // (rolling window — see FailureTracker)
+    private val failureTracker = FailureTracker()
 
     // PF10: Cache for settings to avoid repeated firstOrNull() calls (5-10ms delay each)
     private var cachedDisplayName: String = "Unknown"
@@ -109,9 +109,6 @@ class LanTransportImpl(
         return cachedAvatarHash
     }
 
-    // Mutex for protecting failedSendCounts operations
-    private val failedCountsMutex = Mutex()
-
     private val _onlinePeers = MutableStateFlow<Set<String>>(emptySet())
     override val onlinePeers: StateFlow<Set<String>> = _onlinePeers.asStateFlow()
 
@@ -126,8 +123,6 @@ class LanTransportImpl(
     private var discoveryEnabled = false
 
     companion object {
-        private const val MAX_FAILURES_BEFORE_REMOVAL = 5 // Failures within FAILURE_WINDOW_MS mark peer dead
-        private const val FAILURE_WINDOW_MS = 60_000L // Rolling window for counting failures
         private const val CLEANUP_FAILED_COUNTS_INTERVAL_MS = 5 * 60 * 1000L // 5 minutes
         private const val NSD_RETRY_DELAY_MS = 2000L // 2s initial retry
         private const val NSD_MAX_RETRIES = 3
@@ -168,7 +163,7 @@ class LanTransportImpl(
 
         scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-        // Start cleanup job for failedSendCounts (prevents memory leak)
+        // Start cleanup job for expired failure entries (prevents memory leak)
         cleanupFailedCountsJob = scope.launch {
             while (isActive) {
                 delay(CLEANUP_FAILED_COUNTS_INTERVAL_MS)
@@ -230,28 +225,10 @@ class LanTransportImpl(
     }
 
     /**
-     * Cleans up failedSendCounts to prevent memory leak.
-     * Removes entries whose failures all fall outside the rolling window.
+     * Cleans up expired failure entries to prevent memory leak.
      */
-    private suspend fun cleanupFailedCounts() = withContext(Dispatchers.IO) {
-        failedCountsMutex.withLock {
-            val now = System.currentTimeMillis()
-            val toRemove = mutableListOf<String>()
-
-            for ((peerId, timestamps) in failedSendCounts) {
-                if (timestamps.none { now - it < FAILURE_WINDOW_MS }) {
-                    toRemove.add(peerId)
-                }
-            }
-
-            toRemove.forEach { peerId ->
-                failedSendCounts.remove(peerId)
-            }
-
-            if (toRemove.isNotEmpty()) {
-                Logger.d("LanTransport -> Cleaned up ${toRemove.size} stale failure window entries")
-            }
-        }
+    private fun cleanupFailedCounts() {
+        failureTracker.cleanupExpired()
     }
 
     private fun handleSystemCommand(senderId: String, command: String) {
@@ -619,36 +596,22 @@ class LanTransportImpl(
             val exception = result.exceptionOrNull()
             // Only count network-related failures (timeout, connection refused)
             if (exception is SocketTimeoutException || exception is ConnectException) {
-                failedCountsMutex.withLock {
-                    val now = System.currentTimeMillis()
-                    val timestamps = failedSendCounts.getOrPut(targetDeviceId) { mutableListOf() }
-                    timestamps.add(now)
-                    timestamps.removeAll { now - it > FAILURE_WINDOW_MS }
+                val isDead = failureTracker.recordFailure(targetDeviceId)
+                if (isDead) {
+                    peerMapMutex.withLock {
+                        peerMap.remove(targetDeviceId)
+                    }
+                    _typingPeers.update { it - targetDeviceId }
+                    updateOnlinePeers()
 
-                    Logger.w("LanTransport -> Send failed to $targetDeviceId (${timestamps.size} failures in last ${FAILURE_WINDOW_MS / 1000}s)")
-
-                    // Remove peer only if enough failures occurred within the window
-                    if (timestamps.size >= MAX_FAILURES_BEFORE_REMOVAL) {
-                        Logger.w("LanTransport -> Marking peer $targetDeviceId as dead after ${timestamps.size} failures within ${FAILURE_WINDOW_MS / 1000}s")
-
-                        peerMapMutex.withLock {
-                            peerMap.remove(targetDeviceId)
-                        }
-                        failedSendCounts.remove(targetDeviceId)
-                        _typingPeers.update { it - targetDeviceId }
-                        updateOnlinePeers()
-
-                        scope.launch {
-                            _events.emit(TransportEvent.DeviceLost(targetDeviceId))
-                        }
+                    scope.launch {
+                        _events.emit(TransportEvent.DeviceLost(targetDeviceId))
                     }
                 }
             }
         } else {
             // Reset failure window on success
-            failedCountsMutex.withLock {
-                failedSendCounts.remove(targetDeviceId)
-            }
+            failureTracker.reset(targetDeviceId)
         }
 
         return@withContext result

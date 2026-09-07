@@ -37,7 +37,7 @@ object AppModule {
         }
 
         return Room.databaseBuilder(context, MeshifyDatabase::class.java, "meshify.db")
-            .addMigrations(migration5to6, MeshifyDatabase.MIGRATION_6_7)
+            .addMigrations(migration5to6, MeshifyDatabase.MIGRATION_6_7, MeshifyDatabase.MIGRATION_7_8)
             .build()
     }
 

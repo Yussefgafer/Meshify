@@ -47,4 +47,14 @@ object AppConfig {
     // Buffer & Payload Limits
     const val MAX_PAYLOAD_SIZE_BYTES = 10 * 1024 * 1024 // 10MB limit for safety
     const val DEFAULT_BUFFER_SIZE = 32768 // Increased from 8KB to 32KB for better throughput
+
+    // Pending message retry loop (exponential backoff with jitter)
+    const val PENDING_RETRY_MAX_ATTEMPTS = 5
+    const val PENDING_RETRY_BASE_DELAY_MS = 1000L // 1 second
+    const val PENDING_RETRY_MAX_DELAY_MS = 30000L // 30 seconds
+
+    // Dead-peer detection (FailureTracker): a peer is considered dead when it
+    // accumulates FAILURE_MAX_FAILURES send failures within FAILURE_WINDOW_MS.
+    const val FAILURE_WINDOW_MS = 60_000L
+    const val FAILURE_MAX_FAILURES = 5
 }

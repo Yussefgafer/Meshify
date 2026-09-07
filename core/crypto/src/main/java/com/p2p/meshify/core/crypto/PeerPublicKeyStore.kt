@@ -11,6 +11,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Base64
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 class PeerPublicKeyStore(
     private val defaultWaitTimeoutMs: Long = AppConfig.PEER_KEY_WAIT_TIMEOUT_MS
@@ -19,20 +21,25 @@ class PeerPublicKeyStore(
     private val knownKeys = ConcurrentHashMap<String, KeysetHandle>()
     private val pendingWaiters = ConcurrentHashMap<String, CopyOnWriteArrayList<CompletableDeferred<KeysetHandle>>>()
     private val knownUnsupportedPeers = ConcurrentHashMap.newKeySet<String>()
+    private val peerLocks = ConcurrentHashMap<String, ReentrantLock>()
+
+    private fun peerLock(peerId: String) = peerLocks.getOrPut(peerId) { ReentrantLock() }
 
     /** Store incoming public key from Handshake */
     fun store(peerId: String, publicKeyBase64: String) {
-        try {
-            val bytes = Base64.getDecoder().decode(publicKeyBase64)
-            val handle = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(bytes))
-            knownUnsupportedPeers.remove(peerId)
-            knownKeys[peerId] = handle
+        peerLock(peerId).withLock {
+            try {
+                val bytes = Base64.getDecoder().decode(publicKeyBase64)
+                val handle = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(bytes))
+                knownUnsupportedPeers.remove(peerId)
+                knownKeys[peerId] = handle
 
-            pendingWaiters.remove(peerId)?.forEach { waiter ->
-                if (!waiter.isCompleted) waiter.complete(handle)
+                pendingWaiters.remove(peerId)?.forEach { waiter ->
+                    if (!waiter.isCompleted) waiter.complete(handle)
+                }
+            } catch (e: Exception) {
+                Logger.e("PeerPublicKeyStore → Malformed public key from $peerId, ignoring", e, tag = "Crypto")
             }
-        } catch (e: Exception) {
-            Logger.e("PeerPublicKeyStore → Malformed public key from $peerId, ignoring", e, tag = "Crypto")
         }
     }
 
@@ -44,12 +51,16 @@ class PeerPublicKeyStore(
 
     /** Explicitly marks peer as not supporting encryption (e.g. Handshake with null publicKeyBase64) */
     fun markPeerAsUnsupported(peerId: String) {
-        knownUnsupportedPeers.add(peerId)
-        knownKeys.remove(peerId)
-        pendingWaiters.remove(peerId)?.forEach { it.cancel() }
+        peerLock(peerId).withLock {
+            knownUnsupportedPeers.add(peerId)
+            knownKeys.remove(peerId)
+            pendingWaiters.remove(peerId)?.forEach { it.cancel() }
+        }
     }
 
-    fun isKnownUnsupported(peerId: String): Boolean = peerId in knownUnsupportedPeers
+    fun isKnownUnsupported(peerId: String): Boolean = peerLock(peerId).withLock {
+        peerId in knownUnsupportedPeers
+    }
 
     /**
      * Waits up to timeoutMs for the peer's public key if not yet known.

@@ -129,7 +129,6 @@ class ChatRepositoryImpl(
     // side-effects don't fire twice (the DB insert is already idempotent via REPLACE).
     private val processedPayloadIds = ConcurrentHashMap.newKeySet<String>()
 
-    // TODO: Remove if unused after 2026-07 — consumed by ChatMessagesViewModel and ChatViewModel
     private val _securityEvents = MutableSharedFlow<SecurityEvent>(replay = 0)
     override val securityEvents: SharedFlow<SecurityEvent> = _securityEvents.asSharedFlow()
 
@@ -969,7 +968,8 @@ class ChatRepositoryImpl(
                     recipientId = peerId,
                     recipientName = cleanName,
                     content = message.text ?: "[Message]",
-                    type = MessageType.TEXT
+                    type = MessageType.TEXT,
+                    encryptedPayload = payloadData
                 )
             )
             return Result.success(Unit)
@@ -1010,7 +1010,8 @@ class ChatRepositoryImpl(
                             recipientId = peerId,
                             recipientName = cleanName,
                             content = message.text ?: "[Message]",
-                            type = MessageType.TEXT
+                            type = MessageType.TEXT,
+                            encryptedPayload = payloadData
                         )
                     )
                     Result.failure(Exception("All transports failed"))

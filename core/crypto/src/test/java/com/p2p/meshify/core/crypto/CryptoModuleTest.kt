@@ -11,8 +11,10 @@ import io.mockk.mockk
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
@@ -162,6 +164,37 @@ class PeerPublicKeyStoreTest {
         val storeWithTimeout = PeerPublicKeyStore(defaultWaitTimeoutMs = 50L)
         val result = storeWithTimeout.awaitKey("never_arrives")
         assertNull(result)
+    }
+
+    @Test
+    fun concurrent_storeAndMarkUnsupported_consistentState() = runTest {
+        val peerId = "race_peer"
+        val publicKey = generateKeyset()
+        val publicKeyBase64 = exportKeyBase64(publicKey)
+        val ready = kotlinx.coroutines.CompletableDeferred<Unit>()
+
+        coroutineScope {
+            val markJob = launch {
+                ready.await()
+                store.markPeerAsUnsupported(peerId)
+            }
+
+            val storeJob = launch {
+                ready.await()
+                store.store(peerId, publicKeyBase64)
+            }
+
+            ready.complete(Unit)
+            markJob.join()
+            storeJob.join()
+        }
+
+        val keyExists = store.getIfKnown(peerId) != null
+        val unsupported = store.isKnownUnsupported(peerId)
+        assertTrue("State must be consistent: either key is stored or peer is unsupported, not both",
+            keyExists || unsupported)
+        assertFalse("Key and unsupported flag must not both be true",
+            keyExists && unsupported)
     }
 
     private fun generateKeyset(): com.google.crypto.tink.KeysetHandle {

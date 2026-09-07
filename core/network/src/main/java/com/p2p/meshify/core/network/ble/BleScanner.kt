@@ -195,9 +195,8 @@ class BleScanner(
      * For compressed format, we return the raw hex without prefix - the full
      * peerId resolution happens during GATT connection via identity exchange.
      */
-    private fun extractPeerId(serviceData: ByteArray): String? {
+    internal fun extractPeerId(serviceData: ByteArray): String? {
         return if (serviceData.size >= 16) {
-            // Full UUID as UTF-8 string
             try {
                 String(serviceData, java.nio.charset.StandardCharsets.UTF_8)
                     .trim()
@@ -207,10 +206,7 @@ class BleScanner(
                 null
             }
         } else if (serviceData.size == 8) {
-            // Compressed UUID (MSB only) — return as hex for matching
             val msb = serviceData.toLong()
-            // We store this temporarily; the real peerId comes from the GATT connection
-            // where the full identity is exchanged
             "ble_${java.lang.Long.toHexString(msb).padStart(16, '0')}"
         } else {
             Logger.w("Unexpected service data size: ${serviceData.size}", tag = TAG)

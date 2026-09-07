@@ -1,5 +1,6 @@
 package com.p2p.meshify.core.data.repository
 
+import com.p2p.meshify.core.config.AppConfig
 import com.p2p.meshify.core.data.local.dao.MessageDao
 import com.p2p.meshify.core.data.local.dao.PendingMessageDao
 import com.p2p.meshify.core.data.local.entity.MessageEntity
@@ -37,12 +38,6 @@ class PendingMessageRepository(
     private val transportManager: TransportManager,
     private val fileManager: IFileManager
 ) {
-
-    companion object {
-        private const val RETRY_MAX_ATTEMPTS = 5
-        private const val RETRY_BASE_DELAY_MS = 1000L // 1 second
-        private const val RETRY_MAX_DELAY_MS = 30000L // 30 seconds
-    }
 
     // Observable pending count — allows UI to show badge/notification
     private val _pendingCount = MutableStateFlow(0)
@@ -136,14 +131,17 @@ class PendingMessageRepository(
     private suspend fun sendMessageWithBackoff(
         pm: PendingMessageEntity,
         msg: MessageEntity,
-        maxAttempts: Int = RETRY_MAX_ATTEMPTS,
+        maxAttempts: Int = AppConfig.PENDING_RETRY_MAX_ATTEMPTS,
         cleanupOnGiveUp: Boolean = true
     ): Result<Unit> {
         var lastException: Exception? = null
+        val hasEncryptedPayload = pm.encryptedPayload != null
 
         for (attempt in 1..maxAttempts) {
             try {
-                val data: ByteArray = when (msg.type) {
+                val data: ByteArray = if (hasEncryptedPayload) {
+                    pm.encryptedPayload
+                } else when (msg.type) {
                     MessageType.TEXT -> {
                         // Must match the live-send wire format: the receiver
                         // deserializes TEXT payloads as MessageEnvelope.
@@ -203,7 +201,8 @@ class PendingMessageRepository(
                     senderId = msg.senderId,
                     timestamp = msg.timestamp,
                     type = payloadType,
-                    data = data
+                    data = data,
+                    isEncrypted = hasEncryptedPayload
                 )
 
                 // Never mark SENT with an empty payload — an empty byte array
@@ -298,13 +297,13 @@ class PendingMessageRepository(
      * Formula: min(baseDelay * 2^attempt, maxDelay) + random jitter
      */
     private fun calculateBackoffDelay(attempt: Int): Long {
-        val exponentialDelay = RETRY_BASE_DELAY_MS * 2.0.pow(attempt - 1).toInt()
-        val cappedDelay = exponentialDelay.coerceAtMost(RETRY_MAX_DELAY_MS)
+        val exponentialDelay = AppConfig.PENDING_RETRY_BASE_DELAY_MS * 2.0.pow(attempt - 1).toInt()
+        val cappedDelay = exponentialDelay.coerceAtMost(AppConfig.PENDING_RETRY_MAX_DELAY_MS)
 
         // Add jitter (±25% randomness) to prevent thundering herd
         val jitter = (cappedDelay * 0.25 * (Math.random() * 2 - 1)).toLong()
 
-        return (cappedDelay + jitter).coerceAtLeast(RETRY_BASE_DELAY_MS)
+        return (cappedDelay + jitter).coerceAtLeast(AppConfig.PENDING_RETRY_BASE_DELAY_MS)
     }
 
 }

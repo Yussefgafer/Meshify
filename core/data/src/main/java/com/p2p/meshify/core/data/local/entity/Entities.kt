@@ -79,7 +79,8 @@ data class PendingMessageEntity(
     val timestamp: Long = System.currentTimeMillis(),
     var status: MessageStatus = MessageStatus.QUEUED,
     var retryCount: Int = 0,
-    val maxRetries: Int = 3
+    val maxRetries: Int = 3,
+    val encryptedPayload: ByteArray? = null
 )
 
 enum class MessageStatus {

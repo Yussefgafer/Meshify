@@ -19,6 +19,7 @@ import com.p2p.meshify.core.data.local.entity.*
  * - v5: Added trusted_peers table for TOFU security
  * - v6: Added unreadCount column to chats table for unread badges
  * - v7: Dropped trusted_peers table (TOFU security model removed)
+ * - v8: Added encryptedPayload column to pending_messages for encrypted retry
  */
 @Database(
     entities = [
@@ -27,7 +28,7 @@ import com.p2p.meshify.core.data.local.entity.*
         MessageAttachmentEntity::class,
         PendingMessageEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = true
 )
 abstract class MeshifyDatabase : RoomDatabase() {
@@ -39,6 +40,12 @@ abstract class MeshifyDatabase : RoomDatabase() {
         val MIGRATION_6_7 = object : Migration(6, 7) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("DROP TABLE IF EXISTS trusted_peers")
+            }
+        }
+
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE pending_messages ADD COLUMN encryptedPayload BLOB DEFAULT NULL")
             }
         }
     }
