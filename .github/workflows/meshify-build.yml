@@ -15,9 +15,9 @@ concurrency:
 
 jobs:
   validation:
-    name: Lint
+    name: Lint & Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
@@ -38,11 +38,15 @@ jobs:
           gradle-home-cache-cleanup: true
 
       - name: Run Lint
-        run: ./gradlew lintDebug --build-cache --continue
+        run: ./gradlew lintDebug --build-cache
+
+      - name: Run Unit Tests
+        run: ./gradlew testDebugUnitTest --build-cache
 
   build:
     name: Build APK
-    # Runs in parallel with `validation` so the APK is not blocked by lint.
+    needs: validation
+    # Build only runs after Lint & Tests pass — merge is blocked until `validation` is green.
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
