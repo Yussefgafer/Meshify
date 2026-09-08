@@ -8,6 +8,7 @@ on:
   pull_request:
     branches: [ "master", "main" ]
 
+# Cancel superseded runs on the same ref to save CI minutes.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -33,7 +34,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}
-          gradle-home-cache-cleanup: true
+          cache-cleanup: on-success
 
       - name: Run Lint
         run: ./gradlew lintDebug --build-cache
@@ -95,7 +96,7 @@ jobs:
           fi
 
       - name: Upload APKs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Meshify-Builds
           path: build-artifacts/*.apk
