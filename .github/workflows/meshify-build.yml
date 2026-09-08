@@ -8,21 +8,20 @@ on:
   pull_request:
     branches: [ "master", "main" ]
 
-# Cancel superseded runs on the same ref to save CI minutes.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  validation:
-    name: Lint & Tests
+  build:
+    name: Lint, Test & Build
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up JDK 26
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '26'
           distribution: 'temurin'
@@ -34,7 +33,6 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}
-          generate-job-summary: true
           gradle-home-cache-cleanup: true
 
       - name: Run Lint
@@ -43,31 +41,6 @@ jobs:
       - name: Run Unit Tests
         run: ./gradlew testDebugUnitTest --build-cache
 
-  build:
-    name: Build APK
-    needs: validation
-    # Build only runs after Lint & Tests pass — merge is blocked until `validation` is green.
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up JDK 26
-        uses: actions/setup-java@v4
-        with:
-          java-version: '26'
-          distribution: 'temurin'
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}
-          generate-job-summary: true
-          gradle-home-cache-cleanup: true
-
       - name: Decode Keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -75,6 +48,10 @@ jobs:
           if [ ! -z "$KEYSTORE_BASE64" ]; then
             echo "Decoding keystore..."
             echo -n "$KEYSTORE_BASE64" | base64 -d > meshify.jks
+            if [ ! -s meshify.jks ]; then
+              echo "::error::Keystore decode produced an empty file. Check KEYSTORE_BASE64 secret."
+              rm -f meshify.jks
+            fi
           else
             echo "KEYSTORE_BASE64 is missing. Skipping release signing."
           fi
@@ -98,6 +75,10 @@ jobs:
         id: version_info
         run: |
           VERSION_NAME=$(grep "versionName =" app/build.gradle.kts | awk -F'"' '{print $2}')
+          if [ -z "$VERSION_NAME" ]; then
+            echo "::error::Could not extract versionName from app/build.gradle.kts"
+            exit 1
+          fi
           echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
           echo "branch=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
 
@@ -128,10 +109,10 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Download Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: Meshify-Builds
           path: .
@@ -146,7 +127,7 @@ jobs:
           echo "Written $(wc -l < release_body.md) lines"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           draft: false
           prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'alpha') }}
