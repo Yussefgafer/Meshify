@@ -11,5 +11,9 @@ import com.p2p.meshify.MeshifyApp
 class TestReplyApp : MeshifyApp() {
     override fun onCreate() {
         // Intentionally empty: no Hilt, no transports, no crash handler.
+        // Still register the instance so code paths that reach
+        // MeshifyApp.instance (e.g. MainActivity language load) don't hit
+        // "lateinit property instance has not been initialized" in tests.
+        instance = this
     }
 }

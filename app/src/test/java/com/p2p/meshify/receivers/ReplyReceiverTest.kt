@@ -76,6 +76,11 @@ class ReplyReceiverTest {
 
     @Before
     fun setUp() {
+        // Cancel the companion singleton scopes that a previous test may have
+        // launched work on (e.g. scheduleRetry on the real IO dispatcher), so no
+        // retry job from one test fires inside a later one.
+        ReplyReceiver.cleanup()
+
         app = ApplicationProvider.getApplicationContext()
         context = app.applicationContext
 
@@ -260,11 +265,18 @@ class ReplyReceiverTest {
         )
         coEvery { repository.sendMessage("c1", "peer-1", "hello p2p", null) } returns kotlin.Result.success(Unit)
 
+        val successSink = mutableListOf<String?>()
+        receiver.successNotificationSink = { _, text -> successSink += text }
+
         val intent = buildValidReplyIntent(chatId = "c1", text = "hello p2p")
         receiver.onReceive(context, intent)
         testScheduler.advanceUntilIdle()
 
+        assertTrue("success sink must be invoked once", successSink.size == 1)
+        assertEquals("hello p2p", successSink.last())
+
         val shadow = org.robolectric.Shadows.shadowOf(context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager)
+        assertTrue("success notification must be posted", shadow.allNotifications.isNotEmpty())
         val last = shadow.allNotifications.last()
         assertEquals(context.getString(R.string.notification_reply_sent_title), last.extras.getString(Notification.EXTRA_TITLE))
         coVerify(exactly = 1) { repository.sendMessage("c1", "peer-1", "hello p2p", null) }

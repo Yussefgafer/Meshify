@@ -44,7 +44,6 @@ open class MeshifyApp : Application(), SingletonImageLoader.Factory {
     companion object {
         @Volatile
         lateinit var instance: MeshifyApp
-            private set
     }
 
     @Inject lateinit var chatRepository: ChatRepositoryImpl

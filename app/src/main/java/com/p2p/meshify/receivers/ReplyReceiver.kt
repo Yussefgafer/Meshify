@@ -225,6 +225,7 @@ class ReplyReceiver : BroadcastReceiver() {
         val app = context.applicationContext as? MeshifyApp
             ?: run {
                 Logger.e("ReplyReceiver -> Application context is not MeshifyApp, cannot proceed")
+                showReplyErrorNotification(context, context.getString(R.string.error_reply_unknown), chatId, replyText)
                 return
             }
 
@@ -269,6 +270,9 @@ class ReplyReceiver : BroadcastReceiver() {
                 val localApp = context.applicationContext as? MeshifyApp
                     ?: run {
                         Logger.e("ReplyReceiver -> Application context is not MeshifyApp inside coroutine")
+                        withContext(Dispatchers.Main) {
+                            showReplyErrorNotification(context, context.getString(R.string.error_reply_unknown), chatId, sanitizedText)
+                        }
                         return@launch
                     }
 
@@ -407,9 +411,9 @@ class ReplyReceiver : BroadcastReceiver() {
 
         try {
             NotificationManagerCompat.from(context)
-                .notify(System.currentTimeMillis().toInt(), notification)
-        } catch (e: SecurityException) {
-            Logger.e("ReplyReceiver -> Permission denied for error notification")
+                .postNotificationWrapper(System.currentTimeMillis().toInt(), notification)
+        } catch (e: Exception) {
+            Logger.e("ReplyReceiver -> Failed to show error notification", e)
         } finally {
             errorNotificationSink?.invoke(context, error)
         }
