@@ -35,6 +35,10 @@ android {
     }
 }
 
+kotlin {
+    jvmToolchain(21)
+}
+
 dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:domain"))

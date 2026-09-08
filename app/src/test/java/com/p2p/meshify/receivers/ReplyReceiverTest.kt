@@ -56,8 +56,6 @@ import org.robolectric.annotation.Config
  * - chat not found → localized error notification.
  *
  * Deliberately excluded:
- * - rate limiting: the companion singleton `replyRateLimiter` has no seam,
- *   and its in-memory state would leak between tests.
  * - retry timing: `scheduleRetry` schedules background jobs; we verify the
  *   immediate notification path only, to keep the suite fast and deterministic.
  */
@@ -314,5 +312,48 @@ class ReplyReceiverTest {
         receiver.onReceive(context, intent)
         testScheduler.advanceUntilIdle()
         assertEquals(context.getString(R.string.error_reply_chat_not_found), last.last())
+    }
+
+    @Test
+    fun `rate limited chat shows rate limited error`() {
+        every { notificationHelper.verifyReplySignature(any(), any(), any()) } returns true
+
+        val last = mutableListOf<String?>()
+        receiver.errorNotificationSink = { _, text -> last += text }
+        val uniqueId = "rate-limited-${java.util.UUID.randomUUID()}"
+        val intent = buildValidReplyIntent(chatId = uniqueId, text = "hello")
+        repeat(ReplyReceiver.MAX_REPLIES_PER_MINUTE + 1) {
+            receiver.onReceive(context, intent)
+            testScheduler.advanceUntilIdle()
+        }
+        assertEquals(context.getString(R.string.error_reply_rate_limited), last.last())
+    }
+
+    @Test
+    fun `non MeshifyApp application context shows unknown error`() {
+        every { notificationHelper.verifyReplySignature(any(), any(), any()) } returns true
+        val realBase = ApplicationProvider.getApplicationContext<Context>()
+        val fakeApp = mockk<Context>(relaxed = true)
+        val badContext = object : android.content.ContextWrapper(realBase) {
+            override fun getApplicationContext(): Context = fakeApp
+        }
+
+        val last = mutableListOf<String?>()
+        receiver.errorNotificationSink = { _, text -> last += text }
+        val intent = buildValidReplyIntent(chatId = "c1", text = "hello")
+        receiver.onReceive(badContext, intent)
+        testScheduler.advanceUntilIdle()
+        assertEquals(context.getString(R.string.error_reply_unknown), last.last())
+    }
+
+    @Test
+    fun `reply text sanitized to empty shows invalid content error`() {
+        every { notificationHelper.verifyReplySignature(any(), any(), any()) } returns true
+        val intent = buildValidReplyIntent(chatId = "c1", text = "\u0000\u001F\u007F")
+        val last = mutableListOf<String?>()
+        receiver.errorNotificationSink = { _, text -> last += text }
+        receiver.onReceive(context, intent)
+        testScheduler.advanceUntilIdle()
+        assertEquals(context.getString(R.string.error_reply_invalid_content), last.last())
     }
 }

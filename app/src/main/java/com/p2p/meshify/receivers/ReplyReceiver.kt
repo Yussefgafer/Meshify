@@ -74,6 +74,9 @@ class ReplyReceiver : BroadcastReceiver() {
         private const val SIGNATURE_MAX_AGE_MINUTES = 15L
         private const val SIGNATURE_MAX_AGE_MS = SIGNATURE_MAX_AGE_MINUTES * 60 * 1000L
 
+        @androidx.annotation.VisibleForTesting
+        internal const val MAX_REPLIES_PER_MINUTE = 10
+
         // Rate limiter scope for lifecycle management
         private val rateLimiterScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
@@ -82,7 +85,7 @@ class ReplyReceiver : BroadcastReceiver() {
 
         // Rate limiter: 10 replies per minute per chat, max 10000 identifiers to prevent memory exhaustion
         private val replyRateLimiter = RateLimiter(
-            maxRequests = 10,
+            maxRequests = MAX_REPLIES_PER_MINUTE,
             windowMs = 60 * 1000L,
             maxIdentifiers = 10000,
             scope = rateLimiterScope
