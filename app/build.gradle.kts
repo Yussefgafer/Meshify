@@ -82,6 +82,13 @@ android {
         buildConfig = true
     }
 
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            isReturnDefaultValues = true
+        }
+    }
+
     lint {
         abortOnError = false
         checkReleaseBuilds = false
@@ -92,6 +99,10 @@ android {
         resources.excludes.add("META-INF/*.txt")
         resources.excludes.add("META-INF/NOTICE.md")
     }
+}
+
+kotlin {
+    jvmToolchain(21)
 }
 
 room {
@@ -169,6 +180,8 @@ dependencies {
     testImplementation(libs.turbine)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.androidx.core.testing)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
     
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

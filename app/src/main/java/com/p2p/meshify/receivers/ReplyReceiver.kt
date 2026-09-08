@@ -39,6 +39,36 @@ import kotlinx.coroutines.withTimeoutOrNull
  */
 class ReplyReceiver : BroadcastReceiver() {
 
+    /**
+     * Factory for the HMAC verifier. Test seam: [NotificationHelper] signs with
+     * an AndroidKeyStore-backed key, which Robolectric cannot provide — tests
+     * substitute a fake to exercise the orchestration paths past the signature
+     * gate. The HMAC math itself is covered in core/data's NotificationHelperTest.
+     */
+    internal var notificationHelperFactory: (Context) -> NotificationHelper = { NotificationHelper(it) }
+
+    /**
+     * Factory for the reply-processing scope. Defaults to a shared [IO]-backed
+     * scope; tests override this with a [StandardTestDispatcher]-backed scope
+     * so coroutine work can be driven deterministically without sleeps.
+     */
+    internal var replyScopeFactory: (Context) -> CoroutineScope = {
+        CoroutineScope(Dispatchers.IO + SupervisorJob())
+    }
+
+    /**
+     * Sink for success notifications in tests. The production path still posts
+     * through `NotificationManagerCompat`; tests may inject a sink to avoid
+     * Robolectric shadow-notification flakiness.
+     */
+    internal var successNotificationSink: ((Context, String) -> Unit)? = null
+
+    /**
+     * Sink for error notifications in tests. Same rationale as
+     * [successNotificationSink].
+     */
+    internal var errorNotificationSink: ((Context, String) -> Unit)? = null
+
     companion object {
         // Changed from 5 minutes to 15 minutes to accommodate delayed user responses
         private const val SIGNATURE_MAX_AGE_MINUTES = 15L
@@ -49,9 +79,6 @@ class ReplyReceiver : BroadcastReceiver() {
 
         // Shared retry scope to prevent memory leak
         private val retryScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
-        // Shared scope for reply processing — prevents scope-per-reply leaks
-        private val replyScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
         // Rate limiter: 10 replies per minute per chat, max 10000 identifiers to prevent memory exhaustion
         private val replyRateLimiter = RateLimiter(
@@ -69,7 +96,6 @@ class ReplyReceiver : BroadcastReceiver() {
             replyRateLimiter.close()
             rateLimiterScope.cancel()
             retryScope.cancel()
-            replyScope.cancel()
         }
 
         /**
@@ -185,7 +211,7 @@ class ReplyReceiver : BroadcastReceiver() {
         }
 
         // Validate signature using NotificationHelper
-        val notificationHelper = NotificationHelper(context)
+        val notificationHelper = notificationHelperFactory(context)
         if (!notificationHelper.verifyReplySignature(chatId, signature, timestamp)) {
             Logger.e("ReplyReceiver -> Signature verification failed") // No chatId for security
             showReplyErrorNotification(context, context.getString(R.string.error_reply_not_authorized), null, replyText)
@@ -232,9 +258,12 @@ class ReplyReceiver : BroadcastReceiver() {
             return
         }
 
-        // Use goAsync() to prevent process death during reply processing
+        // Use goAsync() to prevent process death during reply processing.
+        // In direct unit tests (not system dispatch), `goAsync()` may return null;
+        // we tolerate that to keep BroadcastReceiver testable.
         val pendingResult = goAsync()
-        replyScope.launch {
+        val workScope = replyScopeFactory(context)
+        workScope.launch {
             try {
                 // Safe cast inside coroutine as well
                 val localApp = context.applicationContext as? MeshifyApp
@@ -295,7 +324,7 @@ class ReplyReceiver : BroadcastReceiver() {
                 // Schedule retry with exponential backoff
                 scheduleRetry(context, chatId, sanitizedText)
             } finally {
-                pendingResult.finish()
+                pendingResult?.finish()
             }
         }
     }
@@ -331,6 +360,7 @@ class ReplyReceiver : BroadcastReceiver() {
             // Always provide feedback
             Toast.makeText(context, context.getString(R.string.notification_reply_sent_toast), Toast.LENGTH_SHORT).show()
         }
+        successNotificationSink?.invoke(context, replyText)
     }
 
     /**
@@ -380,6 +410,8 @@ class ReplyReceiver : BroadcastReceiver() {
                 .notify(System.currentTimeMillis().toInt(), notification)
         } catch (e: SecurityException) {
             Logger.e("ReplyReceiver -> Permission denied for error notification")
+        } finally {
+            errorNotificationSink?.invoke(context, error)
         }
     }
 }

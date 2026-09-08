@@ -39,7 +39,7 @@ import javax.inject.Inject
  * Initializes Dependencies and Global Configurations.
  */
 @HiltAndroidApp
-class MeshifyApp : Application(), SingletonImageLoader.Factory {
+open class MeshifyApp : Application(), SingletonImageLoader.Factory {
 
     companion object {
         @Volatile

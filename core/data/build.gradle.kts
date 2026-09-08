@@ -41,6 +41,10 @@ android {
     }
 }
 
+kotlin {
+    jvmToolchain(21)
+}
+
 room {
     schemaDirectory("$projectDir/schemas")
 }
