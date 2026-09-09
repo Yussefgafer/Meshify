@@ -1,3 +1,6 @@
+V1.1.6
+
+
 V1.1.5
 - [Fix] `ReplyReceiver` inline-reply errors are now always surfaced — both null-app branches (pre-`goAsync` and inside the coroutine on `Dispatchers.Main`) emit a localized error notification instead of returning silently; error posting goes through `postNotificationWrapper` and degrades to a log rather than a crash, and `successNotificationSink` is invoked exactly once (`ReplyReceiverTest` 15 cases, Robolectric SDK 33, plus 3 new edge cases: rate-limit, non-`MeshifyApp` context via `ContextWrapper`, sanitized-to-empty control-char input; `TestReplyApp` sets `MeshifyApp.instance`; `MeshifyApp` opened for test subclassing).
 - [CI] `meshify-build.yml` validation is now `Lint & Tests` — `lintDebug` without `--continue`, plus `testDebugUnitTest`, and `build` has `needs: validation` so lint or test failures block the APK build and (with branch protection on required checks) block merge; timeout 30→40m; `release` still gated on `build`.

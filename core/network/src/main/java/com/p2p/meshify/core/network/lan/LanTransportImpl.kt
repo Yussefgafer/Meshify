@@ -53,7 +53,8 @@ class LanTransportImpl(
     private val settingsRepository: ISettingsRepository,
     private val peerIdProvider: SimplePeerIdProvider,
     private val messageCipher: MessageCipher? = null,
-    private val peerPublicKeyStore: PeerPublicKeyStore? = null
+    private val peerPublicKeyStore: PeerPublicKeyStore? = null,
+    private val clock: () -> Long = System::currentTimeMillis
 ) : IMeshTransport {
 
     // Transport metadata
@@ -88,7 +89,7 @@ class LanTransportImpl(
      * Get cached display name to avoid repeated firstOrNull() calls.
      */
     private suspend fun getCachedDisplayName(): String {
-        val now = System.currentTimeMillis()
+        val now = clock()
         if (now - lastCacheUpdate < CACHE_DURATION_MS && cachedDisplayName != "Unknown") {
             return cachedDisplayName
         }
@@ -101,7 +102,7 @@ class LanTransportImpl(
      * Get cached avatar hash to avoid repeated firstOrNull() calls.
      */
     private suspend fun getCachedAvatarHash(): String? {
-        val now = System.currentTimeMillis()
+        val now = clock()
         if (now - lastCacheUpdate < CACHE_DURATION_MS) {
             return cachedAvatarHash
         }
@@ -228,8 +229,14 @@ class LanTransportImpl(
      * Cleans up expired failure entries to prevent memory leak.
      */
     private fun cleanupFailedCounts() {
-        failureTracker.cleanupExpired()
+        failureTracker.cleanupExpired(nowMs = clock())
     }
+
+    /**
+     * Test-visible hook for driving failure-window expiry with virtual time.
+     */
+    internal fun currentFailureCountForTest(peerId: String): Int =
+        failureTracker.failureCount(peerId, nowMs = clock())
 
     private fun handleSystemCommand(senderId: String, command: String) {
         when (command) {
@@ -299,7 +306,7 @@ class LanTransportImpl(
                     version = 4,
                     name = displayName,
                     avatarHash = avatarHash,
-                    timestamp = System.currentTimeMillis(),
+                    timestamp = clock(),
                     publicKeyBase64 = messageCipher?.getPublicKeyBase64()
                 )
 
@@ -596,7 +603,7 @@ class LanTransportImpl(
             val exception = result.exceptionOrNull()
             // Only count network-related failures (timeout, connection refused)
             if (exception is SocketTimeoutException || exception is ConnectException) {
-                val isDead = failureTracker.recordFailure(targetDeviceId)
+                val isDead = failureTracker.recordFailure(targetDeviceId, nowMs = clock())
                 if (isDead) {
                     peerMapMutex.withLock {
                         peerMap.remove(targetDeviceId)
@@ -740,7 +747,7 @@ class LanTransportImpl(
                     version = 4,
                     name = myName,
                     avatarHash = myAvatarHash,
-                    timestamp = System.currentTimeMillis(),
+                    timestamp = clock(),
                     publicKeyBase64 = messageCipher?.getPublicKeyBase64()
                 )
 

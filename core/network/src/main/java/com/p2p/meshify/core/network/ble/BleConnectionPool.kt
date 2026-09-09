@@ -12,7 +12,9 @@ private const val TAG = "BleConnectionPool"
  * BLE has stricter connection limits than TCP (~7 active connections).
  * This pool manages GATT server/client connections with proper lifecycle.
  */
-class BleConnectionPool {
+class BleConnectionPool(
+    private val clock: () -> Long = System::currentTimeMillis
+) {
 
     companion object {
         private const val IDLE_TIMEOUT_MS = 2 * 60 * 1000L // 2 minutes (shorter than TCP)
@@ -40,9 +42,9 @@ class BleConnectionPool {
             }
             activeConnections[peerId] = BleConnectionState(
                 type = connectionType,
-                connectedAt = System.currentTimeMillis()
+                connectedAt = clock()
             )
-            connectionTimestamps[peerId] = System.currentTimeMillis()
+            connectionTimestamps[peerId] = clock()
         }
         Logger.d("BLE Connection added: $peerId (${connectionType.name})", tag = TAG)
         return true
@@ -86,7 +88,7 @@ class BleConnectionPool {
      * Marks a peer active — refreshes its idle-timer so it is not evicted by cleanupIdleConnections.
      */
     fun markActive(peerId: String) {
-        connectionTimestamps[peerId] = System.currentTimeMillis()
+        connectionTimestamps[peerId] = clock()
     }
 
     /**
@@ -101,7 +103,7 @@ class BleConnectionPool {
      * @return Number of connections cleaned up
      */
     fun cleanupIdleConnections(): Int {
-        val now = System.currentTimeMillis()
+        val now = clock()
         val toRemove = mutableListOf<String>()
 
         // Iterate connectionTimestamps directly — its values are Long timestamps.

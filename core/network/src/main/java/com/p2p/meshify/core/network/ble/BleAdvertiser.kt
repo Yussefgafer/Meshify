@@ -105,7 +105,10 @@ class BleAdvertiser(
     }
 
     /**
-     * Stop BLE advertising.
+     * Stop BLE advertising. Always clears the [isAdvertising] flag so a
+     * failed underlying `stopAdvertising` never leaves the advertiser
+     * permanently short-circuited by the `isAdvertising` guard on next
+     * `startAdvertising`.
      */
     @SuppressLint("MissingPermission")
     fun stopAdvertising() {
@@ -115,10 +118,11 @@ class BleAdvertiser(
 
         try {
             advertiser?.stopAdvertising(advertiseCallback)
-            isAdvertising = false
             Logger.d("BLE Advertising stopped", tag = TAG)
         } catch (e: Exception) {
             Logger.e("BLE Failed to stop advertising: ${e.message}", tag = TAG)
+        } finally {
+            isAdvertising = false
         }
     }
 
