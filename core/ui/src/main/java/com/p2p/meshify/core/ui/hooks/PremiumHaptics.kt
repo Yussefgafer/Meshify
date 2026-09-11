@@ -35,7 +35,7 @@ sealed class HapticPattern {
     data object Cancel : HapticPattern()
 }
 
-class PremiumHaptics(
+open class PremiumHaptics(
     private val hapticFeedback: HapticFeedback,
     private val vibrator: Vibrator?,
     private val enabled: Boolean
@@ -58,7 +58,7 @@ class PremiumHaptics(
         }
     }
 
-    fun perform(pattern: HapticPattern) {
+    open fun perform(pattern: HapticPattern) {
         if (!enabled) return
 
         when (pattern) {
