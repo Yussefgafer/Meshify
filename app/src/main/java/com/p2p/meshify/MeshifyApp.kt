@@ -28,7 +28,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -53,15 +52,85 @@ open class MeshifyApp : Application(), SingletonImageLoader.Factory {
     @Inject lateinit var database: MeshifyDatabase
     @Inject lateinit var bleTransportProvider: Provider<BleTransportImpl>
 
-    private val applicationScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    @androidx.annotation.VisibleForTesting
+    internal var applicationScopeOverride: CoroutineScope? = null
+    private val realApplicationScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    @androidx.annotation.VisibleForTesting
+    internal val applicationScope: CoroutineScope get() = applicationScopeOverride ?: realApplicationScope
 
     // Bounded parallel ingestion: heavy FILE disk-writes must not delay TEXT saves.
     // Room transactions serialize the writes; ordering within a peer is preserved by
     // the sender's timestamps.
-    private val ingestionSemaphore = Semaphore(4)
+    @androidx.annotation.VisibleForTesting
+    internal val ingestionSemaphore = Semaphore(4)
 
     // BLE Transport instance (created but not started until enabled in settings)
-    private var bleTransport: BleTransportImpl? = null
+    @androidx.annotation.VisibleForTesting
+    internal var bleTransport: BleTransportImpl? = null
+
+    @androidx.annotation.VisibleForTesting
+    internal fun startDependencies() {
+        applicationScope.launch { transportManager.startAllTransports() }
+        applicationScope.launch { transportManager.startDiscoveryOnAll() }
+        applicationScope.launch {
+            transportManager.getAllEventsFlow().collect { event ->
+                when (event) {
+                    is TransportEvent.PayloadReceived -> {
+                        Logger.d("MeshifyApp -> Received payload from ${event.deviceId}, type=${event.payload.type}")
+                        applicationScope.launch {
+                            ingestionSemaphore.withPermit {
+                                chatRepository.handleIncomingPayload(event.deviceId, event.payload)
+                            }
+                        }
+                    }
+                    is TransportEvent.DeviceDiscovered ->
+                        Logger.i("MeshifyApp -> Device discovered: ${event.deviceId} at ${event.address} via ${event.rssi} dBm")
+                    is TransportEvent.DeviceLost ->
+                        Logger.w("MeshifyApp -> Device lost: ${event.deviceId}")
+                    is TransportEvent.ConnectionEstablished ->
+                        Logger.i("MeshifyApp -> Connection established: ${event.deviceId}")
+                    is TransportEvent.ConnectionLost ->
+                        Logger.w("MeshifyApp -> Connection lost: ${event.deviceId}, reason: ${event.reason ?: "unknown"}")
+                    is TransportEvent.Error ->
+                        Logger.e("MeshifyApp -> Transport error: ${event.message}", event.exception)
+                }
+            }
+        }
+        applicationScope.launch {
+            settingsRepository.bleEnabled.collect { enabled ->
+                if (enabled) {
+                    if (bleTransport == null) {
+                        val missing = missingBluetoothPermissions()
+                        if (missing.isNotEmpty()) {
+                            Logger.e("MeshifyApp -> BLE enable blocked: missing permissions ${missing.joinToString()}; reverting setting")
+                            settingsRepository.setBleEnabled(false)
+                            return@collect
+                        }
+                        val newBleTransport = bleTransportProvider.get()
+                        bleTransport = newBleTransport
+                        transportManager.registerTransport("ble", newBleTransport)
+                        newBleTransport.start()
+                        newBleTransport.startDiscovery()
+                        Logger.i("MeshifyApp -> BLE transport enabled and started")
+                    }
+                } else {
+                    bleTransport?.let { transport ->
+                        transport.stopDiscovery()
+                        transport.stop()
+                        transportManager.unregisterTransport("ble")
+                        Logger.i("MeshifyApp -> BLE transport disabled, stopped, and unregistered")
+                    }
+                    bleTransport = null
+                }
+            }
+        }
+        applicationScope.launch {
+            settingsRepository.transportMode.collect { mode ->
+                transportManager.setTransportMode(mode)
+                Logger.i("MeshifyApp -> Transport mode set to $mode")
+            }
+        }
+    }
 
     override fun onCreate() {
         instance = this
@@ -79,91 +148,7 @@ open class MeshifyApp : Application(), SingletonImageLoader.Factory {
             existingCrashHandler?.uncaughtException(thread, throwable)
         }
 
-        // Start all transports
-        applicationScope.launch {
-            transportManager.startAllTransports()
-        }
-
-        // Start discovery on all transports
-        applicationScope.launch {
-            transportManager.startDiscoveryOnAll()
-        }
-
-        // Collect events from ALL transports (merged flow)
-        applicationScope.launch {
-            transportManager.getAllEventsFlow().collect { event ->
-                when (event) {
-                    is TransportEvent.PayloadReceived -> {
-                        Logger.d("MeshifyApp -> Received payload from ${event.deviceId}, type=${event.payload.type}")
-                        applicationScope.launch {
-                            ingestionSemaphore.withPermit {
-                                chatRepository.handleIncomingPayload(event.deviceId, event.payload)
-                            }
-                        }
-                    }
-                    is TransportEvent.DeviceDiscovered -> {
-                        Logger.i("MeshifyApp -> Device discovered: ${event.deviceId} at ${event.address} via ${event.rssi} dBm")
-                    }
-                    is TransportEvent.DeviceLost -> {
-                        Logger.w("MeshifyApp -> Device lost: ${event.deviceId}")
-                    }
-                    is TransportEvent.ConnectionEstablished -> {
-                        Logger.i("MeshifyApp -> Connection established: ${event.deviceId}")
-                    }
-                    is TransportEvent.ConnectionLost -> {
-                        Logger.w("MeshifyApp -> Connection lost: ${event.deviceId}, reason: ${event.reason ?: "unknown"}")
-                    }
-                    is TransportEvent.Error -> {
-                        Logger.e("MeshifyApp -> Transport error: ${event.message}", event.exception)
-                    }
-                }
-            }
-        }
-
-        // Monitor BLE enabled setting and start/stop BLE transport accordingly
-        applicationScope.launch {
-            settingsRepository.bleEnabled.collect { enabled ->
-                if (enabled) {
-                    if (bleTransport == null) {
-                        // Guard against enabling BLE without the runtime perms. Without
-                        // this check, BleGattServer.startServer() / BleScanner would
-                        // SecurityException silently and the toggle would lie to the user.
-                        val missing = missingBluetoothPermissions()
-                        if (missing.isNotEmpty()) {
-                            Logger.e("MeshifyApp -> BLE enable blocked: missing permissions ${missing.joinToString()}; reverting setting")
-                            settingsRepository.setBleEnabled(false)
-                            return@collect
-                        }
-                        val newBleTransport = bleTransportProvider.get()
-                        bleTransport = newBleTransport
-                        // registerTransport MUST precede start(): the per-transport event
-                        // forwarder is subscribed here, so starting before registering would
-                        // drop early ConnectionEstablished events into the void.
-                        transportManager.registerTransport("ble", newBleTransport)
-                        newBleTransport.start()
-                        newBleTransport.startDiscovery()
-                        Logger.i("MeshifyApp -> BLE transport enabled and started")
-                    }
-                } else {
-                    bleTransport?.let { transport ->
-                        transport.stopDiscovery()
-                        transport.stop()
-                        transportManager.unregisterTransport("ble")
-                        Logger.i("MeshifyApp -> BLE transport disabled, stopped, and unregistered")
-                    }
-                    bleTransport = null
-                }
-            }
-        }
-
-        // Monitor transport mode setting and update TransportManager
-        applicationScope.launch {
-            settingsRepository.transportMode.collect { mode ->
-                transportManager.setTransportMode(mode)
-                Logger.i("MeshifyApp -> Transport mode set to $mode")
-            }
-        }
-
+        startDependencies()
         Logger.i("MeshifyApp -> Application onCreate COMPLETE")
     }
 
