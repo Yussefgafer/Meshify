@@ -1,80 +1,75 @@
-# Meshify
+Meshify
 
-> **Offline-first P2P messaging for Android — no servers, no internet, no compromises.**
+Offline-first P2P messaging for Android - no servers, no internet, no compromises.
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Kotlin-2.4.0-7F52FF.svg?logo=kotlin&logoColor=white" alt="Kotlin">
-  <img src="https://img.shields.io/badge/Min%20SDK-26%20(Android%208.0)-brightgreen.svg" alt="Min SDK">
-  <img src="https://img.shields.io/badge/Target%20SDK-36%20(Android%2016)-blue.svg" alt="Target SDK">
-  <img src="https://img.shields.io/github/repo-size/Yussefgafer/Meshify?color=orange" alt="Repo Size">
-  <img src="https://img.shields.io/badge/Version-1.1.4-purple.svg" alt="Version">
-  <img src="https://img.shields.io/badge/Status-Active-brightgreen.svg" alt="Status">
-</p>
+￼ ￼ ￼ ￼ ￼ ￼ 
 
-<p align="center">
-  <strong>Decentralized • Offline-Ready • Lightweight • Open Source</strong>
-</p>
+Decentralized • Offline-Ready • Lightweight • Open Source 
 
----
+🤖 Full Slop Code
 
-## 🤖 Full Slop Code
+This codebase was written and implemented using LLM.
 
-> This codebase was written and implemented using **LLM**.
+Built for offline-first, decentralized communication. 
 
-<p align="center">
-  <img src="https://img.shields.io/badge/AI--ASSISTED-Qwen-7F52FF.svg?logo=openai&logoColor=white" alt="AI Assisted">
-</p>
+Overview
 
----
+Meshify is a decentralized peer-to-peer messaging application that enables real-time communication between Android devices on the same local network - without requiring internet connectivity or central servers.
 
-<p align="center">
-  <strong>Built with ♥ for offline-first, decentralized communication.</strong>
-</p>
+Built with Clean Architecture, Jetpack Compose, and Material 3, Meshify delivers a modern, performant, and privacy -respecting messaging experience.
 
-## Overview
+Core Philosophy
 
-Meshify is a **decentralized peer-to-peer messaging application** that enables real-time communication between Android devices on the same local network — **without requiring internet connectivity or central servers**.
+Zero Infrastructure: No servers, no cloud, no accounts. Just direct device-to-device communication.
 
-Built with **Clean Architecture**, **Jetpack Compose**, and **Material 3**, Meshify delivers a modern, performant, and privacy-respecting messaging experience.
+Offline-First: Works entirely on local networks (WiFi / LAN). Internet is optional.
 
-### Core Philosophy
+No privacy: No encryption overhead. Messages travel as plaintext over LAN for maximum simplicity and speed but No telemetry, no analytics, no data collection.
 
-- **Zero Infrastructure**: No servers, no cloud, no accounts. Just direct device-to-device communication.
-- **Offline-First**: Works entirely on local networks (WiFi / LAN). Internet is optional.
-- **No privacy**: No encryption overhead. Messages travel as plaintext over LAN for maximum simplicity and speed.
-- **Privacy Respecting**: No telemetry, no analytics, no data collection. Your conversations stay on your device.
+Key Features
 
----
+Rich Messaging
 
-## Key Features
+1-on-1 messaging with threaded replies
 
-### Rich Messaging
-- **1-on-1 messaging** with threaded replies
-- **File attachments** — images, videos, documents
-- **Message reactions**, delete, and forward
-- **Message status tracking** — Queued, Sending, Sent, Delivered, Read, Failed
-- **Offline storage** with Room database and pagination
+File attachments - images, videos, documents
 
-### Peer Discovery & Transport
-- **mDNS/NSD** automatic peer discovery on local networks
-- **BLE transport (Beta)** (optional) — proximity-based messaging via Bluetooth Low Energy
-- **Real-time presence** — instant online/offline status indicators
-- **TCP-based transport** with connection pooling and keep-alive monitoring
-- **UUID-based peer identification** (no phone numbers, no accounts)
+Message reactions, delete, and forward
 
-### Modern UI/UX
-- **Material 3 Expressive (trying)** design system with dynamic colors
-- **Light / Dark / System** theme support + custom seed color picker
-- **Full Arabic & English localization** with RTL layout support
+Message status tracking - Queued, Sending, Sent, Delivered, Read, Failed
 
----
+Offline storage with Room database and pagination
 
-### Usage
+Peer Discovery & Transport
 
-1. Connect two or more Android devices to the **same WiFi network**
-2. Launch Meshify on each device
-3. Grant required permissions on first launch
-4. Peers appear automatically via mDNS discovery
-5. Tap a peer to start messaging
+mDNS/NSD automatic peer discovery on local networks
 
-> **Note:** Meshify operates on **local networks only**. No internet connection required.
+BLE transport (Beta) (optional) - proximity-based messaging via Bluetooth Low Energy
+
+Real-time presence - instant online/offline status indicators
+
+TCP-based transport with connection pooling and keep-alive monitoring
+
+UUID-based peer identification (no phone numbers, no accounts)
+
+Modern UI/UX
+
+Material 3 Expressive (trying) design system with dynamic colors
+
+Light / Dark / System theme support + custom seed color picker
+
+Full Arabic & English localization with RTL layout support
+
+Usage
+
+Connect two or more Android devices to the same WiFi network
+
+Launch Meshify on each device
+
+Grant required permissions on first launch
+
+Peers appear automatically via mDNS discovery
+
+Tap a peer to start messaging
+
+Note: Meshify operates on local networks only. No internet connection required - At least for now.
