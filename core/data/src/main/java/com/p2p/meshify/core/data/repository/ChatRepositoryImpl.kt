@@ -998,7 +998,7 @@ class ChatRepositoryImpl(
                     }
                 }
 
-                val firstSuccess = results.find { it.isSuccess }
+                val firstSuccess = results.find { it.getOrNull()?.isSuccess ?: false }
                 if (firstSuccess != null) {
                     messageDao.updateMessageStatus(messageId, MessageStatus.SENT)
                     Result.success(Unit)
